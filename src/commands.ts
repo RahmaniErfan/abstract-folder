@@ -1,14 +1,34 @@
-import { App, Modal, Setting, TFile, Notice } from "obsidian";
+import { App, Modal, Setting, TFile, Notice, FuzzySuggestModal } from "obsidian";
 import { AbstractFolderPluginSettings } from "./settings";
+
+export class ParentPickerModal extends FuzzySuggestModal<TFile> {
+  private onChoose: (file: TFile) => void;
+
+  constructor(app: App, onChoose: (file: TFile) => void) {
+    super(app);
+    this.onChoose = onChoose;
+    this.setPlaceholder("Select parent note");
+  }
+
+  getItems(): TFile[] {
+    return this.app.vault.getMarkdownFiles();
+  }
+
+  getItemText(file: TFile): string {
+    return file.path;
+  }
+
+  onChooseItem(file: TFile, evt: MouseEvent | KeyboardEvent) {
+    this.onChoose(file);
+  }
+}
 
 export class CreateChildModal extends Modal {
   private settings: AbstractFolderPluginSettings;
   private childName = "";
-  private parentPath = "";
-  private parentFile: TFile | null = null;
-  private onSubmit: (childName: string, parentFile: TFile) => void;
+  private onSubmit: (childName: string) => void;
 
-  constructor(app: App, settings: AbstractFolderPluginSettings, onSubmit: (childName: string, parentFile: TFile) => void) {
+  constructor(app: App, settings: AbstractFolderPluginSettings, onSubmit: (childName: string) => void) {
     super(app);
     this.settings = settings;
     this.onSubmit = onSubmit;
@@ -21,58 +41,36 @@ export class CreateChildModal extends Modal {
     new Setting(contentEl)
       .setName("Child Name")
       .setDesc("The virtual name for the new note (e.g., 'Logs').")
-      .addText((text) =>
+      .addText((text) => {
+        text.inputEl.focus(); // Auto-focus the input
         text.onChange((value) => {
           this.childName = value;
-        })
-      );
-
-    new Setting(contentEl)
-      .setName("Parent Note")
-      .setDesc("Select the parent note.")
-      .addText((text) => {
-          text.setPlaceholder("Search parent note (fuzzy match)")
-          text.onChange((value) => {
-              if (!value) {
-                this.parentFile = null;
-                return;
-              }
-              // Simple iterative search for first match that contains the value (case-insensitive)
-              // This fixes the strict "Exact name" requirement
-              const files = this.app.vault.getMarkdownFiles();
-              const match = files.find(f => f.basename.toLowerCase().includes(value.toLowerCase()));
-              
-              if (match) {
-                  this.parentFile = match;
-                  this.parentPath = match.path;
-                  // We don't want to spam notifications on every keystroke
-                  // But visual feedback in a real SuggestModal would be better.
-                  // For now, let's assume if they type enough, they find it.
-                  // console.log(`Found candidate: ${match.path}`);
-              } else {
-                  this.parentFile = null;
-              }
-          });
+        });
+        text.inputEl.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+             this.submit();
+          }
+        });
       });
 
     new Setting(contentEl)
       .addButton((btn) =>
         btn
-          .setButtonText("Create")
+          .setButtonText("Next: Select Parent")
           .setCta()
           .onClick(() => {
-            if (!this.childName) {
-                new Notice("Child name is required.");
-                return;
-            }
-            if (!this.parentFile) {
-                new Notice("Valid parent note is required.");
-                return;
-            }
-            this.close();
-            this.onSubmit(this.childName, this.parentFile);
+            this.submit();
           })
       );
+  }
+
+  private submit() {
+    if (!this.childName) {
+        new Notice("Child name is required.");
+        return;
+    }
+    this.close();
+    this.onSubmit(this.childName);
   }
 
   onClose() {

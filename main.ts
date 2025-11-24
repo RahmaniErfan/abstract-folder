@@ -2,7 +2,7 @@ import { App, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { AbstractFolderPluginSettings, DEFAULT_SETTINGS } from './src/settings';
 import { FolderIndexer } from './src/indexer';
 import { AbstractFolderView, VIEW_TYPE_ABSTRACT_FOLDER } from './src/view';
-import { CreateChildModal, createChildNote } from './src/commands';
+import { CreateChildModal, createChildNote, ParentPickerModal } from './src/commands';
 
 
 export default class AbstractFolderPlugin extends Plugin {
@@ -34,8 +34,10 @@ export default class AbstractFolderPlugin extends Plugin {
 			id: "create-abstract-child-note",
 			name: "Create Abstract Child Note",
 			callback: () => {
-				new CreateChildModal(this.app, this.settings, (childName, parentFile) => {
-					createChildNote(this.app, this.settings, childName, parentFile);
+				new CreateChildModal(this.app, this.settings, (childName) => {
+					new ParentPickerModal(this.app, (parentFile) => {
+						createChildNote(this.app, this.settings, childName, parentFile);
+					}).open();
 				}).open();
 			},
 		});
