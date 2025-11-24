@@ -2,6 +2,7 @@ import { App, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { AbstractFolderPluginSettings, DEFAULT_SETTINGS } from './src/settings';
 import { FolderIndexer } from './src/indexer';
 import { AbstractFolderView, VIEW_TYPE_ABSTRACT_FOLDER } from './src/view';
+import { CreateChildModal, createChildNote } from './src/commands';
 
 
 export default class AbstractFolderPlugin extends Plugin {
@@ -27,6 +28,16 @@ export default class AbstractFolderPlugin extends Plugin {
 			id: "open-abstract-folder-view",
 			name: "Open Abstract Folder View",
 			callback: () => this.activateView(),
+		});
+
+		this.addCommand({
+			id: "create-abstract-child-note",
+			name: "Create Abstract Child Note",
+			callback: () => {
+				new CreateChildModal(this.app, this.settings, (childName, parentFile) => {
+					createChildNote(this.app, this.settings, childName, parentFile);
+				}).open();
+			},
 		});
 
 		this.addSettingTab(new AbstractFolderSettingTab(this.app, this));
@@ -84,6 +95,33 @@ class AbstractFolderSettingTab extends PluginSettingTab {
 						this.plugin.settings.propertyName = value;
 						await this.plugin.saveSettings();
 						this.plugin.indexer.updateSettings(this.plugin.settings); // Notify indexer of setting change
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Show Aliases")
+			.setDesc("Use the first alias as the display name in the Abstract Folder view if available.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showAliases)
+					.onChange(async (value) => {
+						this.plugin.settings.showAliases = value;
+						await this.plugin.saveSettings();
+						this.plugin.indexer.updateSettings(this.plugin.settings);
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Auto Reveal Active File")
+			.setDesc("Automatically expand the folder tree to show the currently active file.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.autoReveal)
+					.onChange(async (value) => {
+						this.plugin.settings.autoReveal = value;
+						await this.plugin.saveSettings();
+						// Auto reveal is handled in the view, which reads settings directly or via updates
+						this.plugin.indexer.updateSettings(this.plugin.settings); // Trigger view refresh just in case
 					})
 			);
 	}

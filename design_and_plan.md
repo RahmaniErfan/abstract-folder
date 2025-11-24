@@ -8,6 +8,7 @@ A plugin that creates a virtual folder structure based on file properties rather
 - **Structure**: A Directed Acyclic Graph (DAG) where nodes are files.
 - **Root Nodes**: Files that have no `parent` property defined.
 - **Multi-Parent**: A file can appear under multiple parents in the view.
+- **Display Name**: The tree view can show a "Virtual Name" (from `aliases` or `title`) instead of the physical filename.
 
 ## 3. Architecture
 
@@ -18,31 +19,45 @@ A plugin that creates a virtual folder structure based on file properties rather
     *   Listens to `metadataCache` events (`changed`, `deleted`, `renamed`) to keep the map updated efficiently.
 3.  **`src/view.ts`**: The Custom View (`ItemView`).
     *   Renders the "Abstract Folders" in the sidebar.
-    *   Uses a recursive rendering strategy.
-    *   **Loop Detection**: Must track visited nodes in the current render path to prevent infinite recursion if users create loops (A -> B -> A).
-4.  **src/settings.ts**: Configuration.
+    *   **New**: Supports `aliases` for display nodes.
+    *   **New**: Highlights and expands to the currently active file (`file-open` event).
+4.  **`src/settings.ts`**: Configuration.
     *   `propertyName`: The frontmatter key to use (default: "parent").
+    *   `useAliases`: Boolean to toggle using aliases for display.
+5.  **`src/commands.ts` (New)**:
+    *   `Create Child Note`: Automates file creation with collision handling.
 
 ### B. Data Flow
 1.  **Startup**: Plugin loads -> Indexer scans all Markdown files -> Builds initial Graph -> View renders.
 2.  **Update**: User modifies a note's frontmatter -> `metadataCache` triggers -> Indexer updates specific node in Graph -> View re-renders.
+3.  **Navigation**: User opens a file -> View auto-expands to show that file in the hierarchy.
 
-## 4. Technical Constraints & Trade-offs
-*   **Performance**: Scanning the whole vault on load might be slow for huge vaults (10k+ notes).
-    *   *Mitigation*: The `metadataCache` is already cached by Obsidian, so looking up cache entries is fast. We don't need to read file contents, just metadata.
-*   **Loops**: A user might define A as parent of B, and B as parent of A.
-    *   *Solution*: The recursive renderer will pass a `Set<string>` of `ancestors` down the chain. If a node is already in `ancestors`, stop rendering that branch.
+## 4. Phase 2 Features (Addressing User Needs)
+
+### A. Visibility (Solves: "Hard to know actual links")
+*   **Active File Reveal**: When opening a note, the Abstract Folder View will automatically expand to show that note's location(s) in the hierarchy.
+
+### B. Naming & Structure (Solves: "Naming Collisions")
+*   **Strategy**: **Contextual Suffix Naming**.
+    *   We want the filename to be as simple as possible.
+    *   **Attempt 1**: `ChildName.md` (e.g. `Logs.md`)
+    *   **Attempt 2 (Collision)**: `ChildName (ParentName).md` (e.g. `Logs (Work).md`)
+    *   **Attempt 3 (Collision)**: `ChildName (ParentName) 1.md`
+    *   **Virtual Display**: The view simply shows `aliases` (e.g., "Logs") so the user doesn't see the suffix in the tree.
+
+### C. Search Improvements
+*   The "Create Child" modal will use a fuzzy search against all Markdown files in the vault to ensure the user can find the intended parent, even if casing differs.
 
 ## 5. Implementation Plan
 
-- [ ] **Scaffold Project Structure**: Create `src/` directory and organize files (`indexer.ts`, `view.ts`, `settings.ts`).
-- [ ] **Implement Settings**: Allow changing the property name.
-- [ ] **Implement Indexer**:
-    - [ ] Build the initial graph from `app.metadataCache`.
-    - [ ] Handle cache updates (efficiently update graph without full rebuild).
-- [ ] **Implement View (UI)**:
-    - [ ] Register the custom view type.
-    - [ ] Build the recursive Tree component (using standard DOM creation or a lightweight helper).
-    - [ ] Handle "opening" notes when clicked.
-- [ ] **Integration**: Connect Indexer to View (View refreshes when Indexer notifies of change).
-- [ ] **Refinement**: Add open/close state for folders (collapsible).
+- [x] Scaffold project structure (src/ directories and files)
+- [x] Implement Settings (settings.ts)
+- [x] Implement Indexer (indexer.ts) logic
+- [x] Implement Abstract Folder View (view.ts) UI
+- [x] Connect Main logic (main.ts)
+- [x] Update Settings (add 'Show Aliases' and 'Auto Reveal' options)
+- [x] Update View (Render aliases, Implement active file reveal)
+- [ ] **Refine Creation Logic**:
+    - [ ] Update `commands.ts` to use **Contextual Suffix Naming**.
+    - [ ] Improve Parent Search in Modal (iterate vault files instead of strict path lookup).
+- [ ] Verify and Test

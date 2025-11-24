@@ -106,12 +106,25 @@ export class FolderIndexer {
   }
 
   private resolveLinkToPath(link: string, containingFilePath: string): string | null {
-    // Clean the link to remove wiki-link brackets if present, and any potential aliases
-    const cleanedLink = link.replace(/\[\[|\]\]/g, '').split('|')[0].trim();
-    if (!cleanedLink) return null;
+    // 1. Remove outer quotes (YAML string behavior)
+    let cleaned = link.replace(/^["']+|["']+$|^\s+|[\s]+$/g, '');
+
+    // 2. Remove wiki-link brackets
+    cleaned = cleaned.replace(/\[\[|\]\]/g, '');
+
+    // 3. Handle Pipe aliases [[Link|Alias]] -> Link
+    cleaned = cleaned.split('|')[0];
+
+    // 4. Trim again
+    cleaned = cleaned.trim();
+
+    // 5. Remove internal quotes that might have been inside the brackets (e.g. [["Work"]])
+    cleaned = cleaned.replace(/^["']+|["']+$/g, '');
+
+    if (!cleaned) return null;
 
     // Resolve the link relative to the containing file
-    const resolvedFile = this.app.metadataCache.getFirstLinkpathDest(cleanedLink, containingFilePath);
+    const resolvedFile = this.app.metadataCache.getFirstLinkpathDest(cleaned, containingFilePath);
     return resolvedFile ? resolvedFile.path : null;
   }
 

@@ -34,6 +34,49 @@ export class AbstractFolderView extends ItemView {
 
     // @ts-ignore: Custom events triggered by this.app.workspace.trigger should be listened to via this.app.workspace.on
     this.registerEvent(this.app.workspace.on("abstract-folder:graph-updated", this.renderView, this));
+
+    if (this.settings.autoReveal) {
+      this.registerEvent(this.app.workspace.on("file-open", this.onFileOpen, this));
+    }
+  }
+
+  private onFileOpen = async (file: TFile | null) => {
+    if (!file || !this.settings.autoReveal) return;
+    
+    // We need to wait a bit for the graph to potentially update if this is a new file
+    // although for navigation existing files, it should be instant.
+    // Finding the node(s) corresponding to this file
+    this.revealFile(file.path);
+  }
+
+  public revealFile(filePath: string) {
+    const fileNodeEls = this.contentEl.querySelectorAll(`.abstract-folder-node-name[data-path="${filePath}"]`);
+    fileNodeEls.forEach(el => {
+      // DOM structure: node(header(name), childrenContainer(node...))
+      // Actually: node -> header -> name
+      // Parent is: childrenContainer -> node
+      // We need to walk up the DOM opening details
+      
+      let currentEl = el.closest(".abstract-folder-node");
+      while (currentEl) {
+         const parentContainer = currentEl.parentElement;
+         if (parentContainer && parentContainer.classList.contains("abstract-folder-children")) {
+             parentContainer.style.display = "block";
+             // Find the toggle for this container
+             const parentNode = parentContainer.parentElement; // The abstract-folder-node containing this list
+             if (parentNode) {
+                 const toggle = parentNode.querySelector(".abstract-folder-toggle");
+                 if (toggle) toggle.textContent = "▼";
+             }
+             currentEl = parentNode;
+         } else {
+             break;
+         }
+      }
+      
+      // Scroll into view (focus on the first instance found usually sufficient)
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+    });
   }
 
   async onClose() {
@@ -118,7 +161,17 @@ export class AbstractFolderView extends ItemView {
 
     const nodeEl = parentEl.createEl("div", { cls: "abstract-folder-node" });
     const headerEl = nodeEl.createEl("div", { cls: "abstract-folder-node-header" });
-    const nameEl = headerEl.createEl("span", { text: this.getDisplayName(node), cls: "abstract-folder-node-name" });
+    const nameEl = headerEl.createEl("span", {
+      text: this.getDisplayName(node),
+      cls: "abstract-folder-node-name",
+      attr: { "data-path": node.path }
+    });
+
+    // Highlight if this is the active file
+    const activeFile = this.app.workspace.getActiveFile();
+    if (activeFile && activeFile.path === node.path) {
+        nameEl.addClass("is-active");
+    }
 
     nameEl.on("click", ".abstract-folder-node-name", () => {
       if (node.file) {
@@ -152,6 +205,15 @@ export class AbstractFolderView extends ItemView {
 
   private getDisplayName(node: FolderNode): string {
     if (node.file) {
+        if (this.settings.showAliases) {
+            const cache = this.app.metadataCache.getFileCache(node.file);
+            const aliases = cache?.frontmatter?.aliases;
+            if (aliases && Array.isArray(aliases) && aliases.length > 0) {
+                return aliases[0];
+            } else if (aliases && typeof aliases === 'string') {
+                return aliases;
+            }
+        }
         return node.file.basename;
     }
     // For root nodes that don't correspond to an actual file but are implicit folders
