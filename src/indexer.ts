@@ -50,7 +50,7 @@ export class FolderIndexer {
 
     this.app.vault.on("delete", (file) => {
       if (file instanceof TFile) {
-        this.removeFileFromGraph(file);
+        this.deleteFileFromGraph(file);
       }
     });
 
@@ -134,14 +134,18 @@ export class FolderIndexer {
   }
 
   private updateFileInGraph(file: TFile, cache: CachedMetadata) {
-    this.removeFileFromGraph(file); // Remove old relationships
+    this.removeFileChildRelationships(file); // Remove old relationships where it is a child
     this.processFile(file); // Add new relationships
     this.app.workspace.trigger('abstract-folder:graph-updated'); // Notify view to re-render
   }
 
-  private removeFileFromGraph(file: TFile) {
-    this.allFiles.delete(file.path);
-
+  /**
+   * Removes a file's relationships where it acts as a CHILD.
+   * Does NOT remove its entry from `parentToChildren` if it acts as a PARENT.
+   * This is used for updates where a file's own parent links might change,
+   * but its status as a parent to other files remains.
+   */
+  private removeFileChildRelationships(file: TFile) {
     // Remove file as a child from its parents
     const parentsOfFile = this.childToParents.get(file.path);
     if (parentsOfFile) {
@@ -153,6 +157,17 @@ export class FolderIndexer {
       }
     }
     this.childToParents.delete(file.path);
+  }
+
+  /**
+   * Completely removes a file from the graph, including its identity as a parent.
+   * This is used when a file is deleted.
+   */
+  private deleteFileFromGraph(file: TFile) {
+    this.allFiles.delete(file.path); // Remove from master list
+
+    // Remove child-side relationships
+    this.removeFileChildRelationships(file);
 
     // Remove file as a parent from its children
     const childrenOfFile = this.parentToChildren[file.path];
@@ -164,51 +179,21 @@ export class FolderIndexer {
         }
       }
     }
-    delete this.parentToChildren[file.path];
-
-    // Check if any removed parent/child is now an orphan and remove from allFiles if needed.
-    // This is a bit complex as a file could be a parent, child, and standalone.
-    // For simplicity, a full rebuild might be easier for allFiles integrity, but
-    // for incremental updates, we just ensure it's removed if it's not a parent or child of anything else.
-    // A more robust check might involve iterating through all remaining entries to see if this file path is referenced.
-    // For now, we rely on `processFile` to re-add it if it's still relevant.
+    delete this.parentToChildren[file.path]; // Completely remove this file as a parent
     this.app.workspace.trigger('abstract-folder:graph-updated'); // Notify view to re-render
   }
 
   private renameFileInGraph(file: TFile, oldPath: string) {
-    // Remove old entries
-    this.removeFileFromGraph({ path: oldPath } as TFile); // Simulate deletion of old path
+    // Completely remove all traces of the old path
+    this.deleteFileFromGraph({ path: oldPath } as TFile);
 
-    // Re-process the file with its new path
+    // Re-process the file with its new path to establish all its relationships
     this.processFile(file);
 
-    // Update references in existing children's parent lists and parent's children lists
-    for (const parentPath in this.parentToChildren) {
-      const children = this.parentToChildren[parentPath];
-      if (children.has(oldPath)) {
-        children.delete(oldPath);
-        children.add(file.path);
-      }
-    }
-
-    const childEntriesToUpdate: [string, Set<string>][] = [];
-    this.childToParents.forEach((parents, childPath) => {
-      if (parents.has(oldPath)) {
-        parents.delete(oldPath);
-        parents.add(file.path);
-      }
-      if (childPath === oldPath) {
-        childEntriesToUpdate.push([childPath, parents]);
-      }
-    });
-
-    for (const [oldChildPath, parents] of childEntriesToUpdate) {
-        this.childToParents.delete(oldChildPath);
-        this.childToParents.set(file.path, parents);
-    }
-    this.allFiles.delete(oldPath);
-    this.allFiles.add(file.path);
-
+    // After renaming, a full graph rebuild is the most robust way to ensure
+    // all existing references (especially from children whose `parent` property
+    // might point to the old file name/path) are correctly re-resolved.
+    this.buildGraph();
     this.app.workspace.trigger('abstract-folder:graph-updated'); // Notify view to re-render
   }
 }
