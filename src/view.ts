@@ -1,8 +1,9 @@
-import { ItemView, WorkspaceLeaf, TFile, setIcon, Menu } from "obsidian";
+import { ItemView, WorkspaceLeaf, TFile, setIcon, Menu, Modal, App, Setting, Notice } from "obsidian";
 import { FolderIndexer } from "./indexer";
 import { FileGraph, FolderNode } from "./types";
 import { AbstractFolderPluginSettings } from "./settings";
 import { IconModal } from "./ui/icon-modal";
+import { CreateChildModal, createChildNote } from './commands';
 
 export const VIEW_TYPE_ABSTRACT_FOLDER = "abstract-folder-view";
 
@@ -290,6 +291,17 @@ export class AbstractFolderView extends ItemView {
           })
       );
 
+      menu.addItem((item) =>
+        item
+          .setTitle("Create Note Here")
+          .setIcon("plus-circle")
+          .onClick(() => {
+            new CreateChildModal(this.app, this.settings, (childName) => {
+              createChildNote(this.app, this.settings, childName, node.file!);
+            }).open();
+          })
+      );
+
       // Add other common file actions here if desired in the future
       menu.addItem((item) =>
         item
@@ -309,9 +321,73 @@ export class AbstractFolderView extends ItemView {
             this.app.workspace.revealInFolder(node.file!);
           })
       );
+
+      menu.addItem((item) =>
+        item
+          .setTitle("Delete")
+          .setIcon("trash")
+          .setWarning(true) // Indicate a destructive action
+          .onClick(() => {
+            if (node.file) {
+              this.deleteFile(node.file);
+            }
+          })
+      );
     }
     
     menu.showAtPosition({ x: event.clientX, y: event.clientY });
+  }
+
+  private async deleteFile(file: TFile) {
+    // Show a confirmation dialog
+    const confirmed = await new Promise<boolean>((resolve) => {
+      const confirmModal = new (class extends Modal {
+        constructor(app: App, private fileToDelete: TFile, private onConfirm: (result: boolean) => void) {
+          super(app);
+          this.fileToDelete = fileToDelete;
+          this.onConfirm = onConfirm;
+        }
+
+        onOpen() {
+          this.titleEl.setText("Confirm Deletion");
+          this.contentEl.createEl("p", { text: `Are you sure you want to delete "${this.fileToDelete.basename}"? This cannot be undone.` });
+          new Setting(this.contentEl)
+            .addButton((btn) => {
+              btn.setButtonText("Delete")
+                 .setWarning() // Indicate a destructive action
+                 .onClick(() => {
+                   this.onConfirm(true);
+                   this.close();
+                 });
+            })
+            .addButton((btn) => {
+              btn.setButtonText("Cancel")
+                 .onClick(() => {
+                   this.onConfirm(false);
+                   this.close();
+                 });
+            });
+        }
+
+        onClose() {
+          // If modal closed without selection, assume cancel
+          this.onConfirm(false);
+        }
+      })(this.app, file, resolve); // Pass file and resolve to the modal
+      confirmModal.open();
+    });
+
+
+    if (confirmed) {
+      try {
+        await this.app.vault.delete(file);
+        new Notice(`Deleted: ${file.basename}`);
+        this.app.workspace.trigger('abstract-folder:graph-updated'); // Refresh view
+      } catch (error) {
+        new Notice(`Failed to delete file: ${error.message}`);
+        console.error("Failed to delete file:", error);
+      }
+    }
   }
 
   private async updateFileIcon(file: TFile, newIcon: string) {
