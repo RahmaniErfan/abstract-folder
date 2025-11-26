@@ -5,6 +5,7 @@ import { FileGraph, ParentChildMap } from "./types";
 export class FolderIndexer {
   private app: App;
   private settings: AbstractFolderPluginSettings;
+  private readonly PARENT_PROPERTY_NAMES = ["parent", "Parent"]; // Allowed frontmatter property names for parent links
   private graph: FileGraph;
   private parentToChildren: ParentChildMap;
   private childToParents: Map<string, Set<string>>;
@@ -81,25 +82,29 @@ export class FolderIndexer {
     this.allFiles.add(file.path);
     const metadata = this.app.metadataCache.getFileCache(file);
     if (metadata?.frontmatter) {
-      const parentProperty = metadata.frontmatter[this.settings.propertyName];
-      if (parentProperty) {
-        const parentLinks = Array.isArray(parentProperty) ? parentProperty : [parentProperty];
-        for (const parentLink of parentLinks) {
-          if (typeof parentLink === 'string') {
-            const resolvedParentPath = this.resolveLinkToPath(parentLink, file.path);
-            if (resolvedParentPath) {
-              if (!this.parentToChildren[resolvedParentPath]) {
-                this.parentToChildren[resolvedParentPath] = new Set();
-              }
-              this.parentToChildren[resolvedParentPath].add(file.path);
+      for (const propName of this.PARENT_PROPERTY_NAMES) {
+        const parentProperty = metadata.frontmatter[propName];
+        if (parentProperty) {
+          const parentLinks = Array.isArray(parentProperty) ? parentProperty : [parentProperty];
+          for (const parentLink of parentLinks) {
+            if (typeof parentLink === 'string') {
+              const resolvedParentPath = this.resolveLinkToPath(parentLink, file.path);
+              if (resolvedParentPath) {
+                if (!this.parentToChildren[resolvedParentPath]) {
+                  this.parentToChildren[resolvedParentPath] = new Set();
+                }
+                this.parentToChildren[resolvedParentPath].add(file.path);
 
-              if (!this.childToParents.has(file.path)) {
-                this.childToParents.set(file.path, new Set());
+                if (!this.childToParents.has(file.path)) {
+                  this.childToParents.set(file.path, new Set());
+                }
+                this.childToParents.get(file.path)?.add(resolvedParentPath);
+                this.allFiles.add(resolvedParentPath);
               }
-              this.childToParents.get(file.path)?.add(resolvedParentPath);
-              this.allFiles.add(resolvedParentPath);
             }
           }
+          // Found a parent property, no need to check other variations for this file
+          break;
         }
       }
     }
