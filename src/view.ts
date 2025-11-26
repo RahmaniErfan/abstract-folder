@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, TFile } from "obsidian";
+import { ItemView, WorkspaceLeaf, TFile, setIcon } from "obsidian";
 import { FolderIndexer } from "./indexer";
 import { FileGraph, FolderNode } from "./types";
 import { AbstractFolderPluginSettings } from "./settings";
@@ -50,32 +50,42 @@ export class AbstractFolderView extends ItemView {
   }
 
   public revealFile(filePath: string) {
-    const fileNodeEls = this.contentEl.querySelectorAll(`.abstract-folder-node-name[data-path="${filePath}"]`);
-    fileNodeEls.forEach(el => {
-      // DOM structure: node(header(name), childrenContainer(node...))
-      // Actually: node -> header -> name
-      // Parent is: childrenContainer -> node
-      // We need to walk up the DOM opening details
-      
-      let currentEl = el.closest(".abstract-folder-node");
-      while (currentEl) {
-         const parentContainer = currentEl.parentElement;
-         if (parentContainer && parentContainer.classList.contains("abstract-folder-children")) {
-             parentContainer.style.display = "block";
-             // Find the toggle for this container
-             const parentNode = parentContainer.parentElement; // The abstract-folder-node containing this list
-             if (parentNode) {
-                 const toggle = parentNode.querySelector(".abstract-folder-toggle");
-                 if (toggle) toggle.textContent = "▼";
-             }
-             currentEl = parentNode;
-         } else {
-             break;
-         }
-      }
-      
-      // Scroll into view (focus on the first instance found usually sufficient)
-      el.scrollIntoView({ block: "center", behavior: "smooth" });
+    // Look for the item specifically
+    const fileNodeEls = this.contentEl.querySelectorAll(`.abstract-folder-item[data-path="${filePath}"]`);
+    
+    fileNodeEls.forEach(itemEl => {
+       // Expand all parents
+       let currentEl = itemEl.parentElement; // children container
+       while (currentEl) {
+           if (currentEl.classList.contains("abstract-folder-children")) {
+               const parentItem = currentEl.parentElement; // abstract-folder-item
+               if (parentItem) {
+                   parentItem.removeClass("is-collapsed");
+                   currentEl = parentItem.parentElement;
+               } else {
+                   break;
+               }
+           } else if (currentEl.classList.contains("abstract-folder-tree")) {
+               break;
+           } else {
+               currentEl = currentEl.parentElement;
+           }
+       }
+       
+       // Scroll into view
+       itemEl.scrollIntoView({ block: "center", behavior: "smooth" });
+       
+       // Add highlight class momentarily? Or rely on render refresh. 
+       // renderView highlights active file already.
+       // But if we just opened it, renderView might not have run yet if graph didn't update.
+       // However, onFileOpen is triggered by workspace, so active file is set.
+       // We can manually add is-active to the self element.
+       const selfEl = itemEl.querySelector(".abstract-folder-item-self");
+       if (selfEl) {
+           // Remove other actives
+           this.contentEl.querySelectorAll(".abstract-folder-item-self.is-active").forEach(el => el.removeClass("is-active"));
+           selfEl.addClass("is-active");
+       }
     });
   }
 
@@ -89,7 +99,10 @@ export class AbstractFolderView extends ItemView {
     const rootNodes = this.buildTree(graph);
 
     if (rootNodes.length === 0) {
-      this.contentEl.createEl("div", { text: "No abstract folders found. Add 'parent: [[Parent Note]]' to your notes' frontmatter to create a structure." });
+      this.contentEl.createEl("div", { 
+          text: "No abstract folders found. Add 'parent: [[Parent Note]]' to your notes' frontmatter to create a structure.",
+          cls: "abstract-folder-empty-state"
+      });
       return;
     }
 
@@ -153,54 +166,69 @@ export class AbstractFolderView extends ItemView {
 
   private renderNode(node: FolderNode, parentEl: HTMLElement, ancestors: Set<string>) {
     if (ancestors.has(node.path)) {
-      // Loop detected, stop rendering this branch
-      const loopEl = parentEl.createEl("div", { cls: "abstract-folder-loop" });
-      loopEl.createEl("span", { text: `Loop detected: ${node.path}`, cls: "abstract-folder-loop-text" });
-      return;
+       // Prevent infinite loops in the tree
+       return;
     }
 
-    const nodeEl = parentEl.createEl("div", { cls: "abstract-folder-node" });
-    const headerEl = nodeEl.createEl("div", { cls: "abstract-folder-node-header" });
-    const nameEl = headerEl.createEl("span", {
-      text: this.getDisplayName(node),
-      cls: "abstract-folder-node-name",
-      attr: { "data-path": node.path }
-    });
+    const itemEl = parentEl.createDiv({ cls: "abstract-folder-item" });
+    itemEl.dataset.path = node.path; // For finding it later
 
-    // Highlight if this is the active file
+    if (node.isFolder) itemEl.addClass("is-folder");
+    else itemEl.addClass("is-file");
+
+    // Self Row (The clickable part)
+    const selfEl = itemEl.createDiv({ cls: "abstract-folder-item-self" });
+    
+    // Highlight if active
     const activeFile = this.app.workspace.getActiveFile();
     if (activeFile && activeFile.path === node.path) {
-        nameEl.addClass("is-active");
+        selfEl.addClass("is-active");
     }
 
-    nameEl.on("click", ".abstract-folder-node-name", () => {
-      if (node.file) {
-        this.app.workspace.openLinkText(node.file.path, node.file.path);
-      }
+    // Collapse Icon (Only for folders)
+    if (node.isFolder) {
+        const iconEl = selfEl.createDiv({ cls: "abstract-folder-collapse-icon" });
+        setIcon(iconEl, "right-triangle");
+        
+        iconEl.addEventListener("click", (e) => {
+            e.stopPropagation();
+            this.toggleCollapse(itemEl);
+        });
+    }
+
+    // Inner Content (Title)
+    const innerEl = selfEl.createDiv({ cls: "abstract-folder-item-inner" });
+    innerEl.setText(this.getDisplayName(node));
+
+    // Interaction: Click Title
+    innerEl.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (node.file) {
+            this.app.workspace.openLinkText(node.file.path, node.file.path);
+        } else {
+            // If it's a virtual folder without a file, clicking title toggles it
+            this.toggleCollapse(itemEl);
+        }
     });
 
-    if (node.isFolder && node.children.length > 0) {
-      headerEl.addClass("abstract-folder-collapsible");
-      const toggleEl = headerEl.createEl("span", { cls: "abstract-folder-toggle" });
-      toggleEl.setText("►"); // Right-pointing triangle
-
-      const childrenContainer = nodeEl.createEl("div", { cls: "abstract-folder-children" });
-      childrenContainer.style.display = "none";
-
-      toggleEl.on("click", ".abstract-folder-toggle", () => {
-        const isCollapsed = childrenContainer.style.display === "none";
-        childrenContainer.style.display = isCollapsed ? "block" : "none";
-        toggleEl.setText(isCollapsed ? "▼" : "►"); // Down-pointing or right-pointing triangle
-      });
-
-      const newAncestors = new Set(ancestors).add(node.path);
-      node.children.forEach(child => {
-        this.renderNode(child, childrenContainer, newAncestors);
-      });
-    } else if (!node.isFolder && node.file) {
-        // It's a file, not a folder
-        nodeEl.addClass("abstract-folder-file");
+    // Children Container
+    if (node.isFolder) {
+        const childrenEl = itemEl.createDiv({ cls: "abstract-folder-children" });
+        // Default expansion state: Expanded
+        // Use CSS to hide if .is-collapsed is present on itemEl
+        
+        if (node.children.length > 0) {
+            const newAncestors = new Set(ancestors).add(node.path);
+            node.children.forEach(child => this.renderNode(child, childrenEl, newAncestors));
+        } else {
+            // Optional: Render "Empty" text or nothing? 
+            // Obsidian renders empty folders just without children.
+        }
     }
+  }
+
+  private toggleCollapse(itemEl: HTMLElement) {
+      itemEl.toggleClass("is-collapsed", !itemEl.hasClass("is-collapsed"));
   }
 
   private getDisplayName(node: FolderNode): string {
@@ -216,9 +244,6 @@ export class AbstractFolderView extends ItemView {
         }
         return node.file.basename;
     }
-    // For root nodes that don't correspond to an actual file but are implicit folders
-    // we can just use the path as the display name.
-    // Or we could have a special icon/name for implicit folders.
     return node.path.split('/').pop() || node.path;
   }
 }

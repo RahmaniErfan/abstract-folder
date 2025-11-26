@@ -1,8 +1,101 @@
-/*
+/* Abstract Folder View Container */
+.abstract-folder-view {
+    padding: 0;
+    margin: 0;
+    height: 100%;
+    overflow-y: auto;
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.abstract-folder-tree {
+    padding-bottom: 20px;
+}
 
-If your plugin does not need CSS, delete this file.
+/* Empty State */
+.abstract-folder-empty-state {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-muted);
+}
 
-*/
+/* Tree Item Structure */
+.abstract-folder-item {
+    display: flex;
+    flex-direction: column;
+}
+
+/* The clickable row */
+.abstract-folder-item-self {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 2px 6px 2px 6px;
+    border-radius: var(--radius-s);
+    color: var(--text-normal);
+    transition: background-color 0.1s ease-in-out;
+}
+
+.abstract-folder-item-self:hover {
+    background-color: var(--nav-item-background-hover);
+    color: var(--nav-item-text-color-hover);
+}
+
+.abstract-folder-item-self.is-active {
+    background-color: var(--nav-item-background-active);
+    color: var(--nav-item-text-color-active);
+    font-weight: var(--font-medium);
+}
+
+/* Collapse Icon */
+.abstract-folder-collapse-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-right: 2px;
+    color: var(--collapse-icon-color);
+    transition: transform 0.1s ease-in-out;
+}
+
+.abstract-folder-item.is-collapsed > .abstract-folder-item-self > .abstract-folder-collapse-icon svg {
+    transform: rotate(-90deg);
+}
+
+.abstract-folder-collapse-icon:hover {
+    color: var(--collapse-icon-color-hover);
+}
+
+/* Inner Text */
+.abstract-folder-item-inner {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Children Container */
+.abstract-folder-children {
+    padding-left: 18px; /* Standard indentation */
+    border-left: 1px solid var(--nav-indentation-guide-color);
+    margin-left: 8px; /* Align guide line with icon center roughly */
+}
+
+/* Hide children when collapsed */
+.abstract-folder-item.is-collapsed > .abstract-folder-children {
+    display: none;
+}
+
+/* File items don't have collapse icons, add padding to align */
+.abstract-folder-item.is-file .abstract-folder-item-self {
+    padding-left: 24px; /* 6px padding + 16px icon width + 2px margin */
+}
+
+/* Loop detection warning */
+.abstract-folder-loop {
+    padding: 4px 8px;
+    background-color: var(--background-modifier-error-hover);
+    color: var(--text-error);
+    font-size: var(--font-ui-smaller);
+    margin-left: 20px;
+    border-radius: 4px;
+}
