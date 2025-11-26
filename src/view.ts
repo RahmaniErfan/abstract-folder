@@ -11,12 +11,15 @@ export class AbstractFolderView extends ItemView {
   private indexer: FolderIndexer;
   private settings: AbstractFolderPluginSettings;
   contentEl: HTMLElement; // Make it public to match ItemView's contentEl
+  private sortOrder: 'asc' | 'desc' = 'asc'; // Default sort order
+  private sortBy: 'name' | 'mtime' = 'name'; // Default sort by name. Add 'mtime' for modified time.
 
   constructor(leaf: WorkspaceLeaf, indexer: FolderIndexer, settings: AbstractFolderPluginSettings) {
     super(leaf);
     this.indexer = indexer;
     this.settings = settings;
     this.icon = "folder-tree"; // You can choose a different icon
+    this.navigation = false; // This view is not for navigation, hide nav arrows and bookmark button
   }
 
   getViewType(): string {
@@ -27,12 +30,20 @@ export class AbstractFolderView extends ItemView {
     return "Abstract Folders";
   }
 
-  async onOpen() {
+  public onOpen = async () => { // Corrected: single declaration as async arrow function assigned to property
+    console.log(`AbstractFolderView (Leaf Type: ${this.leaf.view.getViewType()}): onOpen started.`);
+    console.log(`Total leaves of type '${VIEW_TYPE_ABSTRACT_FOLDER}': ${this.app.workspace.getLeavesOfType(VIEW_TYPE_ABSTRACT_FOLDER).length}`);
+
     this.contentEl = this.containerEl.children[1] as HTMLElement;
     this.contentEl.empty();
     this.contentEl.addClass("abstract-folder-view");
 
+    this.addAction("arrow-up-down", "Sort order", (evt: MouseEvent) => this.showSortMenu(evt));
+    this.addAction("chevrons-down", "Expand all folders", () => this.expandAll());
+    this.addAction("chevrons-up", "Collapse all folders", () => this.collapseAll());
+
     this.renderView();
+    console.log(`AbstractFolderView (Leaf Type: ${this.leaf.view.getViewType()}): onOpen finished.`);
 
     // @ts-ignore: Custom events triggered by this.app.workspace.trigger should be listened to via this.app.workspace.on
     this.registerEvent(this.app.workspace.on("abstract-folder:graph-updated", this.renderView, this));
@@ -41,7 +52,6 @@ export class AbstractFolderView extends ItemView {
       this.registerEvent(this.app.workspace.on("file-open", this.onFileOpen, this));
     }
   }
-
   private onFileOpen = async (file: TFile | null) => {
     if (!file || !this.settings.autoReveal) return;
     
@@ -91,8 +101,11 @@ export class AbstractFolderView extends ItemView {
     });
   }
 
-  async onClose() {
+  public onClose = async () => { // Corrected: single declaration as async arrow function assigned to property
+    console.log(`AbstractFolderView (Leaf Type: ${this.leaf.view.getViewType()}): onClose started.`);
+    console.log(`Total leaves of type '${VIEW_TYPE_ABSTRACT_FOLDER}': ${this.app.workspace.getLeavesOfType(VIEW_TYPE_ABSTRACT_FOLDER).length}`);
     // this.registerEvent handles cleanup, no need to explicitly off
+    console.log(`AbstractFolderView (Leaf Type: ${this.leaf.view.getViewType()}): onClose finished.`);
   }
 
   private renderView = () => {
@@ -153,7 +166,7 @@ export class AbstractFolderView extends ItemView {
 
     // Sort children for consistent display
     nodesMap.forEach(node => {
-      node.children.sort((a, b) => a.path.localeCompare(b.path));
+      node.children.sort((a, b) => this.sortNodes(a, b));
     });
 
     const sortedRootNodes: FolderNode[] = [];
@@ -163,8 +176,84 @@ export class AbstractFolderView extends ItemView {
             sortedRootNodes.push(node);
         }
     });
-    sortedRootNodes.sort((a, b) => a.path.localeCompare(b.path));
+    sortedRootNodes.sort((a, b) => this.sortNodes(a, b));
     return sortedRootNodes;
+  }
+
+  private sortNodes(a: FolderNode, b: FolderNode): number {
+    let compareResult: number;
+
+    if (this.sortBy === 'name') {
+      compareResult = a.path.localeCompare(b.path);
+    } else if (this.sortBy === 'mtime') {
+      const fileA = a.file ? this.app.vault.getAbstractFileByPath(a.path) : null;
+      const fileB = b.file ? this.app.vault.getAbstractFileByPath(b.path) : null;
+
+      const mtimeA = (fileA instanceof TFile) ? fileA.stat.mtime : 0;
+      const mtimeB = (fileB instanceof TFile) ? fileB.stat.mtime : 0;
+      
+      compareResult = mtimeA - mtimeB;
+    } else {
+      compareResult = a.path.localeCompare(b.path); // Default to name sort
+    }
+
+    return this.sortOrder === 'asc' ? compareResult : -compareResult;
+  }
+
+  private setSort(sortBy: 'name' | 'mtime', sortOrder: 'asc' | 'desc') {
+    this.sortBy = sortBy;
+    this.sortOrder = sortOrder;
+    this.renderView();
+  }
+
+  private showSortMenu(event: MouseEvent) {
+    const menu = new Menu();
+
+    menu.addItem((item) =>
+      item
+        .setTitle("Sort by Name (A-Z)")
+        .setIcon(this.sortBy === 'name' && this.sortOrder === 'asc' ? "check" : "sort-asc")
+        .onClick(() => this.setSort('name', 'asc'))
+    );
+    menu.addItem((item) =>
+      item
+        .setTitle("Sort by Name (Z-A)")
+        .setIcon(this.sortBy === 'name' && this.sortOrder === 'desc' ? "check" : "sort-desc")
+        .onClick(() => this.setSort('name', 'desc'))
+    );
+    menu.addSeparator();
+    menu.addItem((item) =>
+      item
+        .setTitle("Sort by Modified (Old to New)")
+        .setIcon(this.sortBy === 'mtime' && this.sortOrder === 'asc' ? "check" : "sort-asc")
+        .onClick(() => this.setSort('mtime', 'asc'))
+    );
+    menu.addItem((item) =>
+      item
+        .setTitle("Sort by Modified (New to Old)")
+        .setIcon(this.sortBy === 'mtime' && this.sortOrder === 'desc' ? "check" : "sort-desc")
+        .onClick(() => this.setSort('mtime', 'desc'))
+    );
+
+    menu.showAtMouseEvent(event);
+  }
+
+  private expandAll() {
+    console.log(`AbstractFolderView (Leaf Type: ${this.leaf.view.getViewType()}): expandAll called.`);
+    const collapsedItems = this.contentEl.querySelectorAll(".abstract-folder-item.is-collapsed");
+    console.log(`Expanding ${collapsedItems.length} items.`);
+    collapsedItems.forEach(el => {
+      el.removeClass("is-collapsed");
+    });
+  }
+
+  private collapseAll() {
+    console.log(`AbstractFolderView (Leaf Type: ${this.leaf.view.getViewType()}): collapseAll called.`);
+    const expandableItems = this.contentEl.querySelectorAll(".abstract-folder-item.is-folder:not(.is-collapsed)");
+    console.log(`Collapsing ${expandableItems.length} items.`);
+    expandableItems.forEach(el => {
+      el.addClass("is-collapsed");
+    });
   }
 
   private renderNode(node: FolderNode, parentEl: HTMLElement, ancestors: Set<string>, depth: number) {
@@ -193,8 +282,8 @@ export class AbstractFolderView extends ItemView {
     // Collapse Icon (Only for folders)
     if (node.isFolder) {
         const iconEl = selfEl.createDiv({ cls: "abstract-folder-collapse-icon" });
-        setIcon(iconEl, "right-triangle");
-        
+        setIcon(iconEl, "right-triangle"); // Use right-triangle, then rotate with CSS
+
         iconEl.addEventListener("click", (e) => {
             e.stopPropagation();
             this.toggleCollapse(itemEl);
@@ -312,15 +401,6 @@ export class AbstractFolderView extends ItemView {
           })
       );
       
-      menu.addItem((item) =>
-        item
-          .setTitle("Reveal in File Explorer")
-          .setIcon("folder")
-          .onClick(() => {
-            // @ts-ignore - Obsidian's file-explorer has a revealInFolder method
-            this.app.workspace.revealInFolder(node.file!);
-          })
-      );
 
       menu.addItem((item) =>
         item

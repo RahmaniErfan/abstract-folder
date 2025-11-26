@@ -6,6 +6,51 @@
     overflow-y: auto;
 }
 
+/* Force the view header to display for the abstract-folder-view type */
+.workspace-leaf-content[data-type="abstract-folder-view"] .view-header {
+    display: flex !important;
+    /* Add any other necessary default header styles if they are missing */
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    height: 40px !important; /* Standard header height */
+    padding: 0 10px !important; /* Standard padding */
+    border-bottom: 1px solid var(--background-modifier-border) !important;
+    background-color: var(--background-primary) !important;
+}
+
+/* Ensure the actions container within the header is also displayed and styled */
+.workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important; /* Space between action buttons */
+}
+
+.workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-header-nav-buttons {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+}
+
+/* Hide the bookmark button with extreme prejudice */
+.workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-actions .mod-bookmark {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+}
+
+
 .abstract-folder-tree {
     padding-bottom: 20px;
 }
@@ -56,9 +101,13 @@
     color: var(--collapse-icon-color);
     transition: transform 0.1s ease-in-out;
 }
+.abstract-folder-collapse-icon svg {
+    transform: rotate(90deg); /* Default: points down when expanded */
+    transition: transform 0.1s ease-in-out;
+}
 
 .abstract-folder-item.is-collapsed > .abstract-folder-item-self > .abstract-folder-collapse-icon svg {
-    transform: rotate(-90deg);
+    transform: rotate(0deg); /* When collapsed: points right */
 }
 
 .abstract-folder-collapse-icon:hover {
@@ -197,3 +246,36 @@
     width: 100%;
     height: 100%;
 }
+
+/* Styles for view header actions (sort, expand/collapse buttons) */
+/* Styles for view header actions (sort, expand/collapse buttons) */
+/* Increased specificity to ensure override */
+.workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-actions .view-action {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 28px !important; /* Explicit width */
+    height: 28px !important; /* Explicit height */
+    min-width: 28px !important; /* Ensure minimum width */
+    min-height: 28px !important; /* Ensure minimum height */
+    color: var(--icon-color) !important; /* Use Obsidian's default icon color */
+    background-color: var(--background-secondary) !important; /* Give it a distinct background for visibility */
+    border: 1px solid var(--background-modifier-border) !important; /* Add a border */
+    border-radius: var(--radius-s) !important;
+    cursor: pointer !important;
+    transition: background-color 0.1s ease-in-out !important;
+    box-shadow: var(--shadow-s) !important; /* Add a subtle shadow for prominence */
+}
+
+.workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-actions .view-action:hover {
+    background-color: var(--background-modifier-hover) !important;
+    color: var(--icon-color-hover) !important;
+}
+
+/* Ensure icons within the buttons are also visible and sized correctly */
+.workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-actions .view-action svg {
+    width: 16px !important; /* Standard icon size */
+    height: 16px !important; /* Standard icon size */
+    stroke: currentColor !important;
+}
+

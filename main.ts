@@ -1,4 +1,4 @@
-import { App, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { App, Plugin, PluginSettingTab, Setting, WorkspaceLeaf } from 'obsidian';
 import { AbstractFolderPluginSettings, DEFAULT_SETTINGS } from './src/settings';
 import { FolderIndexer } from './src/indexer';
 import { AbstractFolderView, VIEW_TYPE_ABSTRACT_FOLDER } from './src/view';
@@ -56,18 +56,37 @@ onunload() {
 }
 
 async activateView() {
-	this.app.workspace.detachLeavesOfType(VIEW_TYPE_ABSTRACT_FOLDER);
+    let leaf: WorkspaceLeaf | null = null;
+    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_ABSTRACT_FOLDER);
 
-	const side = this.settings.openSide;
-	const leaf = side === 'left' ? this.app.workspace.getLeftLeaf(false) : this.app.workspace.getRightLeaf(false);
+    if (leaves.length > 0) {
+        // If a leaf of our view type already exists, use it
+        leaf = leaves[0];
+    } else {
+        // No existing leaf found, create a new one
+        const side = this.settings.openSide;
+        // Attempt to get an existing leaf in the target sidebar without forcing creation
+        // Then, if still null, create a new one.
+        if (side === 'left') {
+            leaf = this.app.workspace.getLeftLeaf(false); // Try to get existing left leaf
+            if (!leaf) {
+                leaf = this.app.workspace.getLeftLeaf(true); // If none, create a new one
+            }
+        } else { // right
+            leaf = this.app.workspace.getRightLeaf(false); // Try to get existing right leaf
+            if (!leaf) {
+                leaf = this.app.workspace.getRightLeaf(true); // If none, create a new one
+            }
+        }
+    }
 
-	if (leaf) {
-		await leaf.setViewState({
-			type: VIEW_TYPE_ABSTRACT_FOLDER,
-			active: true,
-		});
-		this.app.workspace.revealLeaf(leaf);
-	}
+    if (leaf) {
+        await leaf.setViewState({
+            type: VIEW_TYPE_ABSTRACT_FOLDER,
+            active: true,
+        });
+        this.app.workspace.revealLeaf(leaf);
+    }
 }
 
 	async loadSettings() {
