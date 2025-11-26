@@ -50,10 +50,17 @@ Quick starting guide for new plugin devs:
 - Make sure your NodeJS is at least v16 (`node --version`).
 - `npm i` or `yarn` to install dependencies.
 - `npm run dev` to start compilation in watch mode.
-
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+ 
+ ## Features
+ 
+ ### Hide Notes
+ If you wish to hide a note from the main Abstract Folders view, you can use the right-click context menu on any note in the view and select "Hide Note". This will add `hidden` to your configured parent property (e.g., `parent: hidden`). Hidden notes will appear under a special "Hidden" root folder in the Abstract Folders view. To unhide a note, simply right-click it within the "Hidden" folder and select "Unhide Note".
+ 
+ **Important Note on Case Sensitivity**: The "Parent Property Name" setting (e.g., 'parent', 'folder') is case-sensitive. Please ensure the casing of the property name in your note's frontmatter (e.g., `parent: [[My Parent]]`) exactly matches the configured setting for the plugin to function correctly.
+ 
+ ## Manually installing the plugin
+ 
+ - Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
 
 ## Improve code quality with eslint (optional)
 - [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
