@@ -129,3 +129,71 @@
     margin-left: 20px;
     border-radius: 4px;
 }
+
+/* Icon Modal Specific Styles */
+.abstract-folder-icon-modal .modal-content {
+    max-width: 600px; /* Adjust modal width for better icon grid display */
+}
+
+.abstract-folder-icon-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); /* Responsive grid */
+    gap: 8px;
+    padding: 10px 0;
+    max-height: 300px; /* Limit height and make scrollable */
+    overflow-y: auto;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+}
+
+.abstract-folder-grid-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border-radius: var(--radius-s);
+    cursor: pointer;
+    background-color: var(--background-secondary);
+    transition: background-color 0.1s ease-in-out, border-color 0.1s ease-in-out;
+    position: relative;
+    --icon-size: 20px; /* Larger icon size in picker */
+    border: 1px solid transparent;
+}
+
+.abstract-folder-grid-item:hover {
+    background-color: var(--background-modifier-hover);
+    border-color: var(--interactive-hover);
+}
+
+.abstract-folder-grid-item.is-active {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+}
+
+.abstract-folder-grid-item.is-active svg {
+    color: var(--text-on-accent);
+}
+
+.abstract-folder-no-icons {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-muted);
+}
+
+.abstract-folder-item-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px; /* Standard icon size */
+    height: 16px;
+    margin-right: 4px; /* Space between icon and text */
+    flex-shrink: 0; /* Prevent icon from shrinking */
+    font-size: 14px; /* For emojis */
+}
+
+.abstract-folder-item-icon svg {
+    width: 100%;
+    height: 100%;
+}

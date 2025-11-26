@@ -15,4 +15,5 @@ export interface FolderNode {
   path: string; // The path of the file or logical folder
   children: FolderNode[];
   isFolder: boolean;
+  icon?: string; // Optional icon or emoji from frontmatter
 }

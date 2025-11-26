@@ -1,7 +1,8 @@
-import { ItemView, WorkspaceLeaf, TFile, setIcon } from "obsidian";
+import { ItemView, WorkspaceLeaf, TFile, setIcon, Menu } from "obsidian";
 import { FolderIndexer } from "./indexer";
 import { FileGraph, FolderNode } from "./types";
 import { AbstractFolderPluginSettings } from "./settings";
+import { IconModal } from "./ui/icon-modal";
 
 export const VIEW_TYPE_ABSTRACT_FOLDER = "abstract-folder-view";
 
@@ -134,6 +135,7 @@ export class AbstractFolderView extends ItemView {
         path: path,
         children: [],
         isFolder: Object.keys(parentToChildren).includes(path), // A file is a "folder" if it has children
+        icon: file instanceof TFile ? this.app.metadataCache.getFileCache(file)?.frontmatter?.icon : undefined, // Read icon from frontmatter
       });
     });
 
@@ -198,6 +200,16 @@ export class AbstractFolderView extends ItemView {
         });
     }
 
+    // Icon/Emoji (Optional)
+    if (node.icon) {
+      const iconContainerEl = selfEl.createDiv({ cls: "abstract-folder-item-icon" });
+      setIcon(iconContainerEl, node.icon); // Attempt to set as an Obsidian icon
+      if (!iconContainerEl.querySelector('svg')) { // Check if an SVG element was created
+        // If no SVG was created, it's likely an emoji or text, so set text directly
+        iconContainerEl.setText(node.icon);
+      }
+    }
+
     // Inner Content (Title)
     const innerEl = selfEl.createDiv({ cls: "abstract-folder-item-inner" });
     innerEl.setText(this.getDisplayName(node));
@@ -212,6 +224,14 @@ export class AbstractFolderView extends ItemView {
             this.toggleCollapse(itemEl);
         }
     });
+
+    // Interaction: Right-click (Context Menu) - only for actual files
+    if (node.file) {
+      selfEl.addEventListener("contextmenu", (e) => {
+        e.preventDefault(); // Prevent default browser context menu
+        this.showContextMenu(e, node);
+      });
+    }
 
     // Children Container
     if (node.isFolder) {
@@ -253,5 +273,56 @@ export class AbstractFolderView extends ItemView {
         return node.file.basename;
     }
     return node.path.split('/').pop() || node.path;
+  }
+
+  private showContextMenu(event: MouseEvent, node: FolderNode) {
+    const menu = new Menu();
+
+    if (node.file) { // Context menu only applies to actual files
+      menu.addItem((item) =>
+        item
+          .setTitle("Set/Change Icon")
+          .setIcon("lucide-image") // Example icon
+          .onClick(() => {
+            new IconModal(this.app, async (newIcon) => {
+              await this.updateFileIcon(node.file!, newIcon);
+            }, node.icon || "").open();
+          })
+      );
+
+      // Add other common file actions here if desired in the future
+      menu.addItem((item) =>
+        item
+          .setTitle("Open in New Tab")
+          .setIcon("plus-square")
+          .onClick(() => {
+            this.app.workspace.openLinkText(node.file!.path, node.file!.path, true);
+          })
+      );
+      
+      menu.addItem((item) =>
+        item
+          .setTitle("Reveal in File Explorer")
+          .setIcon("folder")
+          .onClick(() => {
+            // @ts-ignore - Obsidian's file-explorer has a revealInFolder method
+            this.app.workspace.revealInFolder(node.file!);
+          })
+      );
+    }
+    
+    menu.showAtPosition({ x: event.clientX, y: event.clientY });
+  }
+
+  private async updateFileIcon(file: TFile, newIcon: string) {
+    await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+      if (newIcon) {
+        frontmatter.icon = newIcon;
+      } else {
+        delete frontmatter.icon;
+      }
+    });
+    // Trigger a graph update or just re-render to reflect the change
+    this.app.workspace.trigger('abstract-folder:graph-updated');
   }
 }
