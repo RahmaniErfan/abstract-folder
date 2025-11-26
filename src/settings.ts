@@ -4,6 +4,8 @@ export interface AbstractFolderPluginSettings {
   autoReveal: boolean; // Whether to automatically reveal the active file in the view
   startupOpen: boolean; // Whether to open the view on plugin load
   openSide: 'left' | 'right'; // Which side panel to open the view in
+  enableRainbowIndents: boolean; // Whether to enable rainbow indentation guides
+  rainbowPalette: 'classic' | 'pastel' | 'neon'; // The color palette for rainbow indents
 }
 
 export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
@@ -12,4 +14,6 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   autoReveal: true,
   startupOpen: false,
   openSide: 'left',
+  enableRainbowIndents: true, // Default to true for a nice visual
+  rainbowPalette: 'classic', // Default palette
 };

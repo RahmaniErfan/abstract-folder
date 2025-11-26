@@ -99,7 +99,7 @@ export class AbstractFolderView extends ItemView {
     const rootNodes = this.buildTree(graph);
 
     if (rootNodes.length === 0) {
-      this.contentEl.createEl("div", { 
+      this.contentEl.createEl("div", {
           text: "No abstract folders found. Add 'parent: [[Parent Note]]' to your notes' frontmatter to create a structure.",
           cls: "abstract-folder-empty-state"
       });
@@ -108,7 +108,7 @@ export class AbstractFolderView extends ItemView {
 
     const treeContainer = this.contentEl.createEl("div", { cls: "abstract-folder-tree" });
     rootNodes.forEach(node => {
-      this.renderNode(node, treeContainer, new Set());
+      this.renderNode(node, treeContainer, new Set(), 0); // Start with depth 0
     });
   };
 
@@ -164,11 +164,13 @@ export class AbstractFolderView extends ItemView {
     return sortedRootNodes;
   }
 
-  private renderNode(node: FolderNode, parentEl: HTMLElement, ancestors: Set<string>) {
+  private renderNode(node: FolderNode, parentEl: HTMLElement, ancestors: Set<string>, depth: number) {
     if (ancestors.has(node.path)) {
        // Prevent infinite loops in the tree
        return;
     }
+
+    const currentDepth = depth + 1; // Children will be one level deeper
 
     const itemEl = parentEl.createDiv({ cls: "abstract-folder-item" });
     itemEl.dataset.path = node.path; // For finding it later
@@ -216,12 +218,18 @@ export class AbstractFolderView extends ItemView {
         const childrenEl = itemEl.createDiv({ cls: "abstract-folder-children" });
         // Default expansion state: Expanded
         // Use CSS to hide if .is-collapsed is present on itemEl
-        
+
+        if (this.settings.enableRainbowIndents) {
+          childrenEl.addClass("rainbow-indent");
+          childrenEl.addClass(`rainbow-indent-${(currentDepth -1) % 6}`); // 6 colors in the palette
+          childrenEl.addClass(`${this.settings.rainbowPalette}-palette`);
+        }
+
         if (node.children.length > 0) {
             const newAncestors = new Set(ancestors).add(node.path);
-            node.children.forEach(child => this.renderNode(child, childrenEl, newAncestors));
+            node.children.forEach(child => this.renderNode(child, childrenEl, newAncestors, currentDepth));
         } else {
-            // Optional: Render "Empty" text or nothing? 
+            // Optional: Render "Empty" text or nothing?
             // Obsidian renders empty folders just without children.
         }
     }

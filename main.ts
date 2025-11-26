@@ -160,5 +160,38 @@ class AbstractFolderSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
+
+		containerEl.createEl("h3", { text: "Visual Settings" });
+
+		new Setting(containerEl)
+			.setName("Enable Rainbow Indents")
+			.setDesc("Color the indentation lines to visually distinguish tree depth.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enableRainbowIndents)
+					.onChange(async (value) => {
+						this.plugin.settings.enableRainbowIndents = value;
+						await this.plugin.saveSettings();
+						// Trigger view refresh to apply new styling
+						this.plugin.indexer.updateSettings(this.plugin.settings);
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Rainbow Indent Palette")
+			.setDesc("Choose the color palette for rainbow indentation guides.")
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("classic", "Classic")
+					.addOption("pastel", "Pastel")
+					.addOption("neon", "Neon")
+					.setValue(this.plugin.settings.rainbowPalette)
+					.onChange(async (value: 'classic' | 'pastel' | 'neon') => {
+						this.plugin.settings.rainbowPalette = value;
+						await this.plugin.saveSettings();
+						// Trigger view refresh to apply new styling
+						this.plugin.indexer.updateSettings(this.plugin.settings);
+					})
+			);
 	}
 }
