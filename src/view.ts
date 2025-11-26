@@ -31,9 +31,6 @@ export class AbstractFolderView extends ItemView {
   }
 
   public onOpen = async () => { // Corrected: single declaration as async arrow function assigned to property
-    console.log(`AbstractFolderView (Leaf Type: ${this.leaf.view.getViewType()}): onOpen started.`);
-    console.log(`Total leaves of type '${VIEW_TYPE_ABSTRACT_FOLDER}': ${this.app.workspace.getLeavesOfType(VIEW_TYPE_ABSTRACT_FOLDER).length}`);
-
     this.contentEl = this.containerEl.children[1] as HTMLElement;
     this.contentEl.empty();
     this.contentEl.addClass("abstract-folder-view");
@@ -43,7 +40,6 @@ export class AbstractFolderView extends ItemView {
     this.addAction("chevrons-up", "Collapse all folders", () => this.collapseAll());
 
     this.renderView();
-    console.log(`AbstractFolderView (Leaf Type: ${this.leaf.view.getViewType()}): onOpen finished.`);
 
     // @ts-ignore: Custom events triggered by this.app.workspace.trigger should be listened to via this.app.workspace.on
     this.registerEvent(this.app.workspace.on("abstract-folder:graph-updated", this.renderView, this));
@@ -72,7 +68,9 @@ export class AbstractFolderView extends ItemView {
            if (currentEl.classList.contains("abstract-folder-children")) {
                const parentItem = currentEl.parentElement; // abstract-folder-item
                if (parentItem) {
-                   parentItem.removeClass("is-collapsed");
+                   if (parentItem.hasClass("is-collapsed")) {
+                       parentItem.removeClass("is-collapsed");
+                   }
                    currentEl = parentItem.parentElement;
                } else {
                    break;
@@ -84,10 +82,10 @@ export class AbstractFolderView extends ItemView {
            }
        }
        
-       // Scroll into view
-       itemEl.scrollIntoView({ block: "center", behavior: "smooth" });
+       // Scroll into view using 'nearest' block which only scrolls if necessary
+       itemEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
        
-       // Add highlight class momentarily? Or rely on render refresh. 
+       // Add highlight class momentarily? Or rely on render refresh.
        // renderView highlights active file already.
        // But if we just opened it, renderView might not have run yet if graph didn't update.
        // However, onFileOpen is triggered by workspace, so active file is set.
@@ -102,10 +100,7 @@ export class AbstractFolderView extends ItemView {
   }
 
   public onClose = async () => { // Corrected: single declaration as async arrow function assigned to property
-    console.log(`AbstractFolderView (Leaf Type: ${this.leaf.view.getViewType()}): onClose started.`);
-    console.log(`Total leaves of type '${VIEW_TYPE_ABSTRACT_FOLDER}': ${this.app.workspace.getLeavesOfType(VIEW_TYPE_ABSTRACT_FOLDER).length}`);
     // this.registerEvent handles cleanup, no need to explicitly off
-    console.log(`AbstractFolderView (Leaf Type: ${this.leaf.view.getViewType()}): onClose finished.`);
   }
 
   private renderView = () => {
@@ -239,18 +234,14 @@ export class AbstractFolderView extends ItemView {
   }
 
   private expandAll() {
-    console.log(`AbstractFolderView (Leaf Type: ${this.leaf.view.getViewType()}): expandAll called.`);
     const collapsedItems = this.contentEl.querySelectorAll(".abstract-folder-item.is-collapsed");
-    console.log(`Expanding ${collapsedItems.length} items.`);
     collapsedItems.forEach(el => {
       el.removeClass("is-collapsed");
     });
   }
 
   private collapseAll() {
-    console.log(`AbstractFolderView (Leaf Type: ${this.leaf.view.getViewType()}): collapseAll called.`);
     const expandableItems = this.contentEl.querySelectorAll(".abstract-folder-item.is-folder:not(.is-collapsed)");
-    console.log(`Collapsing ${expandableItems.length} items.`);
     expandableItems.forEach(el => {
       el.addClass("is-collapsed");
     });
