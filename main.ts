@@ -1,13 +1,14 @@
-import { App, Plugin, PluginSettingTab, Setting, WorkspaceLeaf } from 'obsidian';
+import { Plugin, WorkspaceLeaf } from 'obsidian';
 import { AbstractFolderPluginSettings, DEFAULT_SETTINGS } from './src/settings';
 import { FolderIndexer } from './src/indexer';
 import { AbstractFolderView, VIEW_TYPE_ABSTRACT_FOLDER } from './src/view';
 import { CreateChildModal, createChildNote, ParentPickerModal } from './src/commands';
-
+import { AbstractFolderSettingTab } from './src/settings-tab'; // Import the new settings tab
 
 export default class AbstractFolderPlugin extends Plugin {
 	settings: AbstractFolderPluginSettings;
 	indexer: FolderIndexer;
+	ribbonIconEl: HTMLElement | null = null; // To store the ribbon icon element
 
 	async onload() {
 		await this.loadSettings();
@@ -20,9 +21,8 @@ export default class AbstractFolderPlugin extends Plugin {
 			(leaf) => new AbstractFolderView(leaf, this.indexer, this.settings)
 		);
 
-		this.addRibbonIcon("folder-tree", "Open Abstract Folders", () => {
-			this.activateView();
-		});
+		// Initialize ribbon icon visibility based on settings
+		this.updateRibbonIconVisibility();
 
 		this.addCommand({
 			id: "open-abstract-folder-view",
@@ -50,44 +50,50 @@ export default class AbstractFolderPlugin extends Plugin {
 			});
 		}
 	}
-onunload() {
-	this.indexer.onunload();
-	this.app.workspace.detachLeavesOfType(VIEW_TYPE_ABSTRACT_FOLDER);
-}
 
-async activateView() {
-    let leaf: WorkspaceLeaf | null = null;
-    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_ABSTRACT_FOLDER);
+	onunload() {
+		this.indexer.onunload();
+		this.app.workspace.detachLeavesOfType(VIEW_TYPE_ABSTRACT_FOLDER);
+		// Ensure the ribbon icon is removed on unload
+		if (this.ribbonIconEl) {
+			this.ribbonIconEl.remove();
+			this.ribbonIconEl = null;
+		}
+	}
 
-    if (leaves.length > 0) {
-        // If a leaf of our view type already exists, use it
-        leaf = leaves[0];
-    } else {
-        // No existing leaf found, create a new one
-        const side = this.settings.openSide;
-        // Attempt to get an existing leaf in the target sidebar without forcing creation
-        // Then, if still null, create a new one.
-        if (side === 'left') {
-            leaf = this.app.workspace.getLeftLeaf(false); // Try to get existing left leaf
-            if (!leaf) {
-                leaf = this.app.workspace.getLeftLeaf(true); // If none, create a new one
-            }
-        } else { // right
-            leaf = this.app.workspace.getRightLeaf(false); // Try to get existing right leaf
-            if (!leaf) {
-                leaf = this.app.workspace.getRightLeaf(true); // If none, create a new one
-            }
-        }
-    }
+	async activateView() {
+		let leaf: WorkspaceLeaf | null = null;
+		const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_ABSTRACT_FOLDER);
 
-    if (leaf) {
-        await leaf.setViewState({
-            type: VIEW_TYPE_ABSTRACT_FOLDER,
-            active: true,
-        });
-        this.app.workspace.revealLeaf(leaf);
-    }
-}
+		if (leaves.length > 0) {
+			// If a leaf of our view type already exists, use it
+			leaf = leaves[0];
+		} else {
+			// No existing leaf found, create a new one
+			const side = this.settings.openSide;
+			// Attempt to get an existing leaf in the target sidebar without forcing creation
+			// Then, if still null, create a new one.
+			if (side === 'left') {
+				leaf = this.app.workspace.getLeftLeaf(false); // Try to get existing left leaf
+				if (!leaf) {
+					leaf = this.app.workspace.getLeftLeaf(true); // If none, create a new one
+				}
+			} else { // right
+				leaf = this.app.workspace.getRightLeaf(false); // Try to get existing right leaf
+				if (!leaf) {
+					leaf = this.app.workspace.getRightLeaf(true); // If none, create a new one
+				}
+			}
+		}
+
+		if (leaf) {
+			await leaf.setViewState({
+				type: VIEW_TYPE_ABSTRACT_FOLDER,
+				active: true,
+			});
+			this.app.workspace.revealLeaf(leaf);
+		}
+	}
 
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -95,122 +101,23 @@ async activateView() {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-	}
-}
-
-class AbstractFolderSettingTab extends PluginSettingTab {
-	plugin: AbstractFolderPlugin;
-
-	constructor(app: App, plugin: AbstractFolderPlugin) {
-		super(app, plugin);
-		this.plugin = plugin;
+		this.updateRibbonIconVisibility(); // Update ribbon icon visibility on settings change
 	}
 
-	display(): void {
-		const { containerEl } = this;
-
-		containerEl.empty();
-
-		containerEl.createEl("h2", { text: "Abstract Folder Settings" });
-
-		new Setting(containerEl)
-			.setName("Parent Property Name")
-			.setDesc("The frontmatter property key used to define parent notes (e.g., 'parent' or 'folder').")
-			.addText((text) =>
-				text
-					.setPlaceholder("parent")
-					.setValue(this.plugin.settings.propertyName)
-					.onChange(async (value) => {
-						this.plugin.settings.propertyName = value;
-						await this.plugin.saveSettings();
-						this.plugin.indexer.updateSettings(this.plugin.settings); // Notify indexer of setting change
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Show Aliases")
-			.setDesc("Use the first alias as the display name in the Abstract Folder view if available.")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.showAliases)
-					.onChange(async (value) => {
-						this.plugin.settings.showAliases = value;
-						await this.plugin.saveSettings();
-						this.plugin.indexer.updateSettings(this.plugin.settings);
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Auto Reveal Active File")
-			.setDesc("Automatically expand the folder tree to show the currently active file.")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.autoReveal)
-					.onChange(async (value) => {
-						this.plugin.settings.autoReveal = value;
-						await this.plugin.saveSettings();
-						// Auto reveal is handled in the view, which reads settings directly or via updates
-						this.plugin.indexer.updateSettings(this.plugin.settings); // Trigger view refresh just in case
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Open on Startup")
-			.setDesc("Automatically open the Abstract Folder view when Obsidian starts.")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.startupOpen)
-					.onChange(async (value) => {
-						this.plugin.settings.startupOpen = value;
-						await this.plugin.saveSettings();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Open Position")
-			.setDesc("Which side sidebar to open the view in.")
-			.addDropdown((dropdown) =>
-				dropdown
-					.addOption("left", "Left")
-					.addOption("right", "Right")
-					.setValue(this.plugin.settings.openSide)
-					.onChange(async (value: 'left' | 'right') => {
-						this.plugin.settings.openSide = value;
-						await this.plugin.saveSettings();
-					})
-			);
-
-		containerEl.createEl("h3", { text: "Visual Settings" });
-
-		new Setting(containerEl)
-			.setName("Enable Rainbow Indents")
-			.setDesc("Color the indentation lines to visually distinguish tree depth.")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.enableRainbowIndents)
-					.onChange(async (value) => {
-						this.plugin.settings.enableRainbowIndents = value;
-						await this.plugin.saveSettings();
-						// Trigger view refresh to apply new styling
-						this.plugin.indexer.updateSettings(this.plugin.settings);
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Rainbow Indent Palette")
-			.setDesc("Choose the color palette for rainbow indentation guides.")
-			.addDropdown((dropdown) =>
-				dropdown
-					.addOption("classic", "Classic")
-					.addOption("pastel", "Pastel")
-					.addOption("neon", "Neon")
-					.setValue(this.plugin.settings.rainbowPalette)
-					.onChange(async (value: 'classic' | 'pastel' | 'neon') => {
-						this.plugin.settings.rainbowPalette = value;
-						await this.plugin.saveSettings();
-						// Trigger view refresh to apply new styling
-						this.plugin.indexer.updateSettings(this.plugin.settings);
-					})
-			);
+	updateRibbonIconVisibility() {
+		if (this.settings.showRibbonIcon) {
+			if (!this.ribbonIconEl) {
+				// Add the ribbon icon if it doesn't exist and setting is true
+				this.ribbonIconEl = this.addRibbonIcon("folder-tree", "Open Abstract Folders", () => {
+					this.activateView();
+				});
+			}
+		} else {
+			// Remove the ribbon icon if it exists and setting is false
+			if (this.ribbonIconEl) {
+				this.ribbonIconEl.remove();
+				this.ribbonIconEl = null;
+			}
+		}
 	}
 }
