@@ -1,6 +1,6 @@
 import { ItemView, WorkspaceLeaf, TFile, setIcon, Menu, Modal, App, Setting, Notice } from "obsidian";
 import { FolderIndexer } from "./indexer";
-import { FileGraph, FolderNode } from "./types";
+import { FileGraph, FolderNode, HIDDEN_FOLDER_ID } from "./types";
 import { AbstractFolderPluginSettings } from "./settings";
 import { IconModal } from "./ui/icon-modal";
 import { CreateChildModal, createChildNote } from './commands';
@@ -127,34 +127,57 @@ export class AbstractFolderView extends ItemView {
     const parentToChildren = graph.parentToChildren;
     const childToParents = graph.childToParents;
 
-    const rootPaths = new Set(allFilePaths);
-    childToParents.forEach((_, childPath) => {
-      if (rootPaths.has(childPath)) {
-        rootPaths.delete(childPath);
-      }
-    });
-
     const nodesMap = new Map<string, FolderNode>();
 
-    // Create all possible nodes
+    // Create all possible nodes (including HIDDEN_FOLDER_ID if it has children)
     allFilePaths.forEach(path => {
       const file = this.app.vault.getAbstractFileByPath(path);
       nodesMap.set(path, {
         file: file instanceof TFile ? file : null,
         path: path,
         children: [],
-        isFolder: Object.keys(parentToChildren).includes(path), // A file is a "folder" if it has children
-        icon: file instanceof TFile ? this.app.metadataCache.getFileCache(file)?.frontmatter?.icon : undefined, // Read icon from frontmatter
+        isFolder: Object.keys(parentToChildren).includes(path) || path === HIDDEN_FOLDER_ID,
+        icon: file instanceof TFile ? this.app.metadataCache.getFileCache(file)?.frontmatter?.icon : undefined,
+        isHidden: path === HIDDEN_FOLDER_ID, // Mark the hidden root itself
       });
     });
 
-    // Link children to parents
+    // Link children to parents and identify truly hidden nodes
+    const hiddenNodes = new Set<string>(); // Tracks all nodes that are hidden, directly or indirectly
+
+    // First pass: identify all hidden nodes (recursively)
+    const identifyHiddenChildren = (nodePath: string) => {
+      if (hiddenNodes.has(nodePath)) return; // Already processed
+      hiddenNodes.add(nodePath);
+
+      const children = parentToChildren[nodePath];
+      if (children) {
+        children.forEach(childPath => identifyHiddenChildren(childPath));
+      }
+    };
+
+    if (parentToChildren[HIDDEN_FOLDER_ID]) {
+      parentToChildren[HIDDEN_FOLDER_ID].forEach(childPath => {
+        const childNode = nodesMap.get(childPath);
+        if (childNode) {
+          childNode.isHidden = true; // Mark immediate children of hidden-folder-root as hidden
+          identifyHiddenChildren(childPath); // Recursively mark their children as hidden
+        }
+      });
+    }
+
+    // Second pass: build the tree, respecting hidden status
     for (const parentPath in parentToChildren) {
       parentToChildren[parentPath].forEach(childPath => {
         const parentNode = nodesMap.get(parentPath);
         const childNode = nodesMap.get(childPath);
+
+        // A node should only be linked if it's not hidden AND its parent is not the HIDDEN_FOLDER_ID
+        // OR if the parent is the HIDDEN_FOLDER_ID (to build the hidden subtree)
         if (parentNode && childNode) {
-          parentNode.children.push(childNode);
+          if (parentPath === HIDDEN_FOLDER_ID || !hiddenNodes.has(childPath)) {
+            parentNode.children.push(childNode);
+          }
         }
       });
     }
@@ -164,10 +187,27 @@ export class AbstractFolderView extends ItemView {
       node.children.sort((a, b) => this.sortNodes(a, b));
     });
 
+    // Determine root nodes:
+    // 1. Nodes that have no parents.
+    // 2. The HIDDEN_FOLDER_ID itself, if it has children.
+    const rootPaths = new Set(allFilePaths);
+    childToParents.forEach((_, childPath) => {
+      if (rootPaths.has(childPath) && !hiddenNodes.has(childPath)) {
+        rootPaths.delete(childPath);
+      }
+    });
+
     const sortedRootNodes: FolderNode[] = [];
+    
+    // Add the "Hidden" pseudo-folder if it has children
+    const hiddenFolderNode = nodesMap.get(HIDDEN_FOLDER_ID);
+    if (hiddenFolderNode && hiddenFolderNode.children.length > 0) {
+      sortedRootNodes.push(hiddenFolderNode);
+    }
+
     rootPaths.forEach(path => {
         const node = nodesMap.get(path);
-        if (node) {
+        if (node && !hiddenNodes.has(node.path) && node.path !== HIDDEN_FOLDER_ID) { // Exclude truly hidden nodes and the hidden pseudo-folder itself from regular roots
             sortedRootNodes.push(node);
         }
     });
@@ -282,12 +322,17 @@ export class AbstractFolderView extends ItemView {
     }
 
     // Icon/Emoji (Optional)
-    if (node.icon) {
+    let iconToUse = node.icon;
+    if (node.path === HIDDEN_FOLDER_ID && !iconToUse) {
+      iconToUse = "eye-off"; // Default icon for the Hidden folder
+    }
+
+    if (iconToUse) {
       const iconContainerEl = selfEl.createDiv({ cls: "abstract-folder-item-icon" });
-      setIcon(iconContainerEl, node.icon); // Attempt to set as an Obsidian icon
+      setIcon(iconContainerEl, iconToUse); // Attempt to set as an Obsidian icon
       if (!iconContainerEl.querySelector('svg')) { // Check if an SVG element was created
         // If no SVG was created, it's likely an emoji or text, so set text directly
-        iconContainerEl.setText(node.icon);
+        iconContainerEl.setText(iconToUse);
       }
     }
 
@@ -341,6 +386,9 @@ export class AbstractFolderView extends ItemView {
   }
 
   private getDisplayName(node: FolderNode): string {
+    if (node.path === HIDDEN_FOLDER_ID) {
+      return "Hidden"; // Special display name for the hidden root
+    }
     if (node.file) {
         if (this.settings.showAliases) {
             const cache = this.app.metadataCache.getFileCache(node.file);
@@ -360,6 +408,35 @@ export class AbstractFolderView extends ItemView {
     const menu = new Menu();
 
     if (node.file) { // Context menu only applies to actual files
+      // Check if the file is currently hidden
+      const fileCache = this.app.metadataCache.getFileCache(node.file);
+      const parentProperty = fileCache?.frontmatter?.[this.settings.propertyName];
+      let isCurrentlyHidden = false;
+      if (parentProperty) {
+        const parentLinks = Array.isArray(parentProperty) ? parentProperty : [parentProperty];
+        isCurrentlyHidden = parentLinks.some((p: string) => p.toLowerCase().trim() === 'hidden');
+      }
+
+      if (isCurrentlyHidden) {
+        menu.addItem((item) =>
+          item
+            .setTitle("Unhide Note")
+            .setIcon("eye")
+            .onClick(() => {
+              this.toggleHiddenStatus(node.file!);
+            })
+        );
+      } else {
+        menu.addItem((item) =>
+          item
+            .setTitle("Hide Note")
+            .setIcon("eye-off")
+            .onClick(() => {
+              this.toggleHiddenStatus(node.file!);
+            })
+        );
+      }
+
       menu.addItem((item) =>
         item
           .setTitle("Set/Change Icon")
@@ -470,6 +547,42 @@ export class AbstractFolderView extends ItemView {
       }
     });
     // Trigger a graph update or just re-render to reflect the change
+    this.app.workspace.trigger('abstract-folder:graph-updated');
+  }
+
+  private async toggleHiddenStatus(file: TFile) {
+    await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+      const primaryPropertyName = this.settings.propertyName;
+      const currentParents = frontmatter[primaryPropertyName];
+      let parentLinks: string[] = [];
+
+      if (typeof currentParents === 'string') {
+        parentLinks = [currentParents];
+      } else if (Array.isArray(currentParents)) {
+        parentLinks = currentParents;
+      }
+
+      const isCurrentlyHidden = parentLinks.some((p: string) => p.toLowerCase().trim() === 'hidden');
+
+      if (isCurrentlyHidden) {
+        // Unhide: remove 'hidden' from the list of parents
+        const newParents = parentLinks.filter((p: string) => p.toLowerCase().trim() !== 'hidden');
+        
+        if (newParents.length > 0) {
+          frontmatter[primaryPropertyName] = newParents.length === 1 ? newParents[0] : newParents;
+        } else {
+          delete frontmatter[primaryPropertyName];
+        }
+        new Notice(`Unhid: ${file.basename}`);
+      } else {
+        // Hide: add 'hidden' to the list of parents
+        if (!parentLinks.some((p: string) => p.toLowerCase().trim() === 'hidden')) { // Avoid adding 'hidden' multiple times
+          parentLinks.push('hidden');
+        }
+        frontmatter[primaryPropertyName] = parentLinks.length === 1 ? parentLinks[0] : parentLinks;
+        new Notice(`Hid: ${file.basename}`);
+      }
+    });
     this.app.workspace.trigger('abstract-folder:graph-updated');
   }
 }

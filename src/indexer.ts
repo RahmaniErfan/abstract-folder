@@ -1,11 +1,11 @@
 import { App, TFile, CachedMetadata } from "obsidian";
 import { AbstractFolderPluginSettings } from "./settings";
-import { FileGraph, ParentChildMap } from "./types";
+import { FileGraph, ParentChildMap, HIDDEN_FOLDER_ID } from "./types";
 
 export class FolderIndexer {
   private app: App;
   private settings: AbstractFolderPluginSettings;
-  private readonly PARENT_PROPERTY_NAMES = ["parent", "Parent"]; // Allowed frontmatter property names for parent links
+  private PARENT_PROPERTY_NAMES_TO_CHECK: string[] = []; // Dynamically generated property names
   private graph: FileGraph;
   private parentToChildren: ParentChildMap;
   private childToParents: Map<string, Set<string>>;
@@ -26,11 +26,13 @@ export class FolderIndexer {
 
   updateSettings(newSettings: AbstractFolderPluginSettings) {
     this.settings = newSettings;
+    this.initializeParentPropertyNames(); // Re-initialize parent property names on settings change
     this.buildGraph(); // Rebuild graph with new setting
     this.app.workspace.trigger('abstract-folder:graph-updated');
   }
 
   async onload() {
+    this.initializeParentPropertyNames(); // Initialize parent property names on load
     this.buildGraph();
     this.registerEvents();
   }
@@ -39,8 +41,12 @@ export class FolderIndexer {
     // Obsidian's registerEvent automatically handles unregistering during unload
   }
 
-  getGraph(): FileGraph {
+getGraph(): FileGraph {
     return this.graph;
+  }
+
+  getRelevantParentPropertyNames(): string[] {
+    return [...this.PARENT_PROPERTY_NAMES_TO_CHECK]; // Return a copy to prevent external modification
   }
 
   private registerEvents() {
@@ -78,36 +84,81 @@ export class FolderIndexer {
     };
   }
 
+  private initializeParentPropertyNames() {
+    // Only use the property name defined in settings to enforce case sensitivity
+    this.PARENT_PROPERTY_NAMES_TO_CHECK = [this.settings.propertyName];
+  }
+
   private processFile(file: TFile) {
     this.allFiles.add(file.path);
     const metadata = this.app.metadataCache.getFileCache(file);
+
+    // Always remove existing relationships first to ensure clean state for re-processing
+    this.removeFileChildRelationships(file);
+
     if (metadata?.frontmatter) {
-      for (const propName of this.PARENT_PROPERTY_NAMES) {
+      let isHidden = false;
+      const potentialParents: Set<string> = new Set();
+
+      // First pass: Check for 'hidden' status across all possible parent properties
+      for (const propName of this.PARENT_PROPERTY_NAMES_TO_CHECK) {
         const parentProperty = metadata.frontmatter[propName];
         if (parentProperty) {
           const parentLinks = Array.isArray(parentProperty) ? parentProperty : [parentProperty];
           for (const parentLink of parentLinks) {
-            if (typeof parentLink === 'string') {
-              const resolvedParentPath = this.resolveLinkToPath(parentLink, file.path);
-              if (resolvedParentPath) {
-                if (!this.parentToChildren[resolvedParentPath]) {
-                  this.parentToChildren[resolvedParentPath] = new Set();
-                }
-                this.parentToChildren[resolvedParentPath].add(file.path);
+            if (typeof parentLink === 'string' && parentLink.toLowerCase().trim() === 'hidden') {
+              isHidden = true;
+              break; // 'hidden' found, no need to check further properties for this file
+            }
+          }
+        }
+        if (isHidden) break;
+      }
 
-                if (!this.childToParents.has(file.path)) {
-                  this.childToParents.set(file.path, new Set());
+      if (isHidden) {
+        // If explicitly hidden, link only to HIDDEN_FOLDER_ID
+        if (!this.parentToChildren[HIDDEN_FOLDER_ID]) {
+          this.parentToChildren[HIDDEN_FOLDER_ID] = new Set();
+        }
+        this.parentToChildren[HIDDEN_FOLDER_ID].add(file.path);
+        
+        if (!this.childToParents.has(file.path)) {
+          this.childToParents.set(file.path, new Set());
+        }
+        this.childToParents.get(file.path)?.add(HIDDEN_FOLDER_ID);
+        this.allFiles.add(HIDDEN_FOLDER_ID); // Ensure HIDDEN_FOLDER_ID is part of allFiles for view rendering
+      } else {
+        // If not hidden, process all valid parent links from ALL configured properties
+        for (const propName of this.PARENT_PROPERTY_NAMES_TO_CHECK) {
+          const parentProperty = metadata.frontmatter[propName];
+          if (parentProperty) {
+            const parentLinks = Array.isArray(parentProperty) ? parentProperty : [parentProperty];
+            for (const parentLink of parentLinks) {
+              if (typeof parentLink === 'string' && parentLink.toLowerCase().trim() !== 'hidden') { // Ensure 'hidden' isn't accidentally processed here
+                const resolvedParentPath = this.resolveLinkToPath(parentLink, file.path);
+                if (resolvedParentPath) {
+                  potentialParents.add(resolvedParentPath);
                 }
-                this.childToParents.get(file.path)?.add(resolvedParentPath);
-                this.allFiles.add(resolvedParentPath);
               }
             }
           }
-          // Found a parent property, no need to check other variations for this file
-          break;
+        }
+
+        for (const resolvedParentPath of potentialParents) {
+          if (!this.parentToChildren[resolvedParentPath]) {
+            this.parentToChildren[resolvedParentPath] = new Set();
+          }
+          this.parentToChildren[resolvedParentPath].add(file.path);
+
+          if (!this.childToParents.has(file.path)) {
+            this.childToParents.set(file.path, new Set());
+          }
+          this.childToParents.get(file.path)?.add(resolvedParentPath);
+          this.allFiles.add(resolvedParentPath);
         }
       }
     }
+    this.allFiles.add(file.path); // Ensure the file itself is always tracked
   }
 
   private resolveLinkToPath(link: string, containingFilePath: string): string | null {

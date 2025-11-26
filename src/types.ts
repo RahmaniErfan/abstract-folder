@@ -1,5 +1,7 @@
 import { TFile } from "obsidian";
 
+export const HIDDEN_FOLDER_ID = "abstract-hidden-root"; // Unique ID for the special "Hidden" folder
+
 export interface ParentChildMap {
   [parentPath: string]: Set<string>; // Parent path -> Set of child paths
 }
@@ -16,4 +18,5 @@ export interface FolderNode {
   children: FolderNode[];
   isFolder: boolean;
   icon?: string; // Optional icon or emoji from frontmatter
+  isHidden?: boolean; // Whether this node should be considered "hidden" from the main tree
 }
