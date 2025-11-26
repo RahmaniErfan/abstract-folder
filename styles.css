@@ -12,9 +12,9 @@
     /* Add any other necessary default header styles if they are missing */
     flex-direction: row !important;
     align-items: center !important;
-    justify-content: space-between !important;
+    justify-content: flex-start !important;
     height: 40px !important; /* Standard header height */
-    padding: 0 10px !important; /* Standard padding */
+    padding: 0 10px !important; /* Reintroduce standard horizontal padding */
     border-bottom: 1px solid var(--background-modifier-border) !important;
     background-color: var(--background-primary) !important;
 }
@@ -279,3 +279,31 @@
     stroke: currentColor !important;
 }
 
+
+/* Adjust indentation for "Abstract Folders" title */
+.workspace-leaf-content[data-type="abstract-folder-view"] .view-header-left {
+    display: none !important; /* Hide the left navigation buttons container to allow title to move left */
+}
+
+.workspace-leaf-content[data-type="abstract-folder-view"] .view-header-title-container {
+    margin: 0 !important; /* Reset all margins */
+    padding-left: 10px !important; /* Apply left padding to the container */
+    padding-right: 0 !important; /* Ensure no right padding */
+    flex-grow: 0 !important; /* Prevent title container from expanding */
+    flex-shrink: 0 !important; /* Prevent title container from shrinking */
+    min-width: 0 !important; /* Prevent minimum width from overriding flex-grow */
+    width: auto !important; /* Ensure width is not fixed */
+    text-align: left !important; /* Ensure text alignment is left */
+}
+
+.workspace-leaf-content[data-type="abstract-folder-view"] .view-header-title {
+    padding: 0 !important; /* Reset padding for the title text itself */
+    margin: 0 !important; /* Reset margin for the title text itself */
+    flex-grow: 0 !important; /* Prevent title from expanding */
+    text-align: left !important; /* Ensure text alignment is left */
+}
+
+/* Push view actions to the right when header is flex-start */
+.workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-actions {
+    margin-left: auto !important;
+}
