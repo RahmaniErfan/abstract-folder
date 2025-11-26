@@ -14,7 +14,7 @@ export class AbstractFolderView extends ItemView {
     super(leaf);
     this.indexer = indexer;
     this.settings = settings;
-    this.icon = "folder"; // You can choose a different icon
+    this.icon = "folder-tree"; // You can choose a different icon
   }
 
   getViewType(): string {

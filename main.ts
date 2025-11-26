@@ -20,7 +20,7 @@ export default class AbstractFolderPlugin extends Plugin {
 			(leaf) => new AbstractFolderView(leaf, this.indexer, this.settings)
 		);
 
-		this.addRibbonIcon("folder", "Open Abstract Folders", () => {
+		this.addRibbonIcon("folder-tree", "Open Abstract Folders", () => {
 			this.activateView();
 		});
 
@@ -43,6 +43,12 @@ export default class AbstractFolderPlugin extends Plugin {
 		});
 
 		this.addSettingTab(new AbstractFolderSettingTab(this.app, this));
+
+		if (this.settings.startupOpen) {
+			this.app.workspace.onLayoutReady(() => {
+				this.activateView();
+			});
+		}
 	}
 onunload() {
 	this.indexer.onunload();
@@ -52,7 +58,9 @@ onunload() {
 async activateView() {
 	this.app.workspace.detachLeavesOfType(VIEW_TYPE_ABSTRACT_FOLDER);
 
-	const leaf = this.app.workspace.getRightLeaf(false);
+	const side = this.settings.openSide;
+	const leaf = side === 'left' ? this.app.workspace.getLeftLeaf(false) : this.app.workspace.getRightLeaf(false);
+
 	if (leaf) {
 		await leaf.setViewState({
 			type: VIEW_TYPE_ABSTRACT_FOLDER,
@@ -124,6 +132,32 @@ class AbstractFolderSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 						// Auto reveal is handled in the view, which reads settings directly or via updates
 						this.plugin.indexer.updateSettings(this.plugin.settings); // Trigger view refresh just in case
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Open on Startup")
+			.setDesc("Automatically open the Abstract Folder view when Obsidian starts.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.startupOpen)
+					.onChange(async (value) => {
+						this.plugin.settings.startupOpen = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Open Position")
+			.setDesc("Which side sidebar to open the view in.")
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("left", "Left")
+					.addOption("right", "Right")
+					.setValue(this.plugin.settings.openSide)
+					.onChange(async (value: 'left' | 'right') => {
+						this.plugin.settings.openSide = value;
+						await this.plugin.saveSettings();
 					})
 			);
 	}
