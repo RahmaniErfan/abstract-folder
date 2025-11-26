@@ -59,29 +59,17 @@ export class IconModal extends Modal {
 
     contentEl.createEl("h2", { text: "Set Note Icon/Emoji" });
 
-    // Existing text input for custom emojis or specific icon IDs
+    // Combined input for search and custom icons/emojis
     new Setting(contentEl)
-      .setName("Custom Icon or Emoji")
-      .setDesc("Enter an Obsidian icon ID (e.g., 'star') or any emoji (e.g., '📝'). Leave empty to remove.")
+      .setName("Search Icons or Enter Custom Icon/Emoji")
+      .setDesc("Enter an Obsidian icon ID (e.g., 'star', 'lucide-file'), any emoji (e.g., '📝'), or filter the list below. The field's content will be saved as the icon.")
       .addText((text) =>
         text
-          .setPlaceholder("e.g., star, lucide-file, 📝")
-          .setValue(this.result)
+          .setPlaceholder("e.g., star, folder-tree, 📝")
+          .setValue(this.result) // Use 'result' as the primary value for direct input
           .onChange((value) => {
-            this.result = value;
-            this.renderIconGrid(); // Re-render grid to show selection if it matches
-          })
-      );
-
-    // Search input for built-in icons
-    new Setting(contentEl)
-      .setName("Search Built-in Icons")
-      .addText((text) =>
-        text
-          .setPlaceholder("Filter icons...")
-          .setValue(this.searchInput)
-          .onChange((value) => {
-            this.searchInput = value.toLowerCase();
+            this.result = value; // Update result directly
+            this.searchInput = value.toLowerCase(); // Also update search input for filtering
             this.renderIconGrid();
           })
       );
