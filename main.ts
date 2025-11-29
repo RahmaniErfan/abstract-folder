@@ -17,7 +17,7 @@ export default class AbstractFolderPlugin extends Plugin {
 		await this.loadSettings();
 
 		this.indexer = new FolderIndexer(this.app, this.settings);
-		await this.indexer.onload(); // Initialize the indexer and build the graph
+		await this.indexer.initializeIndexer(); // Initialize the indexer (registers events)
 
 		this.registerView(
 			VIEW_TYPE_ABSTRACT_FOLDER,
@@ -86,11 +86,13 @@ export default class AbstractFolderPlugin extends Plugin {
 
 		this.addSettingTab(new AbstractFolderSettingTab(this.app, this));
 
-		if (this.settings.startupOpen) {
-			this.app.workspace.onLayoutReady(() => {
+		// Defer initial graph building until the workspace layout is ready
+		this.app.workspace.onLayoutReady(() => {
+			this.indexer.rebuildGraphAndTriggerUpdate(); // Build graph and notify view
+			if (this.settings.startupOpen) {
 				this.activateView();
-			});
-		}
+			}
+		});
 	}
 
 	onunload() {

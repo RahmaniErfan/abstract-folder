@@ -33,10 +33,14 @@ export class FolderIndexer {
     this.app.workspace.trigger('abstract-folder:graph-updated');
   }
 
-  async onload() {
+  async initializeIndexer() {
     this.initializePropertyNames(); // Initialize property names on load
-    this.buildGraph();
     this.registerEvents();
+  }
+
+  rebuildGraphAndTriggerUpdate() {
+    this.buildGraph();
+    this.app.workspace.trigger('abstract-folder:graph-updated'); // Notify view to re-render
   }
 
   onunload() {
