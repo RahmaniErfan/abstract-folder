@@ -17,6 +17,8 @@ export class AbstractFolderView extends ItemView {
   private selectionPath: string[] = []; // Tracks selected nodes for column view
   private multiSelectedPaths: Set<string> = new Set(); // Tracks multi-selected files
   private viewStyleToggleAction: HTMLElement; // To store the reference to the toggle button
+  private expandAllAction: HTMLElement; // Reference to the "Expand all folders" button
+  private collapseAllAction: HTMLElement; // Reference to the "Collapse all folders" button
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -52,12 +54,13 @@ export class AbstractFolderView extends ItemView {
     });
 
     this.addAction("arrow-up-down", "Sort order", (evt: MouseEvent) => this.showSortMenu(evt));
-    this.addAction("chevrons-up-down", "Expand all folders", () => this.expandAll());
-    this.addAction("chevrons-down-up", "Collapse all folders", () => this.collapseAll());
+    this.expandAllAction = this.addAction("chevrons-up-down", "Expand all folders", () => this.expandAll());
+    this.collapseAllAction = this.addAction("chevrons-down-up", "Collapse all folders", () => this.collapseAll());
     
     // Add view style toggle button
     this.viewStyleToggleAction = this.addAction("list", "Switch View Style", () => this.toggleViewStyle());
     this.updateViewStyleToggleButton(); // Set initial icon and tooltip
+    this.updateButtonStates(); // Set initial state for expand/collapse buttons
 
     this.renderView();
 
@@ -797,7 +800,20 @@ export class AbstractFolderView extends ItemView {
       this.settings.viewStyle = this.settings.viewStyle === 'tree' ? 'column' : 'tree';
       this.plugin.saveSettings(); // Directly save settings via the plugin instance
       this.updateViewStyleToggleButton();
+      this.updateButtonStates(); // Update expand/collapse button states
       this.renderView();
+  }
+
+  private updateButtonStates() {
+    const isTreeView = this.settings.viewStyle === 'tree';
+    if (this.expandAllAction) {
+        this.expandAllAction.toggleClass('is-disabled', !isTreeView);
+        this.expandAllAction.toggleAttribute('disabled', !isTreeView);
+    }
+    if (this.collapseAllAction) {
+        this.collapseAllAction.toggleClass('is-disabled', !isTreeView);
+        this.collapseAllAction.toggleAttribute('disabled', !isTreeView);
+    }
   }
 
   private updateViewStyleToggleButton() {

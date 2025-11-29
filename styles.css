@@ -348,6 +348,20 @@ n
     box-shadow: none !important;
 }
 
+/* Style for disabled buttons in the view header actions */
+.workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-actions .view-action.is-disabled {
+    color: var(--text-muted) !important; /* Grey out the icon */
+    cursor: default !important; /* Change cursor to default */
+    opacity: 0.5 !important; /* Reduce opacity */
+    pointer-events: none !important; /* Disable interaction */
+    background-color: transparent !important; /* Ensure background is transparent */
+}
+
+.workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-actions .view-action.is-disabled:hover {
+    background-color: transparent !important; /* No hover effect when disabled */
+    color: var(--text-muted) !important; /* Keep icon greyed out on hover when disabled */
+}
+
 .workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-actions .view-action:hover {
     background-color: var(--background-modifier-hover) !important;
     color: var(--icon-color-hover) !important;
