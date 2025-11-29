@@ -3,6 +3,7 @@ import { FolderIndexer } from "./indexer";
 import { FileGraph, FolderNode, HIDDEN_FOLDER_ID } from "./types";
 import { AbstractFolderPluginSettings } from "./settings";
 import { CreateAbstractChildModal, createAbstractChildFile, ChildFileType, RenameModal, DeleteConfirmModal, BatchDeleteConfirmModal } from './commands'; // Updated imports
+import { IconModal } from './ui/icon-modal';
 import AbstractFolderPlugin from '../main'; // Import the plugin class
 
 export const VIEW_TYPE_ABSTRACT_FOLDER = "abstract-folder-view";
@@ -921,12 +922,36 @@ export class AbstractFolderView extends ItemView {
           })
       );
 
+            menu.addItem((item) =>
+              item
+                .setTitle("Set/Change Icon")
+                .setIcon("image")
+                .onClick(() => {
+                  const currentIcon = this.app.metadataCache.getFileCache(node.file!)?.frontmatter?.icon || "";
+                  new IconModal(this.app, (result) => {
+                    this.updateFileIcon(node.file!, result);
+                  }, currentIcon).open();
+                })
+            );
+
             // Trigger standard Obsidian file menu for extensions and other plugins
             this.app.workspace.trigger("file-menu", menu, node.file, "abstract-folder-view");
         }
     }
     
     menu.showAtPosition({ x: event.clientX, y: event.clientY });
+  }
+
+  private async updateFileIcon(file: TFile, iconName: string) {
+    await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+      if (iconName) {
+        frontmatter.icon = iconName;
+      } else {
+        delete frontmatter.icon;
+      }
+    });
+    // Trigger update so the view refreshes with the new icon
+    this.app.workspace.trigger('abstract-folder:graph-updated');
   }
 
   private async toggleHiddenStatus(file: TFile) {

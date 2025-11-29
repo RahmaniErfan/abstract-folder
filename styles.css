@@ -263,11 +263,12 @@ n
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); /* Responsive grid */
     gap: 8px;
-    padding: 10px 0;
+    padding: 16px; /* Increased padding */
     max-height: 300px; /* Limit height and make scrollable */
     overflow-y: auto;
     border: 1px solid var(--background-modifier-border);
     border-radius: var(--radius-s);
+    margin-top: 10px;
 }
 
 .abstract-folder-grid-item {
@@ -275,13 +276,13 @@ n
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 8px;
+    padding: 12px; /* Increased padding for individual items */
     border-radius: var(--radius-s);
     cursor: pointer;
     background-color: var(--background-secondary);
     transition: background-color 0.1s ease-in-out, border-color 0.1s ease-in-out;
     position: relative;
-    --icon-size: 20px; /* Larger icon size in picker */
+    --icon-size: 24px; /* Slightly larger icon size in picker */
     border: 1px solid transparent;
 }
 
@@ -301,9 +302,11 @@ n
 }
 
 .abstract-folder-no-icons {
+    grid-column: 1 / -1; /* Span all columns */
     text-align: center;
     padding: 20px;
     color: var(--text-muted);
+    width: 100%; /* Ensure full width usage */
 }
 
 .abstract-folder-item-icon {
