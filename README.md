@@ -1,28 +1,8 @@
-# Abstract Folders
+# Abstract Folder
 
 ## What it does
 
-This Obsidian plugin allows notes to appear in multiple "abstract folders" simultaneously. This avoids note copying and simplifies note placement.
-
-## Why use it
-
-Traditional folders limit notes to a single category, causing common issues:
-
-*   **Single Location Limit:** Traditional folders require a single location for each note.
-*   **Note Duplication:** Creating multiple copies of notes for different topics is common.
-*   **Excessive Properties:** Describing notes across categories (e.g., "Work," "University") often involves adding many properties (e.g., `Subject`, `Area`). This is often redundant, as category information exists within the folder structure or note links.
-
-Abstract Folders addresses these issues using a `parent` setting in a note's frontmatter. This enables:
-
-*   **Multiple Associations:** A single note appears in different abstract folders ("ghost nodes") without physical duplication.
-*   **Folder Notes:** Any note can serve as an abstract "folder" for its children. Parent notes can act as index pages.
-
-Benefits:
-
-*   **Flexible Organization:** Notes link to all relevant contexts without duplication.
-*   **Streamlined Navigation:** Custom tree and column views explore notes and their relationships.
-*   **Effortless Management:** Notes move by updating their `parent` setting.
-*   **Less Property Clutter:** Category information is represented by the abstract folder structure, reducing the need for many descriptive frontmatter properties.
+Organize your Obsidian vault with virtual folders that don't correspond to the file system.
 
 ## Features
 
@@ -38,6 +18,18 @@ Benefits:
 *   **Non-Frontmatter File Support:** Supports files without frontmatter (e.g., Excalidraw, Canvas) using parent-defined children.
 *   **Dynamic Sorting:** Abstract folders and notes can be sorted by name or modification time.
 *   **Settings:** Customizable parent properties, aliases, auto-reveal active file, startup options, view styles, indentation guides, expanded folder memory, and excluded paths.
+
+## Installation
+
+1.  Open **Settings → Community plugins** in Obsidian.
+2.  Disable **Safe mode**.
+3.  Click **Browse** and search for "Abstract Folder".
+4.  Click **Install**.
+5.  Once installed, **Enable** the plugin.
+
+## Disclosures
+
+This plugin operates entirely locally and offline. It does not collect any telemetry, make network requests, or access files outside of your Obsidian vault.
 
 ## Compatibility
 

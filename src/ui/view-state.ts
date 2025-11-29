@@ -1,5 +1,5 @@
 import { AbstractFolderPluginSettings } from '../settings';
-import AbstractFolderPlugin from '../../../main'; // Import the plugin class
+import AbstractFolderPlugin from 'main'; // Import the plugin class
 
 export class ViewState {
     private settings: AbstractFolderPluginSettings;
