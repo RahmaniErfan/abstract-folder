@@ -2,7 +2,7 @@ import { ItemView, WorkspaceLeaf, TFile, setIcon, Menu, Notice } from "obsidian"
 import { FolderIndexer } from "./indexer";
 import { FileGraph, FolderNode, HIDDEN_FOLDER_ID } from "./types";
 import { AbstractFolderPluginSettings } from "./settings";
-import { CreateAbstractChildModal, createAbstractChildFile, ChildFileType } from './commands'; // Updated imports
+import { CreateAbstractChildModal, createAbstractChildFile, ChildFileType, RenameModal, DeleteConfirmModal } from './commands'; // Updated imports
 import AbstractFolderPlugin from '../main'; // Import the plugin class
 
 export const VIEW_TYPE_ABSTRACT_FOLDER = "abstract-folder-view";
@@ -657,10 +657,13 @@ export class AbstractFolderView extends ItemView {
         );
       }
 
+      menu.addSeparator();
+
+      // Prioritize Create Actions at the top
       menu.addItem((item) =>
         item
           .setTitle("Create Abstract Child Note")
-          .setIcon("file-plus") // Use a more generic icon for creating any child file
+          .setIcon("file-plus")
           .onClick(() => {
             new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
               createAbstractChildFile(this.app, this.settings, childName, node.file!, childType);
@@ -668,13 +671,10 @@ export class AbstractFolderView extends ItemView {
           })
       );
       
-      menu.addSeparator(); // Add a separator before other creation options if desired
-
-      // Add options for creating specific child types
       menu.addItem((item) =>
         item
           .setTitle("Create Abstract Canvas Child")
-          .setIcon("layout-dashboard") // Obsidian Canvas icon
+          .setIcon("layout-dashboard")
           .onClick(() => {
             new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
               createAbstractChildFile(this.app, this.settings, childName, node.file!, childType);
@@ -682,18 +682,41 @@ export class AbstractFolderView extends ItemView {
           })
       );
 
-      // Assuming '.base' is the extension for Bases files as per our discussion
-      // And assuming Bases don't support frontmatter, so they'll rely on parent's children property
       menu.addItem((item) =>
         item
           .setTitle("Create Abstract Bases Child")
-          .setIcon("database") // A database-like icon for Bases
+          .setIcon("database")
           .onClick(() => {
             new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
               createAbstractChildFile(this.app, this.settings, childName, node.file!, childType);
             }, 'base').open();
           })
       );
+
+      menu.addSeparator();
+      
+      // Standard File Operations
+      menu.addItem((item) =>
+        item
+          .setTitle("Rename")
+          .setIcon("pencil")
+          .onClick(() => {
+             new RenameModal(this.app, node.file!).open();
+          })
+      );
+
+      menu.addItem((item) =>
+        item
+          .setTitle("Delete")
+          .setIcon("trash")
+          .onClick(() => {
+             new DeleteConfirmModal(this.app, node.file!, () => {
+                 this.app.fileManager.trashFile(node.file!);
+             }).open();
+          })
+      );
+
+      // Trigger standard Obsidian file menu for extensions and other plugins
       this.app.workspace.trigger("file-menu", menu, node.file, "abstract-folder-view");
     }
     

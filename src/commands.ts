@@ -193,3 +193,111 @@ export async function createChildNote(app: App, settings: AbstractFolderPluginSe
     // This now just calls the generic function for a 'note' type
     await createAbstractChildFile(app, settings, childName, parentFile, 'note');
 }
+
+export class RenameModal extends Modal {
+    private file: TFile;
+    private newName: string;
+
+    constructor(app: App, file: TFile) {
+        super(app);
+        this.file = file;
+        this.newName = file.basename;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.createEl("h2", { text: "Rename File" });
+
+        new Setting(contentEl)
+            .setName("New Name")
+            .addText((text) => {
+                text.setValue(this.newName);
+                text.inputEl.focus();
+                text.inputEl.select(); // Select all text for easy replacement
+                text.onChange((value) => {
+                    this.newName = value;
+                });
+                text.inputEl.addEventListener("keydown", (e) => {
+                    if (e.key === "Enter") {
+                        this.submit();
+                    }
+                });
+            });
+
+        new Setting(contentEl)
+            .addButton((btn) =>
+                btn
+                    .setButtonText("Rename")
+                    .setCta()
+                    .onClick(() => {
+                        this.submit();
+                    })
+            );
+    }
+
+    private async submit() {
+        if (!this.newName) {
+            new Notice("Name cannot be empty.");
+            return;
+        }
+
+        if (this.newName === this.file.basename) {
+             this.close();
+             return;
+        }
+
+        const parentPath = this.file.parent?.path || "";
+        // Handle root directory where parent.path is '/'
+        const directory = parentPath === "/" ? "" : parentPath;
+        const newPath = (directory ? directory + "/" : "") + this.newName + "." + this.file.extension;
+
+        try {
+            await this.app.fileManager.renameFile(this.file, newPath);
+            // new Notice(`Renamed to ${this.newName}`); // Obsidian usually shows a notice or updates UI automatically
+            this.close();
+        } catch (error) {
+            new Notice(`Failed to rename: ${error}`);
+            console.error(error);
+        }
+    }
+
+    onClose() {
+        const { contentEl } = this;
+        contentEl.empty();
+    }
+}
+
+export class DeleteConfirmModal extends Modal {
+    private file: TFile;
+    private onConfirm: () => void;
+
+    constructor(app: App, file: TFile, onConfirm: () => void) {
+        super(app);
+        this.file = file;
+        this.onConfirm = onConfirm;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.createEl("h2", { text: "Delete File" });
+        contentEl.createEl("p", { text: `Are you sure you want to delete "${this.file.name}"?` });
+
+        const buttonContainer = contentEl.createDiv({ cls: "modal-button-container" });
+        
+        const deleteButton = buttonContainer.createEl("button", { text: "Delete", cls: "mod-warning" });
+        deleteButton.addEventListener("click", () => {
+            this.onConfirm();
+            this.close();
+        });
+
+        const cancelButton = buttonContainer.createEl("button", { text: "Cancel" });
+        cancelButton.addEventListener("click", () => {
+            this.close();
+        });
+    }
+
+    onClose() {
+        const { contentEl } = this;
+        contentEl.empty();
+    }
+}
