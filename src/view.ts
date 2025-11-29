@@ -1,8 +1,7 @@
-import { ItemView, WorkspaceLeaf, TFile, setIcon, Menu, Modal, App, Setting, Notice } from "obsidian";
+import { ItemView, WorkspaceLeaf, TFile, setIcon, Menu, Notice } from "obsidian";
 import { FolderIndexer } from "./indexer";
 import { FileGraph, FolderNode, HIDDEN_FOLDER_ID } from "./types";
 import { AbstractFolderPluginSettings } from "./settings";
-import { IconModal } from "./ui/icon-modal";
 import { CreateChildModal, createChildNote } from './commands';
 import AbstractFolderPlugin from '../main'; // Import the plugin class
 
@@ -658,17 +657,6 @@ export class AbstractFolderView extends ItemView {
 
       menu.addItem((item) =>
         item
-          .setTitle("Set/Change Icon")
-          .setIcon("lucide-image") // Example icon
-          .onClick(() => {
-            new IconModal(this.app, async (newIcon) => {
-              await this.updateFileIcon(node.file!, newIcon);
-            }, node.icon || "").open();
-          })
-      );
-
-      menu.addItem((item) =>
-        item
           .setTitle("Create Note Here")
           .setIcon("plus-circle")
           .onClick(() => {
@@ -677,96 +665,11 @@ export class AbstractFolderView extends ItemView {
             }).open();
           })
       );
-
-      // Add other common file actions here if desired in the future
-      menu.addItem((item) =>
-        item
-          .setTitle("Open in New Tab")
-          .setIcon("plus-square")
-          .onClick(() => {
-            this.app.workspace.openLinkText(node.file!.path, node.file!.path, true);
-          })
-      );
       
-
-      menu.addItem((item) =>
-        item
-          .setTitle("Delete")
-          .setIcon("trash")
-          .setWarning(true) // Indicate a destructive action
-          .onClick(() => {
-            if (node.file) {
-              this.deleteFile(node.file);
-            }
-          })
-      );
+      this.app.workspace.trigger("file-menu", menu, node.file, "abstract-folder-view");
     }
     
     menu.showAtPosition({ x: event.clientX, y: event.clientY });
-  }
-
-  private async deleteFile(file: TFile) {
-    // Show a confirmation dialog
-    const confirmed = await new Promise<boolean>((resolve) => {
-      const confirmModal = new (class extends Modal {
-        constructor(app: App, private fileToDelete: TFile, private onConfirm: (result: boolean) => void) {
-          super(app);
-          this.fileToDelete = fileToDelete;
-          this.onConfirm = onConfirm;
-        }
-
-        onOpen() {
-          this.titleEl.setText("Confirm Deletion");
-          this.contentEl.createEl("p", { text: `Are you sure you want to delete "${this.fileToDelete.basename}"? This cannot be undone.` });
-          new Setting(this.contentEl)
-            .addButton((btn) => {
-              btn.setButtonText("Delete")
-                 .setWarning() // Indicate a destructive action
-                 .onClick(() => {
-                   this.onConfirm(true);
-                   this.close();
-                 });
-            })
-            .addButton((btn) => {
-              btn.setButtonText("Cancel")
-                 .onClick(() => {
-                   this.onConfirm(false);
-                   this.close();
-                 });
-            });
-        }
-
-        onClose() {
-          // If modal closed without selection, assume cancel
-          this.onConfirm(false);
-        }
-      })(this.app, file, resolve); // Pass file and resolve to the modal
-      confirmModal.open();
-    });
-
-
-    if (confirmed) {
-      try {
-        await this.app.vault.delete(file);
-        new Notice(`Deleted: ${file.basename}`);
-        this.app.workspace.trigger('abstract-folder:graph-updated'); // Refresh view
-      } catch (error) {
-        new Notice(`Failed to delete file: ${error.message}`);
-        console.error("Failed to delete file:", error);
-      }
-    }
-  }
-
-  private async updateFileIcon(file: TFile, newIcon: string) {
-    await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-      if (newIcon) {
-        frontmatter.icon = newIcon;
-      } else {
-        delete frontmatter.icon;
-      }
-    });
-    // Trigger a graph update or just re-render to reflect the change
-    this.app.workspace.trigger('abstract-folder:graph-updated');
   }
 
   private async toggleHiddenStatus(file: TFile) {
