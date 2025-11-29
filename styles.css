@@ -64,8 +64,82 @@
 
 /* Tree Item Structure */
 .abstract-folder-item {
+    /* For tree view: each item is a vertical stack of self + children */
     display: flex;
     flex-direction: column;
+}
+
+/* Column View Specific Styles */
+.abstract-folder-columns-wrapper {
+    display: flex;
+    flex-direction: column; /* Stacks columns vertically */
+    height: 100%;
+    overflow-y: hidden; /* Each column will manage its own scroll */
+}
+
+.abstract-folder-columns-container {
+    display: flex;
+    flex-direction: column; /* Columns stacked vertically */
+    flex-grow: 1; /* Take up all available vertical space */
+    overflow-y: auto; /* Allow scrolling for the entire container if many columns */
+}
+
+.abstract-folder-column {
+    flex-shrink: 0; /* Prevent columns from shrinking below content */
+    flex-grow: 1; /* Allow columns to grow to fill space */
+    border-bottom: 1px solid var(--background-modifier-border); /* Separator between columns */
+    padding: 5px 0; /* Vertical padding within each column */
+    overflow-y: auto; /* Individual column scrolling */
+    min-height: 50px; /* Minimum height for a column */
+    max-height: 100%; /* Ensure column doesn't exceed parent */
+}
+
+.abstract-folder-column:last-child {
+    border-bottom: none; /* No border on the last column */
+}
+
+/* Item self for column view, slightly different padding */
+.abstract-folder-column .abstract-folder-item-self {
+    padding-left: 10px; /* Adjust padding for column view */
+}
+
+/* Hide collapse icon in column view */
+.abstract-folder-columns-wrapper .abstract-folder-collapse-icon {
+    display: none;
+}
+
+/* In column view, don't show children containers */
+.abstract-folder-columns-wrapper .abstract-folder-children {
+    display: none;
+}
+
+/* Style for selected item in column view */
+.abstract-folder-item-self.is-selected-in-column {
+    background-color: var(--background-modifier-accent); /* A distinct highlight color for selected items */
+    color: var(--text-normal);
+}
+
+.abstract-folder-item-self.is-selected-in-column .abstract-folder-item-icon svg {
+    color: var(--text-normal); /* Ensure icon color matches */
+}
+
+
+/* Multi-Parent Indicator */
+.abstract-folder-multi-parent-indicator {
+    margin-left: auto; /* Push to the right */
+    color: var(--text-muted);
+    opacity: 0.7;
+    font-size: var(--font-ui-smaller);
+    display: flex; /* For icon sizing */
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+}
+
+.abstract-folder-multi-parent-indicator svg {
+    width: 12px;
+    height: 12px;
 }
 
 /* The clickable row */

@@ -7,6 +7,7 @@ export interface AbstractFolderPluginSettings {
   showRibbonIcon: boolean; // Whether to display the ribbon icon
   enableRainbowIndents: boolean; // Whether to enable rainbow indentation guides
   rainbowPalette: 'classic' | 'pastel' | 'neon'; // The color palette for rainbow indents
+  viewStyle: 'tree' | 'column'; // New: Tree or Column view
 }
 
 export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
@@ -18,4 +19,5 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   showRibbonIcon: true, // Default to true
   enableRainbowIndents: true, // Default to true for a nice visual
   rainbowPalette: 'classic', // Default palette
+  viewStyle: 'tree', // Default to tree view
 };

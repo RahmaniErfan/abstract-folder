@@ -16,6 +16,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 
 		containerEl.createEl("h2", { text: "Abstract Folder Settings" });
 
+
 		new Setting(containerEl)
 			.setName("Parent Property Name")
 			.setDesc("The frontmatter property key used to define parent notes (e.g., 'parent' or 'folder'). This setting is case-sensitive, so ensure your frontmatter property name matches the casing exactly.")

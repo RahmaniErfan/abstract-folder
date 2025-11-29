@@ -18,7 +18,7 @@ export default class AbstractFolderPlugin extends Plugin {
 
 		this.registerView(
 			VIEW_TYPE_ABSTRACT_FOLDER,
-			(leaf) => new AbstractFolderView(leaf, this.indexer, this.settings)
+			(leaf) => new AbstractFolderView(leaf, this.indexer, this.settings, this) // Pass the plugin instance
 		);
 
 		// Initialize ribbon icon visibility based on settings

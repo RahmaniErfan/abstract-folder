@@ -4,6 +4,7 @@ import { FileGraph, FolderNode, HIDDEN_FOLDER_ID } from "./types";
 import { AbstractFolderPluginSettings } from "./settings";
 import { IconModal } from "./ui/icon-modal";
 import { CreateChildModal, createChildNote } from './commands';
+import AbstractFolderPlugin from '../main'; // Import the plugin class
 
 export const VIEW_TYPE_ABSTRACT_FOLDER = "abstract-folder-view";
 
@@ -13,11 +14,19 @@ export class AbstractFolderView extends ItemView {
   contentEl: HTMLElement; // Make it public to match ItemView's contentEl
   private sortOrder: 'asc' | 'desc' = 'asc'; // Default sort order
   private sortBy: 'name' | 'mtime' = 'name'; // Default sort by name. Add 'mtime' for modified time.
+  private selectionPath: string[] = []; // Tracks selected nodes for column view
+  private viewStyleToggleAction: HTMLElement; // To store the reference to the toggle button
 
-  constructor(leaf: WorkspaceLeaf, indexer: FolderIndexer, settings: AbstractFolderPluginSettings) {
+  constructor(
+    leaf: WorkspaceLeaf,
+    indexer: FolderIndexer,
+    settings: AbstractFolderPluginSettings,
+    private plugin: AbstractFolderPlugin // Add plugin instance here
+  ) {
     super(leaf);
     this.indexer = indexer;
     this.settings = settings;
+    this.plugin = plugin; // Store the plugin instance
     this.icon = "folder-tree"; // You can choose a different icon
     this.navigation = false; // This view is not for navigation, hide nav arrows and bookmark button
   }
@@ -38,6 +47,10 @@ export class AbstractFolderView extends ItemView {
     this.addAction("arrow-up-down", "Sort order", (evt: MouseEvent) => this.showSortMenu(evt));
     this.addAction("chevrons-down", "Expand all folders", () => this.expandAll());
     this.addAction("chevrons-up", "Collapse all folders", () => this.collapseAll());
+    
+    // Add view style toggle button
+    this.viewStyleToggleAction = this.addAction("list", "Switch View Style", () => this.toggleViewStyle());
+    this.updateViewStyleToggleButton(); // Set initial icon and tooltip
 
     this.renderView();
 
@@ -48,6 +61,7 @@ export class AbstractFolderView extends ItemView {
       this.registerEvent(this.app.workspace.on("file-open", this.onFileOpen, this));
     }
   }
+  
   private onFileOpen = async (file: TFile | null) => {
     if (!file || !this.settings.autoReveal) return;
     
@@ -58,45 +72,74 @@ export class AbstractFolderView extends ItemView {
   }
 
   public revealFile(filePath: string) {
-    // Look for the item specifically
-    const fileNodeEls = this.contentEl.querySelectorAll(`.abstract-folder-item[data-path="${filePath}"]`);
-    
-    fileNodeEls.forEach(itemEl => {
-       // Expand all parents
-       let currentEl = itemEl.parentElement; // children container
-       while (currentEl) {
-           if (currentEl.classList.contains("abstract-folder-children")) {
-               const parentItem = currentEl.parentElement; // abstract-folder-item
-               if (parentItem) {
-                   if (parentItem.hasClass("is-collapsed")) {
-                       parentItem.removeClass("is-collapsed");
-                   }
-                   currentEl = parentItem.parentElement;
-               } else {
-                   break;
-               }
-           } else if (currentEl.classList.contains("abstract-folder-tree")) {
-               break;
-           } else {
-               currentEl = currentEl.parentElement;
-           }
-       }
-       
-       // Scroll into view using 'nearest' block which only scrolls if necessary
-       itemEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
-       
-       // Add highlight class momentarily? Or rely on render refresh.
-       // renderView highlights active file already.
-       // But if we just opened it, renderView might not have run yet if graph didn't update.
-       // However, onFileOpen is triggered by workspace, so active file is set.
-       // We can manually add is-active to the self element.
-       const selfEl = itemEl.querySelector(".abstract-folder-item-self");
-       if (selfEl) {
-           // Remove other actives
-           this.contentEl.querySelectorAll(".abstract-folder-item-self.is-active").forEach(el => el.removeClass("is-active"));
-           selfEl.addClass("is-active");
-       }
-    });
+    // Reveal logic depends on view style
+    if (this.settings.viewStyle === 'tree') {
+      const fileNodeEls = this.contentEl.querySelectorAll(`.abstract-folder-item[data-path="${filePath}"]`);
+      
+      fileNodeEls.forEach(itemEl => {
+        // Expand all parents
+        let currentEl = itemEl.parentElement; // children container
+        while (currentEl) {
+          if (currentEl.classList.contains("abstract-folder-children")) {
+            const parentItem = currentEl.parentElement; // abstract-folder-item
+            if (parentItem) {
+              if (parentItem.hasClass("is-collapsed")) {
+                parentItem.removeClass("is-collapsed");
+              }
+              currentEl = parentItem.parentElement;
+            } else {
+              break;
+            }
+          } else if (currentEl.classList.contains("abstract-folder-tree")) {
+            break;
+          } else {
+            currentEl = currentEl.parentElement;
+          }
+        }
+        
+        // Scroll into view using 'nearest' block which only scrolls if necessary
+        itemEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        
+        const selfEl = itemEl.querySelector(".abstract-folder-item-self");
+        if (selfEl) {
+          // Remove other actives
+          this.contentEl.querySelectorAll(".abstract-folder-item-self.is-active").forEach(el => el.removeClass("is-active"));
+          selfEl.addClass("is-active");
+        }
+      });
+    } else if (this.settings.viewStyle === 'column') {
+        // For column view, we need to reconstruct the selection path to reveal
+        const graph = this.indexer.getGraph();
+        let currentPath = filePath;
+        const pathSegments: string[] = [];
+
+        // Traverse upwards to find the full path from a root
+        while (currentPath) {
+            pathSegments.unshift(currentPath);
+            const parents = graph.childToParents.get(currentPath);
+            if (!parents || parents.size === 0) {
+                break; // Reached a root
+            }
+            // For now, just pick the first parent if multiple, or refine logic later for multi-parent display
+            currentPath = parents.values().next().value;
+            if (currentPath === HIDDEN_FOLDER_ID && pathSegments[0] !== HIDDEN_FOLDER_ID) {
+                // If the immediate parent is HIDDEN_FOLDER_ID, add it to path if not already there
+                pathSegments.unshift(HIDDEN_FOLDER_ID);
+                break;
+            } else if (currentPath === HIDDEN_FOLDER_ID && pathSegments[0] === HIDDEN_FOLDER_ID) {
+                // If we started at HIDDEN_FOLDER_ID, we're done.
+                break;
+            }
+            if (pathSegments.includes(currentPath)) {
+                console.warn("Circular reference detected while revealing file, stopping path reconstruction.");
+                break;
+            }
+        }
+        this.selectionPath = pathSegments;
+        this.renderView(); // Re-render to show the path
+        // Scroll the *last* column into view
+        this.containerEl.querySelector(".abstract-folder-column:last-child")?.scrollIntoView({ block: "end", behavior: "smooth" });
+    }
   }
 
   public onClose = async () => { // Corrected: single declaration as async arrow function assigned to property
@@ -105,6 +148,20 @@ export class AbstractFolderView extends ItemView {
 
   private renderView = () => {
     this.contentEl.empty();
+    // Remove any view-specific classes before rendering
+    this.contentEl.removeClass("abstract-folder-columns-wrapper");
+    this.contentEl.removeClass("abstract-folder-tree-wrapper"); // Assuming a tree-specific wrapper could exist
+
+    if (this.settings.viewStyle === 'tree') {
+        this.contentEl.addClass("abstract-folder-tree-wrapper"); // Add a wrapper class for tree view layout if needed
+        this.renderTreeView();
+    } else {
+        this.contentEl.addClass("abstract-folder-columns-wrapper"); // Add a wrapper class for column view layout
+        this.renderColumnView();
+    }
+  };
+
+  private renderTreeView = () => {
     const graph = this.indexer.getGraph();
     const rootNodes = this.buildTree(graph);
 
@@ -118,9 +175,148 @@ export class AbstractFolderView extends ItemView {
 
     const treeContainer = this.contentEl.createEl("div", { cls: "abstract-folder-tree" });
     rootNodes.forEach(node => {
-      this.renderNode(node, treeContainer, new Set(), 0); // Start with depth 0
+      this.renderTreeNode(node, treeContainer, new Set(), 0); // Start with depth 0
     });
-  };
+  }
+
+  private renderColumnView = () => {
+    this.contentEl.addClass("abstract-folder-columns-wrapper"); // Add a wrapper class for column view layout
+    this.contentEl.empty(); // Clear previous content
+
+    const graph = this.indexer.getGraph();
+    const rootNodes = this.buildTree(graph); // This still builds the hierarchical data
+
+    if (rootNodes.length === 0) {
+        this.contentEl.createEl("div", {
+            text: "No abstract folders found. Add 'parent: [[Parent Note]]' to your notes' frontmatter to create a structure.",
+            cls: "abstract-folder-empty-state"
+        });
+        return;
+    }
+
+    // Main container for the stacked columns
+    const columnsContainer = this.contentEl.createDiv({ cls: "abstract-folder-columns-container" });
+
+    let currentNodes: FolderNode[] = rootNodes;
+    let renderedDepth = 0;
+
+    // Render the initial column (root nodes)
+    this.renderColumn(currentNodes, columnsContainer, renderedDepth);
+
+    // Render subsequent columns based on selectionPath
+    for (let i = 0; i < this.selectionPath.length; i++) {
+        const selectedPath = this.selectionPath[i];
+        const selectedNode = currentNodes.find(node => node.path === selectedPath);
+
+        if (selectedNode && selectedNode.isFolder && selectedNode.children.length > 0) {
+            currentNodes = selectedNode.children;
+            renderedDepth++;
+            this.renderColumn(currentNodes, columnsContainer, renderedDepth, selectedPath);
+        } else if (selectedNode && !selectedNode.isFolder) {
+            // If a file is selected, show its parent's children (if any) and highlight the file
+            // and stop rendering further columns
+            break;
+        } else {
+            // If a selected path is not found or is not a folder, stop.
+            break;
+        }
+    }
+  }
+
+  private renderColumn(nodes: FolderNode[], parentEl: HTMLElement, depth: number, selectedParentPath?: string) {
+    const columnEl = parentEl.createDiv({ cls: "abstract-folder-column", attr: { 'data-depth': depth } });
+    if (selectedParentPath) {
+        columnEl.dataset.parentPath = selectedParentPath;
+    }
+
+    nodes.forEach(node => {
+        this.renderColumnNode(node, columnEl, depth);
+    });
+  }
+
+  private renderColumnNode(node: FolderNode, parentEl: HTMLElement, depth: number) {
+    const itemEl = parentEl.createDiv({ cls: "abstract-folder-item" });
+    itemEl.dataset.path = node.path;
+
+    if (node.isFolder) itemEl.addClass("is-folder");
+    else itemEl.addClass("is-file");
+
+    const selfEl = itemEl.createDiv({ cls: "abstract-folder-item-self" });
+
+    // Highlight if active Obsidian file
+    const activeFile = this.app.workspace.getActiveFile();
+    if (activeFile && activeFile.path === node.path) {
+        selfEl.addClass("is-active");
+    }
+
+    // Highlight if selected in this column view
+    if (this.selectionPath.includes(node.path)) {
+        selfEl.addClass("is-selected-in-column");
+    }
+
+    // Icon/Emoji (Optional)
+    let iconToUse = node.icon;
+    if (node.path === HIDDEN_FOLDER_ID && !iconToUse) {
+      iconToUse = "eye-off"; // Default icon for the Hidden folder
+    }
+
+    if (iconToUse) {
+      const iconContainerEl = selfEl.createDiv({ cls: "abstract-folder-item-icon" });
+      setIcon(iconContainerEl, iconToUse);
+      if (!iconContainerEl.querySelector('svg')) {
+        iconContainerEl.setText(iconToUse);
+      }
+    }
+
+    const innerEl = selfEl.createDiv({ cls: "abstract-folder-item-inner" });
+    innerEl.setText(this.getDisplayName(node));
+
+    // Multi-parent indicator
+    const parentCount = this.indexer.getGraph().childToParents.get(node.path)?.size || 0;
+    if (parentCount > 1) {
+        const multiParentIndicator = innerEl.createSpan({ cls: "abstract-folder-multi-parent-indicator" });
+        setIcon(multiParentIndicator, "git-branch-plus"); // Or a custom icon
+        multiParentIndicator.ariaLabel = `${parentCount} parents`;
+        multiParentIndicator.title = `${parentCount} parents`;
+    }
+
+    selfEl.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.handleColumnNodeClick(node, depth);
+    });
+
+    if (node.file) {
+      selfEl.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        this.showContextMenu(e, node);
+      });
+    }
+  }
+
+  private handleColumnNodeClick(node: FolderNode, depth: number) {
+    // If it's a file, open it
+    if (node.file && !node.isFolder) {
+        this.app.workspace.openLinkText(node.file.path, node.file.path);
+        // Keep the selection path as is, so the path to the file is highlighted
+    } else {
+        // If it's a folder, update selectionPath
+        // If clicking a node at the current depth, or a shallower depth,
+        // truncate the selectionPath
+        if (depth < this.selectionPath.length) {
+            this.selectionPath = this.selectionPath.slice(0, depth);
+        } else if (depth === this.selectionPath.length && this.selectionPath[depth - 1] === node.path) {
+            // Clicking the currently selected node at its own depth should collapse it (remove from path)
+            this.selectionPath.pop();
+            this.renderView();
+            return;
+        }
+        
+        // Add the clicked node to the selection path
+        this.selectionPath.push(node.path);
+    }
+    this.renderView(); // Re-render the view with the updated selection path
+  }
+
 
   private buildTree(graph: FileGraph): FolderNode[] {
     const allFilePaths = graph.allFiles;
@@ -274,20 +470,26 @@ export class AbstractFolderView extends ItemView {
   }
 
   private expandAll() {
-    const collapsedItems = this.contentEl.querySelectorAll(".abstract-folder-item.is-collapsed");
-    collapsedItems.forEach(el => {
-      el.removeClass("is-collapsed");
-    });
+    // Only applies to tree view
+    if (this.settings.viewStyle === 'tree') {
+      const collapsedItems = this.contentEl.querySelectorAll(".abstract-folder-item.is-collapsed");
+      collapsedItems.forEach(el => {
+        el.removeClass("is-collapsed");
+      });
+    }
   }
 
   private collapseAll() {
-    const expandableItems = this.contentEl.querySelectorAll(".abstract-folder-item.is-folder:not(.is-collapsed)");
-    expandableItems.forEach(el => {
-      el.addClass("is-collapsed");
-    });
+    // Only applies to tree view
+    if (this.settings.viewStyle === 'tree') {
+      const expandableItems = this.contentEl.querySelectorAll(".abstract-folder-item.is-folder:not(.is-collapsed)");
+      expandableItems.forEach(el => {
+        el.addClass("is-collapsed");
+      });
+    }
   }
 
-  private renderNode(node: FolderNode, parentEl: HTMLElement, ancestors: Set<string>, depth: number) {
+  private renderTreeNode(node: FolderNode, parentEl: HTMLElement, ancestors: Set<string>, depth: number) {
     if (ancestors.has(node.path)) {
        // Prevent infinite loops in the tree
        return;
@@ -373,7 +575,7 @@ export class AbstractFolderView extends ItemView {
 
         if (node.children.length > 0) {
             const newAncestors = new Set(ancestors).add(node.path);
-            node.children.forEach(child => this.renderNode(child, childrenEl, newAncestors, currentDepth));
+            node.children.forEach(child => this.renderTreeNode(child, childrenEl, newAncestors, currentDepth));
         } else {
             // Optional: Render "Empty" text or nothing?
             // Obsidian renders empty folders just without children.
@@ -383,6 +585,20 @@ export class AbstractFolderView extends ItemView {
 
   private toggleCollapse(itemEl: HTMLElement) {
       itemEl.toggleClass("is-collapsed", !itemEl.hasClass("is-collapsed"));
+  }
+
+  private toggleViewStyle() {
+      this.settings.viewStyle = this.settings.viewStyle === 'tree' ? 'column' : 'tree';
+      this.plugin.saveSettings(); // Directly save settings via the plugin instance
+      this.updateViewStyleToggleButton();
+      this.renderView();
+  }
+
+  private updateViewStyleToggleButton() {
+      const isColumnView = this.settings.viewStyle === 'column';
+      setIcon(this.viewStyleToggleAction, isColumnView ? "layout-vertical" : "list");
+      this.viewStyleToggleAction.ariaLabel = isColumnView ? "Switch to Tree View" : "Switch to Column View";
+      this.viewStyleToggleAction.title = isColumnView ? "Switch to Tree View" : "Switch to Column View";
   }
 
   private getDisplayName(node: FolderNode): string {
