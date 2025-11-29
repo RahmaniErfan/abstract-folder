@@ -1,5 +1,6 @@
 export interface AbstractFolderPluginSettings {
-  propertyName: string; // The frontmatter property key used to define parent notes
+  propertyName: string; // The frontmatter property key used to define parent notes (child-defined parent)
+  childrenPropertyName: string; // The frontmatter property key used by a parent to define its children (parent-defined children)
   showAliases: boolean; // Whether to show aliases instead of file names in the view
   autoReveal: boolean; // Whether to automatically reveal the active file in the view
   startupOpen: boolean; // Whether to open the view on plugin load
@@ -12,12 +13,13 @@ export interface AbstractFolderPluginSettings {
 
 export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   propertyName: 'parent',
+  childrenPropertyName: 'children', // Default to 'children'
   showAliases: true,
   autoReveal: true,
   startupOpen: false,
   openSide: 'left',
   showRibbonIcon: true, // Default to true
-  enableRainbowIndents: true, // Default to true for a nice visual
-  rainbowPalette: 'classic', // Default palette
-  viewStyle: 'tree', // Default to tree view
+  enableRainbowIndents: true,
+  rainbowPalette: 'classic',
+  viewStyle: 'tree',
 };

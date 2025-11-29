@@ -608,7 +608,8 @@ export class AbstractFolderView extends ItemView {
       return "Hidden"; // Special display name for the hidden root
     }
     if (node.file) {
-        if (this.settings.showAliases) {
+        // Only attempt to show aliases for markdown files, as only they have frontmatter
+        if (this.settings.showAliases && node.file.extension === 'md') {
             const cache = this.app.metadataCache.getFileCache(node.file);
             const aliases = cache?.frontmatter?.aliases;
             if (aliases && Array.isArray(aliases) && aliases.length > 0) {
@@ -617,6 +618,7 @@ export class AbstractFolderView extends ItemView {
                 return aliases;
             }
         }
+        // For all other file types, or if aliases are not shown for markdown, return the basename
         return node.file.basename;
     }
     return node.path.split('/').pop() || node.path;
