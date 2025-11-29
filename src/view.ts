@@ -294,12 +294,13 @@ export class AbstractFolderView extends ItemView {
   }
 
   private handleColumnNodeClick(node: FolderNode, depth: number) {
-    // If it's a file, open it
-    if (node.file && !node.isFolder) {
-        this.app.workspace.openLinkText(node.file.path, node.file.path);
-        // Keep the selection path as is, so the path to the file is highlighted
-    } else {
-        // If it's a folder, update selectionPath
+    // Always attempt to open the file if it exists
+    if (node.file) {
+      this.app.workspace.openLinkText(node.file.path, node.file.path);
+    }
+
+    // If it's a folder, handle column navigation
+    if (node.isFolder) {
         // If clicking a node at the current depth, or a shallower depth,
         // truncate the selectionPath
         if (depth < this.selectionPath.length) {
