@@ -96,10 +96,7 @@ export class CreateAbstractChildModal extends Modal {
   }
 }
 
-export async function createAbstractChildFile(app: App, settings: AbstractFolderPluginSettings, childName: string, parentFile: TFile, childType: ChildFileType) {
-    const parentBaseName = parentFile.basename;
-    const cleanParentName = parentBaseName.replace(/"/g, ''); // Ensure parent name is clean for frontmatter
-
+export async function createAbstractChildFile(app: App, settings: AbstractFolderPluginSettings, childName: string, parentFile: TFile | null, childType: ChildFileType) {
     let fileExtension: string;
     let initialContent: string;
 
@@ -107,14 +104,22 @@ export async function createAbstractChildFile(app: App, settings: AbstractFolder
         case 'note':
             fileExtension = '.md';
             // Markdown notes will have frontmatter and a heading
-            initialContent = `---
+            if (parentFile) {
+                const parentBaseName = parentFile.basename;
+                const cleanParentName = parentBaseName.replace(/"/g, ''); // Ensure parent name is clean for frontmatter
+                initialContent = `---
 ${settings.propertyName}: "[[${cleanParentName}]]"
 aliases:
   - ${childName}
 ---
-
-# ${childName}
 `;
+            } else {
+                initialContent = `---
+aliases:
+  - ${childName}
+---
+`;
+            }
             break;
         case 'canvas':
             fileExtension = '.canvas';
@@ -147,36 +152,38 @@ aliases:
         const file = await app.vault.create(fileName, initialContent);
         new Notice(`Created: ${fileName}`);
 
-        // Update parent's frontmatter to add this new file as a child
-        await app.fileManager.processFrontMatter(parentFile, (frontmatter) => {
-            const childrenPropertyName = settings.childrenPropertyName;
-            let currentChildren = frontmatter[childrenPropertyName];
+        if (parentFile) {
+            // Update parent's frontmatter to add this new file as a child
+            await app.fileManager.processFrontMatter(parentFile, (frontmatter) => {
+                const childrenPropertyName = settings.childrenPropertyName;
+                let currentChildren = frontmatter[childrenPropertyName];
 
-            if (!currentChildren) {
-                currentChildren = [];
-            } else if (typeof currentChildren === 'string') {
-                currentChildren = [currentChildren];
-            } else if (!Array.isArray(currentChildren)) {
-                // If it's something unexpected, convert to array for safety
-                console.warn(`Unexpected type for children property: ${typeof currentChildren}. Converting to array.`);
-                currentChildren = [String(currentChildren)];
-            }
+                if (!currentChildren) {
+                    currentChildren = [];
+                } else if (typeof currentChildren === 'string') {
+                    currentChildren = [currentChildren];
+                } else if (!Array.isArray(currentChildren)) {
+                    // If it's something unexpected, convert to array for safety
+                    console.warn(`Unexpected type for children property: ${typeof currentChildren}. Converting to array.`);
+                    currentChildren = [String(currentChildren)];
+                }
 
-            // Ensure the link is in wiki-link format for consistency, even for non-markdown files
-            let childLink: string;
-            if (file.extension === 'md') {
-                childLink = `[[${file.basename}]]`; // Markdown files typically resolve by basename, alias handled by frontmatter
-            } else {
-                // For canvas/bases, use the full name (with extension) for the link
-                // and optionally an alias for cleaner display.
-                childLink = `[[${file.name}|${file.basename}]]`;
-            }
+                // Ensure the link is in wiki-link format for consistency, even for non-markdown files
+                let childLink: string;
+                if (file.extension === 'md') {
+                    childLink = `[[${file.basename}]]`; // Markdown files typically resolve by basename, alias handled by frontmatter
+                } else {
+                    // For canvas/bases, use the full name (with extension) for the link
+                    // and optionally an alias for cleaner display.
+                    childLink = `[[${file.name}|${file.basename}]]`;
+                }
 
-            if (!currentChildren.includes(childLink)) {
-                currentChildren.push(childLink);
-            }
-            frontmatter[childrenPropertyName] = currentChildren;
-        });
+                if (!currentChildren.includes(childLink)) {
+                    currentChildren.push(childLink);
+                }
+                frontmatter[childrenPropertyName] = currentChildren;
+            });
+        }
 
         app.workspace.getLeaf(true).openFile(file);
         app.workspace.trigger('abstract-folder:graph-updated'); // Trigger graph update after modifying parent

@@ -60,6 +60,64 @@ export class AbstractFolderView extends ItemView {
     if (this.settings.autoReveal) {
       this.registerEvent(this.app.workspace.on("file-open", this.onFileOpen, this));
     }
+
+    // Add context menu for the empty space (root level actions)
+    this.contentEl.addEventListener("contextmenu", (event: MouseEvent) => {
+        // Prevent if the target is an item, as the item's own handler will take care of it
+        // However, we need to be careful about bubbling.
+        // The item's handler calls stopPropagation? No, let's check.
+        // renderTreeNode adds event listener to selfEl.
+        // We want this to fire only if we clicked on the background, NOT on an item.
+        // Checking the target might be tricky because of children.
+        // A better approach: The item listeners stop propagation, so this listener on container
+        // will only catch events that bubbled up from non-handled areas or direct clicks on container.
+        
+        // Wait, renderTreeNode adds contextmenu to selfEl and calls e.preventDefault().
+        // Does it call stopPropagation? It does not explicitly call stopPropagation() for contextmenu,
+        // but it calls preventDefault().
+        
+        // If we want to support right-click on empty space, we should check if default was prevented.
+        if (event.defaultPrevented) return;
+        
+        event.preventDefault();
+        
+        const menu = new Menu();
+
+        menu.addItem((item) =>
+            item
+                .setTitle("Create New Root Note")
+                .setIcon("file-plus")
+                .onClick(() => {
+                     new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
+                        createAbstractChildFile(this.app, this.settings, childName, null, childType);
+                    }, 'note').open();
+                })
+        );
+        
+        menu.addItem((item) =>
+            item
+                .setTitle("Create New Root Canvas")
+                .setIcon("layout-dashboard")
+                .onClick(() => {
+                     new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
+                        createAbstractChildFile(this.app, this.settings, childName, null, childType);
+                    }, 'canvas').open();
+                })
+        );
+
+        menu.addItem((item) =>
+            item
+                .setTitle("Create New Root Base")
+                .setIcon("database")
+                .onClick(() => {
+                     new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
+                        createAbstractChildFile(this.app, this.settings, childName, null, childType);
+                    }, 'base').open();
+                })
+        );
+
+        menu.showAtPosition({ x: event.clientX, y: event.clientY });
+    });
   }
   
   private onFileOpen = async (file: TFile | null) => {
@@ -635,6 +693,8 @@ export class AbstractFolderView extends ItemView {
     // Interaction: Right-click (Context Menu) - only for actual files
     if (node.file) {
       selfEl.addEventListener("contextmenu", (e) => {
+        // Stop propagation so the container's context menu doesn't trigger
+        e.stopPropagation();
         e.preventDefault(); // Prevent default browser context menu
         this.showContextMenu(e, node);
       });
