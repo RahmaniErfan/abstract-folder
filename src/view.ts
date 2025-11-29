@@ -2,7 +2,7 @@ import { ItemView, WorkspaceLeaf, TFile, setIcon, Menu, Notice } from "obsidian"
 import { FolderIndexer } from "./indexer";
 import { FileGraph, FolderNode, HIDDEN_FOLDER_ID } from "./types";
 import { AbstractFolderPluginSettings } from "./settings";
-import { CreateChildModal, createChildNote } from './commands';
+import { CreateAbstractChildModal, createAbstractChildFile, ChildFileType } from './commands'; // Updated imports
 import AbstractFolderPlugin from '../main'; // Import the plugin class
 
 export const VIEW_TYPE_ABSTRACT_FOLDER = "abstract-folder-view";
@@ -659,15 +659,41 @@ export class AbstractFolderView extends ItemView {
 
       menu.addItem((item) =>
         item
-          .setTitle("Create Note Here")
-          .setIcon("plus-circle")
+          .setTitle("Create Abstract Child Note")
+          .setIcon("file-plus") // Use a more generic icon for creating any child file
           .onClick(() => {
-            new CreateChildModal(this.app, this.settings, (childName) => {
-              createChildNote(this.app, this.settings, childName, node.file!);
-            }).open();
+            new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
+              createAbstractChildFile(this.app, this.settings, childName, node.file!, childType);
+            }, 'note').open();
           })
       );
       
+      menu.addSeparator(); // Add a separator before other creation options if desired
+
+      // Add options for creating specific child types
+      menu.addItem((item) =>
+        item
+          .setTitle("Create Abstract Canvas Child")
+          .setIcon("layout-dashboard") // Obsidian Canvas icon
+          .onClick(() => {
+            new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
+              createAbstractChildFile(this.app, this.settings, childName, node.file!, childType);
+            }, 'canvas').open();
+          })
+      );
+
+      // Assuming '.base' is the extension for Bases files as per our discussion
+      // And assuming Bases don't support frontmatter, so they'll rely on parent's children property
+      menu.addItem((item) =>
+        item
+          .setTitle("Create Abstract Bases Child")
+          .setIcon("database") // A database-like icon for Bases
+          .onClick(() => {
+            new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
+              createAbstractChildFile(this.app, this.settings, childName, node.file!, childType);
+            }, 'base').open();
+          })
+      );
       this.app.workspace.trigger("file-menu", menu, node.file, "abstract-folder-view");
     }
     

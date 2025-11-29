@@ -2,7 +2,7 @@ import { Plugin, WorkspaceLeaf } from 'obsidian';
 import { AbstractFolderPluginSettings, DEFAULT_SETTINGS } from './src/settings';
 import { FolderIndexer } from './src/indexer';
 import { AbstractFolderView, VIEW_TYPE_ABSTRACT_FOLDER } from './src/view';
-import { CreateChildModal, createChildNote, ParentPickerModal } from './src/commands';
+import { CreateAbstractChildModal, createAbstractChildFile, ParentPickerModal, ChildFileType } from './src/commands';
 import { AbstractFolderSettingTab } from './src/settings-tab'; // Import the new settings tab
 
 export default class AbstractFolderPlugin extends Plugin {
@@ -32,11 +32,11 @@ export default class AbstractFolderPlugin extends Plugin {
 
 		this.addCommand({
 			id: "create-abstract-child-note",
-			name: "Create Abstract Child Note",
+			name: "Create Abstract Child",
 			callback: () => {
-				new CreateChildModal(this.app, this.settings, (childName) => {
+				new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
 					new ParentPickerModal(this.app, (parentFile) => {
-						createChildNote(this.app, this.settings, childName, parentFile);
+						createAbstractChildFile(this.app, this.settings, childName, parentFile, childType);
 					}).open();
 				}).open();
 			},
