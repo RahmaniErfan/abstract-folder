@@ -59,6 +59,21 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName("Remember Expanded Folders")
+			.setDesc("Keep folders expanded even when switching views or restarting Obsidian.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.rememberExpanded)
+					.onChange(async (value) => {
+						this.plugin.settings.rememberExpanded = value;
+						if (!value) {
+							this.plugin.settings.expandedFolders = [];
+						}
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
 			.setName("Open on Startup")
 			.setDesc("Automatically open the Abstract Folder view when Obsidian starts.")
 			.addToggle((toggle) =>

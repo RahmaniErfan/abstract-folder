@@ -9,6 +9,8 @@ export interface AbstractFolderPluginSettings {
   enableRainbowIndents: boolean; // Whether to enable rainbow indentation guides
   rainbowPalette: 'classic' | 'pastel' | 'neon'; // The color palette for rainbow indents
   viewStyle: 'tree' | 'column'; // New: Tree or Column view
+  rememberExpanded: boolean; // Whether to remember expanded/collapsed state of folders
+  expandedFolders: string[]; // List of paths of currently expanded folders
 }
 
 export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
@@ -22,4 +24,6 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   enableRainbowIndents: true,
   rainbowPalette: 'classic',
   viewStyle: 'tree',
+  rememberExpanded: false,
+  expandedFolders: [],
 };

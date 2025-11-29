@@ -150,6 +150,14 @@ export class AbstractFolderView extends ItemView {
             if (parentItem) {
               if (parentItem.hasClass("is-collapsed")) {
                 parentItem.removeClass("is-collapsed");
+                // If remembering expansion, update settings when auto-revealing too
+                if (this.settings.rememberExpanded) {
+                    const parentPath = parentItem.dataset.path;
+                    if (parentPath && !this.settings.expandedFolders.includes(parentPath)) {
+                        this.settings.expandedFolders.push(parentPath);
+                        this.plugin.saveSettings(); // No await to avoid blocking render? Or should we?
+                    }
+                }
               }
               currentEl = parentItem.parentElement;
             } else {
@@ -613,7 +621,12 @@ export class AbstractFolderView extends ItemView {
 
     if (node.isFolder) {
         itemEl.addClass("is-folder");
-        itemEl.addClass("is-collapsed");
+        // Check if expanded in settings or default to collapsed
+        if (this.settings.rememberExpanded && this.settings.expandedFolders.includes(node.path)) {
+             // It is expanded, so we do NOT add is-collapsed
+        } else {
+             itemEl.addClass("is-collapsed");
+        }
     } else {
         itemEl.addClass("is-file");
     }
@@ -741,8 +754,25 @@ export class AbstractFolderView extends ItemView {
     }
   }
 
-  private toggleCollapse(itemEl: HTMLElement) {
-      itemEl.toggleClass("is-collapsed", !itemEl.hasClass("is-collapsed"));
+  private async toggleCollapse(itemEl: HTMLElement) {
+      const isCollapsed = !itemEl.hasClass("is-collapsed"); // State AFTER toggle
+      itemEl.toggleClass("is-collapsed", isCollapsed);
+
+      if (this.settings.rememberExpanded) {
+          const path = itemEl.dataset.path;
+          if (path) {
+              if (isCollapsed) {
+                   // Collapsing: remove from expanded list
+                   this.settings.expandedFolders = this.settings.expandedFolders.filter(p => p !== path);
+              } else {
+                   // Expanding: add to expanded list
+                   if (!this.settings.expandedFolders.includes(path)) {
+                       this.settings.expandedFolders.push(path);
+                   }
+              }
+              await this.plugin.saveSettings();
+          }
+      }
   }
 
   private toggleViewStyle() {
