@@ -2,8 +2,9 @@ import { Plugin, WorkspaceLeaf } from 'obsidian';
 import { AbstractFolderPluginSettings, DEFAULT_SETTINGS } from './src/settings';
 import { FolderIndexer } from './src/indexer';
 import { AbstractFolderView, VIEW_TYPE_ABSTRACT_FOLDER } from './src/view';
-import { CreateAbstractChildModal, createAbstractChildFile, ParentPickerModal, ChildFileType } from './src/commands';
-import { AbstractFolderSettingTab } from './src/settings-tab'; // Import the new settings tab
+import { CreateAbstractChildModal, ParentPickerModal, ChildFileType } from './src/ui/modals';
+import { AbstractFolderSettingTab } from './src/ui/settings-tab';
+import { createAbstractChildFile } from './src/file-operations';
 
 export default class AbstractFolderPlugin extends Plugin {
 	settings: AbstractFolderPluginSettings;

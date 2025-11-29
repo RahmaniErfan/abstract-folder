@@ -1,5 +1,5 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
-import AbstractFolderPlugin from '../main'; // Adjust path if necessary
+import AbstractFolderPlugin from '../../main'; // Adjust path if necessary
 
 export class AbstractFolderSettingTab extends PluginSettingTab {
 	plugin: AbstractFolderPlugin;

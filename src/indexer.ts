@@ -53,6 +53,41 @@ getGraph(): FileGraph {
     return [...this.PARENT_PROPERTIES_TO_CHECK_FOR_CHILD_DEFINED_PARENTS];
   }
 
+  getPathToRoot(filePath: string): string[] {
+    const graph = this.getGraph();
+    let currentPath = filePath;
+    const pathSegments: string[] = [];
+    const visited = new Set<string>();
+
+    while (currentPath) {
+        pathSegments.unshift(currentPath);
+        visited.add(currentPath);
+        
+        const parents = graph.childToParents.get(currentPath);
+        if (!parents || parents.size === 0) {
+            break;
+        }
+        
+        // Take the first parent found
+        const nextParent = parents.values().next().value;
+        
+        if (nextParent === HIDDEN_FOLDER_ID) {
+             if (pathSegments[0] !== HIDDEN_FOLDER_ID) {
+                pathSegments.unshift(HIDDEN_FOLDER_ID);
+             }
+             break;
+        }
+
+        if (visited.has(nextParent)) {
+            console.warn("Circular reference detected while revealing file.");
+            break;
+        }
+        
+        currentPath = nextParent;
+    }
+    return pathSegments;
+  }
+
   private registerEvents() {
     this.app.metadataCache.on("changed", (file: TFile, _data: string, cache: CachedMetadata) => {
       this.updateFileInGraph(file, cache);
@@ -245,47 +280,6 @@ getGraph(): FileGraph {
     this.app.workspace.trigger('abstract-folder:graph-updated'); // Notify view to re-render
   }
 
-  /**
-   * Removes a file's relationships where it acts as a CHILD.
-   * Does NOT remove its entry from `parentToChildren` if it acts as a PARENT.
-   * This is used for updates where a file's own parent links might change,
-   * but its status as a parent to other files remains.
-   */
-  private removeFileChildRelationships(file: TAbstractFile) {
-    // Remove this file as a child from any parent it was previously linked to.
-    const parentsOfFile = this.childToParents.get(file.path);
-    if (parentsOfFile) {
-      for (const parentPath of parentsOfFile) {
-        this.parentToChildren[parentPath]?.delete(file.path);
-        // Clean up empty parent entries
-        if (this.parentToChildren[parentPath]?.size === 0) {
-          delete this.parentToChildren[parentPath];
-        }
-      }
-    }
-    // Completely remove the child's entry from childToParents
-    this.childToParents.delete(file.path);
-  }
-
-  /**
-   * Removes relationships where this file acts as a PARENT, meaning it has defined children
-   * through its 'children' frontmatter property.
-   */
-  private removeFileParentRelationships(file: TAbstractFile) {
-    // Iterate over children that this file used to define as parents, and remove this file from their parent list.
-    const childrenDefinedByThisFile = this.parentToChildren[file.path];
-    if (childrenDefinedByThisFile) {
-      for (const childPath of childrenDefinedByThisFile) {
-        this.childToParents.get(childPath)?.delete(file.path);
-        // Clean up empty childToParents entries
-        if (this.childToParents.get(childPath)?.size === 0) {
-          this.childToParents.delete(childPath);
-        }
-      }
-    }
-    // Completely remove this file as a parent from parentToChildren
-    delete this.parentToChildren[file.path];
-  }
 
   /**
    * Completely removes a file from the graph, including its identity as a parent.
