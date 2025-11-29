@@ -2,7 +2,57 @@
 
 ## What it does
 
-Organize your Obsidian vault with virtual folders that don't correspond to the file system.
+Manage your vault with dynamic, virtual folders for flexible note organization.
+
+## Usage
+
+Abstract Folder enhances how you organize your notes, allowing them to appear in multiple "virtual" folders without physical duplication.
+
+### Linking Notes
+
+The core of Abstract Folder relies on frontmatter properties in your notes:
+
+*   **Parent-Child Relationships (Default)**: To make a note a child of an abstract folder (another note), add the `parent` frontmatter property to the child note, linking it to the parent note. For example:
+    ```yaml
+    ---
+    parent: "[[My Parent Note]]"
+    ---
+    ```
+    You can specify multiple parents as an array:
+    ```yaml
+    ---
+    parent:
+      - "[[My First Parent]]"
+      - "[[My Second Parent]]"
+    ---
+    ```
+*   **Parent-Defined Children (for non-Markdown files)**: For files like Canvas (`.canvas`), Excalidraw (`.excalidraw`), or other file types that do not support frontmatter, you can define their children directly within a parent Markdown note. Add the `children` frontmatter property to the parent note:
+    ```yaml
+    ---
+    children:
+      - "[[My Canvas File.canvas]]"
+      - "[[Another Non-Markdown.txt|Display Name]]"
+    ---
+    ```
+
+### Command Palette
+
+All primary functions of Abstract Folder are accessible via the Obsidian Command Palette (Ctrl/Cmd+P). Search for "Abstract Folder" to see a list of available commands:
+
+*   **Open Abstract Folder View**: Opens the main plugin view in a new pane.
+*   **Create Abstract Child**: Creates a new note or canvas file and assigns it as a child to a selected abstract folder.
+*   **Convert folder structure to plugin format**: Transforms an existing physical folder structure into abstract folders based on your settings.
+*   **Create folder structure from plugin format**: Generates a physical folder structure from your abstract folder hierarchy, with options for conflict resolution.
+
+### Settings
+
+To customize the plugin's behavior, go to **Settings → Abstract Folder**. Here you can:
+
+*   Change the default `parent` and `children` property names.
+*   Adjust view styles (tree or column).
+*   Configure sorting options.
+*   Set startup behavior (e.g., open view on startup).
+*   Manage excluded paths and indentation guides.
 
 ## Features
 

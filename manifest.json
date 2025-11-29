@@ -3,7 +3,7 @@
 	"name": "Abstract Folder",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Organize your vault with virtual folders that don't correspond to the file system.",
+	"description": "Manage your vault with dynamic, virtual folders for flexible note organization.",
 	"author": "Erfan Rahmani",
 	"isDesktopOnly": false
 }
