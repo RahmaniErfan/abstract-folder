@@ -45,9 +45,15 @@ export class AbstractFolderView extends ItemView {
     this.contentEl.empty();
     this.contentEl.addClass("abstract-folder-view");
 
+    this.addAction("file-plus", "Create New Root Note", () => {
+        new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
+            createAbstractChildFile(this.app, this.settings, childName, null, childType);
+        }, 'note').open();
+    });
+
     this.addAction("arrow-up-down", "Sort order", (evt: MouseEvent) => this.showSortMenu(evt));
-    this.addAction("chevrons-down", "Expand all folders", () => this.expandAll());
-    this.addAction("chevrons-up", "Collapse all folders", () => this.collapseAll());
+    this.addAction("chevrons-up-down", "Expand all folders", () => this.expandAll());
+    this.addAction("chevrons-down-up", "Collapse all folders", () => this.collapseAll());
     
     // Add view style toggle button
     this.viewStyleToggleAction = this.addAction("list", "Switch View Style", () => this.toggleViewStyle());
@@ -236,6 +242,14 @@ export class AbstractFolderView extends ItemView {
     rootNodes.forEach(node => {
       this.renderTreeNode(node, treeContainer, new Set(), 0); // Start with depth 0
     });
+
+    // Auto-reveal current file if enabled
+    if (this.settings.autoReveal) {
+        const activeFile = this.app.workspace.getActiveFile();
+        if (activeFile) {
+            this.revealFile(activeFile.path);
+        }
+    }
   }
 
   private renderColumnView = () => {
@@ -597,8 +611,12 @@ export class AbstractFolderView extends ItemView {
     const itemEl = parentEl.createDiv({ cls: "abstract-folder-item" });
     itemEl.dataset.path = node.path; // For finding it later
 
-    if (node.isFolder) itemEl.addClass("is-folder");
-    else itemEl.addClass("is-file");
+    if (node.isFolder) {
+        itemEl.addClass("is-folder");
+        itemEl.addClass("is-collapsed");
+    } else {
+        itemEl.addClass("is-file");
+    }
 
     // Self Row (The clickable part)
     const selfEl = itemEl.createDiv({ cls: "abstract-folder-item-self" });
@@ -617,7 +635,7 @@ export class AbstractFolderView extends ItemView {
     // Collapse Icon (Only for folders)
     if (node.isFolder) {
         const iconEl = selfEl.createDiv({ cls: "abstract-folder-collapse-icon" });
-        setIcon(iconEl, "right-triangle"); // Use right-triangle, then rotate with CSS
+        setIcon(iconEl, "chevron-right"); // Use chevron-right, then rotate with CSS
 
         iconEl.addEventListener("click", (e) => {
             e.stopPropagation();

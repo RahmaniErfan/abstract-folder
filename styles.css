@@ -23,7 +23,7 @@ n
 .workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-actions {
     display: flex !important;
     align-items: center !important;
-    gap: 4px !important; /* Space between action buttons */
+    gap: 8px !important; /* Space between action buttons */
 }
 
 .workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-header-nav-buttons {
@@ -177,12 +177,12 @@ n
     transition: transform 0.1s ease-in-out;
 }
 .abstract-folder-collapse-icon svg {
-    transform: rotate(90deg); /* Default: points down when expanded */
+    transform: rotate(90deg); /* Default (expanded): chevron-right rotated to point down */
     transition: transform 0.1s ease-in-out;
 }
 
 .abstract-folder-item.is-collapsed > .abstract-folder-item-self > .abstract-folder-collapse-icon svg {
-    transform: rotate(0deg); /* When collapsed: points right */
+    transform: rotate(0deg); /* Collapsed: chevron-right points right */
 }
 
 .abstract-folder-collapse-icon:hover {
@@ -332,17 +332,15 @@ n
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 28px !important; /* Explicit width */
-    height: 28px !important; /* Explicit height */
-    min-width: 28px !important; /* Ensure minimum width */
-    min-height: 28px !important; /* Ensure minimum height */
-    color: var(--icon-color) !important; /* Use Obsidian's default icon color */
-    background-color: var(--background-secondary) !important; /* Give it a distinct background for visibility */
-    border: 1px solid var(--background-modifier-border) !important; /* Add a border */
+    width: 28px !important;
+    height: 28px !important;
+    color: var(--icon-color) !important;
+    background-color: transparent !important;
+    border: none !important;
     border-radius: var(--radius-s) !important;
     cursor: pointer !important;
-    transition: background-color 0.1s ease-in-out !important;
-    box-shadow: var(--shadow-s) !important; /* Add a subtle shadow for prominence */
+    transition: color 0.1s ease-in-out, background-color 0.1s ease-in-out !important;
+    box-shadow: none !important;
 }
 
 .workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-actions .view-action:hover {
@@ -350,11 +348,10 @@ n
     color: var(--icon-color-hover) !important;
 }
 
-/* Ensure icons within the buttons are also visible and sized correctly */
 .workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-actions .view-action svg {
-    width: 16px !important; /* Standard icon size */
-    height: 16px !important; /* Standard icon size */
-    stroke: currentColor !important;
+    width: 18px !important;
+    height: 18px !important;
+    stroke-width: 2px;
 }
 
 
