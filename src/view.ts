@@ -2,7 +2,7 @@ import { ItemView, WorkspaceLeaf, TFile, setIcon, Menu, Notice } from "obsidian"
 import { FolderIndexer } from "./indexer";
 import { FileGraph, FolderNode, HIDDEN_FOLDER_ID } from "./types";
 import { AbstractFolderPluginSettings } from "./settings";
-import { CreateAbstractChildModal, createAbstractChildFile, ChildFileType, RenameModal, DeleteConfirmModal } from './commands'; // Updated imports
+import { CreateAbstractChildModal, createAbstractChildFile, ChildFileType, RenameModal, DeleteConfirmModal, BatchDeleteConfirmModal } from './commands'; // Updated imports
 import AbstractFolderPlugin from '../main'; // Import the plugin class
 
 export const VIEW_TYPE_ABSTRACT_FOLDER = "abstract-folder-view";
@@ -14,6 +14,7 @@ export class AbstractFolderView extends ItemView {
   private sortOrder: 'asc' | 'desc' = 'asc'; // Default sort order
   private sortBy: 'name' | 'mtime' = 'name'; // Default sort by name. Add 'mtime' for modified time.
   private selectionPath: string[] = []; // Tracks selected nodes for column view
+  private multiSelectedPaths: Set<string> = new Set(); // Tracks multi-selected files
   private viewStyleToggleAction: HTMLElement; // To store the reference to the toggle button
 
   constructor(
@@ -234,6 +235,7 @@ export class AbstractFolderView extends ItemView {
   }
 
   private renderColumnNode(node: FolderNode, parentEl: HTMLElement, depth: number) {
+    const activeFile = this.app.workspace.getActiveFile();
     const itemEl = parentEl.createDiv({ cls: "abstract-folder-item" });
     itemEl.dataset.path = node.path;
 
@@ -243,7 +245,7 @@ export class AbstractFolderView extends ItemView {
     const selfEl = itemEl.createDiv({ cls: "abstract-folder-item-self" });
 
     // Highlight if active Obsidian file
-    const activeFile = this.app.workspace.getActiveFile();
+    // const activeFile = this.app.workspace.getActiveFile(); // Already declared above for logging
     if (activeFile && activeFile.path === node.path) {
         selfEl.addClass("is-active");
     }
@@ -251,6 +253,11 @@ export class AbstractFolderView extends ItemView {
     // Highlight if selected in this column view
     if (this.selectionPath.includes(node.path)) {
         selfEl.addClass("is-selected-in-column");
+    }
+
+    // Highlight if multi-selected
+    if (this.multiSelectedPaths.has(node.path)) {
+        selfEl.addClass("is-multi-selected");
     }
 
     // Icon/Emoji (Optional)
@@ -281,7 +288,7 @@ export class AbstractFolderView extends ItemView {
 
     selfEl.addEventListener("click", (e) => {
         e.stopPropagation();
-        this.handleColumnNodeClick(node, depth);
+        this.handleColumnNodeClick(node, depth, e);
     });
 
     if (node.file) {
@@ -292,10 +299,40 @@ export class AbstractFolderView extends ItemView {
     }
   }
 
-  private handleColumnNodeClick(node: FolderNode, depth: number) {
+  private handleColumnNodeClick(node: FolderNode, depth: number, event?: MouseEvent) {
+    const isMultiSelectModifier = event && (event.altKey || event.ctrlKey || event.metaKey);
+
+    if (isMultiSelectModifier) {
+        // If starting a multi-selection and we have an active file, include it first
+        if (this.multiSelectedPaths.size === 0) {
+            const activeFile = this.app.workspace.getActiveFile();
+            if (activeFile) {
+                this.multiSelectedPaths.add(activeFile.path);
+            }
+        }
+
+        // Multi-select toggle
+        if (this.multiSelectedPaths.has(node.path)) {
+            this.multiSelectedPaths.delete(node.path);
+        } else {
+            this.multiSelectedPaths.add(node.path);
+        }
+        this.renderView();
+        return;
+    }
+
+    // Single click clears multi-selection unless it was a modifier click
+    if (this.multiSelectedPaths.size > 0) {
+        this.multiSelectedPaths.clear();
+    }
+
     // Always attempt to open the file if it exists
     if (node.file) {
-      this.app.workspace.openLinkText(node.file.path, node.file.path);
+      // Ensure file still exists before trying to open it to prevent ENOENT errors
+      const fileExists = this.app.vault.getAbstractFileByPath(node.file.path);
+      if (fileExists) {
+          this.app.workspace.openLinkText(node.file.path, node.file.path);
+      }
     }
 
     // If it's a folder, handle column navigation
@@ -490,6 +527,7 @@ export class AbstractFolderView extends ItemView {
   }
 
   private renderTreeNode(node: FolderNode, parentEl: HTMLElement, ancestors: Set<string>, depth: number) {
+    const activeFile = this.app.workspace.getActiveFile();
     if (ancestors.has(node.path)) {
        // Prevent infinite loops in the tree
        return;
@@ -507,9 +545,14 @@ export class AbstractFolderView extends ItemView {
     const selfEl = itemEl.createDiv({ cls: "abstract-folder-item-self" });
     
     // Highlight if active
-    const activeFile = this.app.workspace.getActiveFile();
+    // const activeFile = this.app.workspace.getActiveFile(); // Already declared above for logging
     if (activeFile && activeFile.path === node.path) {
         selfEl.addClass("is-active");
+    }
+
+    // Highlight if multi-selected
+    if (this.multiSelectedPaths.has(node.path)) {
+        selfEl.addClass("is-multi-selected");
     }
 
     // Collapse Icon (Only for folders)
@@ -542,11 +585,47 @@ export class AbstractFolderView extends ItemView {
     const innerEl = selfEl.createDiv({ cls: "abstract-folder-item-inner" });
     innerEl.setText(this.getDisplayName(node));
 
-    // Interaction: Click Title
-    innerEl.addEventListener("click", (e) => {
+    // Interaction: Click Row (Self)
+    selfEl.addEventListener("click", (e) => {
         e.stopPropagation();
+        
+        const isMultiSelectModifier = e.altKey || e.ctrlKey || e.metaKey;
+
+        if (isMultiSelectModifier) {
+            // If starting a multi-selection and we have an active file, include it first
+            if (this.multiSelectedPaths.size === 0) {
+                const activeFile = this.app.workspace.getActiveFile();
+                if (activeFile) {
+                    this.multiSelectedPaths.add(activeFile.path);
+                }
+            }
+
+            // Multi-select toggle
+            if (this.multiSelectedPaths.has(node.path)) {
+                this.multiSelectedPaths.delete(node.path);
+            } else {
+                this.multiSelectedPaths.add(node.path);
+            }
+            this.renderView();
+            return;
+        }
+
+        // Single click clears multi-selection
+        if (this.multiSelectedPaths.size > 0) {
+            this.multiSelectedPaths.clear();
+            this.renderView();
+            // Don't return, continue to process the click action (open/toggle)
+            // But wait, if we just cleared selection, maybe we should just re-render and select this one?
+            // Standard behavior: single click clears others and selects this one (or executes action).
+            // Here, "selecting" just means executing the action (open or toggle).
+        }
+
         if (node.file) {
-            this.app.workspace.openLinkText(node.file.path, node.file.path);
+            // Ensure file still exists before trying to open it
+            const fileExists = this.app.vault.getAbstractFileByPath(node.file.path);
+            if (fileExists) {
+                this.app.workspace.openLinkText(node.file.path, node.file.path);
+            }
         } else {
             // If it's a virtual folder without a file, clicking title toggles it
             this.toggleCollapse(itemEl);
@@ -627,7 +706,44 @@ export class AbstractFolderView extends ItemView {
   private showContextMenu(event: MouseEvent, node: FolderNode) {
     const menu = new Menu();
 
-    if (node.file) { // Context menu only applies to actual files
+    // If we have multiple items selected and the clicked node is one of them
+    if (this.multiSelectedPaths.size > 1 && this.multiSelectedPaths.has(node.path)) {
+        const selectedFiles: TFile[] = [];
+        this.multiSelectedPaths.forEach(path => {
+            const abstractFile = this.app.vault.getAbstractFileByPath(path);
+            if (abstractFile instanceof TFile) {
+                selectedFiles.push(abstractFile);
+            }
+        });
+
+        // Trigger the standard 'files-menu' for multi-selection
+        this.app.workspace.trigger("files-menu", menu, selectedFiles, "abstract-folder-view");
+        
+        // If no external plugin handled it or we want to add our own specific actions:
+        menu.addSeparator();
+        menu.addItem((item) =>
+            item
+                .setTitle(`Delete ${selectedFiles.length} items`)
+                .setIcon("trash")
+                .onClick(() => {
+                    new BatchDeleteConfirmModal(this.app, selectedFiles, async () => {
+                        for (const file of selectedFiles) {
+                            await this.app.fileManager.trashFile(file);
+                        }
+                        this.multiSelectedPaths.clear();
+                    }).open();
+                })
+        );
+    } else {
+        // Single file context menu
+        if (node.file) {
+            // If right-clicked file is NOT in the multi-selection, clear multi-selection
+            if (!this.multiSelectedPaths.has(node.path) && this.multiSelectedPaths.size > 0) {
+                this.multiSelectedPaths.clear();
+                this.renderView();
+            }
+            
+            // Standard single-file menu
       // Check if the file is currently hidden
       const fileCache = this.app.metadataCache.getFileCache(node.file);
       const parentProperty = fileCache?.frontmatter?.[this.settings.propertyName];
@@ -716,8 +832,9 @@ export class AbstractFolderView extends ItemView {
           })
       );
 
-      // Trigger standard Obsidian file menu for extensions and other plugins
-      this.app.workspace.trigger("file-menu", menu, node.file, "abstract-folder-view");
+            // Trigger standard Obsidian file menu for extensions and other plugins
+            this.app.workspace.trigger("file-menu", menu, node.file, "abstract-folder-view");
+        }
     }
     
     menu.showAtPosition({ x: event.clientX, y: event.clientY });

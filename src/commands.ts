@@ -301,3 +301,48 @@ export class DeleteConfirmModal extends Modal {
         contentEl.empty();
     }
 }
+
+export class BatchDeleteConfirmModal extends Modal {
+    private files: TFile[];
+    private onConfirm: () => void;
+
+    constructor(app: App, files: TFile[], onConfirm: () => void) {
+        super(app);
+        this.files = files;
+        this.onConfirm = onConfirm;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.createEl("h2", { text: `Delete ${this.files.length} Files` });
+        contentEl.createEl("p", { text: `Are you sure you want to delete these ${this.files.length} files?` });
+        
+        const list = contentEl.createEl("ul");
+        // Show up to 5 files, then "...and X more"
+        const maxDisplay = 5;
+        this.files.slice(0, maxDisplay).forEach(file => {
+            list.createEl("li", { text: file.name });
+        });
+        if (this.files.length > maxDisplay) {
+            list.createEl("li", { text: `...and ${this.files.length - maxDisplay} more` });
+        }
+
+        const buttonContainer = contentEl.createDiv({ cls: "modal-button-container" });
+        
+        const deleteButton = buttonContainer.createEl("button", { text: "Delete All", cls: "mod-warning" });
+        deleteButton.addEventListener("click", () => {
+            this.onConfirm();
+            this.close();
+        });
+
+        const cancelButton = buttonContainer.createEl("button", { text: "Cancel" });
+        cancelButton.addEventListener("click", () => {
+            this.close();
+        });
+    }
+
+    onClose() {
+        const { contentEl } = this;
+        contentEl.empty();
+    }
+}
