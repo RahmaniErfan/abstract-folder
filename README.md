@@ -31,7 +31,8 @@ Benefits:
 *   **Folder Note Function:** Any note can act as an abstract "folder" for its children.
 *   **Custom Tree & Column Views:** Replaces or augments the native Obsidian file explorer with interactive views.
 *   **Frontmatter Moves:** Notes are moved by editing their `parent` property; no file system operations needed.
-*   **Right-Click Menu:** Full context menu, with actions like hiding notes, renaming, deleting, setting custom icons, and creating new child notes.
+*   **Right-Click Menu:** Full context menu, with actions like hiding notes, renaming, deleting, and creating new child notes.
+*   **Icons:** Supports setting icons.
 *   **Parent-Defined Children:** Children can also be listed directly in a parent note's frontmatter.
 *   **Conversion Tools:** Tools convert physical folders to abstract folders, and vice-versa (with preview).
 *   **Non-Frontmatter File Support:** Supports files without frontmatter (e.g., Excalidraw, Canvas) using parent-defined children.
