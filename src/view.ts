@@ -742,6 +742,35 @@ export class AbstractFolderView extends ItemView {
                 this.multiSelectedPaths.clear();
                 this.renderView();
             }
+
+            menu.addItem((item) =>
+              item
+                .setTitle("Open in new tab")
+                .setIcon("file-plus")
+                .onClick(() => {
+                  this.app.workspace.getLeaf('tab').openFile(node.file!);
+                })
+            );
+
+            menu.addItem((item) =>
+              item
+                .setTitle("Open to the right")
+                .setIcon("separator-vertical")
+                .onClick(() => {
+                  this.app.workspace.getLeaf('split').openFile(node.file!);
+                })
+            );
+
+            menu.addItem((item) =>
+              item
+                .setTitle("Open in new window")
+                .setIcon("popout")
+                .onClick(() => {
+                  this.app.workspace.getLeaf('window').openFile(node.file!);
+                })
+            );
+
+            menu.addSeparator();
             
             // Standard single-file menu
       // Check if the file is currently hidden
