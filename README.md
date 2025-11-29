@@ -1,101 +1,97 @@
-# Obsidian Sample Plugin
+# Abstract Folders Plugin
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+Tagline: Eliminate folder rigidity. Give your notes multiple homes.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+## Core Value Proposition
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open Sample Modal" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+The Abstract Folders Plugin for Obsidian transforms your note organization by moving beyond traditional, rigid folder structures. It introduces an abstract, poly-hierarchical system that allows notes to exist in multiple contexts simultaneously, preventing duplication and fostering a more intuitive, context-rich navigation experience. This plugin resolves classification paralysis and promotes a fluid, dynamic workflow.
 
-## First time developing plugins?
+## The Problem with Rigid Folders
 
-Quick starting guide for new plugin devs:
+Traditional file systems, and by extension Obsidian's native folder structure, enforce a rigid, single hierarchy. This creates significant challenges when a note naturally belongs to multiple contexts. For instance, a meeting log might be relevant to a specific project, a client, and a date. In a rigid system, this often leads to:
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+*   **Classification Paralysis:** The constant struggle to determine the single "correct" location for a note, impeding thought processes and content creation.
+*   **File Duplication:** The necessity of creating multiple copies of the same note in different folders to align with various contexts, resulting in dispersed information and increased maintenance overhead.
+*   **Loss of Context:** Notes isolated within a single folder can lose their broader relevance, complicating the discovery of related information.
 
-## Releasing new releases
+## The Solution: Abstract Folder Notes
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+The Abstract Folders Plugin addresses these limitations by abstracting the folder concept. It utilizes a configurable `parent` frontmatter property in your markdown files. This mechanism enables a **Poly-Hierarchy**, where:
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+*   **Notes can have multiple parents:** A single note can seamlessly appear under different "abstract folders" (referred to as ghost nodes) without physical duplication.
+*   **Folder Notes transform organization:** The "parent" file itself functions as a writeable folder index or dashboard, allowing for embedding context, summaries, or related information directly within your organizational structure.
 
-## Adding your plugin to the community plugin list
+This approach delivers significant benefits:
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+*   **Eliminates Classification Paralysis (Poly-Hierarchy, Zero Duplication):** Assign notes to all relevant contexts without the need for single categorization or redundant copies.
+*   **Enhanced Context and Navigability (Folder Notes, Custom Tree Views):** Gain deeper insight into your notes through contextual "folder" pages and navigate your information space in a manner that aligns with your mental models.
+*   **Focus & Fluid Workflow (Simple Frontmatter Reorganization, Fast Creation Flow):** Reorganize notes with a straightforward frontmatter edit. Create new notes and assign parents efficiently, maintaining workflow continuity.
 
-## How to use
+## Key Features and Supported Functionality
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
- 
- ## Features
- 
- ### Hide Notes
- If you wish to hide a note from the main Abstract Folders view, you can use the right-click context menu on any note in the view and select "Hide Note". This will add `hidden` to your configured parent property (e.g., `parent: hidden`). Hidden notes will appear under a special "Hidden" root folder in the Abstract Folders view. To unhide a note, simply right-click it within the "Hidden" folder and select "Unhide Note".
- 
- **Important Note on Case Sensitivity**: The "Parent Property Name" setting (e.g., 'parent', 'folder') is case-sensitive. Please ensure the casing of the property name in your note's frontmatter (e.g., `parent: [[My Parent]]`) exactly matches the configured setting for the plugin to function correctly.
- 
- ## Manually installing the plugin
- 
- - Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+The Abstract Folders Plugin provides a comprehensive suite of features for managing your abstract note hierarchy:
 
-## Improve code quality with eslint (optional)
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- To use eslint with this project, make sure to install eslint from terminal:
-  - `npm install -g eslint`
-- To use eslint to analyze this project use this command:
-  - `eslint main.ts`
-  - eslint will then create a report with suggestions for code improvement by file and line number.
-- If your source code is in a folder, such as `src`, you can use eslint with this command to analyze all files in that folder:
-  - `eslint ./src/`
+*   **Poly-Hierarchical Structure:** A single note can be associated with multiple parents via a configurable frontmatter property (default: `parent`). This enables notes to appear in multiple "folders" simultaneously without duplication.
+*   **Ghost Node Rendering:** The same file is visibly rendered and interactable from multiple distinct locations within the custom folder tree UI, accurately reflecting its poly-hierarchical relationships.
+*   **Folder Note Utilization:** Any note can serve as an abstract "folder" for its children. This transforms parent notes into dynamic, writeable index pages or dashboards for their linked notes.
+*   **Custom Tree View:** The plugin replaces or augments the existing Obsidian file explorer sidebar with a custom, interactive view that renders your abstract, poly-hierarchical structure.
+*   **Column View:** An alternative column-based view offers a distinct method for navigating the hierarchy, similar to column views found in other file browsers.
+*   **Frontmatter-based Reorganization:** Modifying a note's `parent` frontmatter property facilitates its reorganization, bypassing traditional file system move operations.
+*   **Right-Click Menu Support:** The custom view fully supports standard Obsidian right-click context menu functions, in addition to specialized actions for abstract folders:
+    *   Open note in new tab, split pane, or new window.
+    *   Hide/Unhide notes by setting a "hidden" parent property, placing them under a special "Hidden" root folder.
+    *   Rename and Delete notes directly from the view.
+    *   Set/Change custom icons for notes.
+    *   Create Abstract Child Note, Canvas, or Base file types (for both parented and root items).
+    *   Multi-select functionality with support for batch deletion of multiple items.
+    *   Integration with native Obsidian file context menu actions.
+*   **Parent-Defined Children:** In addition to child-defined `parent` properties, parent notes can explicitly define `children` in their frontmatter, providing an alternative method for establishing relationships.
+*   **Conversion Utility (Folder to Plugin):** A feature to convert existing physical folder structures into the plugin's abstract format. This utility includes options for creating parent notes and managing existing relationships, ensuring a smooth migration of your vault.
+*   **Conversion Utility (Plugin to Folder):** A feature to convert the abstract structure back into physical folders. This is crucial for external compatibility, operating system compliance, or exporting vault content. It includes a simulation mode for previewing changes and resolving potential file conflicts.
+*   **Non-Frontmatter File Support:** The plugin explicitly supports file types that may not have frontmatter (e.g., Excalidraw, Canvas files) by respecting parent-defined children relationships, ensuring these files remain integrated into the abstract structure.
+*   **Dynamic Sorting:** Sort your abstract folders and notes directly within the view by name (ascending/descending) or modification time (oldest/newest).
 
-## Funding URL
+## Settings and Compatibility
 
-You can include funding URLs where people who use your plugin can financially support it.
+The Abstract Folders Plugin offers a comprehensive set of configurable options to customize your experience:
 
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
+*   **Configurable Parent Properties:** Define the frontmatter property names used for `parent` and `children` relationships.
+*   **Show Aliases:** Display the first alias from a note's frontmatter as its name in the view, instead of the filename.
+*   **Auto-Reveal Active File:** Automatically expand the abstract folder hierarchy to reveal the currently active note.
+*   **Startup Open:** Configure the plugin view to open automatically when Obsidian loads.
+*   **Open Side:** Choose to open the view in either the left or right sidebar.
+*   **Show Ribbon Icon:** Toggle the visibility of the plugin's ribbon icon.
+*   **Rainbow Indentation Guides:** Enable visually distinctive rainbow indentation guides in the tree view with classic, pastel, or neon color palettes.
+*   **View Style:** Switch between "Tree" and "Column" view styles.
+*   **Remember Expanded Folders:** Persist the expanded/collapsed state of abstract folders across Obsidian sessions.
+*   **Excluded Paths:** Define specific paths to exclude from the abstract folder view (e.g., export folders, attachment directories).
 
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
-```
+The Abstract Folders Plugin is designed for compatibility with Obsidian on both desktop and mobile platforms, with `isDesktopOnly` set where desktop-specific APIs are utilized.
 
-If you have multiple URLs, you can also do:
+## Future Roadmap
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
-```
+*   Further enhancements to navigation, potentially including contextual sibling navigation within a specific parent's children.
+*   Performance optimizations for very large vaults with complex hierarchies.
+*   Advanced query-based abstract folder creation.
 
-## API Documentation
+## Installation
 
-See https://github.com/obsidianmd/obsidian-api
+1.  **Disable Restricted Mode:** In Obsidian, navigate to **Settings → Community plugins** and ensure "Restricted mode" is turned off.
+2.  **Browse Community Plugins:** Click "Browse" under "Community plugins" and search for "Abstract Folders".
+3.  **Install and Enable:** Click "Install" and then "Enable" the plugin.
+4.  **Access the View:** A folder-tree icon will appear in your ribbon sidebar (left or right, configurable in settings) to open the view. Alternatively, use the command palette (`Ctrl/Cmd+P`) and search for "Open Abstract Folder View".
+
+---
+*Features Confirmed via Code/Commit Review:*
+*   Poly-Hierarchical Structure (`src/indexer.ts`)
+*   Ghost Node Rendering (`src/view.ts`, `src/ui/tree/tree-renderer.ts` - indirectly by multi-parent handling in indexer)
+*   Folder Note Utilization (`src/file-operations.ts` via `createAbstractChildFile`, `src/conversion.ts` via `convertFoldersToPluginFormat`)
+*   Custom Tree View (`src/view.ts`)
+*   Frontmatter-based Reorganization (`src/indexer.ts` processes frontmatter changes)
+*   Right-Click Menu Support (`src/ui/context-menu.ts`)
+*   Conversion Utility (`src/conversion.ts`, `main.ts` commands)
+*   Non-Frontmatter Support (`src/indexer.ts` resolves links for non-MD files as children)
+*   Settings (Expanded Folders, Visuals) (`src/settings.ts`, `src/ui/settings-tab.ts`, `src/view.ts`)
+
+*Features Requiring Assumption due to lack of explicit detail in reviewed code/commits:*
+*   Contextual Sibling Navigation (no explicit implementation found for "Next/Previous note within context" during search)
