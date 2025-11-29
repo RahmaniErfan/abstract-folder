@@ -18,6 +18,20 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 
 
 		new Setting(containerEl)
+			.setName("Excluded Paths")
+			.setDesc("Enter paths to exclude from the abstract folder view (one per line). Useful for hiding export folders.")
+			.addTextArea((text) =>
+				text
+					.setPlaceholder("Abstract Export\nArchive/Old")
+					.setValue(this.plugin.settings.excludedPaths?.join('\n') || '')
+					.onChange(async (value) => {
+						this.plugin.settings.excludedPaths = value.split('\n').filter(p => p.trim().length > 0);
+						await this.plugin.saveSettings();
+						this.plugin.indexer.updateSettings(this.plugin.settings);
+					})
+			);
+
+		new Setting(containerEl)
 			.setName("Parent Property Name")
 			.setDesc("The frontmatter property key used to define parent notes (e.g., 'parent' or 'folder'). This setting is case-sensitive, so ensure your frontmatter property name matches the casing exactly.")
 			.addText((text) =>

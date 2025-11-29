@@ -11,6 +11,7 @@ export interface AbstractFolderPluginSettings {
   viewStyle: 'tree' | 'column'; // New: Tree or Column view
   rememberExpanded: boolean; // Whether to remember expanded/collapsed state of folders
   expandedFolders: string[]; // List of paths of currently expanded folders
+  excludedPaths: string[]; // Paths to exclude from the abstract folder view (e.g. export folders)
 }
 
 export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
@@ -26,4 +27,5 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   viewStyle: 'tree',
   rememberExpanded: false,
   expandedFolders: [],
+  excludedPaths: [],
 };

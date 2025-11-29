@@ -1,4 +1,5 @@
-import { App, Modal, Setting, TFile, Notice, FuzzySuggestModal } from "obsidian";
+import { App, Modal, Setting, TFile, TFolder, Notice, FuzzySuggestModal } from "obsidian";
+import { ConversionOptions, FileConflict } from "../conversion";
 import { AbstractFolderPluginSettings } from "../settings";
 
 export class ParentPickerModal extends FuzzySuggestModal<TFile> {
@@ -247,5 +248,248 @@ export class BatchDeleteConfirmModal extends Modal {
     onClose() {
         const { contentEl } = this;
         contentEl.empty();
+    }
+}
+
+export class FolderSelectionModal extends FuzzySuggestModal<TFolder> {
+    private onChoose: (folder: TFolder) => void;
+
+    constructor(app: App, onChoose: (folder: TFolder) => void) {
+        super(app);
+        this.onChoose = onChoose;
+        this.setPlaceholder("Select a folder to convert...");
+    }
+
+    getItems(): TFolder[] {
+        const allFiles = this.app.vault.getAllLoadedFiles();
+        return allFiles.filter((f): f is TFolder => f instanceof TFolder);
+    }
+
+    getItemText(folder: TFolder): string {
+        return folder.path;
+    }
+
+    onChooseItem(folder: TFolder, evt: MouseEvent | KeyboardEvent) {
+        this.onChoose(folder);
+    }
+}
+
+export class ConversionOptionsModal extends Modal {
+    private folder: TFolder;
+    private onConfirm: (options: ConversionOptions) => void;
+    private options: ConversionOptions = {
+        createParentNotes: true,
+        existingRelationshipsStrategy: 'append'
+    };
+
+    constructor(app: App, folder: TFolder, onConfirm: (options: ConversionOptions) => void) {
+        super(app);
+        this.folder = folder;
+        this.onConfirm = onConfirm;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.createEl("h2", { text: "Convert Folder Structure" });
+        contentEl.createEl("p", { text: `Convert folder "${this.folder.path}" to Abstract Folder format.` });
+
+        new Setting(contentEl)
+            .setName("Create Parent Notes")
+            .setDesc("Create a corresponding markdown note for folders if one doesn't exist.")
+            .addToggle(toggle => toggle
+                .setValue(this.options.createParentNotes)
+                .onChange(value => this.options.createParentNotes = value));
+
+        new Setting(contentEl)
+            .setName("Existing Relationships")
+            .setDesc("How to handle files that already have parents defined.")
+            .addDropdown(dropdown => dropdown
+                .addOption('append', 'Append new parents')
+                .addOption('replace', 'Replace existing parents')
+                .setValue(this.options.existingRelationshipsStrategy)
+                .onChange((value: 'append' | 'replace') => this.options.existingRelationshipsStrategy = value));
+
+        new Setting(contentEl)
+            .addButton(btn => btn
+                .setButtonText("Convert")
+                .setCta()
+                .onClick(() => {
+                    this.onConfirm(this.options);
+                    this.close();
+                }));
+    }
+
+    onClose() {
+        this.contentEl.empty();
+    }
+}
+
+export class ScopeSelectionModal extends Modal {
+    private onConfirm: (scope: 'vault' | TFile) => void;
+
+    constructor(app: App, onConfirm: (scope: 'vault' | TFile) => void) {
+        super(app);
+        this.onConfirm = onConfirm;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.createEl("h2", { text: "Select Export Scope" });
+
+        new Setting(contentEl)
+            .setName("Entire Vault")
+            .setDesc("Export the entire abstract structure to folders.")
+            .addButton(btn => btn
+                .setButtonText("Export All")
+                .onClick(() => {
+                    this.onConfirm('vault');
+                    this.close();
+                }));
+
+        new Setting(contentEl)
+            .setName("Specific Branch")
+            .setDesc("Export starting from a specific parent note.")
+            .addButton(btn => btn
+                .setButtonText("Select Note")
+                .setCta()
+                .onClick(() => {
+                    this.close();
+                    new ParentPickerModal(this.app, (file) => {
+                        this.onConfirm(file);
+                    }).open();
+                }));
+    }
+
+    onClose() {
+        this.contentEl.empty();
+    }
+}
+
+export class DestinationPickerModal extends FuzzySuggestModal<TFolder> {
+    private onChoose: (folder: TFolder) => void;
+
+    constructor(app: App, onChoose: (folder: TFolder) => void) {
+        super(app);
+        this.onChoose = onChoose;
+        this.setPlaceholder("Select destination parent folder...");
+    }
+
+    getItems(): TFolder[] {
+        const allFiles = this.app.vault.getAllLoadedFiles();
+        return allFiles.filter((f): f is TFolder => f instanceof TFolder);
+    }
+
+    getItemText(folder: TFolder): string {
+        return folder.path;
+    }
+
+    onChooseItem(folder: TFolder, evt: MouseEvent | KeyboardEvent) {
+        this.onChoose(folder);
+    }
+}
+
+export class NewFolderNameModal extends Modal {
+    private parentFolder: TFolder;
+    private onConfirm: (fullPath: string) => void;
+    private folderName = "Abstract Export";
+
+    constructor(app: App, parentFolder: TFolder, onConfirm: (fullPath: string) => void) {
+        super(app);
+        this.parentFolder = parentFolder;
+        this.onConfirm = onConfirm;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.createEl("h2", { text: "Name Export Folder" });
+        contentEl.createEl("p", { text: `Creating new folder inside: ${this.parentFolder.path === '/' ? 'Root' : this.parentFolder.path}` });
+
+        new Setting(contentEl)
+            .setName("Folder Name")
+            .setDesc("Enter a name for the folder that will contain the exported structure.")
+            .addText(text => text
+                .setValue(this.folderName)
+                .onChange(value => this.folderName = value));
+
+        new Setting(contentEl)
+            .addButton(btn => btn
+                .setButtonText("Confirm")
+                .setCta()
+                .onClick(() => {
+                    if (!this.folderName) {
+                        new Notice("Please enter a folder name.");
+                        return;
+                    }
+                    // Construct full path
+                    const parentPath = this.parentFolder.path === '/' ? '' : this.parentFolder.path + '/';
+                    const fullPath = parentPath + this.folderName;
+                    this.onConfirm(fullPath);
+                    this.close();
+                }));
+    }
+
+    onClose() {
+        this.contentEl.empty();
+    }
+}
+
+export class SimulationModal extends Modal {
+    private conflicts: FileConflict[];
+    private onConfirm: (conflicts: FileConflict[]) => void;
+
+    constructor(app: App, conflicts: FileConflict[], onConfirm: (conflicts: FileConflict[]) => void) {
+        super(app);
+        this.conflicts = conflicts;
+        this.onConfirm = onConfirm;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.createEl("h2", { text: "Review Folder Generation" });
+
+        if (this.conflicts.length === 0) {
+            contentEl.createEl("p", { text: "No conflicts detected. Ready to generate." });
+        } else {
+            contentEl.createEl("p", { text: `${this.conflicts.length} files have multiple parents. Please resolve conflicts.` });
+            
+            const conflictContainer = contentEl.createDiv({ cls: "conflict-container" });
+            conflictContainer.style.maxHeight = "400px";
+            conflictContainer.style.overflowY = "auto";
+            conflictContainer.style.marginBottom = "20px";
+
+            this.conflicts.forEach(conflict => {
+                const div = conflictContainer.createDiv({ cls: "conflict-item" });
+                div.style.borderBottom = "1px solid var(--background-modifier-border)";
+                div.style.padding = "10px 0";
+
+                div.createEl("strong", { text: conflict.file.path });
+                
+                new Setting(div)
+                    .setName("Resolution")
+                    .addDropdown(dropdown => {
+                        dropdown.addOption('duplicate', 'Duplicate in all locations');
+                        conflict.targetPaths.forEach(path => {
+                            dropdown.addOption(path, `Move to: ${path}`);
+                        });
+                        dropdown.setValue('duplicate');
+                        dropdown.onChange(value => {
+                            conflict.resolution = value;
+                        });
+                    });
+            });
+        }
+
+        new Setting(contentEl)
+            .addButton(btn => btn
+                .setButtonText("Generate Folders")
+                .setCta()
+                .onClick(() => {
+                    this.onConfirm(this.conflicts);
+                    this.close();
+                }));
+    }
+
+    onClose() {
+        this.contentEl.empty();
     }
 }

@@ -114,6 +114,10 @@ getGraph(): FileGraph {
 
     const allFiles = this.app.vault.getFiles(); // Get ALL files, not just markdown
     for (const file of allFiles) {
+      // Check if file is in an excluded path
+      if (this.isExcluded(file.path)) {
+          continue;
+      }
       this.processFile(file);
     }
 
@@ -129,6 +133,21 @@ getGraph(): FileGraph {
     this.CHILD_PROPERTIES_TO_CHECK_FOR_PARENT_DEFINED_CHILDREN = [this.settings.childrenPropertyName];
     // Child-defined parents: property name defined in settings
     this.PARENT_PROPERTIES_TO_CHECK_FOR_CHILD_DEFINED_PARENTS = [this.settings.propertyName];
+  }
+
+  private isExcluded(path: string): boolean {
+      if (!this.settings.excludedPaths) return false;
+      for (const excluded of this.settings.excludedPaths) {
+          // Check if path starts with excluded folder path
+          // Normalize both to handle potential trailing slashes
+          const cleanPath = path.replace(/^\//, '');
+          const cleanExcluded = excluded.replace(/^\//, '');
+          
+          if (cleanPath.startsWith(cleanExcluded)) {
+              return true;
+          }
+      }
+      return false;
   }
 
   private processFile(file: TAbstractFile) {

@@ -2,9 +2,11 @@ import { Plugin, WorkspaceLeaf } from 'obsidian';
 import { AbstractFolderPluginSettings, DEFAULT_SETTINGS } from './src/settings';
 import { FolderIndexer } from './src/indexer';
 import { AbstractFolderView, VIEW_TYPE_ABSTRACT_FOLDER } from './src/view';
-import { CreateAbstractChildModal, ParentPickerModal, ChildFileType } from './src/ui/modals';
+import { CreateAbstractChildModal, ParentPickerModal, ChildFileType, FolderSelectionModal, ConversionOptionsModal, DestinationPickerModal, NewFolderNameModal, SimulationModal, ScopeSelectionModal } from './src/ui/modals';
 import { AbstractFolderSettingTab } from './src/ui/settings-tab';
 import { createAbstractChildFile } from './src/file-operations';
+import { convertFoldersToPluginFormat, generateFolderStructurePlan, executeFolderGeneration } from './src/conversion';
+import { TFolder, TFile } from 'obsidian';
 
 export default class AbstractFolderPlugin extends Plugin {
 	settings: AbstractFolderPluginSettings;
@@ -41,6 +43,37 @@ export default class AbstractFolderPlugin extends Plugin {
 					}).open();
 				}).open();
 			},
+		});
+
+		this.addCommand({
+			id: "convert-folder-to-plugin",
+			name: "Convert folder structure to plugin format",
+			callback: () => {
+				new FolderSelectionModal(this.app, (folder: TFolder) => {
+					new ConversionOptionsModal(this.app, folder, (options) => {
+						convertFoldersToPluginFormat(this.app, this.settings, folder, options);
+					}).open();
+				}).open();
+			}
+		});
+
+		this.addCommand({
+			id: "create-folders-from-plugin",
+			name: "Create folder structure from plugin format",
+			callback: () => {
+				new ScopeSelectionModal(this.app, (scope) => {
+					new DestinationPickerModal(this.app, (parentFolder: TFolder) => {
+						new NewFolderNameModal(this.app, parentFolder, (destinationPath: string) => {
+							const rootScope = scope === 'vault' ? undefined : (scope as TFile);
+							generateFolderStructurePlan(this.app, this.settings, this.indexer, destinationPath, rootScope).then(plan => {
+								new SimulationModal(this.app, plan.conflicts, (resolvedConflicts) => {
+									executeFolderGeneration(this.app, plan);
+								}).open();
+							});
+						}).open();
+					}).open();
+				}).open();
+			}
 		});
 
 		this.addSettingTab(new AbstractFolderSettingTab(this.app, this));
