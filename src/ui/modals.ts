@@ -279,7 +279,8 @@ export class ConversionOptionsModal extends Modal {
     private onConfirm: (options: ConversionOptions) => void;
     private options: ConversionOptions = {
         createParentNotes: true,
-        existingRelationshipsStrategy: 'append'
+        existingRelationshipsStrategy: 'append',
+        folderNoteStrategy: 'outside'
     };
 
     constructor(app: App, folder: TFolder, onConfirm: (options: ConversionOptions) => void) {
@@ -308,6 +309,15 @@ export class ConversionOptionsModal extends Modal {
                 .addOption('replace', 'Replace existing parents')
                 .setValue(this.options.existingRelationshipsStrategy)
                 .onChange((value: 'append' | 'replace') => this.options.existingRelationshipsStrategy = value));
+
+        new Setting(contentEl)
+            .setName("Folder Note Strategy")
+            .setDesc("Where to look for the note representing the folder.")
+            .addDropdown(dropdown => dropdown
+                .addOption('outside', 'Outside (Sibling note, e.g. "Folder.md" next to "Folder/")')
+                .addOption('inside', 'Inside (Index note, e.g. "Folder/Folder.md")')
+                .setValue(this.options.folderNoteStrategy)
+                .onChange((value: 'outside' | 'inside') => this.options.folderNoteStrategy = value));
 
         new Setting(contentEl)
             .addButton(btn => btn
@@ -390,10 +400,11 @@ export class DestinationPickerModal extends FuzzySuggestModal<TFolder> {
 
 export class NewFolderNameModal extends Modal {
     private parentFolder: TFolder;
-    private onConfirm: (fullPath: string) => void;
+    private onConfirm: (fullPath: string, placeIndexFileInside: boolean) => void;
     private folderName = "Abstract Export";
+    private placeIndexFileInside = true;
 
-    constructor(app: App, parentFolder: TFolder, onConfirm: (fullPath: string) => void) {
+    constructor(app: App, parentFolder: TFolder, onConfirm: (fullPath: string, placeIndexFileInside: boolean) => void) {
         super(app);
         this.parentFolder = parentFolder;
         this.onConfirm = onConfirm;
@@ -412,6 +423,13 @@ export class NewFolderNameModal extends Modal {
                 .onChange(value => this.folderName = value));
 
         new Setting(contentEl)
+            .setName("Create Index Files")
+            .setDesc("ON: Create 'Folder/Folder.md' containing the note content. OFF: Create only the folder 'Folder/' (excludes note content if it has children).")
+            .addToggle(toggle => toggle
+                .setValue(this.placeIndexFileInside)
+                .onChange(value => this.placeIndexFileInside = value));
+
+        new Setting(contentEl)
             .addButton(btn => btn
                 .setButtonText("Confirm")
                 .setCta()
@@ -423,7 +441,7 @@ export class NewFolderNameModal extends Modal {
                     // Construct full path
                     const parentPath = this.parentFolder.path === '/' ? '' : this.parentFolder.path + '/';
                     const fullPath = parentPath + this.folderName;
-                    this.onConfirm(fullPath);
+                    this.onConfirm(fullPath, this.placeIndexFileInside);
                     this.close();
                 }));
     }

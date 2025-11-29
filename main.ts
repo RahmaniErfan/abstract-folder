@@ -63,9 +63,17 @@ export default class AbstractFolderPlugin extends Plugin {
 			callback: () => {
 				new ScopeSelectionModal(this.app, (scope) => {
 					new DestinationPickerModal(this.app, (parentFolder: TFolder) => {
-						new NewFolderNameModal(this.app, parentFolder, (destinationPath: string) => {
+						new NewFolderNameModal(this.app, parentFolder, (destinationPath: string, placeIndexFileInside: boolean) => {
+							// Automatically add the export folder to excluded paths if not already present
+							if (!this.settings.excludedPaths.includes(destinationPath)) {
+								this.settings.excludedPaths.push(destinationPath);
+								this.saveSettings().then(() => {
+									this.indexer.updateSettings(this.settings);
+								});
+							}
+
 							const rootScope = scope === 'vault' ? undefined : (scope as TFile);
-							generateFolderStructurePlan(this.app, this.settings, this.indexer, destinationPath, rootScope).then(plan => {
+							generateFolderStructurePlan(this.app, this.settings, this.indexer, destinationPath, placeIndexFileInside, rootScope).then(plan => {
 								new SimulationModal(this.app, plan.conflicts, (resolvedConflicts) => {
 									executeFolderGeneration(this.app, plan);
 								}).open();

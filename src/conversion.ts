@@ -5,6 +5,7 @@ import { FolderIndexer } from "./indexer";
 export interface ConversionOptions {
     createParentNotes: boolean;
     existingRelationshipsStrategy: 'append' | 'replace';
+    folderNoteStrategy: 'outside' | 'inside'; // 'outside' = parent note is sibling of folder; 'inside' = parent note is inside folder
 }
 
 export interface GenerationOptions {
@@ -34,11 +35,19 @@ export async function convertFoldersToPluginFormat(
         // Find or create the parent note for this folder
         let parentNote: TFile | null = null;
         
-        // Strategy: Look for "Folder A.md" in the parent directory of "Folder A".
+        // Strategy: Look for "Folder A.md" based on selected strategy
         const parentOfFolder = folder.parent;
-        const potentialParentNotePath = parentOfFolder
+        let potentialParentNotePath = "";
+
+        if (options.folderNoteStrategy === 'inside') {
+             // Inside: "Folder/Folder.md"
+             potentialParentNotePath = `${folder.path}/${folder.name}.md`;
+        } else {
+            // Outside: "Folder.md" next to "Folder/"
+            potentialParentNotePath = parentOfFolder
             ? `${parentOfFolder.path === '/' ? '' : parentOfFolder.path + '/'}${folder.name}.md`
             : `${folder.name}.md`;
+        }
         
         parentNote = app.vault.getAbstractFileByPath(potentialParentNotePath) as TFile;
 
@@ -148,6 +157,7 @@ export async function generateFolderStructurePlan(
     settings: AbstractFolderPluginSettings,
     indexer: FolderIndexer,
     destinationPath: string,
+    placeIndexFileInside: boolean,
     rootScope?: TFile
 ): Promise<{ fileTree: Map<string, string[]>, conflicts: FileConflict[] }> {
     const fileTree = new Map<string, string[]>(); // FolderPath -> List of FilePaths to move/copy there
@@ -185,7 +195,37 @@ export async function generateFolderStructurePlan(
         if (children && children.size > 0) {
             const newFolderPath = `${currentPath}/${file.basename}`;
             
+            // If placeIndexFileInside is true, we put the PARENT file inside the new folder too
+            if (placeIndexFileInside) {
+                if (!fileDestinations.has(file.path)) fileDestinations.set(file.path, []);
+                
+                // If we are moving it inside, we should remove it from the currentPath (outside)
+                // to avoid duplication (having it both outside and inside)
+                const targets = fileDestinations.get(file.path)!;
+                const outsideIndex = targets.indexOf(currentPath);
+                if (outsideIndex > -1) {
+                    targets.splice(outsideIndex, 1);
+                }
+                
+                // We add it to the new folder.
+                targets.push(newFolderPath);
+            } else {
+                // If placeIndexFileInside is FALSE (OFF), the user wants a pure folder structure.
+                // This means the parent file itself should NOT be included in the export (it becomes just a folder).
+                // We must remove the file from its currently assigned destination (outside/sibling).
+                
+                 const targets = fileDestinations.get(file.path);
+                 if (targets) {
+                     const outsideIndex = targets.indexOf(currentPath);
+                     if (outsideIndex > -1) {
+                         targets.splice(outsideIndex, 1);
+                     }
+                 }
+            }
+
             for (const child of children) {
+                if (child.path === file.path) continue; // Prevent self-reference loops
+
                 // Record that 'child' belongs in 'newFolderPath'
                 if (!fileDestinations.has(child.path)) fileDestinations.set(child.path, []);
                 fileDestinations.get(child.path)!.push(newFolderPath);
