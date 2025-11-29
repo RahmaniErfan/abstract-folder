@@ -389,6 +389,24 @@ n
     margin-left: auto !important;
 }
 
+/* Folder Indicator for Column View */
+.abstract-folder-folder-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-left: auto; /* Push to the right */
+    color: var(--text-muted);
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+
+.abstract-folder-folder-indicator svg {
+    width: 12px;
+    height: 12px;
+}
+
 /* Style for multi-selected item - Moved here to override hover/active states if needed */
 .abstract-folder-item-self.is-multi-selected {
     background-color: var(--nav-item-background-active); /* Make it look like an active item */

@@ -358,13 +358,20 @@ export class AbstractFolderView extends ItemView {
     const innerEl = selfEl.createDiv({ cls: "abstract-folder-item-inner" });
     innerEl.setText(this.getDisplayName(node));
 
+
     // Multi-parent indicator
     const parentCount = this.indexer.getGraph().childToParents.get(node.path)?.size || 0;
     if (parentCount > 1) {
         const multiParentIndicator = innerEl.createSpan({ cls: "abstract-folder-multi-parent-indicator" });
-        setIcon(multiParentIndicator, "git-branch-plus"); // Or a custom icon
+        setIcon(multiParentIndicator, "git-branch-plus");
         multiParentIndicator.ariaLabel = `${parentCount} parents`;
         multiParentIndicator.title = `${parentCount} parents`;
+    }
+
+    // Add folder indicator (right arrow) for folders in column view
+    if (node.isFolder && node.children.length > 0) {
+        const folderIndicator = selfEl.createDiv({ cls: "abstract-folder-folder-indicator" });
+        setIcon(folderIndicator, "chevron-right");
     }
 
     selfEl.addEventListener("click", (e) => {
