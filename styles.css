@@ -192,10 +192,14 @@ n
 
 /* Inner Text */
 .abstract-folder-item-inner {
-    flex: 1;
+    flex-grow: 1; /* Match native explorer behavior */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 13px; /* Explicitly set to match native */
+    font-weight: 400; /* Normal weight to match native */
+    line-height: 16.9px; /* Match native */
+    color: var(--text-normal); /* Ensure normal text color */
 }
 
 /* Children Container */
@@ -422,6 +426,23 @@ n
 .abstract-folder-view .abstract-folder-item-self.is-selected-in-column {
     background-color: var(--nav-item-background-active) !important;
     color: var(--nav-item-text-color-active) !important;
+}
+
+/* Style for file type tag */
+.abstract-folder-file-tag {
+    align-self: center;
+    background-color: rgba(0, 0, 0, 0); /* Transparent background */
+    border-radius: 4px;
+    color: var(--text-muted); /* Muted text color */
+    font-size: 9px; /* Specific font size from example */
+    font-weight: 600; /* Specific font weight from example */
+    letter-spacing: 0.45px; /* Specific letter spacing from example */
+    line-height: 13.5px; /* Specific line height from example */
+    padding: 0 4px; /* Specific padding from example */
+    text-transform: uppercase; /* Capitalize text */
+    flex-shrink: 0; /* Prevent from shrinking */
+    margin-inline-start: 8px; /* Space between the file name and the tag */
+    display: block; /* Ensure it behaves like a block for full style adherence */
 }
 
 .abstract-folder-view .abstract-folder-item-self.is-selected-in-column .abstract-folder-item-icon svg {

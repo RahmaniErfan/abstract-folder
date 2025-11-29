@@ -358,6 +358,11 @@ export class AbstractFolderView extends ItemView {
     const innerEl = selfEl.createDiv({ cls: "abstract-folder-item-inner" });
     innerEl.setText(this.getDisplayName(node));
 
+    // Add file type tag for files
+    if (node.file && node.path !== HIDDEN_FOLDER_ID && node.file.extension !== 'md') {
+      const fileTypeTag = selfEl.createDiv({ cls: "abstract-folder-file-tag" });
+      fileTypeTag.setText(node.file.extension.toUpperCase());
+    }
 
     // Multi-parent indicator
     const parentCount = this.indexer.getGraph().childToParents.get(node.path)?.size || 0;
@@ -681,6 +686,12 @@ export class AbstractFolderView extends ItemView {
     // Inner Content (Title)
     const innerEl = selfEl.createDiv({ cls: "abstract-folder-item-inner" });
     innerEl.setText(this.getDisplayName(node));
+
+    // Add file type tag for files
+    if (node.file && node.path !== HIDDEN_FOLDER_ID && node.file.extension !== 'md') {
+      const fileTypeTag = selfEl.createDiv({ cls: "abstract-folder-file-tag" });
+      fileTypeTag.setText(node.file.extension.toUpperCase());
+    }
 
     // Interaction: Click Row (Self)
     selfEl.addEventListener("click", (e) => {
