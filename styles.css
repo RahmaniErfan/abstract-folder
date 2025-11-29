@@ -115,13 +115,14 @@ n
 
 /* Style for selected item in column view */
 .abstract-folder-item-self.is-selected-in-column {
-    background-color: var(--background-modifier-accent); /* A distinct highlight color for selected items */
-    color: var(--text-normal);
+    background-color: var(--nav-item-background-active);
+    color: var(--nav-item-text-color-active);
+    font-weight: var(--font-medium);
 }
-/* Multi-select styles moved to end of file for precedence */
 
+/* Ensure selected icon color matches */
 .abstract-folder-item-self.is-selected-in-column .abstract-folder-item-icon svg {
-    color: var(--text-normal); /* Ensure icon color matches */
+    color: var(--nav-item-text-color-active);
 }
 
 
@@ -397,4 +398,14 @@ n
 
 .abstract-folder-item-self.is-multi-selected .abstract-folder-item-icon svg {
     color: var(--nav-item-text-color-active);
+}
+
+/* High specificity override to ensure column selection is always visible even with other states */
+.abstract-folder-view .abstract-folder-item-self.is-selected-in-column {
+    background-color: var(--nav-item-background-active) !important;
+    color: var(--nav-item-text-color-active) !important;
+}
+
+.abstract-folder-view .abstract-folder-item-self.is-selected-in-column .abstract-folder-item-icon svg {
+    color: var(--nav-item-text-color-active) !important;
 }
