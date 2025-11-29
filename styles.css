@@ -356,12 +356,17 @@
 
 /* Adjust indentation for "Abstract Folders" title */
 .workspace-leaf-content[data-type="abstract-folder-view"] .view-header-left {
-    display: none !important; /* Hide the left navigation buttons container to allow title to move left */
+    /* Re-enable display of the left header section to allow the icon to show */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    /* Hide specific children if they are navigation buttons */
+    /* .view-header-nav-buttons will still be hidden by earlier rule if it applies */
 }
 
 .workspace-leaf-content[data-type="abstract-folder-view"] .view-header-title-container {
     margin: 0 !important; /* Reset all margins */
-    padding-left: 10px !important; /* Apply left padding to the container */
+    padding-left: 0 !important; /* Reset padding, as the icon will now provide spacing */
     padding-right: 0 !important; /* Ensure no right padding */
     flex-grow: 0 !important; /* Prevent title container from expanding */
     flex-shrink: 0 !important; /* Prevent title container from shrinking */

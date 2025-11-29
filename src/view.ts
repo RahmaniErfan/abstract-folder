@@ -597,7 +597,9 @@ export class AbstractFolderView extends ItemView {
 
   private updateViewStyleToggleButton() {
       const isColumnView = this.settings.viewStyle === 'column';
-      setIcon(this.viewStyleToggleAction, isColumnView ? "layout-vertical" : "list");
+      // If current view is column, button is for switching to tree view (folder-tree as an alternative)
+      // If current view is tree, button is for switching to column view (rows-2, as requested)
+      setIcon(this.viewStyleToggleAction, isColumnView ? "folder-tree" : "rows-2");
       this.viewStyleToggleAction.ariaLabel = isColumnView ? "Switch to Tree View" : "Switch to Column View";
       this.viewStyleToggleAction.title = isColumnView ? "Switch to Tree View" : "Switch to Column View";
   }
