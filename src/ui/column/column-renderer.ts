@@ -59,23 +59,16 @@ export class ColumnRenderer {
 
         const selfEl = itemEl.createDiv({ cls: "abstract-folder-item-self" });
 
-        console.log(`[ColumnRenderer] Rendering node: ${node.path}`);
-        console.log(`[ColumnRenderer] Active file: ${activeFile?.path}`);
-        console.log(`[ColumnRenderer] Selection path: ${this.selectionPath.join(' -> ')}`);
-        
         if (activeFile && activeFile.path === node.path) {
             selfEl.addClass("is-active");
-            console.log(`[ColumnRenderer] Node ${node.path} is active.`);
         }
 
         const selectionIndex = this.selectionPath.indexOf(node.path);
         if (selectionIndex > -1) {
             if (selectionIndex === this.selectionPath.length - 1) {
                 selfEl.addClass("is-selected-in-column");
-                console.log(`[ColumnRenderer] Node ${node.path} is selected in column.`);
             } else {
                 selfEl.addClass("is-ancestor-of-selected");
-                console.log(`[ColumnRenderer] Node ${node.path} is ancestor of selected.`);
             }
         }
 

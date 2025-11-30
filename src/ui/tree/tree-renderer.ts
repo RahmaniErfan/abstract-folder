@@ -41,17 +41,12 @@ const currentDepth = depth + 1;
 const itemEl = parentEl.createDiv({ cls: "abstract-folder-item" });
 itemEl.dataset.path = node.path;
 
-console.log(`[TreeRenderer] Rendering node: ${node.path}`);
-console.log(`[TreeRenderer] Active file: ${activeFile?.path}`);
-console.log(`[TreeRenderer] Multi-selected paths: ${Array.from(this.multiSelectedPaths).join(', ')}`);
-
-
 if (node.isFolder) {
     itemEl.addClass("is-folder");
     if (this.settings.rememberExpanded && this.settings.expandedFolders.includes(node.path)) {
-         // Expanded
+        // Expanded
     } else {
-         itemEl.addClass("is-collapsed");
+        itemEl.addClass("is-collapsed");
     }
 } else {
     itemEl.addClass("is-file");
@@ -61,7 +56,6 @@ const selfEl = itemEl.createDiv({ cls: "abstract-folder-item-self" });
 
 if (activeFile && activeFile.path === node.path) {
     selfEl.addClass("is-active");
-    console.log(`[TreeRenderer] Node ${node.path} is active.`);
 }
 
         if (this.multiSelectedPaths.has(node.path)) {

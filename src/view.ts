@@ -157,8 +157,16 @@ export class AbstractFolderView extends ItemView {
         }
       });
     } else if (this.settings.viewStyle === 'column') {
-        const pathSegments = this.indexer.getPathToRoot(filePath);
-        this.viewState.selectionPath = pathSegments;
+        // Only update selectionPath if the filePath is not already part of the current selectionPath.
+        // This prevents overriding the user's current navigation context when a multi-parent file is opened,
+        // unless the file was opened from outside the current column view navigation.
+        const isPathAlreadySelected = this.viewState.selectionPath.includes(filePath);
+
+        if (!isPathAlreadySelected) {
+            const pathSegments = this.indexer.getPathToRoot(filePath);
+            this.viewState.selectionPath = pathSegments;
+        }
+        this.columnRenderer.setSelectionPath(this.viewState.selectionPath); // Ensure the renderer also has the updated path
         this.renderView();
         this.containerEl.querySelector(".abstract-folder-column:last-child")?.scrollIntoView({ block: "end", behavior: "smooth" });
     }
@@ -237,16 +245,21 @@ export class AbstractFolderView extends ItemView {
 
     for (let i = 0; i < this.viewState.selectionPath.length; i++) {
         const selectedPath = this.viewState.selectionPath[i];
+        
         const selectedNode = currentNodes.find(node => node.path === selectedPath);
+        
+        if (!selectedNode) {
+            break; // Break if selected node isn't found in the current column's nodes
+        }
 
         if (selectedNode && selectedNode.isFolder && selectedNode.children.length > 0) {
-            currentNodes = selectedNode.children;
+            currentNodes = selectedNode.children; // Determine nodes for the next column
             renderedDepth++;
             this.columnRenderer.renderColumn(currentNodes, columnsContainer, renderedDepth, selectedPath);
         } else if (selectedNode && !selectedNode.isFolder) {
-            break;
+            break; // If a file is selected, no further columns are rendered
         } else {
-            break;
+            break; // Break if selected node isn't a folder with children, or somehow not found
         }
     }
   }
@@ -398,8 +411,14 @@ export class AbstractFolderView extends ItemView {
 
     if (node.isFolder || node.file) { // If it's a file or folder, update the selection path
         // Get the full path to the clicked node from the indexer
-        const fullPathToNode = this.indexer.getPathToRoot(node.path);
-        this.viewState.selectionPath = fullPathToNode;
+        // The problem is that getPathToRoot is deterministic and will always return the same path
+        // for a multi-parent node, which might not be the path the user is currently traversing.
+        // We need to construct the path based on the current column's context.
+
+        const currentColumnPath = this.viewState.selectionPath.slice(0, depth);
+        const newSelectionPath = [...currentColumnPath, node.path];
+        
+        this.viewState.selectionPath = newSelectionPath;
         this.columnRenderer.setSelectionPath(this.viewState.selectionPath); // Update column renderer with the new path
         this.renderView(); // Re-render to update column highlights
     }
