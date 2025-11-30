@@ -1,10 +1,12 @@
 import { App, TFile, CachedMetadata, TAbstractFile } from "obsidian";
 import { AbstractFolderPluginSettings } from "./settings";
 import { FileGraph, ParentChildMap, HIDDEN_FOLDER_ID } from "./types";
+import AbstractFolderPlugin from '../main'; // Import the main plugin class
 
 export class FolderIndexer {
   private app: App;
   private settings: AbstractFolderPluginSettings;
+  private plugin: AbstractFolderPlugin; // Add this line
   private PARENT_PROPERTIES_TO_CHECK_FOR_CHILD_DEFINED_PARENTS: string[] = []; // Dynamically generated property names for child-defined parents
   private CHILD_PROPERTIES_TO_CHECK_FOR_PARENT_DEFINED_CHILDREN: string[] = []; // Dynamically generated property names for parent-defined children
 
@@ -13,9 +15,10 @@ export class FolderIndexer {
   private childToParents: Map<string, Set<string>>;
   private allFiles: Set<string>; // All files encountered (parents or children, including non-MD)
 
-  constructor(app: App, settings: AbstractFolderPluginSettings) {
+  constructor(app: App, settings: AbstractFolderPluginSettings, plugin: AbstractFolderPlugin) {
     this.app = app;
     this.settings = settings;
+    this.plugin = plugin; // Assign the plugin instance
     this.parentToChildren = {};
     this.childToParents = new Map();
     this.allFiles = new Set();
@@ -83,7 +86,6 @@ getGraph(): FileGraph {
         }
 
         if (visited.has(nextParent)) {
-            console.warn("Circular reference detected while revealing file.");
             break;
         }
         
@@ -93,21 +95,27 @@ getGraph(): FileGraph {
   }
 
   private registerEvents() {
-    this.app.metadataCache.on("changed", (file: TFile, _data: string, cache: CachedMetadata) => {
-      this.updateFileInGraph(file, cache);
-    });
+    this.plugin.registerEvent(
+      this.app.metadataCache.on("changed", (file: TFile, _data: string, cache: CachedMetadata) => {
+        this.updateFileInGraph(file, cache);
+      })
+    );
 
-    this.app.vault.on("delete", (file) => {
-      if (file instanceof TFile) {
-        this.deleteFileFromGraph(file);
-      }
-    });
+    this.plugin.registerEvent(
+      this.app.vault.on("delete", (file) => {
+        if (file instanceof TFile) {
+          this.deleteFileFromGraph(file);
+        }
+      })
+    );
 
-    this.app.vault.on("rename", (file, oldPath) => {
-      if (file instanceof TFile) {
-        this.renameFileInGraph(file, oldPath);
-      }
-    });
+    this.plugin.registerEvent(
+      this.app.vault.on("rename", (file, oldPath) => {
+        if (file instanceof TFile) {
+          this.renameFileInGraph(file, oldPath);
+        }
+      })
+    );
   }
 
   private buildGraph() {

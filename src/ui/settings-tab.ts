@@ -14,7 +14,6 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		containerEl.createEl("h2", { text: "Abstract Folder Settings" });
 
 
 		new Setting(containerEl)
@@ -126,7 +125,9 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 					})
 			);
 
-		containerEl.createEl("h3", { text: "Visual Settings" });
+		new Setting(containerEl)
+			.setName("Visual Settings")
+			.setHeading();
 
 		new Setting(containerEl)
 			.setName("Enable Rainbow Indents")

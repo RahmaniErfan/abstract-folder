@@ -494,3 +494,15 @@ n
 .abstract-folder-view .abstract-folder-item-self.is-selected-in-column .abstract-folder-item-icon svg {
     color: var(--nav-item-text-color-active) !important;
 }
+
+/* Styles for Conflict Resolution Modal */
+.abstract-folder-conflict-container {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+}
+
+.abstract-folder-conflict-item {
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding: 10px 0;
+}

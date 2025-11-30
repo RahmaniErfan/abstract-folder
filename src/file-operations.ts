@@ -72,7 +72,6 @@ aliases:
                 } else if (typeof currentChildren === 'string') {
                     currentChildren = [currentChildren];
                 } else if (!Array.isArray(currentChildren)) {
-                    console.warn(`Unexpected type for children property: ${typeof currentChildren}. Converting to array.`);
                     currentChildren = [String(currentChildren)];
                 }
 

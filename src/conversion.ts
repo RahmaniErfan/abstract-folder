@@ -1,4 +1,4 @@
-import { App, TFolder, TFile, TAbstractFile, Notice } from "obsidian";
+import { App, TFolder, TFile, TAbstractFile, Notice, normalizePath } from "obsidian";
 import { AbstractFolderPluginSettings } from "./settings";
 import { FolderIndexer } from "./indexer";
 
@@ -65,7 +65,6 @@ export async function convertFoldersToPluginFormat(
             continue;
         }
 
-        console.log(`[Abstract Folder] Processing folder for parent note creation and file linking: ${folder.path}`);
         let potentialParentNotePath = "";
         if (options.folderNoteStrategy === 'inside') {
             potentialParentNotePath = `${folder.path}/${folder.name}.md`;
@@ -81,11 +80,9 @@ export async function convertFoldersToPluginFormat(
         let folderNote = app.vault.getAbstractFileByPath(potentialParentNotePath) as TFile;
 
         if (!folderNote && options.createParentNotes) {
-            console.log(`[Abstract Folder] Attempting to create folder note for ${folder.path} at ${potentialParentNotePath}`);
             try {
                 folderNote = await app.vault.create(potentialParentNotePath, "");
                 updatedCount++;
-                console.log(`[Abstract Folder] Created folder note: ${folderNote.path}`);
             } catch (e) {
                 console.warn(`[Abstract Folder] Could not create folder note at ${potentialParentNotePath} for folder ${folder.path}`, e);
                 // If we can't create it, we can't link to it, so continue
@@ -98,12 +95,10 @@ export async function convertFoldersToPluginFormat(
             for (const child of folder.children) {
                 if (child instanceof TFile) {
                     if (child.extension === 'md' && child.path !== folderNote.path) {
-                        console.log(`[Abstract Folder] Linking markdown file ${child.path} to folder note ${folderNote.path}`);
                         await linkChildToParent(app, settings, child, folderNote, options.existingRelationshipsStrategy);
                         updatedCount++;
                     } else if (child.path !== folderNote.path) {
                         // Non-markdown file: only add to parent note's children, not vice-versa
-                        console.log(`[Abstract Folder] Adding non-markdown file ${child.path} to children of folder note ${folderNote.path}`);
                         await addChildToParentNoteFrontmatter(app, settings, child, folderNote);
                         updatedCount++;
                     }
@@ -112,7 +107,6 @@ export async function convertFoldersToPluginFormat(
                     // This creates the link from ParentFolder.md -> ChildFolder (as a link).
                     // The ChildFolder.md -> ParentFolder.md link is handled in the second pass.
                     // This ensures that "subfolders" are seen as children of their parent's folder note.
-                    console.log(`[Abstract Folder] Adding folder ${child.path} to children of folder note ${folderNote.path}`);
                     await addChildToParentNoteFrontmatter(app, settings, child, folderNote);
                     updatedCount++;
                 }
@@ -134,7 +128,6 @@ export async function convertFoldersToPluginFormat(
             continue;
         }
 
-        console.log(`[Abstract Folder] Processing folder note hierarchy for: ${folder.path}`);
 
         // Get the folder note for the current folder
         let currentFolderNotePath = "";
@@ -150,7 +143,6 @@ export async function convertFoldersToPluginFormat(
         const currentFolderNote = app.vault.getAbstractFileByPath(currentFolderNotePath) as TFile;
 
         if (!currentFolderNote) {
-            console.log(`[Abstract Folder] No folder note found for ${folder.path}, cannot establish hierarchy.`);
             continue;
         }
 
@@ -169,11 +161,10 @@ export async function convertFoldersToPluginFormat(
         const parentFolderNote = app.vault.getAbstractFileByPath(parentFolderNotePath) as TFile;
 
         if (parentFolderNote && currentFolderNote.path !== parentFolderNote.path) {
-            console.log(`[Abstract Folder] Linking folder note ${currentFolderNote.path} to parent folder note ${parentFolderNote.path}`);
             await linkChildToParent(app, settings, currentFolderNote, parentFolderNote, options.existingRelationshipsStrategy);
             updatedCount++;
         } else {
-            console.log(`[Abstract Folder] Cannot link folder note ${currentFolderNote.path} to its parent (no parent folder note found or self-link).`);
+            // No parent folder note or self-link, no linking needed.
         }
     }
 
@@ -259,6 +250,7 @@ export async function generateFolderStructurePlan(
     placeIndexFileInside: boolean,
     rootScope?: TFile
 ): Promise<{ fileTree: Map<string, string[]>, conflicts: FileConflict[] }> {
+    const normalizedDestinationPath = normalizePath(destinationPath); // Apply normalizePath immediately
     const fileTree = new Map<string, string[]>(); // FolderPath -> List of FilePaths to move/copy there
     const conflicts: FileConflict[] = [];
     const fileDestinations = new Map<string, string[]>(); // FilePath -> List of target folder paths
@@ -273,7 +265,7 @@ export async function generateFolderStructurePlan(
         const childPaths = parentToChildrenMap[file.path];
         
         if (childPaths) {
-            childPaths.forEach(path => {
+            childPaths.forEach((path: string) => {
                 const childFile = app.vault.getAbstractFileByPath(path);
                 if (childFile instanceof TFile) {
                     childrenFiles.add(childFile);
@@ -336,12 +328,12 @@ export async function generateFolderStructurePlan(
     };
 
     if (rootScope) {
-        // Handle the rootScope file itself: put it in destinationPath
+        // Handle the rootScope file itself: put it in normalizedDestinationPath
         if (!fileDestinations.has(rootScope.path)) fileDestinations.set(rootScope.path, []);
-        fileDestinations.get(rootScope.path)!.push(destinationPath);
+        fileDestinations.get(rootScope.path)!.push(normalizedDestinationPath);
 
         // Process children
-        processNode(rootScope, destinationPath, new Set());
+        processNode(rootScope, normalizedDestinationPath, new Set());
     } else {
         // Identify roots for full vault export
         // For full vault export, we need to find root nodes in the graph
@@ -354,23 +346,22 @@ export async function generateFolderStructurePlan(
         for (const parent of allParents) {
              const children = parentToChildrenMap[parent];
              if (children) {
-                 children.forEach(c => allChildren.add(c));
+                 children.forEach((c: string) => allChildren.add(c));
              }
         }
 
         // Roots are parents that are NOT children of anyone
         const roots = allParents.filter(p => !allChildren.has(p));
         
-        console.log(`[Abstract Folder] Found ${roots.length} root nodes for export.`);
 
         for (const rootPath of roots) {
             const rootFile = app.vault.getAbstractFileByPath(rootPath);
             if (rootFile instanceof TFile) {
                 // Ensure the root file itself is moved to the destination
                 if (!fileDestinations.has(rootFile.path)) fileDestinations.set(rootFile.path, []);
-                fileDestinations.get(rootFile.path)!.push(destinationPath);
+                fileDestinations.get(rootFile.path)!.push(normalizedDestinationPath);
 
-                processNode(rootFile, destinationPath, new Set());
+                processNode(rootFile, normalizedDestinationPath, new Set());
             }
         }
     }
@@ -411,7 +402,6 @@ export async function executeFolderGeneration(
     plan: { fileTree: Map<string, string[]>, conflicts: FileConflict[] }
 ): Promise<void> {
     const { fileTree, conflicts } = plan;
-    console.log(`[Abstract Folder] Executing Generation. Folders to create: ${fileTree.size}`);
     
     // Resolve conflicts map for easy lookup
     const conflictMap = new Map<string, FileConflict>();
@@ -428,7 +418,6 @@ export async function executeFolderGeneration(
             if (!existing) {
                 try {
                     await app.vault.createFolder(currentPath);
-                    console.log(`[Abstract Folder] Created folder: ${currentPath}`);
                 } catch (error) {
                     // Ignore error if it already exists (race condition) or handled
                      const check = app.vault.getAbstractFileByPath(currentPath);
@@ -441,7 +430,6 @@ export async function executeFolderGeneration(
     };
 
     for (const [folderPath, filePaths] of fileTree.entries()) {
-        console.log(`[Abstract Folder] Processing folder: ${folderPath}`);
         
         // 1. Create Folder (Recursively)
         await createFolderRecursively(folderPath);

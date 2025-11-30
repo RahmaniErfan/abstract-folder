@@ -16,7 +16,7 @@ export default class AbstractFolderPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
-		this.indexer = new FolderIndexer(this.app, this.settings);
+		this.indexer = new FolderIndexer(this.app, this.settings, this);
 		await this.indexer.initializeIndexer(); // Initialize the indexer (registers events)
 
 		this.registerView(
@@ -97,7 +97,6 @@ export default class AbstractFolderPlugin extends Plugin {
 
 	onunload() {
 		this.indexer.onunload();
-		this.app.workspace.detachLeavesOfType(VIEW_TYPE_ABSTRACT_FOLDER);
 		// Ensure the ribbon icon is removed on unload
 		if (this.ribbonIconEl) {
 			this.ribbonIconEl.remove();
