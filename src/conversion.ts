@@ -1,4 +1,4 @@
-import { App, TFolder, TFile, Notice } from "obsidian";
+import { App, TFolder, TFile, TAbstractFile, Notice } from "obsidian";
 import { AbstractFolderPluginSettings } from "./settings";
 import { FolderIndexer } from "./indexer";
 
@@ -94,11 +94,26 @@ export async function convertFoldersToPluginFormat(
         }
 
         if (folderNote) {
-            // Link immediate markdown files within this folder to the folderNote
+            // Link immediate files and folders within this folder to the folderNote
             for (const child of folder.children) {
-                if (child instanceof TFile && child.extension === 'md' && child.path !== folderNote.path) {
-                    console.log(`[Abstract Folder] Linking file ${child.path} to folder note ${folderNote.path}`);
-                    await linkChildToParent(app, settings, child, folderNote, options.existingRelationshipsStrategy);
+                if (child instanceof TFile) {
+                    if (child.extension === 'md' && child.path !== folderNote.path) {
+                        console.log(`[Abstract Folder] Linking markdown file ${child.path} to folder note ${folderNote.path}`);
+                        await linkChildToParent(app, settings, child, folderNote, options.existingRelationshipsStrategy);
+                        updatedCount++;
+                    } else if (child.path !== folderNote.path) {
+                        // Non-markdown file: only add to parent note's children, not vice-versa
+                        console.log(`[Abstract Folder] Adding non-markdown file ${child.path} to children of folder note ${folderNote.path}`);
+                        await addChildToParentNoteFrontmatter(app, settings, child, folderNote);
+                        updatedCount++;
+                    }
+                } else if (child instanceof TFolder) {
+                    // Folders will be linked in the second pass, but for now, we can add them as children to the immediate parent's folder note
+                    // This creates the link from ParentFolder.md -> ChildFolder (as a link).
+                    // The ChildFolder.md -> ParentFolder.md link is handled in the second pass.
+                    // This ensures that "subfolders" are seen as children of their parent's folder note.
+                    console.log(`[Abstract Folder] Adding folder ${child.path} to children of folder note ${folderNote.path}`);
+                    await addChildToParentNoteFrontmatter(app, settings, child, folderNote);
                     updatedCount++;
                 }
             }
@@ -166,6 +181,33 @@ export async function convertFoldersToPluginFormat(
     app.workspace.trigger('abstract-folder:graph-updated');
 }
 
+async function addChildToParentNoteFrontmatter(
+    app: App,
+    settings: AbstractFolderPluginSettings,
+    childFile: TAbstractFile, // Can be TFile or TFolder
+    parentNote: TFile
+) {
+    await app.fileManager.processFrontMatter(parentNote, (frontmatter) => {
+        const childrenPropertyName = settings.childrenPropertyName || "children";
+        let currentChildren = frontmatter[childrenPropertyName] || [];
+
+        if (typeof currentChildren === 'string') {
+            currentChildren = [currentChildren];
+        } else if (!Array.isArray(currentChildren)) {
+            if (currentChildren) currentChildren = [String(currentChildren)];
+            else currentChildren = [];
+        }
+
+        // Use the basename for the link, regardless of file type
+        const childLink = `[[${childFile.name}]]`; // Use 'name' property which is common to TFile and TFolder
+
+        if (!currentChildren.includes(childLink)) {
+            currentChildren.push(childLink);
+        }
+        frontmatter[childrenPropertyName] = currentChildren;
+    });
+}
+ 
 async function linkChildToParent(
     app: App,
     settings: AbstractFolderPluginSettings,
@@ -200,27 +242,11 @@ async function linkChildToParent(
         frontmatter[parentPropertyName] = currentParents;
     });
 
-    // 2. Update PARENT to point to CHILD (childrenPropertyName)
-    await app.fileManager.processFrontMatter(parent, (frontmatter) => {
-        const childrenPropertyName = settings.childrenPropertyName || "children";
-        let currentChildren = frontmatter[childrenPropertyName] || [];
-
-        if (typeof currentChildren === 'string') {
-            currentChildren = [currentChildren];
-        } else if (!Array.isArray(currentChildren)) {
-             if (currentChildren) currentChildren = [String(currentChildren)];
-             else currentChildren = [];
-        }
-
-        const childLink = `[[${child.basename}]]`;
-
-        if (!currentChildren.includes(childLink)) {
-            currentChildren.push(childLink);
-        }
-        frontmatter[childrenPropertyName] = currentChildren;
-    });
+    // 2. Update PARENT to point to CHILD (childrenPropertyName) - This will be handled by the new addChildToParentNoteFrontmatter for both MD and non-MD
+    // This part of linkChildToParent is now redundant and will be removed as the new helper function is more generic
+    // for updating parent's children.
+    // I will remove this block in the next diff.
 }
-
 /**
  * Generates a physical folder structure from the plugin's abstract folder format.
  * This function prepares the operations but does not execute them until confirmed.
