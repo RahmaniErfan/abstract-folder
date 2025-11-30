@@ -4,6 +4,14 @@ import { AbstractFolderPluginSettings } from "../../settings";
 import AbstractFolderPlugin from "../../../main";
 import { ContextMenuHandler } from "../context-menu";
 
+function stringToNumberHash(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return hash;
+}
+
 export class TreeRenderer {
     private app: App;
     private settings: AbstractFolderPluginSettings;
@@ -110,7 +118,15 @@ if (activeFile && activeFile.path === node.path) {
             const childrenEl = itemEl.createDiv({ cls: "abstract-folder-children" });
             if (this.settings.enableRainbowIndents) {
               childrenEl.addClass("rainbow-indent");
-              childrenEl.addClass(`rainbow-indent-${(currentDepth -1) % 6}`);
+              let colorIndex: number;
+              if (this.settings.enablePerItemRainbowColors) {
+                  // Use depth + a hash of the path for varied colors within the same depth
+                  colorIndex = Math.abs(((currentDepth - 1) + stringToNumberHash(node.path)) % 10); // Use 10 colors
+              } else {
+                  // Use only depth for consistent colors at each level
+                  colorIndex = (currentDepth - 1) % 10; // Use 10 colors
+              }
+              childrenEl.addClass(`rainbow-indent-${colorIndex}`);
               childrenEl.addClass(`${this.settings.rainbowPalette}-palette`);
             }
 

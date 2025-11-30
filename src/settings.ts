@@ -8,6 +8,7 @@ export interface AbstractFolderPluginSettings {
   showRibbonIcon: boolean; // Whether to display the ribbon icon
   enableRainbowIndents: boolean; // Whether to enable rainbow indentation guides
   rainbowPalette: 'classic' | 'pastel' | 'neon'; // The color palette for rainbow indents
+  enablePerItemRainbowColors: boolean; // Whether to use varied colors for indentation guides of sibling items
   viewStyle: 'tree' | 'column'; // New: Tree or Column view
   rememberExpanded: boolean; // Whether to remember expanded/collapsed state of folders
   expandedFolders: string[]; // List of paths of currently expanded folders
@@ -24,6 +25,7 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   showRibbonIcon: true, // Default to true
   enableRainbowIndents: true,
   rainbowPalette: 'classic',
+  enablePerItemRainbowColors: false, // Default to false
   viewStyle: 'tree',
   rememberExpanded: false,
   expandedFolders: [],

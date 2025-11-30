@@ -241,6 +241,10 @@ n
 .abstract-folder-children.classic-palette.rainbow-indent-3 { border-left-color: #e6c07b; } /* Yellow */
 .abstract-folder-children.classic-palette.rainbow-indent-4 { border-left-color: #e06c75; } /* Red */
 .abstract-folder-children.classic-palette.rainbow-indent-5 { border-left-color: #56b6c2; } /* Cyan */
+.abstract-folder-children.classic-palette.rainbow-indent-6 { border-left-color: #6a9955; } /* Dark Green */
+.abstract-folder-children.classic-palette.rainbow-indent-7 { border-left-color: #d1976a; } /* Orange */
+.abstract-folder-children.classic-palette.rainbow-indent-8 { border-left-color: #9f7e69; } /* Brown */
+.abstract-folder-children.classic-palette.rainbow-indent-9 { border-left-color: #008080; } /* Teal */
 
 /* Pastel Palette */
 .abstract-folder-children.pastel-palette.rainbow-indent-0 { border-left-color: #a7bed3; } /* Light Blue */
@@ -249,6 +253,10 @@ n
 .abstract-folder-children.pastel-palette.rainbow-indent-3 { border-left-color: #ffe0b2; } /* Peach */
 .abstract-folder-children.pastel-palette.rainbow-indent-4 { border-left-color: #ffccbc; } /* Coral */
 .abstract-folder-children.pastel-palette.rainbow-indent-5 { border-left-color: #bbdefb; } /* Sky Blue */
+.abstract-folder-children.pastel-palette.rainbow-indent-6 { border-left-color: #c5e1a5; } /* Light Green */
+.abstract-folder-children.pastel-palette.rainbow-indent-7 { border-left-color: #b39ddb; } /* Light Purple */
+.abstract-folder-children.pastel-palette.rainbow-indent-8 { border-left-color: #ffb74d; } /* Light Orange */
+.abstract-folder-children.pastel-palette.rainbow-indent-9 { border-left-color: #9fa8da; } /* Grey-Blue */
 
 /* Neon Palette */
 .abstract-folder-children.neon-palette.rainbow-indent-0 { border-left-color: #00ffff; } /* Aqua */
@@ -257,6 +265,10 @@ n
 .abstract-folder-children.neon-palette.rainbow-indent-3 { border-left-color: #ffff00; } /* Bright Yellow */
 .abstract-folder-children.neon-palette.rainbow-indent-4 { border-left-color: #ff0000; } /* Red */
 .abstract-folder-children.neon-palette.rainbow-indent-5 { border-left-color: #0000ff; } /* Blue */
+.abstract-folder-children.neon-palette.rainbow-indent-6 { border-left-color: #a020f0; } /* Electric Purple */
+.abstract-folder-children.neon-palette.rainbow-indent-7 { border-left-color: #ff69b4; } /* Hot Pink */
+.abstract-folder-children.neon-palette.rainbow-indent-8 { border-left-color: #ffd700; } /* Gold */
+.abstract-folder-children.neon-palette.rainbow-indent-9 { border-left-color: #4b0082; } /* Indigo */
 
 
 /* Hide children when collapsed */
