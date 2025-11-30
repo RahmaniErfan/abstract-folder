@@ -141,10 +141,19 @@ export class AbstractFolderView extends ItemView {
         
         itemEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
         
-        const selfEl = itemEl.querySelector(".abstract-folder-item-self");
-        if (selfEl) {
-          this.contentEl.querySelectorAll(".abstract-folder-item-self.is-active").forEach(el => el.removeClass("is-active"));
-          selfEl.addClass("is-active");
+        // First, remove 'is-active' from any elements that are currently active but do not match the filePath
+        // First, remove 'is-active' from any elements that are currently active but do not match the filePath
+        this.contentEl.querySelectorAll(".abstract-folder-item-self.is-active").forEach(el => {
+            const parentItem = el.closest(".abstract-folder-item") as HTMLElement | null; // Cast to HTMLElement
+            if (parentItem && parentItem.dataset.path !== filePath) {
+                el.removeClass("is-active");
+            }
+        });
+        
+        // Then, ensure all instances of the *current* active file (filePath) are highlighted
+        const selfElToHighlight = itemEl.querySelector(".abstract-folder-item-self");
+        if (selfElToHighlight) {
+          selfElToHighlight.addClass("is-active");
         }
       });
     } else if (this.settings.viewStyle === 'column') {
@@ -387,8 +396,12 @@ export class AbstractFolderView extends ItemView {
       }
     }
 
-    if (node.isFolder) {
-        this.viewState.updateSelectionPath(node.path, depth);
+    if (node.isFolder || node.file) { // If it's a file or folder, update the selection path
+        // Get the full path to the clicked node from the indexer
+        const fullPathToNode = this.indexer.getPathToRoot(node.path);
+        this.viewState.selectionPath = fullPathToNode;
+        this.columnRenderer.setSelectionPath(this.viewState.selectionPath); // Update column renderer with the new path
+        this.renderView(); // Re-render to update column highlights
     }
   }
 }

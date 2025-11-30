@@ -8,7 +8,7 @@ export class ColumnRenderer {
     private app: App;
     private settings: AbstractFolderPluginSettings;
     private plugin: AbstractFolderPlugin;
-    private selectionPath: string[];
+    public selectionPath: string[]; // Made public so it can be updated directly from view.ts
     private multiSelectedPaths: Set<string>;
     private getDisplayName: (node: FolderNode) => string;
     private handleColumnNodeClick: (node: FolderNode, depth: number, event?: MouseEvent) => void;
@@ -33,6 +33,11 @@ export class ColumnRenderer {
         this.contextMenuHandler = new ContextMenuHandler(app, settings, plugin);
     }
 
+    // New method to update the selection path
+    public setSelectionPath(path: string[]) {
+        this.selectionPath = path;
+    }
+
     renderColumn(nodes: FolderNode[], parentEl: HTMLElement, depth: number, selectedParentPath?: string) {
         const columnEl = parentEl.createDiv({ cls: "abstract-folder-column", attr: { 'data-depth': depth } });
         if (selectedParentPath) {
@@ -54,12 +59,24 @@ export class ColumnRenderer {
 
         const selfEl = itemEl.createDiv({ cls: "abstract-folder-item-self" });
 
+        console.log(`[ColumnRenderer] Rendering node: ${node.path}`);
+        console.log(`[ColumnRenderer] Active file: ${activeFile?.path}`);
+        console.log(`[ColumnRenderer] Selection path: ${this.selectionPath.join(' -> ')}`);
+        
         if (activeFile && activeFile.path === node.path) {
             selfEl.addClass("is-active");
+            console.log(`[ColumnRenderer] Node ${node.path} is active.`);
         }
 
-        if (this.selectionPath.includes(node.path)) {
-            selfEl.addClass("is-selected-in-column");
+        const selectionIndex = this.selectionPath.indexOf(node.path);
+        if (selectionIndex > -1) {
+            if (selectionIndex === this.selectionPath.length - 1) {
+                selfEl.addClass("is-selected-in-column");
+                console.log(`[ColumnRenderer] Node ${node.path} is selected in column.`);
+            } else {
+                selfEl.addClass("is-ancestor-of-selected");
+                console.log(`[ColumnRenderer] Node ${node.path} is ancestor of selected.`);
+            }
         }
 
         if (this.multiSelectedPaths.has(node.path)) {
@@ -89,7 +106,7 @@ export class ColumnRenderer {
 
         const parentCount = this.plugin.indexer.getGraph().childToParents.get(node.path)?.size || 0;
         if (parentCount > 1) {
-            const multiParentIndicator = innerEl.createSpan({ cls: "abstract-folder-multi-parent-indicator" });
+            const multiParentIndicator = selfEl.createSpan({ cls: "abstract-folder-multi-parent-indicator" });
             setIcon(multiParentIndicator, "git-branch-plus");
             multiParentIndicator.ariaLabel = `${parentCount} parents`;
             multiParentIndicator.title = `${parentCount} parents`;

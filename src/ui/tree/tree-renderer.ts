@@ -32,31 +32,37 @@ export class TreeRenderer {
 
     renderTreeNode(node: FolderNode, parentEl: HTMLElement, ancestors: Set<string>, depth: number) {
         const activeFile = this.app.workspace.getActiveFile();
-        if (ancestors.has(node.path)) {
+        // Only prevent rendering for folder loops, not for files that can appear in multiple abstract folders.
+        if (node.isFolder && ancestors.has(node.path)) {
            return;
         }
+const currentDepth = depth + 1;
 
-        const currentDepth = depth + 1;
+const itemEl = parentEl.createDiv({ cls: "abstract-folder-item" });
+itemEl.dataset.path = node.path;
 
-        const itemEl = parentEl.createDiv({ cls: "abstract-folder-item" });
-        itemEl.dataset.path = node.path;
+console.log(`[TreeRenderer] Rendering node: ${node.path}`);
+console.log(`[TreeRenderer] Active file: ${activeFile?.path}`);
+console.log(`[TreeRenderer] Multi-selected paths: ${Array.from(this.multiSelectedPaths).join(', ')}`);
 
-        if (node.isFolder) {
-            itemEl.addClass("is-folder");
-            if (this.settings.rememberExpanded && this.settings.expandedFolders.includes(node.path)) {
-                 // Expanded
-            } else {
-                 itemEl.addClass("is-collapsed");
-            }
-        } else {
-            itemEl.addClass("is-file");
-        }
 
-        const selfEl = itemEl.createDiv({ cls: "abstract-folder-item-self" });
-        
-        if (activeFile && activeFile.path === node.path) {
-            selfEl.addClass("is-active");
-        }
+if (node.isFolder) {
+    itemEl.addClass("is-folder");
+    if (this.settings.rememberExpanded && this.settings.expandedFolders.includes(node.path)) {
+         // Expanded
+    } else {
+         itemEl.addClass("is-collapsed");
+    }
+} else {
+    itemEl.addClass("is-file");
+}
+
+const selfEl = itemEl.createDiv({ cls: "abstract-folder-item-self" });
+
+if (activeFile && activeFile.path === node.path) {
+    selfEl.addClass("is-active");
+    console.log(`[TreeRenderer] Node ${node.path} is active.`);
+}
 
         if (this.multiSelectedPaths.has(node.path)) {
             selfEl.addClass("is-multi-selected");

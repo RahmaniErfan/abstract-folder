@@ -47,17 +47,6 @@ export class ViewState {
         this.plugin.app.workspace.trigger('abstract-folder:graph-updated'); // Re-render to show selection
     }
 
-    updateSelectionPath(path: string, depth: number) {
-        if (depth < this.selectionPath.length) {
-            this.selectionPath = this.selectionPath.slice(0, depth);
-        } else if (depth === this.selectionPath.length && this.selectionPath[depth - 1] === path) {
-            this.selectionPath.pop();
-            this.plugin.app.workspace.trigger('abstract-folder:graph-updated'); // Re-render
-            return;
-        }
-        this.selectionPath.push(path);
-        this.plugin.app.workspace.trigger('abstract-folder:graph-updated'); // Re-render
-    }
 
     resetSelectionPath() {
         this.selectionPath = [];

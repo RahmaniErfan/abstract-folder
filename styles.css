@@ -98,9 +98,14 @@ n
     border-bottom: none; /* No border on the last column */
 }
 
-/* Item self for column view, slightly different padding */
-.abstract-folder-column .abstract-folder-item-self {
-    padding-left: 10px; /* Adjust padding for column view */
+/* Item self for column view, remove any tree-view specific indentation */
+.abstract-folder-columns-wrapper .abstract-folder-item-self {
+    padding-left: 6px; /* Reset to base padding, effectively removing tree indentation */
+}
+
+/* Hide collapse icon in column view */
+.abstract-folder-columns-wrapper .abstract-folder-collapse-icon {
+    display: none;
 }
 
 /* Hide collapse icon in column view */
@@ -126,9 +131,15 @@ n
 }
 
 
+/* Style for ancestor items in column view */
+.abstract-folder-item-self.is-ancestor-of-selected {
+    background-color: var(--background-modifier-hover); /* A subtle highlight */
+    color: var(--text-normal); /* Keep normal text color */
+}
+
 /* Multi-Parent Indicator */
 .abstract-folder-multi-parent-indicator {
-    margin-left: auto; /* Push to the right */
+    /* Removed margin-left: auto as it's now a direct child of a flex container */
     color: var(--text-muted);
     opacity: 0.7;
     font-size: var(--font-ui-smaller);
@@ -137,6 +148,8 @@ n
     justify-content: center;
     width: 16px;
     height: 16px;
+    margin-left: 4px; /* Add some spacing between the text and the icon */
+    flex-shrink: 0; /* Prevent from shrinking */
 }
 
 .abstract-folder-multi-parent-indicator svg {
@@ -153,6 +166,9 @@ n
     border-radius: var(--radius-s);
     color: var(--text-normal);
     transition: background-color 0.1s ease-in-out;
+    /* Ensure there's space for the icon */
+    justify-content: flex-start;
+    gap: 4px; /* Space between flex items in this container */
 }
 
 .abstract-folder-item-self:hover {
@@ -200,6 +216,9 @@ n
     font-weight: 400; /* Normal weight to match native */
     line-height: 16.9px; /* Match native */
     color: var(--text-normal); /* Ensure normal text color */
+    /* Removed margin-left: auto; which was causing the issue before */
+    display: flex; /* Make it a flex container to align its content if needed */
+    align-items: center; /* Vertically align content */
 }
 
 /* Children Container */
@@ -244,8 +263,8 @@ n
     display: none;
 }
 
-/* File items don't have collapse icons, add padding to align */
-.abstract-folder-item.is-file .abstract-folder-item-self {
+/* File items in tree view don't have collapse icons, add padding to align */
+.abstract-folder-tree-wrapper .abstract-folder-item.is-file .abstract-folder-item-self {
     padding-left: 24px; /* 6px padding + 16px icon width + 2px margin */
 }
 
