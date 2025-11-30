@@ -30,65 +30,138 @@ export async function convertFoldersToPluginFormat(
 ): Promise<void> {
     new Notice("Starting folder to plugin conversion...");
     let updatedCount = 0;
+    const filesToProcess: TFile[] = [];
 
-    const processFolder = async (folder: TFolder) => {
-        // Find or create the parent note for this folder
-        let parentNote: TFile | null = null;
-        
-        // Strategy: Look for "Folder A.md" based on selected strategy
-        const parentOfFolder = folder.parent;
-        let potentialParentNotePath = "";
-
-        if (options.folderNoteStrategy === 'inside') {
-             // Inside: "Folder/Folder.md"
-             potentialParentNotePath = `${folder.path}/${folder.name}.md`;
-        } else {
-            // Outside: "Folder.md" next to "Folder/"
-            potentialParentNotePath = parentOfFolder
-            ? `${parentOfFolder.path === '/' ? '' : parentOfFolder.path + '/'}${folder.name}.md`
-            : `${folder.name}.md`;
-        }
-        
-        parentNote = app.vault.getAbstractFileByPath(potentialParentNotePath) as TFile;
-
-        // Special case: if we are processing the root folder selected by user, we might be creating a note for IT,
-        // or just scanning its children.
-        // If the user selected "MyProject" folder, files inside "MyProject" should have "MyProject.md" as parent.
-        
-        if (!parentNote && options.createParentNotes) {
-             try {
-                // Create it if it doesn't exist
-                parentNote = await app.vault.create(potentialParentNotePath, "");
-            } catch (e) {
-                console.warn(`Could not create parent note at ${potentialParentNotePath}`, e);
-            }
-        }
-
-        if (parentNote) {
-            // Now link all children of this folder to this parent note
-            for (const child of folder.children) {
-                if (child instanceof TFile && child.path !== parentNote.path) {
-                    // Avoid self-linking or linking the parent note to itself if it somehow ended up inside
-                    if (child.path === potentialParentNotePath) continue;
-
-                    await linkChildToParent(app, settings, child, parentNote, options.existingRelationshipsStrategy);
-                    updatedCount++;
-                } else if (child instanceof TFolder) {
-                    // Recurse
-                    await processFolder(child);
-                }
-            }
-        } else {
-            // Recurse even if current folder has no parent note
-            for (const child of folder.children) {
-                if (child instanceof TFolder) {
-                    await processFolder(child);
-                }
+    // Recursively collect all markdown files within the rootFolder
+    const collectFiles = (folder: TFolder) => {
+        for (const child of folder.children) {
+            if (child instanceof TFile && child.extension === 'md') {
+                filesToProcess.push(child);
+            } else if (child instanceof TFolder) {
+                collectFiles(child);
             }
         }
     };
 
-    await processFolder(rootFolder);
+    collectFiles(rootFolder);
+
+    const allFoldersInScope: TFolder[] = [];
+
+    const collectFolders = (folder: TFolder) => {
+        allFoldersInScope.push(folder);
+        for (const child of folder.children) {
+            if (child instanceof TFolder) {
+                collectFolders(child);
+            }
+        }
+    };
+    collectFolders(rootFolder);
+
+    // First pass: Create parent notes for all folders and link regular files to them
+    for (const folder of allFoldersInScope) {
+        if (folder === rootFolder && rootFolder.parent === null) { // Handle vault root case
+            // If the rootFolder is the actual vault root, don't try to create a parent note for it based on a parent folder.
+            // Files directly in the vault root won't have a conceptual parent from the folder structure.
+            continue;
+        }
+
+        console.log(`[Abstract Folder] Processing folder for parent note creation and file linking: ${folder.path}`);
+        let potentialParentNotePath = "";
+        if (options.folderNoteStrategy === 'inside') {
+            potentialParentNotePath = `${folder.path}/${folder.name}.md`;
+        } else {
+            const parentOfCurrentFolder = folder.parent;
+            if (parentOfCurrentFolder && parentOfCurrentFolder.path !== '/') {
+                potentialParentNotePath = `${parentOfCurrentFolder.path}/${folder.name}.md`;
+            } else {
+                potentialParentNotePath = `${folder.name}.md`;
+            }
+        }
+
+        let folderNote = app.vault.getAbstractFileByPath(potentialParentNotePath) as TFile;
+
+        if (!folderNote && options.createParentNotes) {
+            console.log(`[Abstract Folder] Attempting to create folder note for ${folder.path} at ${potentialParentNotePath}`);
+            try {
+                folderNote = await app.vault.create(potentialParentNotePath, "");
+                updatedCount++;
+                console.log(`[Abstract Folder] Created folder note: ${folderNote.path}`);
+            } catch (e) {
+                console.warn(`[Abstract Folder] Could not create folder note at ${potentialParentNotePath} for folder ${folder.path}`, e);
+                // If we can't create it, we can't link to it, so continue
+                continue;
+            }
+        }
+
+        if (folderNote) {
+            // Link immediate markdown files within this folder to the folderNote
+            for (const child of folder.children) {
+                if (child instanceof TFile && child.extension === 'md' && child.path !== folderNote.path) {
+                    console.log(`[Abstract Folder] Linking file ${child.path} to folder note ${folderNote.path}`);
+                    await linkChildToParent(app, settings, child, folderNote, options.existingRelationshipsStrategy);
+                    updatedCount++;
+                }
+            }
+        }
+    }
+
+    // Second pass: Link folder notes to their conceptual parent folder notes
+    // This establishes the hierarchy between abstract folders themselves
+    for (const folder of allFoldersInScope) {
+        if (folder === rootFolder && rootFolder.parent === null) {
+            continue;
+        }
+        
+        const parentOfCurrentFolder = folder.parent;
+        if (!parentOfCurrentFolder || parentOfCurrentFolder === rootFolder) {
+            // If this folder's parent is the root of the conversion or no parent,
+            // its conceptual parent note (if any) is already considered a top-level abstract folder.
+            continue;
+        }
+
+        console.log(`[Abstract Folder] Processing folder note hierarchy for: ${folder.path}`);
+
+        // Get the folder note for the current folder
+        let currentFolderNotePath = "";
+        if (options.folderNoteStrategy === 'inside') {
+            currentFolderNotePath = `${folder.path}/${folder.name}.md`;
+        } else {
+            if (parentOfCurrentFolder && parentOfCurrentFolder.path !== '/') {
+                currentFolderNotePath = `${parentOfCurrentFolder.path}/${folder.name}.md`;
+            } else {
+                currentFolderNotePath = `${folder.name}.md`;
+            }
+        }
+        const currentFolderNote = app.vault.getAbstractFileByPath(currentFolderNotePath) as TFile;
+
+        if (!currentFolderNote) {
+            console.log(`[Abstract Folder] No folder note found for ${folder.path}, cannot establish hierarchy.`);
+            continue;
+        }
+
+        // Get the folder note for the parent folder
+        let parentFolderNotePath = "";
+        if (options.folderNoteStrategy === 'inside') {
+            parentFolderNotePath = `${parentOfCurrentFolder.path}/${parentOfCurrentFolder.name}.md`;
+        } else {
+            const grandParentOfCurrentFolder = parentOfCurrentFolder.parent;
+            if (grandParentOfCurrentFolder && grandParentOfCurrentFolder.path !== '/') {
+                parentFolderNotePath = `${grandParentOfCurrentFolder.path}/${parentOfCurrentFolder.name}.md`;
+            } else {
+                parentFolderNotePath = `${parentOfCurrentFolder.name}.md`;
+            }
+        }
+        const parentFolderNote = app.vault.getAbstractFileByPath(parentFolderNotePath) as TFile;
+
+        if (parentFolderNote && currentFolderNote.path !== parentFolderNote.path) {
+            console.log(`[Abstract Folder] Linking folder note ${currentFolderNote.path} to parent folder note ${parentFolderNote.path}`);
+            await linkChildToParent(app, settings, currentFolderNote, parentFolderNote, options.existingRelationshipsStrategy);
+            updatedCount++;
+        } else {
+            console.log(`[Abstract Folder] Cannot link folder note ${currentFolderNote.path} to its parent (no parent folder note found or self-link).`);
+        }
+    }
+
     new Notice(`Conversion complete. Updated ${updatedCount} relationships.`);
     app.workspace.trigger('abstract-folder:graph-updated');
 }
