@@ -5,7 +5,7 @@
 	"minAppVersion": "1.10.6",
 	"description": "Manage your vault with dynamic, virtual folders for flexible note organization.",
 	"author": "Erfan Rahmani",
-	"isDesktopOnly": false,
+	"isDesktopOnly": true,
 	"fundingUrl": {
 		"PayPal": "https://www.paypal.com/paypalme/airfunn",
 		"Wise": "https://wise.com/pay/me/erfanr47"
