@@ -1,5 +1,8 @@
 # Abstract Folder
 
+[![Donate via PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?style=for-the-badge&logo=paypal)](https://www.paypal.com/paypalme/airfunn)
+[![Donate via Wise](https://img.shields.io/badge/Donate-Wise-00BF8D?style=for-the-badge&logo=wise)](https://wise.com/pay/me/erfanr47)
+
 ## What it does
 
 Manage your vault with dynamic, virtual folders for flexible note organization.

@@ -2,7 +2,7 @@
 	"id": "abstract-folder",
 	"name": "Abstract Folder",
 	"version": "1.0.0",
-	"minAppVersion": "0.15.0",
+	"minAppVersion": "1.10.6",
 	"description": "Manage your vault with dynamic, virtual folders for flexible note organization.",
 	"author": "Erfan Rahmani",
 	"isDesktopOnly": false,
