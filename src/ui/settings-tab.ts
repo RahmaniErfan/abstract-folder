@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, AbstractInputSuggest } from 'obsidian';
+import { App, PluginSettingTab, Setting, AbstractInputSuggest, normalizePath } from 'obsidian';
 import AbstractFolderPlugin from '../../main'; // Adjust path if necessary
 
 // Helper for path suggestions
@@ -47,7 +47,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 		this.renderExcludedPaths(containerEl);
 
 		new Setting(containerEl)
-			.setName("Parent Property Name")
+			.setName("Parent property name")
 			.setDesc("The frontmatter property key used to define parent notes (e.g., 'parent' or 'folder'). This setting is case-sensitive, so ensure your frontmatter property name matches the casing exactly.")
 			.addText((text) =>
 				text
@@ -61,7 +61,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Show Aliases")
+			.setName("Show aliases")
 			.setDesc("Use the first alias as the display name in the Abstract Folder view if available.")
 			.addToggle((toggle) =>
 				toggle
@@ -74,7 +74,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Auto Reveal Active File")
+			.setName("Auto reveal active file")
 			.setDesc("Automatically expand the folder tree to show the currently active file.")
 			.addToggle((toggle) =>
 				toggle
@@ -88,7 +88,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Remember Expanded Folders")
+			.setName("Remember expanded folders")
 			.setDesc("Keep folders expanded even when switching views or restarting Obsidian.")
 			.addToggle((toggle) =>
 				toggle
@@ -103,7 +103,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Open on Startup")
+			.setName("Open on startup")
 			.setDesc("Automatically open the Abstract Folder view when Obsidian starts.")
 			.addToggle((toggle) =>
 				toggle
@@ -115,7 +115,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Open Position")
+			.setName("Open position")
 			.setDesc("Which side sidebar to open the view in.")
 			.addDropdown((dropdown) =>
 				dropdown
@@ -129,7 +129,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Show Ribbon Icon")
+			.setName("Show ribbon icon")
 			.setDesc("Toggle the visibility of the Abstract Folders icon in the left ribbon panel.")
 			.addToggle((toggle) =>
 				toggle
@@ -142,11 +142,11 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Visual Settings")
+			.setName("Visual settings")
 			.setHeading();
 
 		new Setting(containerEl)
-			.setName("Enable Rainbow Indents")
+			.setName("Enable rainbow indents")
 			.setDesc("Color the indentation lines to visually distinguish tree depth.")
 			.addToggle((toggle) =>
 				toggle
@@ -160,7 +160,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Rainbow Indent Palette")
+			.setName("Rainbow indent palette")
 			.setDesc("Choose the color palette for rainbow indentation guides.")
 			.addDropdown((dropdown) =>
 				dropdown
@@ -177,7 +177,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 				);
 
 		new Setting(containerEl)
-			.setName("Rainbow Indent - Varied Item Colors")
+			.setName("Rainbow indent - varied item colors")
 			.setDesc("If enabled, sibling items at the same indentation level will use different colors from the palette, making them easier to distinguish. If disabled, all items at the same depth will share the same color.")
 			.addToggle((toggle) =>
 				toggle
@@ -190,7 +190,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 					})
 			);
 		new Setting(containerEl)
-			.setName("Rainbow Indent - Varied Item Colors")
+			.setName("Rainbow indent - varied item colors")
 			.setDesc("If enabled, sibling items at the same indentation level will use different colors from the palette, making them easier to distinguish. If disabled, all items at the same depth will share the same color.")
 			.addToggle((toggle) =>
 				toggle
@@ -218,7 +218,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 					text.setValue(path);
 					new PathInputSuggest(this.app, text.inputEl);
 					text.onChange(async (value) => {
-						this.plugin.settings.excludedPaths[index] = value;
+						this.plugin.settings.excludedPaths[index] = normalizePath(value);
 						await this.plugin.saveSettings();
 						this.plugin.indexer.updateSettings(this.plugin.settings);
 					});
@@ -239,7 +239,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 				.setButtonText("Add new excluded path")
 				.setCta()
 				.onClick(async () => {
-					this.plugin.settings.excludedPaths.push(""); // Add an empty path for the new input
+					this.plugin.settings.excludedPaths.push(normalizePath("")); // Add an empty path for the new input, normalized
 					await this.plugin.saveSettings();
 					this.display(); // Re-render to show the new input field
 				}));

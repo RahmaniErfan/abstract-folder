@@ -73,7 +73,7 @@ export class AbstractFolderView extends ItemView {
     this.contentEl.empty();
     this.contentEl.addClass("abstract-folder-view");
 
-    this.addAction("file-plus", "Create New Root Note", () => {
+    this.addAction("file-plus", "Create new root note", () => {
         new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
             createAbstractChildFile(this.app, this.settings, childName, null, childType);
         }, 'note').open();
@@ -83,7 +83,7 @@ export class AbstractFolderView extends ItemView {
     this.expandAllAction = this.addAction("chevrons-up-down", "Expand all folders", () => this.expandAll());
     this.collapseAllAction = this.addAction("chevrons-down-up", "Collapse all folders", () => this.collapseAll());
     
-    this.viewStyleToggleAction = this.addAction("list", "Switch View Style", () => this.viewState.toggleViewStyle());
+    this.viewStyleToggleAction = this.addAction("list", "Switch view style", () => this.viewState.toggleViewStyle());
     this.updateViewStyleToggleButton();
     this.updateButtonStates();
 
@@ -289,26 +289,26 @@ export class AbstractFolderView extends ItemView {
 
     menu.addItem((item) =>
       item
-        .setTitle("Sort by Name (A-Z)")
+        .setTitle("Sort by name (A-Z)")
         .setIcon(this.viewState.sortBy === 'name' && this.viewState.sortOrder === 'asc' ? "check" : "sort-asc")
         .onClick(() => this.viewState.setSort('name', 'asc'))
     );
     menu.addItem((item) =>
       item
-        .setTitle("Sort by Name (Z-A)")
+        .setTitle("Sort by name (Z-A)")
         .setIcon(this.viewState.sortBy === 'name' && this.viewState.sortOrder === 'desc' ? "check" : "sort-desc")
         .onClick(() => this.viewState.setSort('name', 'desc'))
     );
     menu.addSeparator();
     menu.addItem((item) =>
       item
-        .setTitle("Sort by Modified (Old to New)")
+        .setTitle("Sort by modified (old to new)")
         .setIcon(this.viewState.sortBy === 'mtime' && this.viewState.sortOrder === 'asc' ? "check" : "sort-asc")
         .onClick(() => this.viewState.setSort('mtime', 'asc'))
     );
     menu.addItem((item) =>
       item
-        .setTitle("Sort by Modified (New to Old)")
+        .setTitle("Sort by modified (new to old)")
         .setIcon(this.viewState.sortBy === 'mtime' && this.viewState.sortOrder === 'desc' ? "check" : "sort-desc")
         .onClick(() => this.viewState.setSort('mtime', 'desc'))
     );
@@ -363,8 +363,8 @@ export class AbstractFolderView extends ItemView {
   private updateViewStyleToggleButton() {
       const isColumnView = this.settings.viewStyle === 'column';
       setIcon(this.viewStyleToggleAction, isColumnView ? "folder-tree" : "rows-2");
-      this.viewStyleToggleAction.ariaLabel = isColumnView ? "Switch to Tree View" : "Switch to Column View";
-      this.viewStyleToggleAction.title = isColumnView ? "Switch to Tree View" : "Switch to Column View";
+      this.viewStyleToggleAction.ariaLabel = isColumnView ? "Switch to tree view" : "Switch to column view";
+      this.viewStyleToggleAction.title = isColumnView ? "Switch to tree view" : "Switch to column view";
   }
 
   private getDisplayName = (node: FolderNode): string => {

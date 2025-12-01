@@ -1,3 +1,11 @@
+/**
+ * @file main.ts
+ * @description Plugin entry point for Abstract Folder.
+ * @author Erfan Rahmani
+ * @license GPL-3.0
+ * @copyright 2025 Erfan Rahmani
+ */
+
 import { Plugin, WorkspaceLeaf } from 'obsidian';
 import { AbstractFolderPluginSettings, DEFAULT_SETTINGS } from './src/settings';
 import { FolderIndexer } from './src/indexer';

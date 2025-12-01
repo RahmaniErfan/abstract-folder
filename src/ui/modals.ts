@@ -1,4 +1,4 @@
-import { App, Modal, Setting, TFile, TFolder, Notice, FuzzySuggestModal } from "obsidian";
+import { App, Modal, Setting, TFile, TFolder, Notice, FuzzySuggestModal, normalizePath } from "obsidian";
 import { ConversionOptions, FileConflict } from "../conversion";
 import { AbstractFolderPluginSettings } from "../settings";
 
@@ -41,10 +41,10 @@ export class CreateAbstractChildModal extends Modal {
 
   onOpen() {
     const { contentEl } = this;
-    contentEl.createEl("h2", { text: "Create Abstract Child" });
+    contentEl.createEl("h2", { text: "Create abstract child" });
 
     new Setting(contentEl)
-      .setName("Child Name")
+      .setName("Child name")
       .setDesc("The name for the new file (e.g., 'Meeting Notes', 'Project Board').")
       .addText((text) => {
         text.inputEl.focus();
@@ -59,10 +59,10 @@ export class CreateAbstractChildModal extends Modal {
       });
 
     new Setting(contentEl)
-      .setName("Child Type")
+      .setName("Child type")
       .setDesc("Select the type of file to create.")
       .addDropdown((dropdown) => {
-        dropdown.addOption('note', 'Markdown Note');
+        dropdown.addOption('note', 'Markdown note');
         dropdown.addOption('canvas', 'Canvas');
         dropdown.addOption('base', 'Bases');
         dropdown.setValue(this.childType); // Set initial value from constructor
@@ -110,10 +110,10 @@ export class RenameModal extends Modal {
 
     onOpen() {
         const { contentEl } = this;
-        contentEl.createEl("h2", { text: "Rename File" });
+        contentEl.createEl("h2", { text: "Rename file" });
 
         new Setting(contentEl)
-            .setName("New Name")
+            .setName("New name")
             .addText((text) => {
                 text.setValue(this.newName);
                 text.inputEl.focus();
@@ -183,7 +183,7 @@ export class DeleteConfirmModal extends Modal {
 
     onOpen() {
         const { contentEl } = this;
-        contentEl.createEl("h2", { text: "Delete File" });
+        contentEl.createEl("h2", { text: "Delete file" });
         contentEl.createEl("p", { text: `Are you sure you want to delete "${this.file.name}"?` });
 
         const buttonContainer = contentEl.createDiv({ cls: "modal-button-container" });
@@ -218,7 +218,7 @@ export class BatchDeleteConfirmModal extends Modal {
 
     onOpen() {
         const { contentEl } = this;
-        contentEl.createEl("h2", { text: `Delete ${this.files.length} Files` });
+        contentEl.createEl("h2", { text: `Delete ${this.files.length} files` });
         contentEl.createEl("p", { text: `Are you sure you want to delete these ${this.files.length} files?` });
         
         const list = contentEl.createEl("ul");
@@ -233,7 +233,7 @@ export class BatchDeleteConfirmModal extends Modal {
 
         const buttonContainer = contentEl.createDiv({ cls: "modal-button-container" });
         
-        const deleteButton = buttonContainer.createEl("button", { text: "Delete All", cls: "mod-warning" });
+        const deleteButton = buttonContainer.createEl("button", { text: "Delete all", cls: "mod-warning" });
         deleteButton.addEventListener("click", () => {
             this.onConfirm();
             this.close();
@@ -291,18 +291,18 @@ export class ConversionOptionsModal extends Modal {
 
     onOpen() {
         const { contentEl } = this;
-        contentEl.createEl("h2", { text: "Convert Folder Structure" });
+        contentEl.createEl("h2", { text: "Convert folder structure" });
         contentEl.createEl("p", { text: `Convert folder "${this.folder.path}" to Abstract Folder format.` });
 
         new Setting(contentEl)
-            .setName("Create Parent Notes")
+            .setName("Create parent notes")
             .setDesc("Create a corresponding markdown note for folders if one doesn't exist.")
             .addToggle(toggle => toggle
                 .setValue(this.options.createParentNotes)
                 .onChange(value => this.options.createParentNotes = value));
 
         new Setting(contentEl)
-            .setName("Existing Relationships")
+            .setName("Existing relationships")
             .setDesc("How to handle files that already have parents defined.")
             .addDropdown(dropdown => dropdown
                 .addOption('append', 'Append new parents')
@@ -311,7 +311,7 @@ export class ConversionOptionsModal extends Modal {
                 .onChange((value: 'append' | 'replace') => this.options.existingRelationshipsStrategy = value));
 
         new Setting(contentEl)
-            .setName("Folder Note Strategy")
+            .setName("Folder note strategy")
             .setDesc("Where to look for the note representing the folder.")
             .addDropdown(dropdown => dropdown
                 .addOption('outside', 'Outside (Sibling note, e.g. "Folder.md" next to "Folder/")')
@@ -344,23 +344,23 @@ export class ScopeSelectionModal extends Modal {
 
     onOpen() {
         const { contentEl } = this;
-        contentEl.createEl("h2", { text: "Select Export Scope" });
+        contentEl.createEl("h2", { text: "Select export scope" });
 
         new Setting(contentEl)
-            .setName("Entire Vault")
+            .setName("Entire vault")
             .setDesc("Export the entire abstract structure to folders.")
             .addButton(btn => btn
-                .setButtonText("Export All")
+                .setButtonText("Export all")
                 .onClick(() => {
                     this.onConfirm('vault');
                     this.close();
                 }));
 
         new Setting(contentEl)
-            .setName("Specific Branch")
+            .setName("Specific branch")
             .setDesc("Export starting from a specific parent note.")
             .addButton(btn => btn
-                .setButtonText("Select Note")
+                .setButtonText("Select note")
                 .setCta()
                 .onClick(() => {
                     this.close();
@@ -412,18 +412,18 @@ export class NewFolderNameModal extends Modal {
 
     onOpen() {
         const { contentEl } = this;
-        contentEl.createEl("h2", { text: "Name Export Folder" });
+        contentEl.createEl("h2", { text: "Name export folder" });
         contentEl.createEl("p", { text: `Creating new folder inside: ${this.parentFolder.path === '/' ? 'Root' : this.parentFolder.path}` });
 
         new Setting(contentEl)
-            .setName("Folder Name")
+            .setName("Folder name")
             .setDesc("Enter a name for the folder that will contain the exported structure.")
             .addText(text => text
                 .setValue(this.folderName)
                 .onChange(value => this.folderName = value));
 
         new Setting(contentEl)
-            .setName("Create Index Files")
+            .setName("Create index files")
             .setDesc("ON: Create 'Folder/Folder.md' containing the note content. OFF: Create only the folder 'Folder/' (excludes note content if it has children).")
             .addToggle(toggle => toggle
                 .setValue(this.placeIndexFileInside)
@@ -438,9 +438,9 @@ export class NewFolderNameModal extends Modal {
                         new Notice("Please enter a folder name.");
                         return;
                     }
-                    // Construct full path
+                    // Construct full path and normalize it
                     const parentPath = this.parentFolder.path === '/' ? '' : this.parentFolder.path + '/';
-                    const fullPath = parentPath + this.folderName;
+                    const fullPath = normalizePath(parentPath + this.folderName);
                     this.onConfirm(fullPath, this.placeIndexFileInside);
                     this.close();
                 }));
@@ -463,7 +463,7 @@ export class SimulationModal extends Modal {
 
     onOpen() {
         const { contentEl } = this;
-        contentEl.createEl("h2", { text: "Review Folder Generation" });
+        contentEl.createEl("h2", { text: "Review folder generation" });
 
         if (this.conflicts.length === 0) {
             contentEl.createEl("p", { text: "No conflicts detected. Ready to generate." });
@@ -493,7 +493,7 @@ export class SimulationModal extends Modal {
         }
 
         const buttonContainer = contentEl.createDiv({ cls: "modal-button-container" });
-        buttonContainer.createEl("button", { text: "Generate Folders", cls: "mod-cta" })
+        buttonContainer.createEl("button", { text: "Generate folders", cls: "mod-cta" })
             .addEventListener("click", () => {
                 this.onConfirm(this.conflicts);
                 this.close();
