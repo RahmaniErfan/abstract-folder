@@ -1,5 +1,35 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { App, PluginSettingTab, Setting, AbstractInputSuggest } from 'obsidian';
 import AbstractFolderPlugin from '../../main'; // Adjust path if necessary
+
+// Helper for path suggestions
+class PathInputSuggest extends AbstractInputSuggest<string> {
+    constructor(app: App, private inputEl: HTMLInputElement) {
+        super(app, inputEl);
+    }
+
+    getSuggestions(inputStr: string): string[] {
+        const files = this.app.vault.getAllLoadedFiles();
+        const paths: string[] = [];
+        for (const file of files) {
+            paths.push(file.path);
+        }
+
+        const lowerCaseInputStr = inputStr.toLowerCase();
+        return paths.filter(path =>
+            path.toLowerCase().includes(lowerCaseInputStr)
+        );
+    }
+
+    renderSuggestion(value: string, el: HTMLElement): void {
+        el.setText(value);
+    }
+
+    selectSuggestion(value: string, evt: MouseEvent | KeyboardEvent): void {
+        this.inputEl.value = value;
+        this.inputEl.trigger("input");
+        this.close();
+    }
+}
 
 export class AbstractFolderSettingTab extends PluginSettingTab {
 	plugin: AbstractFolderPlugin;
@@ -14,21 +44,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-
-
-		new Setting(containerEl)
-			.setName("Excluded Paths")
-			.setDesc("Enter paths to exclude from the abstract folder view (one per line). Useful for hiding export folders.")
-			.addTextArea((text) =>
-				text
-					.setPlaceholder("Abstract Export\nArchive/Old")
-					.setValue(this.plugin.settings.excludedPaths?.join('\n') || '')
-					.onChange(async (value) => {
-						this.plugin.settings.excludedPaths = value.split('\n').filter(p => p.trim().length > 0);
-						await this.plugin.saveSettings();
-						this.plugin.indexer.updateSettings(this.plugin.settings);
-					})
-			);
+		this.renderExcludedPaths(containerEl);
 
 		new Setting(containerEl)
 			.setName("Parent Property Name")
@@ -173,5 +189,59 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 						this.plugin.indexer.updateSettings(this.plugin.settings);
 					})
 			);
+		new Setting(containerEl)
+			.setName("Rainbow Indent - Varied Item Colors")
+			.setDesc("If enabled, sibling items at the same indentation level will use different colors from the palette, making them easier to distinguish. If disabled, all items at the same depth will share the same color.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enablePerItemRainbowColors)
+					.onChange(async (value) => {
+						this.plugin.settings.enablePerItemRainbowColors = value;
+						await this.plugin.saveSettings();
+						// Trigger view refresh to apply new styling
+						this.plugin.indexer.updateSettings(this.plugin.settings);
+					})
+			);
 		}
+
+	private renderExcludedPaths(containerEl: HTMLElement): void {
+		new Setting(containerEl)
+			.setName("Excluded Paths")
+			.setDesc("Paths to exclude from the abstract folder view.")
+			.setHeading();
+
+		const excludedPathsContainer = containerEl.createDiv({ cls: "abstract-folder-excluded-paths-container" });
+		this.plugin.settings.excludedPaths.forEach((path, index) => {
+			new Setting(excludedPathsContainer)
+				.addText(text => {
+					text.setPlaceholder("path/to/exclude");
+					text.setValue(path);
+					new PathInputSuggest(this.app, text.inputEl);
+					text.onChange(async (value) => {
+						this.plugin.settings.excludedPaths[index] = value;
+						await this.plugin.saveSettings();
+						this.plugin.indexer.updateSettings(this.plugin.settings);
+					});
+				})
+				.addButton(button => button
+					.setButtonText("Remove")
+					.setIcon("trash")
+					.onClick(async () => {
+						this.plugin.settings.excludedPaths.splice(index, 1);
+						await this.plugin.saveSettings();
+						this.plugin.indexer.updateSettings(this.plugin.settings);
+						this.display(); // Re-render to update the list
+					}));
+		});
+
+		new Setting(containerEl)
+			.addButton(button => button
+				.setButtonText("Add new excluded path")
+				.setCta()
+				.onClick(async () => {
+					this.plugin.settings.excludedPaths.push(""); // Add an empty path for the new input
+					await this.plugin.saveSettings();
+					this.display(); // Re-render to show the new input field
+				}));
+	}
 }

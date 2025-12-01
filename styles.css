@@ -500,6 +500,7 @@ n
     max-height: 200px;
     overflow-y: auto;
     margin-bottom: 20px;
+    max-height: 400px; /* Moved from inline style in modals.ts */
 }
 
 .abstract-folder-conflict-item {

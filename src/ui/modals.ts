@@ -471,7 +471,6 @@ export class SimulationModal extends Modal {
             contentEl.createEl("p", { text: `${this.conflicts.length} files have multiple parents. Please resolve conflicts.` });
             
             const conflictContainer = contentEl.createDiv({ cls: "abstract-folder-conflict-container" });
-            conflictContainer.style.maxHeight = "400px"; // Keep specific height inline if it's dynamic
 
             this.conflicts.forEach(conflict => {
                 const div = conflictContainer.createDiv({ cls: "abstract-folder-conflict-item" });
@@ -493,14 +492,12 @@ export class SimulationModal extends Modal {
             });
         }
 
-        new Setting(contentEl)
-            .addButton(btn => btn
-                .setButtonText("Generate Folders")
-                .setCta()
-                .onClick(() => {
-                    this.onConfirm(this.conflicts);
-                    this.close();
-                }));
+        const buttonContainer = contentEl.createDiv({ cls: "modal-button-container" });
+        buttonContainer.createEl("button", { text: "Generate Folders", cls: "mod-cta" })
+            .addEventListener("click", () => {
+                this.onConfirm(this.conflicts);
+                this.close();
+            });
     }
 
     onClose() {
