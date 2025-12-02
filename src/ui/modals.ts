@@ -45,7 +45,8 @@ export class CreateAbstractChildModal extends Modal {
 
     new Setting(contentEl)
       .setName("Child name")
-      .setDesc("The name for the new file (e.g., 'Meeting Notes', 'Project Board').")
+      // eslint-disable-next-line obsidianmd/ui/sentence-case
+      .setDesc("The name for the new file (e.g. 'Meeting notes', 'Project board').")
       .addText((text) => {
         text.inputEl.focus();
         text.onChange((value) => {
@@ -296,7 +297,7 @@ export class ConversionOptionsModal extends Modal {
 
         new Setting(contentEl)
             .setName("Create parent notes")
-            .setDesc("Create a corresponding markdown note for folders if one doesn't exist.")
+            .setDesc("Create a corresponding Markdown note for folders if one doesn't exist.")
             .addToggle(toggle => toggle
                 .setValue(this.options.createParentNotes)
                 .onChange(value => this.options.createParentNotes = value));

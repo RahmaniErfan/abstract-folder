@@ -51,7 +51,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 			.setDesc("The frontmatter property key used to define parent notes (e.g., 'parent' or 'folder'). This setting is case-sensitive, so ensure your frontmatter property name matches the casing exactly.")
 			.addText((text) =>
 				text
-					.setPlaceholder("parent")
+					.setPlaceholder("Example: parent")
 					.setValue(this.plugin.settings.propertyName)
 					.onChange(async (value) => {
 						this.plugin.settings.propertyName = value;
@@ -62,7 +62,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Show aliases")
-			.setDesc("Use the first alias as the display name in the Abstract Folder view if available.")
+			.setDesc("Use the first alias as the display name in the abstract folders view if available.")
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.showAliases)
@@ -104,7 +104,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Open on startup")
-			.setDesc("Automatically open the Abstract Folder view when Obsidian starts.")
+			.setDesc("Automatically open the abstract folders view when Obsidian starts.")
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.startupOpen)
@@ -130,7 +130,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Show ribbon icon")
-			.setDesc("Toggle the visibility of the Abstract Folders icon in the left ribbon panel.")
+			.setDesc("Toggle the visibility of the abstract folders icon in the left ribbon.")
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.showRibbonIcon)
@@ -142,7 +142,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Visual settings")
+			.setName("Visual")
 			.setHeading();
 
 		new Setting(containerEl)
@@ -206,15 +206,15 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 
 	private renderExcludedPaths(containerEl: HTMLElement): void {
 		new Setting(containerEl)
-			.setName("Excluded Paths")
-			.setDesc("Paths to exclude from the abstract folder view.")
+			.setName("Excluded paths")
+			.setDesc("Paths to exclude from the abstract folders view.")
 			.setHeading();
 
 		const excludedPathsContainer = containerEl.createDiv({ cls: "abstract-folder-excluded-paths-container" });
 		this.plugin.settings.excludedPaths.forEach((path, index) => {
 			new Setting(excludedPathsContainer)
 				.addText(text => {
-					text.setPlaceholder("path/to/exclude");
+					text.setPlaceholder("Path to exclude");
 					text.setValue(path);
 					new PathInputSuggest(this.app, text.inputEl);
 					text.onChange(async (value) => {

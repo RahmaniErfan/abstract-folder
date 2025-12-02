@@ -77,7 +77,8 @@ export async function convertFoldersToPluginFormat(
             }
         }
 
-        let folderNote = app.vault.getAbstractFileByPath(potentialParentNotePath) as TFile;
+        const file = app.vault.getAbstractFileByPath(potentialParentNotePath);
+        let folderNote = file instanceof TFile ? file : null;
 
         if (!folderNote && options.createParentNotes) {
             try {
@@ -140,7 +141,8 @@ export async function convertFoldersToPluginFormat(
                 currentFolderNotePath = `${folder.name}.md`;
             }
         }
-        const currentFolderNote = app.vault.getAbstractFileByPath(currentFolderNotePath) as TFile;
+        const file = app.vault.getAbstractFileByPath(currentFolderNotePath);
+        const currentFolderNote = file instanceof TFile ? file : null;
 
         if (!currentFolderNote) {
             continue;
@@ -158,7 +160,8 @@ export async function convertFoldersToPluginFormat(
                 parentFolderNotePath = `${parentOfCurrentFolder.name}.md`;
             }
         }
-        const parentFolderNote = app.vault.getAbstractFileByPath(parentFolderNotePath) as TFile;
+        const parentFile = app.vault.getAbstractFileByPath(parentFolderNotePath);
+        const parentFolderNote = parentFile instanceof TFile ? parentFile : null;
 
         if (parentFolderNote && currentFolderNote.path !== parentFolderNote.path) {
             await linkChildToParent(app, settings, currentFolderNote, parentFolderNote, options.existingRelationshipsStrategy);
@@ -233,10 +236,6 @@ async function linkChildToParent(
         frontmatter[parentPropertyName] = currentParents;
     });
 
-    // 2. Update PARENT to point to CHILD (childrenPropertyName) - This will be handled by the new addChildToParentNoteFrontmatter for both MD and non-MD
-    // This part of linkChildToParent is now redundant and will be removed as the new helper function is more generic
-    // for updating parent's children.
-    // I will remove this block in the next diff.
 }
 /**
  * Generates a physical folder structure from the plugin's abstract folder format.
@@ -250,7 +249,7 @@ export async function generateFolderStructurePlan(
     placeIndexFileInside: boolean,
     rootScope?: TFile
 ): Promise<{ fileTree: Map<string, string[]>, conflicts: FileConflict[] }> {
-    const normalizedDestinationPath = normalizePath(destinationPath); // Apply normalizePath immediately
+    const normalizedDestinationPath = normalizePath(destinationPath);
     const fileTree = new Map<string, string[]>(); // FolderPath -> List of FilePaths to move/copy there
     const conflicts: FileConflict[] = [];
     const fileDestinations = new Map<string, string[]>(); // FilePath -> List of target folder paths
@@ -368,7 +367,9 @@ export async function generateFolderStructurePlan(
     
     // 3. Identify conflicts
     for (const [filePath, targetFolders] of fileDestinations.entries()) {
-        const file = app.vault.getAbstractFileByPath(filePath) as TFile;
+        const abstractFile = app.vault.getAbstractFileByPath(filePath);
+        if (!(abstractFile instanceof TFile)) continue;
+        const file = abstractFile;
         // Deduplicate target folders
         const uniqueTargets = [...new Set(targetFolders)];
         
@@ -387,9 +388,6 @@ export async function generateFolderStructurePlan(
             fileTree.get(folder)!.push(filePath);
         });
     }
-
-    // Also add non-conflicting files to fileTree if not already added
-    // (Done above in loop)
 
     return { fileTree, conflicts };
 }
@@ -439,29 +437,19 @@ export async function executeFolderGeneration(
             const file = app.vault.getAbstractFileByPath(filePath);
             if (file instanceof TFile) {
                 const conflict = conflictMap.get(filePath);
-                let action = 'copy'; // Default for safety? Or move if no conflict?
+                let action = 'copy';
                 
                 // If it's a conflict and resolution is 'resolve' (pick one), we check if THIS folder is the chosen one.
                 if (conflict) {
                     if (conflict.resolution === 'duplicate') {
                         action = 'copy';
                     } else if (conflict.resolution === folderPath) {
-                        action = 'move'; // Or copy? If we move, we can't put it in other places.
-                        // Wait, if "Pick Primary", we only put it in ONE place.
-                        // So the other entries in fileTree for this file should have been removed?
-                        // YES. The plan passed to this function should ALREADY be resolved.
-                        // But let's assume the UI modifies the 'plan' object directly or we filter here.
+                        action = 'move';
                     } else {
                         // This folder was NOT chosen. Skip.
                         continue;
                     }
                 } else {
-                    // No conflict. Single parent.
-                    // We should COPY by default to avoid destroying the user's current vault structure?
-                    // "Plugin to Folder" -> "Create folder structure".
-                    // If we MOVE, we dismantle the original location.
-                    // Let's default to COPY for safety, or make it an option.
-                    // For now: COPY.
                     action = 'copy';
                 }
 

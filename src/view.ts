@@ -65,7 +65,7 @@ export class AbstractFolderView extends ItemView {
   }
 
   getDisplayText(): string {
-    return "Abstract Folders";
+    return "Abstract folders";
   }
 
   public onOpen = async () => {
@@ -89,7 +89,9 @@ export class AbstractFolderView extends ItemView {
 
     this.renderView();
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.registerEvent(this.app.workspace.on("abstract-folder:graph-updated" as any, this.renderView, this));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.registerEvent(this.app.workspace.on("abstract-folder:view-style-changed" as any, this.handleViewStyleChanged, this));
 
     if (this.settings.autoReveal) {
@@ -202,7 +204,8 @@ export class AbstractFolderView extends ItemView {
 
     if (rootNodes.length === 0) {
       this.contentEl.createEl("div", {
-          text: "No abstract folders found. Add 'parent: [[Parent Note]]' to your notes' frontmatter to create a structure.",
+          // eslint-disable-next-line obsidianmd/ui/sentence-case
+          text: "No abstract folders found. Add 'parent: [[Parent note]]' to your notes' frontmatter to create a structure.",
           cls: "abstract-folder-empty-state"
       });
       return;
@@ -230,7 +233,8 @@ export class AbstractFolderView extends ItemView {
 
     if (rootNodes.length === 0) {
         this.contentEl.createEl("div", {
-            text: "No abstract folders found. Add 'parent: [[Parent Note]]' to your notes' frontmatter to create a structure.",
+            // eslint-disable-next-line obsidianmd/ui/sentence-case
+            text: "No abstract folders found. Add 'parent: [[Parent note]]' to your notes' frontmatter to create a structure.",
             cls: "abstract-folder-empty-state"
         });
         return;
@@ -289,13 +293,15 @@ export class AbstractFolderView extends ItemView {
 
     menu.addItem((item) =>
       item
-        .setTitle("Sort by name (A-Z)")
+        // eslint-disable-next-line obsidianmd/ui/sentence-case
+        .setTitle("Sort by name (A to Z)")
         .setIcon(this.viewState.sortBy === 'name' && this.viewState.sortOrder === 'asc' ? "check" : "sort-asc")
         .onClick(() => this.viewState.setSort('name', 'asc'))
     );
     menu.addItem((item) =>
       item
-        .setTitle("Sort by name (Z-A)")
+        // eslint-disable-next-line obsidianmd/ui/sentence-case
+        .setTitle("Sort by name (Z to A)")
         .setIcon(this.viewState.sortBy === 'name' && this.viewState.sortOrder === 'desc' ? "check" : "sort-desc")
         .onClick(() => this.viewState.setSort('name', 'desc'))
     );

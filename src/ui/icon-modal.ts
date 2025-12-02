@@ -106,15 +106,16 @@ export class IconModal extends Modal {
     contentEl.empty();
     contentEl.addClass("abstract-folder-icon-modal");
 
-    contentEl.createEl("h2", { text: "Set Note Icon/Emoji" });
+    contentEl.createEl("h2", { text: "Set note icon/emoji" });
 
     // Combined input for search and custom icons/emojis
     new Setting(contentEl)
-      .setName("Search Icons or Enter Custom Icon/Emoji")
+      .setName("Search icons or enter custom icon/emoji")
       .setDesc("Enter an Obsidian icon ID (e.g., 'star', 'lucide-file'), any emoji (e.g., '📝'), or filter the list below. The field's content will be saved as the icon.")
       .addText((text) =>
         text
-          .setPlaceholder("e.g., star, folder-tree, 📝")
+          // eslint-disable-next-line obsidianmd/ui/sentence-case
+          .setPlaceholder("E.g. star, folder-tree, 📝")
           .setValue(this.result) // Use 'result' as the primary value for direct input
           .onChange((value) => {
             this.result = value; // Update result directly
@@ -131,7 +132,7 @@ export class IconModal extends Modal {
     new Setting(contentEl)
       .addButton((btn) =>
         btn
-          .setButtonText("Set Icon")
+          .setButtonText("Set icon")
           .setCta()
           .onClick(() => {
             this.close();
@@ -140,7 +141,7 @@ export class IconModal extends Modal {
       )
       .addButton((btn) =>
         btn
-          .setButtonText("Remove Icon")
+          .setButtonText("Remove icon")
           .onClick(() => {
             this.result = ""; // Clear the icon
             this.close();

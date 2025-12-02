@@ -107,7 +107,7 @@ export class ContextMenuHandler {
         if (isCurrentlyHidden) {
             menu.addItem((item) =>
             item
-                .setTitle("Unhide Note")
+                .setTitle("Unhide note")
                 .setIcon("eye")
                 .onClick(() => {
                 toggleHiddenStatus(this.app, node.file!, this.settings);
@@ -116,7 +116,7 @@ export class ContextMenuHandler {
         } else {
             menu.addItem((item) =>
             item
-                .setTitle("Hide Note")
+                .setTitle("Hide note")
                 .setIcon("eye-off")
                 .onClick(() => {
                 toggleHiddenStatus(this.app, node.file!, this.settings);
@@ -152,7 +152,7 @@ export class ContextMenuHandler {
 
         menu.addItem((item) =>
             item
-            .setTitle("Set/Change Icon")
+            .setTitle("Set/change icon")
             .setIcon("image")
             .onClick(() => {
                 const currentIcon = this.app.metadataCache.getFileCache(node.file!)?.frontmatter?.icon || "";

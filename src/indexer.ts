@@ -174,10 +174,6 @@ getGraph(): FileGraph {
     this.allFiles.add(file.path);
     const metadata = this.app.metadataCache.getFileCache(file);
 
-    // The individual removeFileChildRelationships and removeFileParentRelationships calls
-    // are no longer needed here as a full graph rebuild is now triggered
-    // on updateFileInGraph and deleteFileFromGraph for consistency.
-    // The buildGraph() method itself clears and re-establishes all relationships for all files.
 
     if (metadata?.frontmatter) {
       let isHidden = false;
@@ -312,10 +308,6 @@ getGraph(): FileGraph {
   }
 
 
-  /**
-   * Completely removes a file from the graph, including its identity as a parent.
-   * This is used when a file is deleted.
-   */
   private deleteFileFromGraph(file: TAbstractFile) {
     // When a file is deleted, all its associated relationships (both as child and parent)
     // need to be cleared. A full graph rebuild ensures that any remaining references
@@ -324,17 +316,9 @@ getGraph(): FileGraph {
     this.app.workspace.trigger('abstract-folder:graph-updated'); // Notify view to re-render
   }
   private renameFileInGraph(file: TFile, oldPath: string) {
-    // Create a temporary TAbstractFile for the old path for deletion
     const oldFileStub = { path: oldPath } as TAbstractFile;
     this.deleteFileFromGraph(oldFileStub);
-
-    // Re-process the file with its new path to establish all its relationships
     this.processFile(file);
-
-    // After renaming, a full graph rebuild is the most robust way to ensure
-    // all existing references (especially from children whose `parent` property
-    // or parent's `children` property might point to the old file name/path) are correctly re-resolved.
-    // This is because other files might link to the `oldPath`, and we need to re-evaluate them.
     this.buildGraph();
     this.app.workspace.trigger('abstract-folder:graph-updated'); // Notify view to re-render
   }

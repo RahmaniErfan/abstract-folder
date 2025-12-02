@@ -1,4 +1,4 @@
-import { App, TFile, TFolder, AbstractInputSuggest } from "obsidian";
+import { App, AbstractInputSuggest } from "obsidian";
 
 export class PathSuggest extends AbstractInputSuggest<string> {
     constructor(app: App, private inputEl: HTMLInputElement) {
