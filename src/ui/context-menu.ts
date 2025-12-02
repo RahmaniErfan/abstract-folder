@@ -2,7 +2,7 @@ import { App, Menu, TFile } from "obsidian";
 import { FolderNode } from "../types";
 import { AbstractFolderPluginSettings } from "../settings";
 import AbstractFolderPlugin from "../../main";
-import { BatchDeleteConfirmModal, CreateAbstractChildModal, RenameModal, DeleteConfirmModal, ChildFileType } from './modals';
+import { BatchDeleteConfirmModal, CreateAbstractChildModal, ChildFileType } from './modals';
 import { IconModal } from './icon-modal';
 import { updateFileIcon, toggleHiddenStatus, createAbstractChildFile } from '../file-operations';
 
@@ -127,40 +127,7 @@ export class ContextMenuHandler {
         menu.addSeparator();
 
         this.addCreationItems(menu, node.file!);
-
         menu.addSeparator();
-        
-        menu.addItem((item) =>
-            item
-            .setTitle("Rename")
-            .setIcon("pencil")
-            .onClick(() => {
-                new RenameModal(this.app, node.file!).open();
-            })
-        );
-
-        menu.addItem((item) =>
-            item
-            .setTitle("Delete")
-            .setIcon("trash")
-            .onClick(() => {
-                new DeleteConfirmModal(this.app, node.file!, () => {
-                    this.app.fileManager.trashFile(node.file!);
-                }).open();
-            })
-        );
-
-        menu.addItem((item) =>
-            item
-            .setTitle("Set/change icon")
-            .setIcon("image")
-            .onClick(() => {
-                const currentIcon = this.app.metadataCache.getFileCache(node.file!)?.frontmatter?.icon || "";
-                new IconModal(this.app, (result) => {
-                updateFileIcon(this.app, node.file!, result);
-                }, currentIcon).open();
-            })
-        );
 
         this.app.workspace.trigger("file-menu", menu, node.file, "abstract-folder-view");
     }
@@ -196,6 +163,20 @@ export class ContextMenuHandler {
                 new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
                 createAbstractChildFile(this.app, this.settings, childName, parentFile, childType);
                 }, 'base').open();
+            })
+        );
+        
+        menu.addSeparator();
+
+        menu.addItem((item) =>
+            item
+            .setTitle("Set/change icon")
+            .setIcon("image")
+            .onClick(() => {
+                const currentIcon = this.app.metadataCache.getFileCache(parentFile!)?.frontmatter?.icon || "";
+                new IconModal(this.app, (result) => {
+                updateFileIcon(this.app, parentFile!, result);
+                }, currentIcon).open();
             })
         );
     }
