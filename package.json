@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-abstract-folder",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Manage your vault with dynamic, virtual folders for flexible note organization.",
 	"main": "main.js",
 	"scripts": {
@@ -13,17 +13,17 @@
 	"license": "GPL-3.0",
 	"devDependencies": {
 		"@types/node": "^16.11.6",
-		"@eslint/js": "^8.0.0",
-		"@typescript-eslint/eslint-plugin": "^8.0.0",
-		"@typescript-eslint/parser": "^8.0.0",
+		"@eslint/js": "^9.39.1",
+		"@typescript-eslint/eslint-plugin": "^8.48.1",
+		"@typescript-eslint/parser": "^8.48.1",
 		"builtin-modules": "3.3.0",
 		"esbuild": "0.17.3",
-		"eslint": "^8.0.0",
+		"eslint": "^9.39.1",
 		"eslint-plugin-obsidianmd": "^0.1.9",
 		"globals": "^15.0.0",
 		"obsidian": "latest",
 		"tslib": "2.4.0",
 		"typescript": "^5.0.0",
-		"typescript-eslint": "^8.0.0"
+		"typescript-eslint": "^8.48.1"
 	}
 }
