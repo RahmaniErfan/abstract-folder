@@ -125,7 +125,7 @@ Customize the plugin behavior in **Settings → Abstract Folder**.
 
 This plugin is not yet available in the official Obsidian Community Plugins list. You must install it manually.
 
-1.  Go to the [GitHub Repository](https://www.google.com/search?q=%23) and find the latest **Release** on the right sidebar.
+1.  Go to the [GitHub Repository](https://github.com/RahmaniErfan/abstract-folder) and find the latest **Release** on the right sidebar.
 2.  Download these three files: `main.js`, `manifest.json`, and `styles.css`.
 3.  Navigate to your Obsidian Vault folder on your computer.
 4.  Open the hidden `.obsidian` folder, then open the `plugins` folder inside it.
