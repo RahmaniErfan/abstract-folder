@@ -67,75 +67,27 @@ export class ContextMenuHandler {
             this.plugin.app.workspace.trigger('abstract-folder:graph-updated');
         }
 
-        menu.addItem((item) =>
-            item
-            .setTitle("Open in new tab")
-            .setIcon("file-plus")
-            .onClick(() => {
-                this.app.workspace.getLeaf('tab').openFile(node.file!);
-            })
-        );
-
-        menu.addItem((item) =>
-            item
-            .setTitle("Open to the right")
-            .setIcon("separator-vertical")
-            .onClick(() => {
-                this.app.workspace.getLeaf('split').openFile(node.file!);
-            })
-        );
-
-        menu.addItem((item) =>
-            item
-            .setTitle("Open in new window")
-            .setIcon("popout")
-            .onClick(() => {
-                this.app.workspace.getLeaf('window').openFile(node.file!);
-            })
-        );
+        this.addFileSpecificActions(menu, node.file);
 
         menu.addSeparator();
-        
-        const fileCache = this.app.metadataCache.getFileCache(node.file);
-        const parentProperty = fileCache?.frontmatter?.[this.settings.propertyName];
-        let isCurrentlyHidden = false;
-        if (parentProperty) {
-            const parentLinks = Array.isArray(parentProperty) ? parentProperty : [parentProperty];
-            isCurrentlyHidden = parentLinks.some((p: string) => p.toLowerCase().trim() === 'hidden');
-        }
-
-        if (isCurrentlyHidden) {
-            menu.addItem((item) =>
+        menu.addItem((item) =>
             item
-                .setTitle("Unhide note")
-                .setIcon("eye")
-                .onClick(() => {
-                toggleHiddenStatus(this.app, node.file!, this.settings);
-                })
-            );
-        } else {
-            menu.addItem((item) =>
-            item
-                .setTitle("Hide note")
-                .setIcon("eye-off")
-                .onClick(() => {
-                toggleHiddenStatus(this.app, node.file!, this.settings);
-                })
-            );
-        }
-
-        menu.addSeparator();
-
-        this.addCreationItems(menu, node.file!);
-        menu.addSeparator();
-
+            .setTitle("Delete file")
+            .setIcon("trash")
+            .onClick(() => {
+                new BatchDeleteConfirmModal(this.app, [node.file!], async () => {
+                    await this.app.fileManager.trashFile(node.file!);
+                    this.plugin.app.workspace.trigger('abstract-folder:graph-updated');
+                }).open();
+            })
+        );
         this.app.workspace.trigger("file-menu", menu, node.file, "abstract-folder-view");
     }
 
     private addCreationItems(menu: Menu, parentFile: TFile | null = null) {
         menu.addItem((item) =>
             item
-            .setTitle(parentFile ? "Create Abstract Child Note" : "Create New Root Note")
+            .setTitle(parentFile ? "Create abstract child note" : "Create new root note")
             .setIcon("file-plus")
             .onClick(() => {
                 new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
@@ -146,7 +98,7 @@ export class ContextMenuHandler {
         
         menu.addItem((item) =>
             item
-            .setTitle(parentFile ? "Create Abstract Canvas Child" : "Create New Root Canvas")
+            .setTitle(parentFile ? "Create abstract canvas child" : "Create new root canvas")
             .setIcon("layout-dashboard")
             .onClick(() => {
                 new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
@@ -157,7 +109,7 @@ export class ContextMenuHandler {
 
         menu.addItem((item) =>
             item
-            .setTitle(parentFile ? "Create Abstract Bases Child" : "Create New Root Base")
+            .setTitle(parentFile ? "Create abstract bases child" : "Create new root base")
             .setIcon("database")
             .onClick(() => {
                 new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
@@ -166,18 +118,78 @@ export class ContextMenuHandler {
             })
         );
         
+    }
+
+    private addFileSpecificActions(menu: Menu, file: TFile) {
+        menu.addItem((item) =>
+            item
+            .setTitle("Open in new tab")
+            .setIcon("file-plus")
+            .onClick(() => {
+                this.app.workspace.getLeaf('tab').openFile(file);
+            })
+        );
+
+        menu.addItem((item) =>
+            item
+            .setTitle("Open to the right")
+            .setIcon("separator-vertical")
+            .onClick(() => {
+                this.app.workspace.getLeaf('split').openFile(file);
+            })
+        );
+
+        menu.addItem((item) =>
+            item
+            .setTitle("Open in new window")
+            .setIcon("popout")
+            .onClick(() => {
+                this.app.workspace.getLeaf('window').openFile(file);
+            })
+        );
+
         menu.addSeparator();
+        
+        const fileCache = this.app.metadataCache.getFileCache(file);
+        const parentProperty = fileCache?.frontmatter?.[this.settings.propertyName];
+        let isCurrentlyHidden = false;
+        if (parentProperty) {
+            const parentLinks = Array.isArray(parentProperty) ? parentProperty : [parentProperty];
+            isCurrentlyHidden = parentLinks.some((p: string) => p.toLowerCase().trim() === 'hidden');
+        }
+
+        if (isCurrentlyHidden) {
+            menu.addItem((item) =>
+            item
+                .setTitle("Unhide abstract note")
+                .setIcon("eye")
+                .onClick(() => {
+                toggleHiddenStatus(this.app, file, this.settings);
+                })
+            );
+        } else {
+            menu.addItem((item) =>
+            item
+                .setTitle("Hide abstract note")
+                .setIcon("eye-off")
+                .onClick(() => {
+                toggleHiddenStatus(this.app, file, this.settings);
+                })
+            );
+        }
 
         menu.addItem((item) =>
             item
             .setTitle("Set/change icon")
             .setIcon("image")
             .onClick(() => {
-                const currentIcon = this.app.metadataCache.getFileCache(parentFile!)?.frontmatter?.icon || "";
+                const currentIcon = this.app.metadataCache.getFileCache(file)?.frontmatter?.icon || "";
                 new IconModal(this.app, (result) => {
-                updateFileIcon(this.app, parentFile!, result);
+                updateFileIcon(this.app, file, result);
                 }, currentIcon).open();
             })
         );
+
+        this.addCreationItems(menu, file); // Call addCreationItems with the current file as parent
     }
 }
