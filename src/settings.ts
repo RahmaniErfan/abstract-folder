@@ -1,3 +1,5 @@
+import { Group } from "./types";
+
 export interface AbstractFolderPluginSettings {
   propertyName: string; // The frontmatter property key used to define parent notes (child-defined parent)
   childrenPropertyName: string; // The frontmatter property key used by a parent to define its children (parent-defined children)
@@ -13,6 +15,8 @@ export interface AbstractFolderPluginSettings {
   rememberExpanded: boolean; // Whether to remember expanded/collapsed state of folders
   expandedFolders: string[]; // List of paths of currently expanded folders
   excludedPaths: string[]; // Paths to exclude from the abstract folder view (e.g. export folders)
+  groups: Group[]; // New: List of defined groups
+  activeGroupId: string | null; // New: ID of the currently active group, or null if no group is active
 }
 
 export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
@@ -30,4 +34,6 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   rememberExpanded: false,
   expandedFolders: [],
   excludedPaths: [],
+  groups: [],
+  activeGroupId: null,
 };

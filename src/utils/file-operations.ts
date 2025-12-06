@@ -1,6 +1,6 @@
 import { App, TFile, Notice } from "obsidian";
-import { AbstractFolderPluginSettings } from "./settings";
-import { ChildFileType } from "./ui/modals";
+import { AbstractFolderPluginSettings } from "../settings";
+import { ChildFileType } from "../ui/modals";
 
 /**
  * Creates a new abstract child file (note, canvas, or base) with appropriate frontmatter and content.
@@ -23,13 +23,13 @@ export async function createAbstractChildFile(app: App, settings: AbstractFolder
                 initialContent = `---
 ${settings.propertyName}: "[[${cleanParentName}]]"
 aliases:
-  - ${childName}
+  - "${childName}"
 ---
 `;
             } else {
                 initialContent = `---
 aliases:
-  - ${childName}
+  - "${childName}"
 ---
 `;
             }
@@ -62,32 +62,6 @@ aliases:
         const file = await app.vault.create(fileName, initialContent);
         new Notice(`Created: ${fileName}`);
 
-        if (parentFile) {
-            await app.fileManager.processFrontMatter(parentFile, (frontmatter) => {
-                const childrenPropertyName = settings.childrenPropertyName;
-                let currentChildren = frontmatter[childrenPropertyName];
-
-                if (!currentChildren) {
-                    currentChildren = [];
-                } else if (typeof currentChildren === 'string') {
-                    currentChildren = [currentChildren];
-                } else if (!Array.isArray(currentChildren)) {
-                    currentChildren = [String(currentChildren)];
-                }
-
-                let childLink: string;
-                if (file.extension === 'md') {
-                    childLink = `[[${file.basename}]]`;
-                } else {
-                    childLink = `[[${file.name}|${file.basename}]]`;
-                }
-
-                if (!currentChildren.includes(childLink)) {
-                    currentChildren.push(childLink);
-                }
-                frontmatter[childrenPropertyName] = currentChildren;
-            });
-        }
 
         app.workspace.getLeaf(true).openFile(file);
         app.workspace.trigger('abstract-folder:graph-updated');

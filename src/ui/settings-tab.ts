@@ -2,7 +2,7 @@ import { App, PluginSettingTab, Setting, AbstractInputSuggest, normalizePath } f
 import AbstractFolderPlugin from '../../main'; // Adjust path if necessary
 
 // Helper for path suggestions
-class PathInputSuggest extends AbstractInputSuggest<string> {
+export class PathInputSuggest extends AbstractInputSuggest<string> {
     constructor(app: App, private inputEl: HTMLInputElement) {
         super(app, inputEl);
     }

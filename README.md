@@ -1,102 +1,143 @@
 # Abstract Folder
-Your support is appreciated c:
+
+**Organize your files virtually, independent of their physical location.**
 
 [![Donate via PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?style=for-the-badge&logo=paypal)](https://www.paypal.com/paypalme/airfunn)
 [![Donate via Wise](https://img.shields.io/badge/Donate-Wise-00BF8D?style=for-the-badge&logo=wise)](https://wise.com/pay/me/erfanr47)
 
-## What it does
+## The Problem
 
-Manages your vault with virtual folders for note organization.
+Standard folders are rigid. A file usually belongs to only one folder in your system, but conceptually, it might belong to three different projects.
 
-## Main Features
+## The Solution
 
-*   Virtual Folders: Organize notes into virtual folders without changing their physical file location.
-*   Multiple Parents: A note can belong to several abstract folders by defining multiple parent notes.
-*   Parent-Defined Children: Include non-Markdown files (like Canvas or Excalidraw) as children by listing them in a parent note's frontmatter.
-*   Conversion Tools: Convert physical folder structures to abstract folders, and vice-versa, with previews.
-*   Custom Views: Navigate your abstract folder hierarchy using interactive Tree and Column views.
-*   Frontmatter Organization: Manage note relationships by editing frontmatter properties.
+**Abstract Folder** creates a "Virtual File Explorer" inside Obsidian. You define the folder structure using links in your Frontmatter.
 
-## Detailed Features
+  * **One File, Multiple Folders:** A single file can appear in "Project A," "Team Meetings," and "Archives" simultaneously without duplicating the actual file.
+  * **Files *are* Folders:** Any file can act as a parent folder for other files.
+  * **No Physical Moving:** Reorganize your entire vault hierarchy by editing text. Your actual file system structure remains untouched.
 
-*   Multiple Parents: Notes can have multiple parents using the `parent` frontmatter property (default: `parent`).
-*   Ghost Node Display: A note appears in all its abstract folders within the plugin's UI.
-*   Folder Note Function: Any note can act as an abstract "folder" for its children.
-*   Custom Tree & Column Views: Replaces or extends the native Obsidian file explorer with interactive views.
-*   Frontmatter Moves: Notes are moved by editing their `parent` property, no file system operations needed.
-*   Right-Click Menu: Full context menu for actions like hiding notes, renaming, deleting, and creating new child notes.
-*   Hide Notes: Ability to hide specific notes from the abstract folder view without deleting them.
-*   Icons: Supports setting icons for notes and folders.
-*   Parent-Defined Children: Children can be listed directly in a parent note's frontmatter, supporting non-Markdown files.
-*   Conversion Tools: Convert physical folders to abstract folders, and vice-versa (with preview).
-*   Non-Frontmatter File Support: Supports files without frontmatter (e.g., Excalidraw, Canvas) via parent-defined children.
-*   Sorting: Abstract folders and notes can be sorted by name or modification time.
-*   Settings: Customizable parent properties, aliases, auto-reveal active file, startup options, view styles, indentation guides, expanded folder memory, and excluded paths.
+-----
+
+## Key Features
+
+  * **Virtual Hierarchy:** Create deep nesting and folder structures entirely via metadata.
+  * **Multi-Parenting:** Assign a file to multiple "parents" using the `parent` property. It will appear in all of them in the tree view.
+  * **Parent-Defined Children:** Use the `children` property to manually list files that belong to a parent file.
+  * **Non-Markdown Support:** Using the "Parent-Defined Children" feature, you can organize files that don't have frontmatter (like Canvas, Excalidraw, Images, or PDFs) into your abstract folders.
+  * **Custom Views:** Browse your files using a Tree view, Column view, or Groups.
+  * **Migration Tools:** One-click tools to convert your physical folder structure to Abstract Folders (and vice-versa).
+
+-----
 
 ## Usage
 
-Abstract Folder helps organize notes, allowing them to appear in multiple "virtual" folders without physical duplication.
+### 1\. The Basic Method (Child points to Parent)
 
-### Linking Notes
+This is the most common method. Inside a file, add a `parent` link in the Frontmatter.
 
-Abstract Folder uses frontmatter properties in your notes:
+**File:** `My File.md`
 
-*   Parent-Child Relationships (Default): To make a note a child of an abstract folder (another note), add the `parent` frontmatter property to the child note, linking it to the parent note. For example:
-    ```yaml
-    ---
-    parent: "[[My Parent Note]]"
-    ---
-    ```
-    You can specify multiple parents as an array:
-    ```yaml
-    ---
-    parent:
-      - "[[My First Parent]]"
-      - "[[My Second Parent]]"
-    ---
-    ```
-    **Tip:** To allow `parent` or `children` properties to accept multiple values, change their property type to "List" by clicking the property icon in Obsidian's Properties view.
+```yaml
+---
+parent: "[[Project Alpha]]"
+---
+```
 
-*   Parent-Defined Children (for non-Markdown files): For files like Canvas (`.canvas`), Excalidraw (`.excalidraw`), or other file types without frontmatter, you can define their children directly within a parent Markdown note. Add the `children` frontmatter property to the parent note:
-    ```yaml
-    ---
-    children:
-      - "[[My Canvas File.canvas]]"
-      - "[[Another Non-Markdown.txt|Display Name]]"
-    ---
-    ```
+*Result:* `My File` will appear inside `Project Alpha` in the Abstract Folder view.
 
-### Command Palette
+**Multiple Parents:**
 
-All primary functions of Abstract Folder are available via the Obsidian Command Palette (Ctrl/Cmd+P). Search for "Abstract Folder" to see commands:
+```yaml
+---
+parent:
+  - "[[Project Alpha]]"
+  - "[[Daily Log]]"
+---
+```
 
-*   Open Abstract Folder View: Opens the plugin view in a new pane.
-*   Create Abstract Child: Creates a new note or canvas file and assigns it as a child to a selected abstract folder.
-*   Convert folder structure to plugin format: Transforms existing physical folder structure into abstract folders based on your settings.
-*   Create folder structure from plugin format: Generates a physical folder structure from your abstract folder hierarchy, with conflict resolution options.
+*Result:* `My File` appears inside **both** folders.
 
-### Settings
+### 2\. The Advanced Method (Parent lists Children)
 
-To customize the plugin, go to **Settings → Abstract Folder**. Here you can:
+Use this for files that don't have frontmatter (like Canvas, Excalidraw, or PDFs), or if you prefer to organize from the top down. You list the child files inside the parent file.
 
-*   Change the default `parent` and `children` property names.
-*   Adjust view styles (tree or column).
-*   Configure sorting options.
-*   Set startup behavior (e.g., open view on startup).
-*   Manage excluded paths and indentation guides.
+**File:** `Project Alpha.md`
+
+```yaml
+---
+children:
+  - "[[Brainstorming.canvas]]"
+  - "[[Diagram.excalidraw]]"
+  - "[[Meeting Recording.mp3]]"
+---
+```
+
+-----
+
+## Commands
+
+Access these via the Command Palette (`Ctrl/Cmd + P`):
+
+  * **Abstract Folder: Open Abstract Folder View**
+    Opens the virtual tree view in your sidebar.
+  * **Abstract Folder: Create Abstract Child**
+    Creates a new file and automatically links it as a child of the currently selected abstract folder.
+  * **Abstract Folder: Manage Groups**
+    Opens the menu to create, edit, or delete folder groups.
+  * **Abstract Folder: Clear Active Group**
+    Removes the current group filter to show all abstract folders.
+  * **Abstract Folder: Convert folder structure to plugin format**
+    Scans your physical folders and adds `parent` frontmatter links to replicate the structure virtually.
+  * **Abstract Folder: Create folder structure from plugin format**
+    Reorganizes your physical file system to match your abstract hierarchy.
+
+-----
+
+## Settings
+
+Customize the plugin behavior in **Settings → Abstract Folder**.
+
+### General Configuration
+
+  * **Property Name:** The frontmatter key used to define parents (default: `parent`). *Case-sensitive.*
+  * **Children Property Name:** The frontmatter key used to define children (default: `children`).
+  * **Show Aliases:** If enabled, the tree view will display the file's first alias instead of the filename.
+  * **Excluded Paths:** A list of file paths to hide from the abstract view.
+
+### View Behavior
+
+  * **Auto Reveal:** Automatically expands the folder tree to highlight the file you are currently editing.
+  * **Remember Expanded Folders:** Keeps folders open in the tree view even after restarting Obsidian (default: `false`).
+  * **Open on Startup:** Automatically opens the Abstract Folder view when you launch Obsidian.
+  * **Open Position:** Choose whether the view opens in the `left` or `right` sidebar.
+  * **Show Ribbon Icon:** Toggles the visibility of the icon in the left ribbon.
+
+### Visuals (Rainbow Indents)
+
+  * **Enable Rainbow Indents:** Colors the indentation lines to visually distinguish tree depth.
+  * **Rainbow Palette:** Select the color scheme for indentations (`classic`, `pastel`, or `neon`).
+  * **Per-Item Colors:** If enabled, sibling items at the same depth will use different colors. If disabled, all items at the same depth share the same color.
+
+-----
 
 ## Installation
 
-1.  Open **Settings → Community plugins** in Obsidian.
-2.  Disable **Safe mode**.
-3.  Click **Browse** and search for "Abstract Folder".
-4.  Click **Install**.
-5.  Once installed, **Enable** the plugin.
+This plugin is not yet available in the official Obsidian Community Plugins list. You must install it manually.
 
-## Disclosures
+1.  Go to the [GitHub Repository](https://www.google.com/search?q=%23) and find the latest **Release** on the right sidebar.
+2.  Download these three files: `main.js`, `manifest.json`, and `styles.css`.
+3.  Navigate to your Obsidian Vault folder on your computer.
+4.  Open the hidden `.obsidian` folder, then open the `plugins` folder inside it.
+      * *(Note: On macOS, press `Cmd + Shift + .` to toggle hidden files. On Windows, go to View -> Show -> Hidden items).*
+5.  Create a new folder named `abstract-folder`.
+6.  Paste the three downloaded files (`main.js`, `manifest.json`, `styles.css`) into this new folder.
+7.  Restart Obsidian, go to **Settings → Community Plugins**, and enable **Abstract Folder**.
 
-This plugin operates locally and offline. It does not collect telemetry, make network requests, or access files outside of your Obsidian vault.
+-----
 
-## Compatibility
+### Privacy
 
-Abstract Folders works with Obsidian on desktop and mobile platforms.
+This plugin works 100% locally. It makes no network requests and moves no physical files unless you explicitly use the "Create folder structure from plugin format" command.
+
+-----

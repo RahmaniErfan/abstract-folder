@@ -308,18 +308,75 @@ getGraph(): FileGraph {
   }
 
 
-  private deleteFileFromGraph(file: TAbstractFile) {
-    // When a file is deleted, all its associated relationships (both as child and parent)
-    // need to be cleared. A full graph rebuild ensures that any remaining references
-    // from other files that defined the deleted file as a child/parent are also cleaned up.
-    this.buildGraph();
-    this.app.workspace.trigger('abstract-folder:graph-updated'); // Notify view to re-render
+private async deleteFileFromGraph(file: TAbstractFile) {
+  // Before rebuilding the graph, clean up parent references in their frontmatter
+  await this.removeFileFromParentFrontmatters(file.path);
+  // When a file is deleted, all its associated relationships (both as child and parent)
+  // need to be cleared. A full graph rebuild ensures that any remaining references
+  // from other files that defined the deleted file as a child/parent are also cleaned up.
+  this.buildGraph();
+  this.app.workspace.trigger('abstract-folder:graph-updated'); // Notify view to re-render
+}
+
+private async removeFileFromParentFrontmatters(deletedFilePath: string) {
+  const allFiles = this.app.vault.getFiles();
+  const childrenPropertyName = this.settings.childrenPropertyName;
+
+  const lastSlashIndex = deletedFilePath.lastIndexOf('/');
+  const fileNameWithExtension = lastSlashIndex === -1 ? deletedFilePath : deletedFilePath.substring(lastSlashIndex + 1);
+  const fileNameWithoutExtension = fileNameWithExtension.split('.').slice(0, -1).join('.');
+
+  for (const file of allFiles) {
+    if (file.path === deletedFilePath) continue; // Don't process the deleted file itself
+
+    await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+      const currentChildren = frontmatter[childrenPropertyName];
+
+      if (!currentChildren) return;
+
+      let childrenArray: string[] = [];
+      if (typeof currentChildren === 'string') {
+        childrenArray = [currentChildren];
+      } else if (Array.isArray(currentChildren)) {
+        childrenArray = currentChildren;
+      } else {
+        return; // Not a recognized format
+      }
+
+      const initialLength = childrenArray.length;
+      const updatedChildren = childrenArray.filter(childLink => {
+        let cleanedLink = childLink.replace(/^["']+|["']+$|^\s+|[\s]+$/g, ''); // Remove quotes/trim
+        cleanedLink = cleanedLink.replace(/\[\[|\]\]/g, ''); // Remove wiki-link brackets
+        cleanedLink = cleanedLink.split('|')[0]; // Handle pipe aliases
+        cleanedLink = cleanedLink.trim();
+
+        // Check if the cleaned link refers to the deleted file
+        const refersToDeletedFile =
+          cleanedLink === fileNameWithoutExtension || // e.g., [[My Note]]
+          cleanedLink === fileNameWithExtension ||     // e.g., [[My Note.md]]
+          cleanedLink === deletedFilePath;             // e.g., [[folder/subfolder/My Note.md]]
+
+        return !refersToDeletedFile; // Keep if it does NOT refer to the deleted file
+      });
+
+      if (updatedChildren.length !== initialLength) {
+        if (updatedChildren.length === 0) {
+          delete frontmatter[childrenPropertyName];
+        } else if (updatedChildren.length === 1) {
+          frontmatter[childrenPropertyName] = updatedChildren[0];
+        } else {
+          frontmatter[childrenPropertyName] = updatedChildren;
+        }
+      }
+    });
   }
-  private renameFileInGraph(file: TFile, oldPath: string) {
-    const oldFileStub = { path: oldPath } as TAbstractFile;
-    this.deleteFileFromGraph(oldFileStub);
-    this.processFile(file);
-    this.buildGraph();
-    this.app.workspace.trigger('abstract-folder:graph-updated'); // Notify view to re-render
-  }
+}
+
+private renameFileInGraph(file: TFile, oldPath: string) {
+  const oldFileStub = { path: oldPath } as TAbstractFile;
+  this.deleteFileFromGraph(oldFileStub); // This will handle removing old references and rebuilding
+  this.processFile(file); // Re-process the renamed file with its new path
+  this.buildGraph();
+  this.app.workspace.trigger('abstract-folder:graph-updated'); // Notify view to re-render
+}
 }

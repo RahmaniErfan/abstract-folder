@@ -4,7 +4,7 @@ import { AbstractFolderPluginSettings } from "../settings";
 import AbstractFolderPlugin from "../../main";
 import { BatchDeleteConfirmModal, CreateAbstractChildModal, ChildFileType } from './modals';
 import { IconModal } from './icon-modal';
-import { updateFileIcon, toggleHiddenStatus, createAbstractChildFile } from '../file-operations';
+import { updateFileIcon, toggleHiddenStatus, createAbstractChildFile } from '../utils/file-operations';
 
 export class ContextMenuHandler {
     constructor(

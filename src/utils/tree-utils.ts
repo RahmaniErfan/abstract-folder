@@ -1,5 +1,5 @@
 import { App, TFile } from "obsidian";
-import { FileGraph, FolderNode, HIDDEN_FOLDER_ID } from "./types";
+import { FileGraph, FolderNode, HIDDEN_FOLDER_ID } from "../types";
 
 export function buildFolderTree(
     app: App, 

@@ -6,15 +6,18 @@
  * @copyright 2025 Erfan Rahmani
  */
 
-import { Plugin, WorkspaceLeaf } from 'obsidian';
+import { Plugin, WorkspaceLeaf, Notice } from 'obsidian';
 import { AbstractFolderPluginSettings, DEFAULT_SETTINGS } from './src/settings';
 import { FolderIndexer } from './src/indexer';
 import { AbstractFolderView, VIEW_TYPE_ABSTRACT_FOLDER } from './src/view';
 import { CreateAbstractChildModal, ParentPickerModal, ChildFileType, FolderSelectionModal, ConversionOptionsModal, DestinationPickerModal, NewFolderNameModal, SimulationModal, ScopeSelectionModal } from './src/ui/modals';
+import { ManageGroupsModal } from './src/ui/modals/manage-groups-modal';
+import { CreateEditGroupModal } from './src/ui/modals/create-edit-group-modal';
 import { AbstractFolderSettingTab } from './src/ui/settings-tab';
-import { createAbstractChildFile } from './src/file-operations';
-import { convertFoldersToPluginFormat, generateFolderStructurePlan, executeFolderGeneration } from './src/conversion';
+import { createAbstractChildFile } from './src/utils/file-operations';
+import { convertFoldersToPluginFormat, generateFolderStructurePlan, executeFolderGeneration } from './src/utils/conversion';
 import { TFolder, TFile } from 'obsidian';
+import { Group } from './src/types';
 
 export default class AbstractFolderPlugin extends Plugin {
 	settings: AbstractFolderPluginSettings;
@@ -53,18 +56,46 @@ export default class AbstractFolderPlugin extends Plugin {
 			},
 		});
 
-		this.addCommand({
-			id: "convert-folder-to-plugin",
-			name: "Convert folder structure to plugin format",
-			callback: () => {
-				new FolderSelectionModal(this.app, (folder: TFolder) => {
-					new ConversionOptionsModal(this.app, folder, (options) => {
-						convertFoldersToPluginFormat(this.app, this.settings, folder, options);
-					}).open();
-				}).open();
-			}
-		});
+this.addCommand({
+	id: "manage-groups",
+	name: "Manage Groups",
+	callback: () => {
+		new ManageGroupsModal(this.app, this.settings, async (updatedGroups: Group[], activeGroupId: string | null) => {
+			this.settings.groups = updatedGroups;
+			this.settings.activeGroupId = activeGroupId;
+			await this.saveSettings();
+			// Trigger a view update after groups are managed
+			this.app.workspace.trigger('abstract-folder:group-changed');
+		}).open();
+	},
+});
 
+this.addCommand({
+	id: "clear-active-group",
+	name: "Clear Active Group",
+	callback: async () => {
+		if (this.settings.activeGroupId) {
+			this.settings.activeGroupId = null;
+			await this.saveSettings();
+			new Notice("Active group cleared.");
+			this.app.workspace.trigger('abstract-folder:group-changed');
+		} else {
+			new Notice("No active group to clear.");
+		}
+	},
+});
+
+	this.addCommand({
+		id: "convert-folder-to-plugin",
+		name: "Convert folder structure to plugin format",
+		callback: () => {
+			new FolderSelectionModal(this.app, (folder: TFolder) => {
+				new ConversionOptionsModal(this.app, folder, (options) => {
+					convertFoldersToPluginFormat(this.app, this.settings, folder, options);
+				}).open();
+			}).open();
+		}
+	});
 		this.addCommand({
 			id: "create-folders-from-plugin",
 			name: "Create folder structure from plugin format",

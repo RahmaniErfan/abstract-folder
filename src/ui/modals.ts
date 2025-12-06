@@ -1,5 +1,5 @@
 import { App, Modal, Setting, TFile, TFolder, Notice, FuzzySuggestModal, normalizePath } from "obsidian";
-import { ConversionOptions, FileConflict } from "../conversion";
+import { ConversionOptions, FileConflict } from "../utils/conversion";
 import { AbstractFolderPluginSettings } from "../settings";
 
 export class ParentPickerModal extends FuzzySuggestModal<TFile> {

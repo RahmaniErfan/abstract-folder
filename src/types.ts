@@ -20,3 +20,9 @@ export interface FolderNode {
   icon?: string; // Optional icon or emoji from frontmatter
   isHidden?: boolean; // Whether this node should be considered "hidden" from the main tree
 }
+
+export interface Group {
+  id: string;
+  name: string;
+  parentFolders: string[]; // Paths of parent folders to display
+}

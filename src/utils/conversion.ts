@@ -1,6 +1,6 @@
 import { App, TFolder, TFile, TAbstractFile, Notice, normalizePath } from "obsidian";
-import { AbstractFolderPluginSettings } from "./settings";
-import { FolderIndexer } from "./indexer";
+import { AbstractFolderPluginSettings } from "../settings";
+import { FolderIndexer } from "../indexer";
 
 export interface ConversionOptions {
     createParentNotes: boolean;
