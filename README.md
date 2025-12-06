@@ -5,6 +5,10 @@
 [![Donate via PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?style=for-the-badge&logo=paypal)](https://www.paypal.com/paypalme/airfunn)
 [![Donate via Wise](https://img.shields.io/badge/Donate-Wise-00BF8D?style=for-the-badge&logo=wise)](https://wise.com/pay/me/erfanr47)
 
+## Further Reading
+
+*   **The Folders Fail: A PKM Solution** - [Read the article here](https://erfanrahmani.com/folders-fail-pkm-solution/)
+
 ## The Problem
 
 Standard folders are rigid. A file usually belongs to only one folder in your system, but conceptually, it might belong to three different projects.
