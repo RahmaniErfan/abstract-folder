@@ -276,22 +276,41 @@ getGraph(): FileGraph {
     cleaned = cleaned.split('|')[0];
 
     // 4. Trim again
-    cleaned = cleaned.trim();
+    const cleanedTrimmed = cleaned.trim();
 
     // 5. Remove internal quotes that might have been inside the brackets (e.g. [["Work"]])
-    cleaned = cleaned.replace(/^["']+|["']+$/g, '');
+    const finalCleaned = cleanedTrimmed.replace(/^["']+|["']+$/g, '');
+    const finalCleanedUntrimmed = cleaned.replace(/^["']+|["']+$/g, ''); // Keep original cleaned for untrimmed check
 
-    if (!cleaned) return null;
+    if (!finalCleaned && !finalCleanedUntrimmed) return null;
 
-    // Resolve the link relative to the containing file
-    const resolvedFile = this.app.metadataCache.getFirstLinkpathDest(cleaned, containingFilePath);
+    let resolvedFile: TFile | null = null;
+
+    // First, try resolving with the trimmed and fully cleaned version (standard behavior)
+    if (finalCleaned) {
+        resolvedFile = this.app.metadataCache.getFirstLinkpathDest(finalCleaned, containingFilePath);
+    }
     
-    // If Obsidian couldn't resolve it (e.g., if it's not a markdown file that Obsidian indexes for links),
+    // If that fails, and there's a difference, try resolving with the untrimmed version
+    if (!resolvedFile && finalCleanedUntrimmed && finalCleaned !== finalCleanedUntrimmed) {
+        resolvedFile = this.app.metadataCache.getFirstLinkpathDest(finalCleanedUntrimmed, containingFilePath);
+    }
+
+    // If Obsidian couldn't resolve it via metadataCache,
     // we should check if the path directly corresponds to an existing file of any type.
     if (!resolvedFile) {
-        const abstractFile = this.app.vault.getAbstractFileByPath(cleaned);
-        if (abstractFile instanceof TFile) { // Ensure it's an actual file, not a folder
+        // Try with trimmed version first for direct path check
+        let abstractFile = this.app.vault.getAbstractFileByPath(finalCleaned);
+        if (abstractFile instanceof TFile) {
             return abstractFile.path;
+        }
+
+        // If trimmed version doesn't work, try with untrimmed version for direct path check
+        if (finalCleaned !== finalCleanedUntrimmed) {
+            abstractFile = this.app.vault.getAbstractFileByPath(finalCleanedUntrimmed);
+            if (abstractFile instanceof TFile) {
+                return abstractFile.path;
+            }
         }
     }
     
