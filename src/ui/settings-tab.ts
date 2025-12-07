@@ -188,19 +188,6 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 						this.plugin.indexer.updateSettings(this.plugin.settings);
 					})
 			);
-		new Setting(containerEl)
-			.setName("Rainbow indent - varied item colors")
-			.setDesc("If enabled, sibling items at the same indentation level will use different colors from the palette, making them easier to distinguish. If disabled, all items at the same depth will share the same color.")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.enablePerItemRainbowColors)
-					.onChange(async (value) => {
-						this.plugin.settings.enablePerItemRainbowColors = value;
-						await this.plugin.saveSettings();
-						// Trigger view refresh to apply new styling
-						this.plugin.indexer.updateSettings(this.plugin.settings);
-					})
-			);
 		}
 
 	private renderExcludedPaths(containerEl: HTMLElement): void {

@@ -1,5 +1,10 @@
 # Changelog
 
+## Version 1.2.3
+
+**Fixes:**
+*   **Settings Duplication**: Removed duplicate "Rainbow indent - varied item colors" setting from the settings tab.
+
 ## Version 1.2.2
 
 **Features:**
