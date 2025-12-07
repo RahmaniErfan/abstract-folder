@@ -87,6 +87,18 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName("Expand children when opening a file")
+			.setDesc("If enabled, when you open a file, its direct children folders will be expanded in the tree view.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.autoExpandChildren)
+					.onChange(async (value) => {
+						this.plugin.settings.autoExpandChildren = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
 			.setName("Remember expanded folders")
 			.setDesc("Keep folders expanded even when switching views or restarting Obsidian.")
 			.addToggle((toggle) =>

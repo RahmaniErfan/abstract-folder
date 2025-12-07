@@ -139,7 +139,7 @@ if (activeFile && activeFile.path === node.path) {
         }
     }
 
-    private handleNodeClick(node: FolderNode, e: MouseEvent) {
+    private async handleNodeClick(node: FolderNode, e: MouseEvent) {
         const isMultiSelectModifier = e.altKey || e.ctrlKey || e.metaKey;
 
         if (isMultiSelectModifier) {
@@ -168,12 +168,27 @@ if (activeFile && activeFile.path === node.path) {
             const fileExists = this.app.vault.getAbstractFileByPath(node.file.path);
             if (fileExists) {
                 this.app.workspace.getLeaf(false).openFile(node.file);
+
+                // If this file also has children and autoExpandChildren is enabled, expand it
+                if (this.settings.autoExpandChildren && node.children.length > 0) {
+                    const selfEl = e.currentTarget as HTMLElement;
+                    const itemEl = selfEl.parentElement; // The .abstract-folder-item
+                    if (itemEl && itemEl.hasClass("is-collapsed")) {
+                        await this.toggleCollapse(itemEl, node.path);
+                    }
+                }
             }
         } else if (node.isFolder) {
             // For virtual folders without a linked file, clicking toggles collapse
-            const itemEl = e.currentTarget as HTMLElement | null;
-            if (itemEl && itemEl.parentElement) {
-                this.toggleCollapse(itemEl.parentElement, node.path);
+            const selfEl = e.currentTarget as HTMLElement; // This is .abstract-folder-item-self
+            const itemEl = selfEl.parentElement; // This is .abstract-folder-item
+
+            if (itemEl) { // Changed from itemEl && node.isFolder to just itemEl, as node.isFolder is already true here
+                if (this.settings.autoExpandChildren && itemEl.hasClass("is-collapsed")) {
+                    await this.toggleCollapse(itemEl, node.path);
+                } else if (!this.settings.autoExpandChildren) {
+                    await this.toggleCollapse(itemEl, node.path);
+                }
             }
         }
     }

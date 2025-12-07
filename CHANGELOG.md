@@ -1,5 +1,10 @@
 # Changelog
 
+## Version 1.2.4
+
+**Features:**
+*   **Auto Expand Children**: Added a new setting to automatically expand direct child folders when a parent file is opened in the tree view.
+
 ## Version 1.2.3
 
 **Fixes:**

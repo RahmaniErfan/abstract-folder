@@ -5,6 +5,7 @@ export interface AbstractFolderPluginSettings {
   childrenPropertyName: string; // The frontmatter property key used by a parent to define its children (parent-defined children)
   showAliases: boolean; // Whether to show aliases instead of file names in the view
   autoExpandParents: boolean; // Whether to expand parent folders when revealing the active file
+  autoExpandChildren: boolean; // Whether to expand all children folders when a file is opened
   startupOpen: boolean; // Whether to open the view on plugin load
   openSide: 'left' | 'right'; // Which side panel to open the view in
   showRibbonIcon: boolean; // Whether to display the ribbon icon
@@ -24,6 +25,7 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   childrenPropertyName: 'children', // Default to 'children'
   showAliases: true,
   autoExpandParents: true,
+  autoExpandChildren: false,
   startupOpen: false,
   openSide: 'left',
   showRibbonIcon: true, // Default to true
