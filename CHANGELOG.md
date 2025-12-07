@@ -1,5 +1,10 @@
 # Changelog
 
+## Version 1.2.5
+
+**Features:**
+*   **Auto Expand Children Toggle**: Implemented toggle-like behavior for auto-expanding children. Clicking a parent file or folder when 'Auto expand children' is enabled will now expand it if collapsed, or collapse it if expanded. Files will still open regardless of expansion state.
+
 ## Version 1.2.4
 
 **Features:**

@@ -169,11 +169,11 @@ if (activeFile && activeFile.path === node.path) {
             if (fileExists) {
                 this.app.workspace.getLeaf(false).openFile(node.file);
 
-                // If this file also has children and autoExpandChildren is enabled, expand it
+                // If this file also has children and autoExpandChildren is enabled, toggle its expanded state
                 if (this.settings.autoExpandChildren && node.children.length > 0) {
                     const selfEl = e.currentTarget as HTMLElement;
                     const itemEl = selfEl.parentElement; // The .abstract-folder-item
-                    if (itemEl && itemEl.hasClass("is-collapsed")) {
+                    if (itemEl) {
                         await this.toggleCollapse(itemEl, node.path);
                     }
                 }
@@ -183,10 +183,12 @@ if (activeFile && activeFile.path === node.path) {
             const selfEl = e.currentTarget as HTMLElement; // This is .abstract-folder-item-self
             const itemEl = selfEl.parentElement; // This is .abstract-folder-item
 
-            if (itemEl) { // Changed from itemEl && node.isFolder to just itemEl, as node.isFolder is already true here
-                if (this.settings.autoExpandChildren && itemEl.hasClass("is-collapsed")) {
+            if (itemEl) {
+                // If autoExpandChildren is enabled, toggle the collapsed state
+                if (this.settings.autoExpandChildren) {
                     await this.toggleCollapse(itemEl, node.path);
-                } else if (!this.settings.autoExpandChildren) {
+                } else {
+                    // If autoExpandChildren is false, behave as before: toggle collapse state
                     await this.toggleCollapse(itemEl, node.path);
                 }
             }
