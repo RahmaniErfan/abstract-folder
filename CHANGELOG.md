@@ -1,5 +1,10 @@
 # Changelog
 
+## Version 1.2.6
+
+**Fixes:**
+*   **Multi-Parent Auto-Expansion**: Resolved an issue where typing in a note with multiple abstract parents would cause all parent chains to expand simultaneously. This was fixed by modifying the `revealFile` function in `src/file-reveal-manager.ts` to ensure parent expansion is applied only to the first DOM element representing the active file, preventing unintended multiple expansions.
+
 ## Version 1.2.5
 
 **Features:**

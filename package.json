@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-abstract-folder",
-	"version": "1.2.5",
+	"version": "1.2.6",
 	"description": "Manage your vault with dynamic, virtual folders for flexible note organization.",
 	"main": "main.js",
 	"scripts": {

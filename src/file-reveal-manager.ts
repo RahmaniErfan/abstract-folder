@@ -44,8 +44,11 @@ export class FileRevealManager {
         if (this.settings.viewStyle === 'tree') {
             const fileNodeEls = this.contentEl.querySelectorAll(`.abstract-folder-item[data-path="${filePath}"]`);
             
+            let hasExpandedOneParentChain = false; // Flag to ensure parent expansion happens only once across all paths
+
             fileNodeEls.forEach(itemEl => {
-                if (expandParents) {
+                // Ensure expandParents is true and autoExpandParents is enabled in settings
+                if (expandParents && this.settings.autoExpandParents && !hasExpandedOneParentChain) {
                     let currentEl = itemEl.parentElement;
                     while (currentEl) {
                         if (currentEl.classList.contains("abstract-folder-children")) {
@@ -71,10 +74,11 @@ export class FileRevealManager {
                             currentEl = currentEl.parentElement;
                         }
                     }
+                    hasExpandedOneParentChain = true; // Set the flag after the first parent chain has been processed
                 }
-                
+
                 itemEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
-                
+
                 // First, remove 'is-active' from any elements that are currently active but do not match the filePath
                 this.contentEl.querySelectorAll(".abstract-folder-item-self.is-active").forEach(el => {
                     const parentItem = el.closest(".abstract-folder-item") as HTMLElement | null;
@@ -82,7 +86,7 @@ export class FileRevealManager {
                         el.removeClass("is-active");
                     }
                 });
-                
+
                 // Then, ensure all instances of the *current* active file (filePath) are highlighted
                 const selfElToHighlight = itemEl.querySelector(".abstract-folder-item-self");
                 if (selfElToHighlight) {
