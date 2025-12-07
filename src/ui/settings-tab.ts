@@ -74,16 +74,15 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Auto reveal active file")
-			.setDesc("Automatically expand the folder tree to show the currently active file.")
+			.setName("Expand parent folders for active file")
+			.setDesc("Automatically expand all parent folders in the tree view to reveal the active file's location. This ensures that even if a file has multiple parents, all ancestors will be expanded. The active file will always be highlighted.")
 			.addToggle((toggle) =>
 				toggle
-					.setValue(this.plugin.settings.autoReveal)
+					.setValue(this.plugin.settings.autoExpandParents)
 					.onChange(async (value) => {
-						this.plugin.settings.autoReveal = value;
+						this.plugin.settings.autoExpandParents = value;
 						await this.plugin.saveSettings();
-						// Auto reveal is handled in the view, which reads settings directly or via updates
-						this.plugin.indexer.updateSettings(this.plugin.settings); // Trigger view refresh just in case
+						// No indexer update needed, fileRevealManager uses settings directly
 					})
 			);
 

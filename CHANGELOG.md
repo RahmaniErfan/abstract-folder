@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 1.2.2
+
+**Features:**
+*   **Toggle Parent Folder Expansion**: Introduced a new setting to allow users to disable automatic expansion of parent folders when revealing the active file.
+
+**Improvements:**
+*   **Streamlined File Revelation**: Removed the "Auto reveal active files" setting, making highlighting the active file a default behavior.
+
 ## Version 1.2.1
 
 **Fixes:**

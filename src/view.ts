@@ -108,10 +108,7 @@ export class AbstractFolderView extends ItemView {
     this.registerEvent(this.app.workspace.on("abstract-folder:expand-all" as any, this.expandAll, this));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.registerEvent(this.app.workspace.on("abstract-folder:collapse-all" as any, this.collapseAll, this));
-
-    if (this.settings.autoReveal) {
-      this.registerEvent(this.app.workspace.on("file-open", this.fileRevealManager.onFileOpen, this.fileRevealManager));
-    }
+    this.registerEvent(this.app.workspace.on("file-open", this.fileRevealManager.onFileOpen, this.fileRevealManager));
  
     this.contentEl.addEventListener("contextmenu", (event: MouseEvent) => {
         if (event.defaultPrevented) return;
@@ -180,12 +177,10 @@ export class AbstractFolderView extends ItemView {
        this.treeRenderer.renderTreeNode(node, treeContainer, new Set(), 0);
      });
  
-     if (this.settings.autoReveal) {
-         const activeFile = this.app.workspace.getActiveFile();
-         if (activeFile && this.fileRevealManager) {
-             this.fileRevealManager.revealFile(activeFile.path);
-         }
-     }
+    const activeFile = this.app.workspace.getActiveFile();
+    if (activeFile && this.fileRevealManager) {
+        this.fileRevealManager.revealFile(activeFile.path);
+    }
    }
  
    private renderColumnView = () => {

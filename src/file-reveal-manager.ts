@@ -36,38 +36,40 @@ export class FileRevealManager {
     }
 
     public onFileOpen = async (file: TFile | null) => {
-        if (!file || !this.settings.autoReveal) return;
-        this.revealFile(file.path);
+        if (!file) return;
+        this.revealFile(file.path, this.settings.autoExpandParents);
     }
 
-    public revealFile(filePath: string) {
+    public revealFile(filePath: string, expandParents: boolean = true) {
         if (this.settings.viewStyle === 'tree') {
             const fileNodeEls = this.contentEl.querySelectorAll(`.abstract-folder-item[data-path="${filePath}"]`);
             
             fileNodeEls.forEach(itemEl => {
-                let currentEl = itemEl.parentElement;
-                while (currentEl) {
-                    if (currentEl.classList.contains("abstract-folder-children")) {
-                        const parentItem = currentEl.parentElement;
-                        if (parentItem) {
-                            if (parentItem.hasClass("is-collapsed")) {
-                                parentItem.removeClass("is-collapsed");
-                                if (this.settings.rememberExpanded) {
-                                    const parentPath = parentItem.dataset.path;
-                                    if (parentPath && !this.settings.expandedFolders.includes(parentPath)) {
-                                        this.settings.expandedFolders.push(parentPath);
-                                        this.plugin.saveSettings();
+                if (expandParents) {
+                    let currentEl = itemEl.parentElement;
+                    while (currentEl) {
+                        if (currentEl.classList.contains("abstract-folder-children")) {
+                            const parentItem = currentEl.parentElement;
+                            if (parentItem) {
+                                if (parentItem.hasClass("is-collapsed")) {
+                                    parentItem.removeClass("is-collapsed");
+                                    if (this.settings.rememberExpanded) {
+                                        const parentPath = parentItem.dataset.path;
+                                        if (parentPath && !this.settings.expandedFolders.includes(parentPath)) {
+                                            this.settings.expandedFolders.push(parentPath);
+                                            this.plugin.saveSettings();
+                                        }
                                     }
                                 }
+                                currentEl = parentItem.parentElement;
+                            } else {
+                                break;
                             }
-                            currentEl = parentItem.parentElement;
-                        } else {
+                        } else if (currentEl.classList.contains("abstract-folder-tree")) {
                             break;
+                        } else {
+                            currentEl = currentEl.parentElement;
                         }
-                    } else if (currentEl.classList.contains("abstract-folder-tree")) {
-                        break;
-                    } else {
-                        currentEl = currentEl.parentElement;
                     }
                 }
                 
@@ -88,6 +90,7 @@ export class FileRevealManager {
                 }
             });
         } else if (this.settings.viewStyle === 'column') {
+            // Column view always needs to 'expand' to the active file's path
             const isPathAlreadySelected = this.viewState.selectionPath.includes(filePath);
 
             if (!isPathAlreadySelected) {
