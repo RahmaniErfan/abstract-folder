@@ -3,6 +3,7 @@ import { FolderNode, HIDDEN_FOLDER_ID } from "../../types";
 import { AbstractFolderPluginSettings } from "../../settings";
 import AbstractFolderPlugin from "../../../main";
 import { ContextMenuHandler } from "../context-menu";
+import { FolderIndexer } from "src/indexer";
 
 export class ColumnRenderer {
     private app: App;
@@ -21,7 +22,8 @@ export class ColumnRenderer {
         selectionPath: string[],
         multiSelectedPaths: Set<string>,
         getDisplayName: (node: FolderNode) => string,
-        handleColumnNodeClick: (node: FolderNode, depth: number, event?: MouseEvent) => void
+        handleColumnNodeClick: (node: FolderNode, depth: number, event?: MouseEvent) => void,
+        indexer: FolderIndexer
     ) {
         this.app = app;
         this.settings = settings;
@@ -30,7 +32,7 @@ export class ColumnRenderer {
         this.multiSelectedPaths = multiSelectedPaths;
         this.getDisplayName = getDisplayName;
         this.handleColumnNodeClick = handleColumnNodeClick;
-        this.contextMenuHandler = new ContextMenuHandler(app, settings, plugin);
+        this.contextMenuHandler = new ContextMenuHandler(app, settings, plugin, indexer);
     }
 
     // New method to update the selection path

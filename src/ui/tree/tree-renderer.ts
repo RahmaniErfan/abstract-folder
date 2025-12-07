@@ -3,6 +3,7 @@ import { FolderNode, HIDDEN_FOLDER_ID } from "../../types";
 import { AbstractFolderPluginSettings } from "../../settings";
 import AbstractFolderPlugin from "../../../main";
 import { ContextMenuHandler } from "../context-menu";
+import { FolderIndexer } from "../../indexer";
 
 function stringToNumberHash(str: string): number {
     let hash = 0;
@@ -27,7 +28,8 @@ export class TreeRenderer {
         plugin: AbstractFolderPlugin,
         multiSelectedPaths: Set<string>,
         getDisplayName: (node: FolderNode) => string,
-        toggleCollapse: (itemEl: HTMLElement, path: string) => Promise<void>
+        toggleCollapse: (itemEl: HTMLElement, path: string) => Promise<void>,
+        indexer: FolderIndexer // Add indexer here
     ) {
         this.app = app;
         this.settings = settings;
@@ -35,7 +37,7 @@ export class TreeRenderer {
         this.multiSelectedPaths = multiSelectedPaths;
         this.getDisplayName = getDisplayName;
         this.toggleCollapse = toggleCollapse;
-        this.contextMenuHandler = new ContextMenuHandler(app, settings, plugin);
+        this.contextMenuHandler = new ContextMenuHandler(app, settings, plugin, indexer);
     }
 
     renderTreeNode(node: FolderNode, parentEl: HTMLElement, ancestors: Set<string>, depth: number) {

@@ -1,6 +1,7 @@
-import { App, TFile, Notice } from "obsidian";
+import { App, TFile, Notice, TFolder } from "obsidian";
 import { AbstractFolderPluginSettings } from "../settings";
 import { ChildFileType } from "../ui/modals";
+import { FolderIndexer } from "../indexer";
 
 /**
  * Creates a new abstract child file (note, canvas, or base) with appropriate frontmatter and content.
@@ -68,6 +69,65 @@ aliases:
     } catch (error) {
         new Notice(`Failed to create file: ${error}`);
         console.error(error);
+    }
+}
+
+/**
+ * Deletes an abstract file, with an option to recursively delete its children.
+ * @param app The Obsidian App instance.
+ * @param file The TFile to delete.
+ * @param deleteChildren If true, recursively deletes all children of this file.
+ * @param indexer The FolderIndexer instance to query the graph.
+ */
+export async function deleteAbstractFile(app: App, file: TFile, deleteChildren: boolean, indexer: FolderIndexer) {
+    try {
+        if (deleteChildren) {
+            const graph = indexer.getGraph();
+            const childrenPaths = graph.parentToChildren[file.path];
+
+            if (childrenPaths && childrenPaths.size > 0) {
+                for (const childPath of childrenPaths) {
+                    const childAbstractFile = app.vault.getAbstractFileByPath(childPath);
+                    if (childAbstractFile instanceof TFile) {
+                        // Recursively delete children
+                        await deleteAbstractFile(app, childAbstractFile, deleteChildren, indexer);
+                    } else if (childAbstractFile instanceof TFolder) {
+                        // For folders, we need to list its contents and delete them
+                        await deleteFolderRecursive(app, childAbstractFile, deleteChildren, indexer);
+                    }
+                }
+            }
+        }
+        await app.vault.delete(file);
+        new Notice(`Deleted file: ${file.name}`);
+    } catch (error) {
+        new Notice(`Failed to delete file ${file.name}: ${error.message}`);
+        console.error(`Error deleting file ${file.name}:`, error);
+    }
+}
+
+/**
+ * Recursively deletes a folder and its contents.
+ * This is a helper for deleteAbstractFile when a child is a folder.
+ * @param app The Obsidian App instance.
+ * @param folder The TFolder to delete.
+ * @param deleteChildren If true, recursively deletes all children of this folder (passed through).
+ * @param indexer The FolderIndexer instance to query the graph.
+ */
+async function deleteFolderRecursive(app: App, folder: TFolder, deleteChildren: boolean, indexer: FolderIndexer) {
+    try {
+        for (const child of folder.children) {
+            if (child instanceof TFile) {
+                await deleteAbstractFile(app, child, deleteChildren, indexer);
+            } else if (child instanceof TFolder) {
+                await deleteFolderRecursive(app, child, deleteChildren, indexer);
+            }
+        }
+        await app.vault.delete(folder);
+        new Notice(`Deleted folder: ${folder.name}`);
+    } catch (error) {
+        new Notice(`Failed to delete folder ${folder.name}: ${error.message}`);
+        console.error(`Error deleting folder ${folder.name}:`, error);
     }
 }
 

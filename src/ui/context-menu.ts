@@ -2,15 +2,17 @@ import { App, Menu, TFile } from "obsidian";
 import { FolderNode } from "../types";
 import { AbstractFolderPluginSettings } from "../settings";
 import AbstractFolderPlugin from "../../main";
-import { BatchDeleteConfirmModal, CreateAbstractChildModal, ChildFileType } from './modals';
+import { BatchDeleteConfirmModal, CreateAbstractChildModal, ChildFileType, DeleteConfirmModal } from './modals';
 import { IconModal } from './icon-modal';
-import { updateFileIcon, toggleHiddenStatus, createAbstractChildFile } from '../utils/file-operations';
+import { updateFileIcon, toggleHiddenStatus, createAbstractChildFile, deleteAbstractFile } from '../utils/file-operations';
+import { FolderIndexer } from "../indexer";
 
 export class ContextMenuHandler {
     constructor(
         private app: App,
         private settings: AbstractFolderPluginSettings,
-        private plugin: AbstractFolderPlugin
+        private plugin: AbstractFolderPlugin,
+        private indexer: FolderIndexer
     ) {}
 
     showContextMenu(event: MouseEvent, node: FolderNode, multiSelectedPaths: Set<string>) {
@@ -48,9 +50,9 @@ export class ContextMenuHandler {
                 .setTitle(`Delete ${selectedFiles.length} items`)
                 .setIcon("trash")
                 .onClick(() => {
-                    new BatchDeleteConfirmModal(this.app, selectedFiles, async () => {
+                    new BatchDeleteConfirmModal(this.app, selectedFiles, async (deleteChildren: boolean) => {
                         for (const file of selectedFiles) {
-                            await this.app.fileManager.trashFile(file);
+                            await deleteAbstractFile(this.app, file, deleteChildren, this.indexer);
                         }
                         multiSelectedPaths.clear();
                         this.plugin.app.workspace.trigger('abstract-folder:graph-updated');
@@ -75,9 +77,8 @@ export class ContextMenuHandler {
             .setTitle("Delete file")
             .setIcon("trash")
             .onClick(() => {
-                new BatchDeleteConfirmModal(this.app, [node.file!], async () => {
-                    await this.app.fileManager.trashFile(node.file!);
-                    this.plugin.app.workspace.trigger('abstract-folder:graph-updated');
+                new DeleteConfirmModal(this.app, node.file!, async (deleteChildren: boolean) => {
+                    await deleteAbstractFile(this.app, node.file!, deleteChildren, this.indexer);
                 }).open();
             })
         );

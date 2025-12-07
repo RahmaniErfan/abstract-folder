@@ -45,7 +45,8 @@ export class AbstractFolderView extends ItemView {
       this.plugin,
       this.viewState.multiSelectedPaths,
       this.getDisplayName,
-      (itemEl: HTMLElement, path: string) => this.toggleCollapse(itemEl, path)
+      (itemEl: HTMLElement, path: string) => this.toggleCollapse(itemEl, path),
+      this.indexer // Pass the indexer here
     );
     this.columnRenderer = new ColumnRenderer(
       this.app,
@@ -54,9 +55,10 @@ export class AbstractFolderView extends ItemView {
       this.viewState.selectionPath,
       this.viewState.multiSelectedPaths,
       this.getDisplayName,
-      (node, depth, event) => this.handleColumnNodeClick(node, depth, event)
+      (node, depth, event) => this.handleColumnNodeClick(node, depth, event),
+      this.indexer // Pass the indexer here
     );
-    this.contextMenuHandler = new ContextMenuHandler(this.app, this.settings, this.plugin);
+    this.contextMenuHandler = new ContextMenuHandler(this.app, this.settings, this.plugin, this.indexer);
     this.toolbar = new AbstractFolderViewToolbar(
        this.app,
        this.settings,

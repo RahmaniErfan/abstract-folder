@@ -1,5 +1,18 @@
 # Changelog
 
+## Version 1.2.0
+
+**Features:**
+*   **Recursive Delete**: Added "Delete children" functionality to single and batch file deletion modals, enabling recursive deletion of associated child notes and folders.
+
+**Improvements:**
+*   **Optimized Graph Updates**: Refined graph update triggers for improved robustness during file deletion operations.
+
+## Version 1.1.1
+
+**Fixes:**
+*   **Trailing Spaces in Filenames**: Resolved issues with links to and creation of files with trailing spaces in their names.
+
 ## Version 1.1.0
 
 **Features:**

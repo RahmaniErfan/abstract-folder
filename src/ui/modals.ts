@@ -174,9 +174,10 @@ export class RenameModal extends Modal {
 
 export class DeleteConfirmModal extends Modal {
     private file: TFile;
-    private onConfirm: () => void;
+    private onConfirm: (deleteChildren: boolean) => void;
+    private deleteChildren: boolean = true;
 
-    constructor(app: App, file: TFile, onConfirm: () => void) {
+    constructor(app: App, file: TFile, onConfirm: (deleteChildren: boolean) => void) {
         super(app);
         this.file = file;
         this.onConfirm = onConfirm;
@@ -187,11 +188,18 @@ export class DeleteConfirmModal extends Modal {
         contentEl.createEl("h2", { text: "Delete file" });
         contentEl.createEl("p", { text: `Are you sure you want to delete "${this.file.name}"?` });
 
+        new Setting(contentEl)
+            .setName("Delete children as well?")
+            .setDesc("If enabled, all notes and folders directly linked as children to this file will also be deleted.")
+            .addToggle(toggle => toggle
+                .setValue(this.deleteChildren)
+                .onChange(value => this.deleteChildren = value));
+
         const buttonContainer = contentEl.createDiv({ cls: "modal-button-container" });
         
         const deleteButton = buttonContainer.createEl("button", { text: "Delete", cls: "mod-warning" });
         deleteButton.addEventListener("click", () => {
-            this.onConfirm();
+            this.onConfirm(this.deleteChildren);
             this.close();
         });
 
@@ -209,9 +217,10 @@ export class DeleteConfirmModal extends Modal {
 
 export class BatchDeleteConfirmModal extends Modal {
     private files: TFile[];
-    private onConfirm: () => void;
+    private onConfirm: (deleteChildren: boolean) => void;
+    private deleteChildren: boolean = true;
 
-    constructor(app: App, files: TFile[], onConfirm: () => void) {
+    constructor(app: App, files: TFile[], onConfirm: (deleteChildren: boolean) => void) {
         super(app);
         this.files = files;
         this.onConfirm = onConfirm;
@@ -219,9 +228,16 @@ export class BatchDeleteConfirmModal extends Modal {
 
     onOpen() {
         const { contentEl } = this;
-        contentEl.createEl("h2", { text: `Delete ${this.files.length} files` });
-        contentEl.createEl("p", { text: `Are you sure you want to delete these ${this.files.length} files?` });
+        contentEl.createEl("h2", { text: `Delete ${this.files.length} items` });
+        contentEl.createEl("p", { text: `Are you sure you want to delete these ${this.files.length} items?` });
         
+        new Setting(contentEl)
+            .setName("Delete children as well?")
+            .setDesc("If enabled, all notes and folders directly linked as children to these files will also be deleted.")
+            .addToggle(toggle => toggle
+                .setValue(this.deleteChildren)
+                .onChange(value => this.deleteChildren = value));
+
         const list = contentEl.createEl("ul");
         // Show up to 5 files, then "...and X more"
         const maxDisplay = 5;
@@ -236,7 +252,7 @@ export class BatchDeleteConfirmModal extends Modal {
         
         const deleteButton = buttonContainer.createEl("button", { text: "Delete all", cls: "mod-warning" });
         deleteButton.addEventListener("click", () => {
-            this.onConfirm();
+            this.onConfirm(this.deleteChildren);
             this.close();
         });
 
