@@ -1,5 +1,10 @@
 # Changelog
 
+## Version 1.2.1
+
+**Fixes:**
+*   **PDF Opening**: Resolved issue where PDFs would open in a split view instead of the current active pane.
+
 ## Version 1.2.0
 
 **Features:**

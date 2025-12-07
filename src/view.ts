@@ -328,7 +328,7 @@ export class AbstractFolderView extends ItemView {
     if (node.file) {
       const fileExists = this.app.vault.getAbstractFileByPath(node.file.path);
       if (fileExists) {
-        this.app.workspace.openLinkText(node.file.path, node.file.path);
+        this.app.workspace.getLeaf(false).openFile(node.file);
       }
     }
 
