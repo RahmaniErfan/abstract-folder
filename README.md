@@ -21,6 +21,8 @@ Standard folders are rigid. A file usually belongs to only one folder in your sy
   * **Files *are* Folders:** Any file can act as a parent folder for other files.
   * **No Physical Moving:** Reorganize your entire vault hierarchy by editing text. Your actual file system structure remains untouched.
 
+![Abstract Folder Preview](https://github.com/user-attachments/assets/e2c4c7f0-f8e3-486f-bee4-31ef48e67783)
+
 -----
 
 ## Key Features
