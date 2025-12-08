@@ -27,6 +27,19 @@ Standard folders are rigid. A file usually belongs to only one folder in your sy
 
 -----
 
+## Quick Start
+
+1.  **Install the plugin** (see [Installation](#installation)).
+2.  **Convert existing folders (optional but recommended):** Run the command **"Abstract Folder: Convert folder structure to plugin format"** from the Command Palette (`Ctrl/Cmd + P`). This will automatically add `parent` properties to your notes, mirroring your current physical folder structure as abstract folders.
+3.  **Open the Abstract Folder view:** Run the command **"Abstract Folder: Open Abstract Folder View"**.
+4.  **Define relationships:**
+    *   **Child points to Parent:** In any note's frontmatter, add a `parent` property as a list (e.g., `parent: ["[[Parent Note Name]]"]`). If you use the conversion command (step 2), this will be set up automatically. **Tip: You can click the property icon to change the property type to list**
+    *   **Parent lists Children:** In a parent note's frontmatter, add `children: ["[[Child Note 1]]", "[[Child Note 2]]"]`.
+    *   For more details and examples, see [Usage](#usage).
+5.  **Explore and manage:** Use the virtual file explorer to navigate your newly defined abstract hierarchy. For available actions, refer to the [Commands](#commands) section.
+
+-----
+
 ## Key Features
 
   * **Virtual Hierarchy:** Create deep nesting and folder structures entirely via metadata.
