@@ -23,6 +23,8 @@ Standard folders are rigid. A file usually belongs to only one folder in your sy
 
 ![Abstract Folder Preview](https://github.com/user-attachments/assets/e2c4c7f0-f8e3-486f-bee4-31ef48e67783)
 
+<img width="1000" height="737" alt="image" src="https://github.com/user-attachments/assets/67189b5f-71a3-4615-95cd-f7e35bbd3722" />
+
 -----
 
 ## Key Features
