@@ -530,6 +530,13 @@
     border-radius: var(--radius-s);
 }
 
+.abstract-folder-drag-invalid {
+    background-color: var(--background-modifier-error-hover) !important;
+    border: 2px dashed var(--text-error) !important;
+    border-radius: var(--radius-s);
+    cursor: no-drop !important;
+}
+
 .abstract-folder-ghost-drag-image {
     position: absolute;
     top: -1000px;

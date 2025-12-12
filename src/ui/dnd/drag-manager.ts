@@ -2,6 +2,7 @@ import { App, TFile } from "obsidian";
 import { AbstractFolderPluginSettings } from "../../settings";
 import { moveFiles } from "../../utils/file-operations";
 import { FolderNode } from "../../types";
+import { FolderIndexer } from "../../indexer";
 
 export interface DragData {
     sourcePaths: string[];
@@ -11,15 +12,19 @@ export interface DragData {
 export class DragManager {
     private app: App;
     private settings: AbstractFolderPluginSettings;
+    private indexer: FolderIndexer;
     private dragData: DragData | null = null;
 
-    constructor(app: App, settings: AbstractFolderPluginSettings) {
+    constructor(app: App, settings: AbstractFolderPluginSettings, indexer: FolderIndexer) {
         this.app = app;
         this.settings = settings;
+        this.indexer = indexer;
     }
 
     public handleDragStart(event: DragEvent, node: FolderNode, parentPath: string, multiSelectedPaths: Set<string>) {
         if (!event.dataTransfer) return;
+
+        event.stopPropagation(); // Prevent bubbling to parent folder items
 
         const sourcePaths = multiSelectedPaths.has(node.path)
             ? Array.from(multiSelectedPaths)
@@ -46,40 +51,65 @@ export class DragManager {
     }
 
     public handleDragOver(event: DragEvent, targetNode: FolderNode) {
-        if (!this.dragData) return;
-        
-        // Prevent dropping on itself or its children (for folders) is handled by logic,
-        // but simple self-check here:
-        if (this.dragData.sourcePaths.includes(targetNode.path)) {
+        if (!this.dragData) {
+            console.log("DragManager: handleDragOver - No dragData, returning.");
             return;
         }
 
-        // strict reparenting: target must be MD or virtual (null file)
-        // Non-markdown files cannot be parents
-        if (targetNode.file && targetNode.file.extension !== 'md') {
-            return;
-        }
-
-        // Only allow dropping on folders (files that act as folders) or the hidden root
-        // If targetNode is a file, we can drop ON it if it's meant to become a parent (which implies it's a folder in abstract terms)
-        // OR if we are reordering (future). For now, strict reparenting.
-        
-        event.preventDefault(); // Necessary to allow dropping
-        event.dataTransfer!.dropEffect = "move";
-        
-        // Visual feedback could be handled here or via CSS on the target element
         const targetEl = event.currentTarget as HTMLElement;
-        targetEl.addClass("abstract-folder-drag-over");
+        let isValid = true;
+
+        console.log(`DragManager: handleDragOver - Source Paths: ${this.dragData.sourcePaths}, Target Node Path: ${targetNode.path}`);
+
+        // Validation 1: Self drop
+        if (this.dragData.sourcePaths.includes(targetNode.path)) {
+            isValid = false;
+            console.log("DragManager: handleDragOver - Validation 1 failed: Self-drop.");
+        }
+
+        // Validation 2: Non-MD target
+        if (isValid && targetNode.file && targetNode.file.extension !== 'md') {
+            isValid = false;
+            console.log(`DragManager: handleDragOver - Validation 2 failed: Non-Markdown target (${targetNode.file.extension}).`);
+        }
+
+        // Validation 3: Circular dependency
+        if (isValid) {
+            for (const sourcePath of this.dragData.sourcePaths) {
+                if (this.isDescendant(sourcePath, targetNode.path)) {
+                    isValid = false;
+                    console.log(`DragManager: handleDragOver - Validation 3 failed: Circular dependency (${sourcePath} is ancestor of ${targetNode.path}).`);
+                    break;
+                }
+            }
+        }
+
+        if (isValid) {
+            event.preventDefault(); // Necessary to allow dropping
+            event.dataTransfer!.dropEffect = "move";
+            targetEl.addClass("abstract-folder-drag-over");
+            targetEl.removeClass("abstract-folder-drag-invalid");
+            console.log("DragManager: handleDragOver - Drop is valid.");
+        } else {
+            // Show invalid visual feedback
+            event.preventDefault(); // Allow processing to show feedback
+            event.dataTransfer!.dropEffect = "none";
+            targetEl.addClass("abstract-folder-drag-invalid");
+            targetEl.removeClass("abstract-folder-drag-over");
+            console.log("DragManager: handleDragOver - Drop is invalid.");
+        }
     }
 
     public handleDragLeave(event: DragEvent) {
         const targetEl = event.currentTarget as HTMLElement;
         targetEl.removeClass("abstract-folder-drag-over");
+        targetEl.removeClass("abstract-folder-drag-invalid");
     }
 
     public async handleDrop(event: DragEvent, targetNode: FolderNode) {
         const targetEl = event.currentTarget as HTMLElement;
         targetEl.removeClass("abstract-folder-drag-over");
+        targetEl.removeClass("abstract-folder-drag-invalid");
 
         if (!this.dragData) return;
 
@@ -109,10 +139,32 @@ export class DragManager {
         }
 
         if (filesToMove.length > 0) {
-            await moveFiles(this.app, this.settings, filesToMove, targetPath, sourceParentPath);
+            await moveFiles(this.app, this.settings, filesToMove, targetPath, sourceParentPath, this.indexer);
         }
 
         // Cleanup
         this.dragData = null;
+    }
+
+    private isDescendant(potentialAncestorPath: string, potentialDescendantPath: string): boolean {
+        // Simple BFS to check if potentialDescendantPath is reachable from potentialAncestorPath
+        // using the graph in Indexer
+        
+        if (potentialAncestorPath === potentialDescendantPath) return true;
+
+        const graph = this.indexer.getGraph();
+        const children = graph.parentToChildren[potentialAncestorPath];
+
+        if (!children) return false;
+
+        if (children.has(potentialDescendantPath)) return true;
+
+        for (const childPath of children) {
+            if (this.isDescendant(childPath, potentialDescendantPath)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

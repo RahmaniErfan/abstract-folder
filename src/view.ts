@@ -40,7 +40,7 @@ export class AbstractFolderView extends ItemView {
     this.icon = "folder-tree";
     this.navigation = false;
 
-    this.dragManager = new DragManager(this.app, this.settings);
+    this.dragManager = new DragManager(this.app, this.settings, this.indexer);
     this.viewState = new ViewState(this.settings, this.plugin);
     this.treeRenderer = new TreeRenderer(
       this.app,
