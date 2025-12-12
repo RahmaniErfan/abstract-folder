@@ -226,7 +226,8 @@ export async function moveFiles(
     settings: AbstractFolderPluginSettings,
     files: TFile[],
     targetParentPath: string,
-    sourceParentPath: string | null
+    sourceParentPath: string | null,
+    indexer: FolderIndexer
 ) {
     const targetParentFile = app.vault.getAbstractFileByPath(targetParentPath);
 

@@ -68,7 +68,7 @@ export class DragManager {
         this.dragData = null;
     }
 
-    public handleDragOver(event: DragEvent, targetNode: FolderNode) {
+    public handleDragOver(event: DragEvent, targetNode: FolderNode | null) {
         if (!this.dragData) {
             return;
         }
@@ -85,21 +85,22 @@ export class DragManager {
         this.currentDragTarget = targetEl;
 
         let isValid = true;
+        const targetPath = targetNode?.path ?? ""; // Use empty string for root target
 
-        // Validation 1: Self drop
-        if (this.dragData.sourcePaths.includes(targetNode.path)) {
+        // Validation 1: Self drop (if target is a specific node)
+        if (targetNode && this.dragData.sourcePaths.includes(targetNode.path)) {
+            isValid = false;
+        }
+        
+        // Validation 2: Non-MD target (if target is a specific node)
+        if (isValid && targetNode?.file && targetNode.file.extension !== 'md') {
             isValid = false;
         }
 
-        // Validation 2: Non-MD target
-        if (isValid && targetNode.file && targetNode.file.extension !== 'md') {
-            isValid = false;
-        }
-
-        // Validation 3: Circular dependency
-        if (isValid) {
+        // Validation 3: Circular dependency (if target is a specific node)
+        if (isValid && targetNode) {
             for (const sourcePath of this.dragData.sourcePaths) {
-                if (this.isDescendant(sourcePath, targetNode.path)) {
+                if (this.isDescendant(sourcePath, targetPath)) {
                     isValid = false;
                     break;
                 }
@@ -130,7 +131,7 @@ export class DragManager {
         }
     }
 
-    public async handleDrop(event: DragEvent, targetNode: FolderNode) {
+    public async handleDrop(event: DragEvent, targetNode: FolderNode | null) {
         const targetEl = event.currentTarget as HTMLElement;
         targetEl.removeClass("abstract-folder-drag-over");
         targetEl.removeClass("abstract-folder-drag-invalid");
@@ -143,7 +144,7 @@ export class DragManager {
 
         try {
             const { sourcePaths, sourceParentPath } = this.dragData;
-            const targetPath = targetNode.path;
+            const targetPath = targetNode?.path ?? ""; // Use empty string for root target
 
             // Validation: Don't drop into self
             if (sourcePaths.includes(targetPath)) return;
@@ -151,8 +152,8 @@ export class DragManager {
             // Validation: Don't drop into immediate parent (no-op)
             if (targetPath === sourceParentPath) return;
 
-            // Validation: Target must be MD or virtual
-            if (targetNode.file && targetNode.file.extension !== 'md') {
+            // Validation: Target must be MD or virtual (if target is a specific node)
+            if (targetNode?.file && targetNode.file.extension !== 'md') {
                 return;
             }
 
@@ -165,7 +166,7 @@ export class DragManager {
             }
 
             if (filesToMove.length > 0) {
-                await moveFiles(this.app, this.settings, filesToMove, targetPath, sourceParentPath);
+                await moveFiles(this.app, this.settings, filesToMove, targetPath, sourceParentPath, this.indexer);
             }
         } finally {
             // Ensure cleanup happens even if early returns occur

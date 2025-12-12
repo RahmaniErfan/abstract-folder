@@ -120,6 +120,11 @@ export class AbstractFolderView extends ItemView {
         event.preventDefault();
         this.contextMenuHandler.showBackgroundMenu(event);
     });
+    
+    // Allow dropping into the root of the view
+    this.contentEl.addEventListener("dragover", (e) => this.dragManager.handleDragOver(e, null));
+    this.contentEl.addEventListener("dragleave", (e) => this.dragManager.handleDragLeave(e));
+    this.contentEl.addEventListener("drop", (e) => this.dragManager.handleDrop(e, null));
   }
 
   public onClose = async () => {
