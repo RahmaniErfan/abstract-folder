@@ -226,10 +226,8 @@ export async function moveFiles(
     settings: AbstractFolderPluginSettings,
     files: TFile[],
     targetParentPath: string,
-    sourceParentPath: string | null,
-    indexer: FolderIndexer
+    sourceParentPath: string | null
 ) {
-    console.log(`[moveFiles] Moving ${files.length} files to ${targetParentPath} from ${sourceParentPath}`);
     const targetParentFile = app.vault.getAbstractFileByPath(targetParentPath);
 
     // Validation: If target is a file, it MUST be a Markdown file to act as a parent
@@ -253,7 +251,6 @@ export async function moveFiles(
     // --- 1. Handle MD Files (Child-Defined Parents) ---
     // For each MD file, we update ITS OWN frontmatter to change the parent pointer.
     for (const file of mdFiles) {
-        console.log(`[moveFiles] Processing MD file: ${file.path}`);
         await app.fileManager.processFrontMatter(file, (frontmatter) => {
             const parentPropertyName = settings.propertyName;
             const currentParents = frontmatter[parentPropertyName];
@@ -265,14 +262,12 @@ export async function moveFiles(
             } else if (Array.isArray(currentParents)) {
                 parentLinks = currentParents;
             }
-            console.log(`[moveFiles] Current parents for ${file.name}:`, parentLinks);
 
             // Remove the old source parent link
             if (sourceParentPath) {
                 // We need to robustly identify the link to remove (could be [[Note]], [[Note.md]], Note)
                 const sourceParentFile = app.vault.getAbstractFileByPath(sourceParentPath);
                 if (sourceParentFile) {
-                    console.log(`[moveFiles] Removing source parent: ${sourceParentFile.name}`);
                     parentLinks = parentLinks.filter(link => {
                         // Robustly check if the link refers to the sourceParentFile
                         // Remove quotes, brackets, and trim
@@ -288,13 +283,11 @@ export async function moveFiles(
                         if (linkTargetFile) {
                              // Precise match: The link resolves to exactly the sourceParentFile
                              isMatch = linkTargetFile.path === sourceParentFile.path;
-                             console.log(`[moveFiles] Link "${cleanLink}" resolves to "${linkTargetFile.path}". Match with source "${sourceParentFile.path}"? ${isMatch}`);
                         } else {
                             // Fallback: String match if resolution fails (e.g. file not yet indexed or new)
                             const sourceName = sourceParentFile.name;
                             const sourceBasename = (sourceParentFile instanceof TFile) ? sourceParentFile.basename : sourceParentFile.name;
                             isMatch = cleanLink === sourceName || cleanLink === sourceBasename;
-                            console.log(`[moveFiles] Link "${cleanLink}" did not resolve. Fallback match with "${sourceName}"/"${sourceBasename}"? ${isMatch}`);
                         }
                         
                         return !isMatch;
@@ -306,13 +299,10 @@ export async function moveFiles(
             if (targetParentFile) {
                 const targetName = (targetParentFile instanceof TFile) ? targetParentFile.basename : targetParentFile.name;
                 const newLink = `[[${targetName}]]`;
-                console.log(`[moveFiles] Adding target parent: ${targetName}`);
                 if (!parentLinks.includes(newLink)) {
                     parentLinks.push(newLink);
                 }
             }
-
-            console.log(`[moveFiles] New parents for ${file.name}:`, parentLinks);
 
             // Save back
             if (parentLinks.length === 0) {

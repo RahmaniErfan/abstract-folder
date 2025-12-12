@@ -526,13 +526,15 @@
 /* Drag and Drop Visual Feedback */
 .abstract-folder-drag-over {
     background-color: var(--background-modifier-hover) !important;
-    border: 2px dashed var(--interactive-accent);
+    outline: 1px dashed var(--text-muted);
+    outline-offset: -2px;
     border-radius: var(--radius-s);
 }
 
 .abstract-folder-drag-invalid {
-    background-color: var(--background-modifier-error-hover) !important;
-    border: 2px dashed var(--text-error) !important;
+    background-color: rgba(var(--color-red-rgb), 0.15) !important;
+    outline: 1px dashed var(--text-muted) !important;
+    outline-offset: -2px;
     border-radius: var(--radius-s);
     cursor: no-drop !important;
 }

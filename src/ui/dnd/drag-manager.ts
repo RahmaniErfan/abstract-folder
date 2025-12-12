@@ -14,6 +14,7 @@ export class DragManager {
     private settings: AbstractFolderPluginSettings;
     private indexer: FolderIndexer;
     private dragData: DragData | null = null;
+    private currentDragTarget: HTMLElement | null = null;
 
     constructor(app: App, settings: AbstractFolderPluginSettings, indexer: FolderIndexer) {
         this.app = app;
@@ -25,6 +26,10 @@ export class DragManager {
         if (!event.dataTransfer) return;
 
         event.stopPropagation(); // Prevent bubbling to parent folder items
+
+        // Attach dragend listener to cleanup if drop doesn't fire (e.g. invalid drop target)
+        const el = event.currentTarget as HTMLElement;
+        el.addEventListener("dragend", this.handleDragEnd.bind(this), { once: true });
 
         const sourcePaths = multiSelectedPaths.has(node.path)
             ? Array.from(multiSelectedPaths)
@@ -50,27 +55,45 @@ export class DragManager {
         setTimeout(() => dragIcon.remove(), 0);
     }
 
+    public handleDragEnd(event: DragEvent) {
+        this.cleanup();
+    }
+
+    private cleanup() {
+        if (this.currentDragTarget) {
+            this.currentDragTarget.removeClass("abstract-folder-drag-over");
+            this.currentDragTarget.removeClass("abstract-folder-drag-invalid");
+            this.currentDragTarget = null;
+        }
+        this.dragData = null;
+    }
+
     public handleDragOver(event: DragEvent, targetNode: FolderNode) {
         if (!this.dragData) {
-            console.log("DragManager: handleDragOver - No dragData, returning.");
             return;
         }
 
-        const targetEl = event.currentTarget as HTMLElement;
-        let isValid = true;
+        event.stopPropagation(); // Ensure we only highlight the specific item dragged over
 
-        console.log(`DragManager: handleDragOver - Source Paths: ${this.dragData.sourcePaths}, Target Node Path: ${targetNode.path}`);
+        const targetEl = event.currentTarget as HTMLElement;
+        
+        // Track current target for cleanup
+        if (this.currentDragTarget && this.currentDragTarget !== targetEl) {
+            this.currentDragTarget.removeClass("abstract-folder-drag-over");
+            this.currentDragTarget.removeClass("abstract-folder-drag-invalid");
+        }
+        this.currentDragTarget = targetEl;
+
+        let isValid = true;
 
         // Validation 1: Self drop
         if (this.dragData.sourcePaths.includes(targetNode.path)) {
             isValid = false;
-            console.log("DragManager: handleDragOver - Validation 1 failed: Self-drop.");
         }
 
         // Validation 2: Non-MD target
         if (isValid && targetNode.file && targetNode.file.extension !== 'md') {
             isValid = false;
-            console.log(`DragManager: handleDragOver - Validation 2 failed: Non-Markdown target (${targetNode.file.extension}).`);
         }
 
         // Validation 3: Circular dependency
@@ -78,7 +101,6 @@ export class DragManager {
             for (const sourcePath of this.dragData.sourcePaths) {
                 if (this.isDescendant(sourcePath, targetNode.path)) {
                     isValid = false;
-                    console.log(`DragManager: handleDragOver - Validation 3 failed: Circular dependency (${sourcePath} is ancestor of ${targetNode.path}).`);
                     break;
                 }
             }
@@ -89,14 +111,12 @@ export class DragManager {
             event.dataTransfer!.dropEffect = "move";
             targetEl.addClass("abstract-folder-drag-over");
             targetEl.removeClass("abstract-folder-drag-invalid");
-            console.log("DragManager: handleDragOver - Drop is valid.");
         } else {
             // Show invalid visual feedback
             event.preventDefault(); // Allow processing to show feedback
             event.dataTransfer!.dropEffect = "none";
             targetEl.addClass("abstract-folder-drag-invalid");
             targetEl.removeClass("abstract-folder-drag-over");
-            console.log("DragManager: handleDragOver - Drop is invalid.");
         }
     }
 
@@ -104,46 +124,53 @@ export class DragManager {
         const targetEl = event.currentTarget as HTMLElement;
         targetEl.removeClass("abstract-folder-drag-over");
         targetEl.removeClass("abstract-folder-drag-invalid");
+        
+        if (this.currentDragTarget === targetEl) {
+            this.currentDragTarget = null;
+        }
     }
 
     public async handleDrop(event: DragEvent, targetNode: FolderNode) {
         const targetEl = event.currentTarget as HTMLElement;
         targetEl.removeClass("abstract-folder-drag-over");
         targetEl.removeClass("abstract-folder-drag-invalid");
+        this.currentDragTarget = null;
 
         if (!this.dragData) return;
 
         event.preventDefault();
         event.stopPropagation();
 
-        const { sourcePaths, sourceParentPath } = this.dragData;
-        const targetPath = targetNode.path;
+        try {
+            const { sourcePaths, sourceParentPath } = this.dragData;
+            const targetPath = targetNode.path;
 
-        // Validation: Don't drop into self
-        if (sourcePaths.includes(targetPath)) return;
-        
-        // Validation: Don't drop into immediate parent (no-op)
-        if (targetPath === sourceParentPath) return;
+            // Validation: Don't drop into self
+            if (sourcePaths.includes(targetPath)) return;
+            
+            // Validation: Don't drop into immediate parent (no-op)
+            if (targetPath === sourceParentPath) return;
 
-        // Validation: Target must be MD or virtual
-        if (targetNode.file && targetNode.file.extension !== 'md') {
-            return;
-        }
-
-        const filesToMove: TFile[] = [];
-        for (const path of sourcePaths) {
-            const file = this.app.vault.getAbstractFileByPath(path);
-            if (file instanceof TFile) {
-                filesToMove.push(file);
+            // Validation: Target must be MD or virtual
+            if (targetNode.file && targetNode.file.extension !== 'md') {
+                return;
             }
-        }
 
-        if (filesToMove.length > 0) {
-            await moveFiles(this.app, this.settings, filesToMove, targetPath, sourceParentPath, this.indexer);
-        }
+            const filesToMove: TFile[] = [];
+            for (const path of sourcePaths) {
+                const file = this.app.vault.getAbstractFileByPath(path);
+                if (file instanceof TFile) {
+                    filesToMove.push(file);
+                }
+            }
 
-        // Cleanup
-        this.dragData = null;
+            if (filesToMove.length > 0) {
+                await moveFiles(this.app, this.settings, filesToMove, targetPath, sourceParentPath);
+            }
+        } finally {
+            // Ensure cleanup happens even if early returns occur
+            this.dragData = null;
+        }
     }
 
     private isDescendant(potentialAncestorPath: string, potentialDescendantPath: string): boolean {
