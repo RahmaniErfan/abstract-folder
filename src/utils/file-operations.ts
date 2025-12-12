@@ -120,7 +120,7 @@ export async function deleteAbstractFile(app: App, file: TFile, deleteChildren: 
                 }
             }
         }
-        await app.vault.delete(file);
+        await app.fileManager.trashFile(file);
         new Notice(`Deleted file: ${file.name}`);
     } catch (error) {
         new Notice(`Failed to delete file ${file.name}: ${error.message}`);
@@ -145,7 +145,7 @@ async function deleteFolderRecursive(app: App, folder: TFolder, deleteChildren: 
                 await deleteFolderRecursive(app, child, deleteChildren, indexer);
             }
         }
-        await app.vault.delete(folder);
+        await app.fileManager.trashFile(folder);
         new Notice(`Deleted folder: ${folder.name}`);
     } catch (error) {
         new Notice(`Failed to delete folder ${folder.name}: ${error.message}`);

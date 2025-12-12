@@ -61,6 +61,20 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName("Children property name")
+			.setDesc("The frontmatter property key used by a parent to define its children (e.g., 'children' or 'sub_notes'). This setting is case-sensitive, so ensure your frontmatter property name matches the casing exactly.")
+			.addText((text) =>
+				text
+					.setPlaceholder("Example: children")
+					.setValue(this.plugin.settings.childrenPropertyName)
+					.onChange(async (value) => {
+						this.plugin.settings.childrenPropertyName = value;
+						await this.plugin.saveSettings();
+						this.plugin.indexer.updateSettings(this.plugin.settings); // Notify indexer of setting change
+					})
+			);
+	
+		new Setting(containerEl)
 			.setName("Show aliases")
 			.setDesc("Use the first alias as the display name in the abstract folders view if available.")
 			.addToggle((toggle) =>

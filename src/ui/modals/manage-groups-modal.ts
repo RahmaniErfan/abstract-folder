@@ -1,4 +1,4 @@
-import { App, Modal, Setting, Notice } from "obsidian";
+import { App, Modal, Setting } from "obsidian";
 import { AbstractFolderPluginSettings } from "../../settings";
 import { Group } from "../../types";
 import { CreateEditGroupModal } from "./create-edit-group-modal";
@@ -20,13 +20,13 @@ export class ManageGroupsModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Manage Groups" });
+    contentEl.createEl("h2", { text: "Manage groups" });
 
     this.renderGroupList(contentEl);
 
     new Setting(contentEl)
       .addButton(button => button
-        .setButtonText("Add New Group")
+        .setButtonText("Add new group")
         .setCta()
         .onClick(() => {
           this.createGroup();
@@ -60,14 +60,14 @@ export class ManageGroupsModal extends Modal {
 
       groupSetting.addButton(button => button
         .setIcon("edit")
-        .setTooltip("Edit Group")
+        .setTooltip("Edit group")
         .onClick(() => {
           this.editGroup(group);
         }));
 
       groupSetting.addButton(button => button
         .setIcon("trash")
-        .setTooltip("Delete Group")
+        .setTooltip("Delete group")
         .onClick(() => {
           this.deleteGroup(index);
         }));

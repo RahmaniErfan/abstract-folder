@@ -36,9 +36,9 @@ export class CreateEditGroupModal extends Modal {
     contentEl.createEl("h2", { text: this.existingGroup ? "Edit Group" : "Create New Group" });
 
     new Setting(contentEl)
-      .setName("Group Name")
+      .setName("Group name")
       .addText(text => text
-        .setPlaceholder("e.g. Work Projects")
+        .setPlaceholder("Example: work projects")
         .setValue(this.groupName)
         .onChange(value => this.groupName = value));
 
@@ -55,7 +55,7 @@ export class CreateEditGroupModal extends Modal {
   }
 
   renderParentFolders(containerEl: HTMLElement) {
-    containerEl.createEl("h3", { text: "Included Parent Folders" });
+    containerEl.createEl("h3", { text: "Included parent folders" });
     const folderListEl = containerEl.createDiv({ cls: "abstract-folder-group-folders" });
 
     if (this.parentFolders.length === 0) {
@@ -78,7 +78,7 @@ export class CreateEditGroupModal extends Modal {
     }
 
     new Setting(containerEl)
-      .setName("Add Parent Folder")
+      .setName("Add parent folder")
       .setDesc("Enter the full path of a folder to include (e.g., 'Projects/Work').")
       .addText(text => {
         this.newParentFolderInput = text.inputEl;
