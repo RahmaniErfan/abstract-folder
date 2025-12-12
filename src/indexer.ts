@@ -1,6 +1,6 @@
-import { App, TFile, CachedMetadata, TAbstractFile } from "obsidian";
+import { App, TFile, CachedMetadata, TAbstractFile, Notice } from "obsidian";
 import { AbstractFolderPluginSettings } from "./settings";
-import { FileGraph, ParentChildMap, HIDDEN_FOLDER_ID } from "./types";
+import { FileGraph, ParentChildMap, HIDDEN_FOLDER_ID, Cycle } from "./types";
 import AbstractFolderPlugin from '../main'; // Import the main plugin class
 
 export class FolderIndexer {
@@ -142,12 +142,58 @@ getGraph(): FileGraph {
       }
       this.processFile(file);
     }
+  this.graph = {
+    parentToChildren: this.parentToChildren,
+    childToParents: this.childToParents,
+    allFiles: this.allFiles,
+  };
+  this.detectCycles(); // Call after graph is built
+  }
 
-    this.graph = {
-      parentToChildren: this.parentToChildren,
-      childToParents: this.childToParents,
-      allFiles: this.allFiles,
-    };
+  private detectCycles() {
+  const cycles: Cycle[] = [];
+  const visited: Set<string> = new Set();
+  const recursionStack: Set<string> = new Set();
+
+  const dfs = (node: string, path: string[]) => {
+    visited.add(node);
+    recursionStack.add(node);
+    path.push(node);
+
+    const children = this.parentToChildren[node];
+    if (children) {
+      for (const child of children) {
+        if (!visited.has(child)) {
+          dfs(child, path);
+        } else if (recursionStack.has(child)) {
+          // Cycle detected
+          const cycleStartIndex = path.indexOf(child);
+          cycles.push(path.slice(cycleStartIndex));
+        }
+      }
+    }
+    recursionStack.delete(node);
+    path.pop();
+  };
+
+  for (const file of this.allFiles) {
+    if (!visited.has(file)) {
+      dfs(file, []);
+    }
+  }
+
+  if (cycles.length > 0) {
+    this.displayCycleWarning(cycles);
+  }
+  }
+
+  private displayCycleWarning(cycles: Cycle[]) {
+  let warningMessage = "Abstract Folder Plugin: Circular relationships detected!\n";
+  cycles.forEach((cycle, index) => {
+    warningMessage += `\nCycle ${index + 1}: ${cycle.join(" -> ")}`;
+  });
+  warningMessage += "\n\nPlease review your frontmatter connections to resolve these cycles.";
+  new Notice(warningMessage, 10000); // Display notice for 10 seconds
   }
 
   private initializePropertyNames() {

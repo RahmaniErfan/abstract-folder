@@ -113,6 +113,18 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName("Expand target folder on drag & drop")
+			.setDesc("If enabled, the target folder will automatically expand when an item is dropped into it.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.expandTargetFolderOnDrop)
+					.onChange(async (value) => {
+						this.plugin.settings.expandTargetFolderOnDrop = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
 			.setName("Remember expanded folders")
 			.setDesc("Keep folders expanded even when switching views or restarting Obsidian.")
 			.addToggle((toggle) =>

@@ -368,5 +368,4 @@ export async function moveFiles(
 
     // Trigger update
     app.workspace.trigger('abstract-folder:graph-updated');
-    new Notice(`Moved ${files.length} items.`);
 }

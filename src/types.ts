@@ -26,3 +26,5 @@ export interface Group {
   name: string;
   parentFolders: string[]; // Paths of parent folders to display
 }
+
+export type Cycle = string[]; // Represents a cycle as an array of file paths

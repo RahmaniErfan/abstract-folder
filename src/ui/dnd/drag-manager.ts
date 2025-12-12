@@ -3,6 +3,7 @@ import { AbstractFolderPluginSettings } from "../../settings";
 import { moveFiles } from "../../utils/file-operations";
 import { FolderNode } from "../../types";
 import { FolderIndexer } from "../../indexer";
+import { AbstractFolderView } from "../../view"; // Import AbstractFolderView
 
 export interface DragData {
     sourcePaths: string[];
@@ -13,13 +14,15 @@ export class DragManager {
     private app: App;
     private settings: AbstractFolderPluginSettings;
     private indexer: FolderIndexer;
+    private view: AbstractFolderView; // Add view instance
     private dragData: DragData | null = null;
     private currentDragTarget: HTMLElement | null = null;
 
-    constructor(app: App, settings: AbstractFolderPluginSettings, indexer: FolderIndexer) {
+    constructor(app: App, settings: AbstractFolderPluginSettings, indexer: FolderIndexer, view: AbstractFolderView) {
         this.app = app;
         this.settings = settings;
         this.indexer = indexer;
+        this.view = view; // Assign view instance
     }
 
     public handleDragStart(event: DragEvent, node: FolderNode, parentPath: string, multiSelectedPaths: Set<string>) {
@@ -167,6 +170,11 @@ export class DragManager {
 
             if (filesToMove.length > 0) {
                 await moveFiles(this.app, this.settings, filesToMove, targetPath, sourceParentPath, this.indexer);
+                
+                // Expand target folder if setting is enabled and target is a folder
+                if (this.settings.expandTargetFolderOnDrop && targetNode?.isFolder) {
+                  this.view.expandFolderByPath(targetNode.path);
+                }
             }
         } finally {
             // Ensure cleanup happens even if early returns occur

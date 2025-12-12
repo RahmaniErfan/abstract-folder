@@ -40,7 +40,7 @@ export class AbstractFolderView extends ItemView {
     this.icon = "folder-tree";
     this.navigation = false;
 
-    this.dragManager = new DragManager(this.app, this.settings, this.indexer);
+    this.dragManager = new DragManager(this.app, this.settings, this.indexer, this); // Pass 'this' (the view instance)
     this.viewState = new ViewState(this.settings, this.plugin);
     this.treeRenderer = new TreeRenderer(
       this.app,
@@ -276,6 +276,18 @@ export class AbstractFolderView extends ItemView {
       this.contentEl.querySelectorAll(".abstract-folder-item.is-folder:not(.is-collapsed)").forEach(el => {
         el.addClass("is-collapsed");
       });
+    }
+  }
+
+  public async expandFolderByPath(folderPath: string) {
+    const folderEl = this.contentEl.querySelector(`[data-path="${folderPath}"]`);
+    if (folderEl && folderEl.hasClass("is-collapsed")) {
+      folderEl.removeClass("is-collapsed");
+      // Add to expanded folders in settings if rememberExpanded is true
+      if (this.settings.rememberExpanded && !this.settings.expandedFolders.includes(folderPath)) {
+        this.settings.expandedFolders.push(folderPath);
+        await this.plugin.saveSettings();
+      }
     }
   }
 
