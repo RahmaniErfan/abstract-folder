@@ -209,3 +209,145 @@ export async function toggleHiddenStatus(app: App, file: TFile, settings: Abstra
     });
     app.workspace.trigger('abstract-folder:graph-updated');
 }
+
+/**
+ * Moves files to a new abstract parent folder.
+ * Handles the logic for MD files (modifying child's parent property)
+ * and Non-MD files (modifying parent's children property).
+ *
+ * @param app The Obsidian App instance.
+ * @param settings The plugin settings.
+ * @param files The list of files to move.
+ * @param targetParentPath The path of the destination abstract folder (parent).
+ * @param sourceParentPath The path of the source abstract folder (parent) where the drag started.
+ */
+export async function moveFiles(
+    app: App,
+    settings: AbstractFolderPluginSettings,
+    files: TFile[],
+    targetParentPath: string,
+    sourceParentPath: string | null
+) {
+    const targetParentFile = app.vault.getAbstractFileByPath(targetParentPath);
+
+    // Validation: If target is a file, it MUST be a Markdown file to act as a parent
+    if (targetParentFile instanceof TFile && targetParentFile.extension !== 'md') {
+        new Notice("Target must be a Markdown file to contain other files.");
+        return;
+    }
+
+    // Group files by type
+    const mdFiles: TFile[] = [];
+    const nonMdFiles: TFile[] = [];
+
+    for (const file of files) {
+        if (file.extension === 'md') {
+            mdFiles.push(file);
+        } else {
+            nonMdFiles.push(file);
+        }
+    }
+
+    // --- 1. Handle MD Files (Child-Defined Parents) ---
+    // For each MD file, we update ITS OWN frontmatter to change the parent pointer.
+    for (const file of mdFiles) {
+        await app.fileManager.processFrontMatter(file, (frontmatter) => {
+            const parentPropertyName = settings.propertyName;
+            const currentParents = frontmatter[parentPropertyName];
+            let parentLinks: string[] = [];
+
+            // Normalize current parents to array
+            if (typeof currentParents === 'string') {
+                parentLinks = [currentParents];
+            } else if (Array.isArray(currentParents)) {
+                parentLinks = currentParents;
+            }
+
+            // Remove the old source parent link
+            if (sourceParentPath) {
+                // We need to robustly identify the link to remove (could be [[Note]], [[Note.md]], Note)
+                const sourceParentFile = app.vault.getAbstractFileByPath(sourceParentPath);
+                if (sourceParentFile) {
+                    parentLinks = parentLinks.filter(link => {
+                        // Very basic check - strict implementations might need the full indexer resolution logic
+                        // But for simply removing what we know is there, checking inclusion of basename is often enough
+                        const isBasenameMatch = (sourceParentFile instanceof TFile) ? !link.includes(sourceParentFile.basename) : true;
+                        return !link.includes(sourceParentFile.name) && isBasenameMatch;
+                    });
+                }
+            }
+
+            // Add the new target parent link
+            if (targetParentFile) {
+                const targetName = (targetParentFile instanceof TFile) ? targetParentFile.basename : targetParentFile.name;
+                const newLink = `[[${targetName}]]`;
+                if (!parentLinks.includes(newLink)) {
+                    parentLinks.push(newLink);
+                }
+            }
+
+            // Save back
+            if (parentLinks.length === 0) {
+                delete frontmatter[parentPropertyName];
+            } else if (parentLinks.length === 1) {
+                frontmatter[parentPropertyName] = parentLinks[0];
+            } else {
+                frontmatter[parentPropertyName] = parentLinks;
+            }
+        });
+    }
+
+    // --- 2. Handle Non-MD Files (Parent-Defined Children) ---
+    // For Non-MD files, we must update the PARENT files (both Source and Target).
+    // This requires Source and Target to be Markdown files themselves.
+    
+    // 2a. Remove from Source Parent (if it exists and is MD)
+    if (sourceParentPath && nonMdFiles.length > 0) {
+        const sourceParentFile = app.vault.getAbstractFileByPath(sourceParentPath);
+        if (sourceParentFile instanceof TFile && sourceParentFile.extension === 'md') {
+            await app.fileManager.processFrontMatter(sourceParentFile, (frontmatter) => {
+                const childrenProp = settings.childrenPropertyName;
+                const children = frontmatter[childrenProp];
+                if (!children) return;
+                
+                let childrenList: string[] = Array.isArray(children) ? children : [children];
+                
+                // Remove all moved files from this parent's list
+                childrenList = childrenList.filter(link => {
+                    return !nonMdFiles.some(movedFile =>
+                        link.includes(movedFile.name) // Check if link matches any moved file
+                    );
+                });
+
+                if (childrenList.length === 0) delete frontmatter[childrenProp];
+                else frontmatter[childrenProp] = childrenList.length === 1 ? childrenList[0] : childrenList;
+            });
+        }
+    }
+
+    // 2b. Add to Target Parent (if it exists and is MD)
+    if (targetParentFile instanceof TFile && targetParentFile.extension === 'md' && nonMdFiles.length > 0) {
+         await app.fileManager.processFrontMatter(targetParentFile, (frontmatter) => {
+            const childrenProp = settings.childrenPropertyName;
+            const children = frontmatter[childrenProp] || [];
+            const childrenList: string[] = Array.isArray(children) ? children : [children];
+
+            // Add all non-MD files
+            for (const file of nonMdFiles) {
+                const newLink = `[[${file.name}]]`; // Must use full name with extension for non-md
+                if (!childrenList.includes(newLink)) {
+                    childrenList.push(newLink);
+                }
+            }
+
+            frontmatter[childrenProp] = childrenList.length === 1 ? childrenList[0] : childrenList;
+         });
+    } else if (nonMdFiles.length > 0 && (!targetParentFile || !(targetParentFile instanceof TFile) || targetParentFile.extension !== 'md')) {
+        // Fallback/Warning: Trying to drop non-md files into a container that can't hold them (like root folder or non-md file)
+        new Notice(`Cannot move ${nonMdFiles.length} non-markdown files: Target parent must be a Markdown file.`);
+    }
+
+    // Trigger update
+    app.workspace.trigger('abstract-folder:graph-updated');
+    new Notice(`Moved ${files.length} items.`);
+}

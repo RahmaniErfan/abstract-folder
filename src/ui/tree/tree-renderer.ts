@@ -4,6 +4,7 @@ import { AbstractFolderPluginSettings } from "../../settings";
 import AbstractFolderPlugin from "../../../main";
 import { ContextMenuHandler } from "../context-menu";
 import { FolderIndexer } from "../../indexer";
+import { DragManager } from "../dnd/drag-manager";
 
 function stringToNumberHash(str: string): number {
     let hash = 0;
@@ -21,7 +22,8 @@ export class TreeRenderer {
     private getDisplayName: (node: FolderNode) => string;
     private toggleCollapse: (itemEl: HTMLElement, path: string) => Promise<void>;
     private contextMenuHandler: ContextMenuHandler;
-    
+    private dragManager: DragManager;
+
     constructor(
         app: App,
         settings: AbstractFolderPluginSettings,
@@ -29,7 +31,8 @@ export class TreeRenderer {
         multiSelectedPaths: Set<string>,
         getDisplayName: (node: FolderNode) => string,
         toggleCollapse: (itemEl: HTMLElement, path: string) => Promise<void>,
-        indexer: FolderIndexer // Add indexer here
+        indexer: FolderIndexer, // Add indexer here
+        dragManager: DragManager
     ) {
         this.app = app;
         this.settings = settings;
@@ -38,9 +41,10 @@ export class TreeRenderer {
         this.getDisplayName = getDisplayName;
         this.toggleCollapse = toggleCollapse;
         this.contextMenuHandler = new ContextMenuHandler(app, settings, plugin, indexer);
+        this.dragManager = dragManager;
     }
 
-    renderTreeNode(node: FolderNode, parentEl: HTMLElement, ancestors: Set<string>, depth: number) {
+    renderTreeNode(node: FolderNode, parentEl: HTMLElement, ancestors: Set<string>, depth: number, parentPath: string | null) {
         const activeFile = this.app.workspace.getActiveFile();
         // Only prevent rendering for folder loops, not for files that can appear in multiple abstract folders.
         if (node.isFolder && ancestors.has(node.path)) {
@@ -50,6 +54,12 @@ const currentDepth = depth + 1;
 
 const itemEl = parentEl.createDiv({ cls: "abstract-folder-item" });
 itemEl.dataset.path = node.path;
+itemEl.draggable = true;
+
+itemEl.addEventListener("dragstart", (e) => this.dragManager.handleDragStart(e, node, parentPath || "", this.multiSelectedPaths));
+itemEl.addEventListener("dragover", (e) => this.dragManager.handleDragOver(e, node));
+itemEl.addEventListener("dragleave", (e) => this.dragManager.handleDragLeave(e));
+itemEl.addEventListener("drop", (e) => this.dragManager.handleDrop(e, node));
 
 if (node.isFolder) {
     itemEl.addClass("is-folder");
@@ -134,7 +144,7 @@ if (activeFile && activeFile.path === node.path) {
 
             if (node.children.length > 0) {
                 const newAncestors = new Set(ancestors).add(node.path);
-                node.children.forEach(child => this.renderTreeNode(child, childrenEl, newAncestors, currentDepth));
+                node.children.forEach(child => this.renderTreeNode(child, childrenEl, newAncestors, currentDepth, node.path));
             }
         }
     }

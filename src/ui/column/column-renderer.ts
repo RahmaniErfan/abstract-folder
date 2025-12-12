@@ -4,6 +4,7 @@ import { AbstractFolderPluginSettings } from "../../settings";
 import AbstractFolderPlugin from "../../../main";
 import { ContextMenuHandler } from "../context-menu";
 import { FolderIndexer } from "src/indexer";
+import { DragManager } from "../dnd/drag-manager";
 
 export class ColumnRenderer {
     private app: App;
@@ -14,6 +15,7 @@ export class ColumnRenderer {
     private getDisplayName: (node: FolderNode) => string;
     private handleColumnNodeClick: (node: FolderNode, depth: number, event?: MouseEvent) => void;
     private contextMenuHandler: ContextMenuHandler;
+    private dragManager: DragManager;
 
     constructor(
         app: App,
@@ -23,7 +25,8 @@ export class ColumnRenderer {
         multiSelectedPaths: Set<string>,
         getDisplayName: (node: FolderNode) => string,
         handleColumnNodeClick: (node: FolderNode, depth: number, event?: MouseEvent) => void,
-        indexer: FolderIndexer
+        indexer: FolderIndexer,
+        dragManager: DragManager
     ) {
         this.app = app;
         this.settings = settings;
@@ -33,6 +36,7 @@ export class ColumnRenderer {
         this.getDisplayName = getDisplayName;
         this.handleColumnNodeClick = handleColumnNodeClick;
         this.contextMenuHandler = new ContextMenuHandler(app, settings, plugin, indexer);
+        this.dragManager = dragManager;
     }
 
     // New method to update the selection path
@@ -47,14 +51,20 @@ export class ColumnRenderer {
         }
 
         nodes.forEach(node => {
-            this.renderColumnNode(node, columnEl, depth);
+            this.renderColumnNode(node, columnEl, depth, selectedParentPath || "");
         });
     }
 
-    private renderColumnNode(node: FolderNode, parentEl: HTMLElement, depth: number) {
+    private renderColumnNode(node: FolderNode, parentEl: HTMLElement, depth: number, parentPath: string) {
         const activeFile = this.app.workspace.getActiveFile();
         const itemEl = parentEl.createDiv({ cls: "abstract-folder-item" });
         itemEl.dataset.path = node.path;
+        itemEl.draggable = true;
+
+        itemEl.addEventListener("dragstart", (e) => this.dragManager.handleDragStart(e, node, parentPath, this.multiSelectedPaths));
+        itemEl.addEventListener("dragover", (e) => this.dragManager.handleDragOver(e, node));
+        itemEl.addEventListener("dragleave", (e) => this.dragManager.handleDragLeave(e));
+        itemEl.addEventListener("drop", (e) => this.dragManager.handleDrop(e, node));
 
         if (node.isFolder) itemEl.addClass("is-folder");
         else itemEl.addClass("is-file");

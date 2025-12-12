@@ -12,7 +12,6 @@ import { FolderIndexer } from './src/indexer';
 import { AbstractFolderView, VIEW_TYPE_ABSTRACT_FOLDER } from './src/view';
 import { CreateAbstractChildModal, ParentPickerModal, ChildFileType, FolderSelectionModal, ConversionOptionsModal, DestinationPickerModal, NewFolderNameModal, SimulationModal, ScopeSelectionModal } from './src/ui/modals';
 import { ManageGroupsModal } from './src/ui/modals/manage-groups-modal';
-import { CreateEditGroupModal } from './src/ui/modals/create-edit-group-modal';
 import { AbstractFolderSettingTab } from './src/ui/settings-tab';
 import { createAbstractChildFile } from './src/utils/file-operations';
 import { convertFoldersToPluginFormat, generateFolderStructurePlan, executeFolderGeneration } from './src/utils/conversion';
@@ -39,14 +38,14 @@ export default class AbstractFolderPlugin extends Plugin {
 		this.updateRibbonIconVisibility();
 
 		this.addCommand({
-			id: "open-abstract-folder-view",
-			name: "Open Abstract Folder View",
+			id: "open-view",
+			name: "Open view",
 			callback: () => this.activateView(),
 		});
 
 		this.addCommand({
-			id: "create-abstract-child-note",
-			name: "Create Abstract Child",
+			id: "create-child",
+			name: "Create abstract child",
 			callback: () => {
 				new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
 					new ParentPickerModal(this.app, (parentFile) => {
@@ -58,7 +57,7 @@ export default class AbstractFolderPlugin extends Plugin {
 
 this.addCommand({
 	id: "manage-groups",
-	name: "Manage Groups",
+	name: "Manage groups",
 	callback: () => {
 		new ManageGroupsModal(this.app, this.settings, async (updatedGroups: Group[], activeGroupId: string | null) => {
 			this.settings.groups = updatedGroups;
@@ -72,7 +71,7 @@ this.addCommand({
 
 this.addCommand({
 	id: "clear-active-group",
-	name: "Clear Active Group",
+	name: "Clear active group",
 	callback: async () => {
 		if (this.settings.activeGroupId) {
 			this.settings.activeGroupId = null;
@@ -111,7 +110,7 @@ this.addCommand({
 								});
 							}
 
-							const rootScope = scope === 'vault' ? undefined : (scope as TFile);
+							const rootScope = (scope instanceof TFile) ? scope : undefined;
 							generateFolderStructurePlan(this.app, this.settings, this.indexer, destinationPath, placeIndexFileInside, rootScope).then(plan => {
 								new SimulationModal(this.app, plan.conflicts, (resolvedConflicts) => {
 									executeFolderGeneration(this.app, plan);
@@ -124,6 +123,30 @@ this.addCommand({
 		});
 
 		this.addSettingTab(new AbstractFolderSettingTab(this.app, this));
+
+		      this.addCommand({
+		          id: "debug-log-graph",
+		          name: "Debug: log folder graph",
+		          callback: () => {
+		              const graph = this.indexer.getGraph();
+		              console.log("--- Abstract Folder Graph Debug ---");
+		              console.log("Parent -> Children Map:", graph.parentToChildren);
+		              console.log("Child -> Parents Map:", graph.childToParents);
+		              console.log("All Files:", graph.allFiles);
+		              
+		              // Detailed file check
+		              console.log("--- Detailed File Frontmatter Check ---");
+		              this.app.vault.getMarkdownFiles().forEach(file => {
+		                  const cache = this.app.metadataCache.getFileCache(file);
+		                  if (cache?.frontmatter) {
+		                      console.log(`File: ${file.path}`);
+		                      console.log(`  Parents (${this.settings.propertyName}):`, cache.frontmatter[this.settings.propertyName]);
+		                      console.log(`  Children (${this.settings.childrenPropertyName}):`, cache.frontmatter[this.settings.childrenPropertyName]);
+		                  }
+		              });
+		              console.log("-----------------------------------");
+		          }
+		      });
 
 		// Defer initial graph building until the workspace layout is ready
 		this.app.workspace.onLayoutReady(() => {
@@ -190,7 +213,7 @@ this.addCommand({
 		if (this.settings.showRibbonIcon) {
 			if (!this.ribbonIconEl) {
 				// Add the ribbon icon if it doesn't exist and setting is true
-				this.ribbonIconEl = this.addRibbonIcon("folder-tree", "Open Abstract Folders", () => {
+				this.ribbonIconEl = this.addRibbonIcon("folder-tree", "Open abstract folders", () => {
 					this.activateView();
 				});
 			}

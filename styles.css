@@ -522,3 +522,22 @@
     border-bottom: 1px solid var(--background-modifier-border);
     padding: 10px 0;
 }
+
+/* Drag and Drop Visual Feedback */
+.abstract-folder-drag-over {
+    background-color: var(--background-modifier-hover) !important;
+    border: 2px dashed var(--interactive-accent);
+    border-radius: var(--radius-s);
+}
+
+.abstract-folder-ghost-drag-image {
+    position: absolute;
+    top: -1000px;
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: var(--text-normal);
+    font-size: 12px;
+    z-index: -1;
+}

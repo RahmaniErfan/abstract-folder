@@ -10,6 +10,7 @@ import { buildFolderTree } from './utils/tree-utils';
 import { ContextMenuHandler } from "./ui/context-menu";
 import { AbstractFolderViewToolbar } from "./ui/abstract-folder-view-toolbar";
 import { FileRevealManager } from "./file-reveal-manager";
+import { DragManager } from "./ui/dnd/drag-manager";
 
 export const VIEW_TYPE_ABSTRACT_FOLDER = "abstract-folder-view";
 
@@ -24,6 +25,7 @@ export class AbstractFolderView extends ItemView {
   private contextMenuHandler: ContextMenuHandler;
   private toolbar: AbstractFolderViewToolbar;
   private fileRevealManager: FileRevealManager | undefined;
+  private dragManager: DragManager;
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -38,6 +40,7 @@ export class AbstractFolderView extends ItemView {
     this.icon = "folder-tree";
     this.navigation = false;
 
+    this.dragManager = new DragManager(this.app, this.settings);
     this.viewState = new ViewState(this.settings, this.plugin);
     this.treeRenderer = new TreeRenderer(
       this.app,
@@ -46,7 +49,8 @@ export class AbstractFolderView extends ItemView {
       this.viewState.multiSelectedPaths,
       this.getDisplayName,
       (itemEl: HTMLElement, path: string) => this.toggleCollapse(itemEl, path),
-      this.indexer // Pass the indexer here
+      this.indexer, // Pass the indexer here
+      this.dragManager
     );
     this.columnRenderer = new ColumnRenderer(
       this.app,
@@ -56,7 +60,8 @@ export class AbstractFolderView extends ItemView {
       this.viewState.multiSelectedPaths,
       this.getDisplayName,
       (node, depth, event) => this.handleColumnNodeClick(node, depth, event),
-      this.indexer // Pass the indexer here
+      this.indexer, // Pass the indexer here
+      this.dragManager
     );
     this.contextMenuHandler = new ContextMenuHandler(this.app, this.settings, this.plugin, this.indexer);
     this.toolbar = new AbstractFolderViewToolbar(
@@ -174,7 +179,7 @@ export class AbstractFolderView extends ItemView {
  
      const treeContainer = this.contentEl.createEl("div", { cls: "abstract-folder-tree" });
      rootNodes.forEach(node => {
-       this.treeRenderer.renderTreeNode(node, treeContainer, new Set(), 0);
+       this.treeRenderer.renderTreeNode(node, treeContainer, new Set(), 0, null);
      });
  
     const activeFile = this.app.workspace.getActiveFile();
