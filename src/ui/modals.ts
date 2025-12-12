@@ -176,11 +176,13 @@ export class DeleteConfirmModal extends Modal {
     private file: TFile;
     private onConfirm: (deleteChildren: boolean) => void;
     private deleteChildren: boolean = true;
+    private isMarkdownFile: boolean;
 
     constructor(app: App, file: TFile, onConfirm: (deleteChildren: boolean) => void) {
         super(app);
         this.file = file;
         this.onConfirm = onConfirm;
+        this.isMarkdownFile = file.extension === 'md';
     }
 
     onOpen() {
@@ -188,12 +190,18 @@ export class DeleteConfirmModal extends Modal {
         contentEl.createEl("h2", { text: "Delete file" });
         contentEl.createEl("p", { text: `Are you sure you want to delete "${this.file.name}"?` });
 
-        new Setting(contentEl)
-            .setName("Delete children as well?")
-            .setDesc("If enabled, all notes and folders directly linked as children to this file will also be deleted.")
-            .addToggle(toggle => toggle
-                .setValue(this.deleteChildren)
-                .onChange(value => this.deleteChildren = value));
+        // Only show the option to delete children if the file is a markdown file, as only markdown files can be abstract parents.
+        if (this.isMarkdownFile) {
+            new Setting(contentEl)
+                .setName("Delete children as well?")
+                .setDesc("If enabled, all notes and folders directly linked as children to this file will also be deleted.")
+                .addToggle(toggle => toggle
+                    .setValue(this.deleteChildren) // Default to true for markdown files
+                    .onChange(value => this.deleteChildren = value));
+        } else {
+            // If it's a non-markdown file, this option doesn't make sense, so ensure deleteChildren is false.
+            this.deleteChildren = false;
+        }
 
         const buttonContainer = contentEl.createDiv({ cls: "modal-button-container" });
         
@@ -219,24 +227,32 @@ export class BatchDeleteConfirmModal extends Modal {
     private files: TFile[];
     private onConfirm: (deleteChildren: boolean) => void;
     private deleteChildren: boolean = true;
+    private hasMarkdownFiles: boolean;
 
     constructor(app: App, files: TFile[], onConfirm: (deleteChildren: boolean) => void) {
         super(app);
         this.files = files;
         this.onConfirm = onConfirm;
+        this.hasMarkdownFiles = files.some(file => file.extension === 'md');
     }
 
     onOpen() {
         const { contentEl } = this;
         contentEl.createEl("h2", { text: `Delete ${this.files.length} items` });
         contentEl.createEl("p", { text: `Are you sure you want to delete these ${this.files.length} items?` });
-        
-        new Setting(contentEl)
-            .setName("Delete children as well?")
-            .setDesc("If enabled, all notes and folders directly linked as children to these files will also be deleted.")
-            .addToggle(toggle => toggle
-                .setValue(this.deleteChildren)
-                .onChange(value => this.deleteChildren = value));
+
+        // Only show the option to delete children if at least one selected file is a markdown file.
+        if (this.hasMarkdownFiles) {
+            new Setting(contentEl)
+                .setName("Delete children as well?")
+                .setDesc("If enabled, all notes and folders directly linked as children to these files will also be deleted.")
+                .addToggle(toggle => toggle
+                    .setValue(this.deleteChildren) // Default to true if markdown files are present
+                    .onChange(value => this.deleteChildren = value));
+        } else {
+            // If no markdown files are selected, this option doesn't make sense, so ensure deleteChildren is false.
+            this.deleteChildren = false;
+        }
 
         const list = contentEl.createEl("ul");
         // Show up to 5 files, then "...and X more"
