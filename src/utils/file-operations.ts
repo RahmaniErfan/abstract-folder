@@ -63,6 +63,28 @@ aliases:
         const file = await app.vault.create(fileName, initialContent);
         new Notice(`Created: ${fileName}`);
 
+        // Only add to parent's children list if the child is NOT a markdown file (since markdown files define their own parent)
+        // AND the parent is a markdown file (so it can have frontmatter)
+        if (fileExtension !== '.md' && parentFile && parentFile.extension === 'md') {
+            await app.fileManager.processFrontMatter(parentFile, (frontmatter) => {
+                const childrenPropertyName = settings.childrenPropertyName;
+                const currentChildren = frontmatter[childrenPropertyName];
+                let childrenArray: string[] = [];
+
+                if (typeof currentChildren === 'string') {
+                    childrenArray = [currentChildren];
+                } else if (Array.isArray(currentChildren)) {
+                    childrenArray = currentChildren;
+                }
+
+                const newChildLink = `[[${file.name}]]`; // Link to the new file, including extension
+                if (!childrenArray.includes(newChildLink)) {
+                    childrenArray.push(newChildLink);
+                }
+
+                frontmatter[childrenPropertyName] = childrenArray.length === 1 ? childrenArray[0] : childrenArray;
+            });
+        }
 
         app.workspace.getLeaf(true).openFile(file);
         app.workspace.trigger('abstract-folder:graph-updated');

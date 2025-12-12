@@ -1,5 +1,10 @@
 # Changelog
 
+## Version 1.2.7
+
+**Fixes:**
+*   **Abstract Child Creation for Canvas/Bases**: Resolved an issue where creating abstract child files for Canvas (.canvas) and Bases (.base) resulted in root files or JSON parsing errors. This was fixed by no longer attempting to add frontmatter to these JSON-based files. Instead, when a parent file (which must be a Markdown note) is specified, the new Canvas or Base file is added to the parent's `children` frontmatter property, including its full filename and extension (e.g., `[[my_canvas.canvas]]`), allowing the plugin's indexer to correctly establish the parent-child relationship.
+
 ## Version 1.2.6
 
 **Fixes:**
