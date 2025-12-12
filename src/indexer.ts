@@ -116,6 +116,16 @@ getGraph(): FileGraph {
         }
       })
     );
+
+    // Register event for file creation
+    this.plugin.registerEvent(
+      this.app.vault.on("create", (file) => {
+        if (file instanceof TFile) {
+          // A new file has been created, rebuild the graph to include it
+          this.rebuildGraphAndTriggerUpdate();
+        }
+      })
+    );
   }
 
   private buildGraph() {
