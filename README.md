@@ -24,9 +24,35 @@ Standard folders are rigid. A file usually belongs to only one folder in your sy
   * **Files *are* Folders:** Any file can act as a parent folder for other files.
   * **No Physical Moving:** Reorganize your entire vault hierarchy by editing text. Your actual file system structure remains untouched.
 
-![Abstract Folder Preview](https://github.com/user-attachments/assets/e2c4c7f0-f8e3-486f-bee4-31ef48e67783)
+-----
 
-<img width="1000" height="737" alt="image" src="https://github.com/user-attachments/assets/67189b5f-71a3-4615-95cd-f7e35bbd3722" />
+## Visual Demonstration
+
+<p align="center">
+    
+### 1. The Conversion Command
+The command palette option to automatically convert your physical folder structure into Abstract Folders, and vice versa, exporting from Abstract Folders into physical folders.
+![Conversion edited](https://github.com/user-attachments/assets/2dda076f-242c-41a4-b267-b5df0877a319)
+
+<br>
+
+### 2. Multi-Parenting Example
+A single note appears under multiple different "parent" folders in the Abstract Folder view.
+![Multi Parent Edited](https://github.com/user-attachments/assets/495cfee8-e647-4725-b785-ebe1b1629d63)
+
+<br>
+
+### 3. Drag and Drop Functionality
+Quickly move and reorganize your abstract files directly within the view.
+![AF Drag n drop Edited](https://github.com/user-attachments/assets/9cb8b9f1-9ad1-41eb-b69a-91c82b706449)
+
+<br>
+
+### 4. Custom Groups View
+Using groups to filter and manage a subset of your abstract folders.
+![AF ACTIVE GROUP Edited](https://github.com/user-attachments/assets/b1b2e1c2-e0fd-41c8-966a-08bab3ee5f1d)
+
+</p>
 
 -----
 
