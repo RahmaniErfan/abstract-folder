@@ -103,14 +103,7 @@ export async function convertFoldersToPluginFormat(
                         await addChildToParentNoteFrontmatter(app, settings, child, folderNote);
                         updatedCount++;
                     }
-                } else if (child instanceof TFolder) {
-                    // Folders will be linked in the second pass, but for now, we can add them as children to the immediate parent's folder note
-                    // This creates the link from ParentFolder.md -> ChildFolder (as a link).
-                    // The ChildFolder.md -> ParentFolder.md link is handled in the second pass.
-                    // This ensures that "subfolders" are seen as children of their parent's folder note.
-                    await addChildToParentNoteFrontmatter(app, settings, child, folderNote);
-                    updatedCount++;
-                }
+            }
             }
         }
     }
