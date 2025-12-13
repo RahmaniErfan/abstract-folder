@@ -158,8 +158,7 @@ export class ContextMenuHandler {
         menu.addSeparator();
         
         const fileCache = this.app.metadataCache.getFileCache(file);
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        const parentProperty = fileCache?.frontmatter?.[this.settings.propertyName];
+        const parentProperty = fileCache?.frontmatter?.[this.settings.propertyName] as string | string[] | undefined;
         let isCurrentlyHidden = false;
         if (parentProperty) {
             const parentLinks = Array.isArray(parentProperty) ? parentProperty : [parentProperty];
@@ -191,8 +190,7 @@ export class ContextMenuHandler {
             .setTitle("Set/change icon")
             .setIcon("image")
             .onClick(() => {
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-                const currentIcon = this.app.metadataCache.getFileCache(file)?.frontmatter?.icon;
+                const currentIcon = this.app.metadataCache.getFileCache(file)?.frontmatter?.icon as string | undefined;
                 new IconModal(this.app, (result) => {
                     updateFileIcon(this.app, file, result).catch(console.error);
                 }, currentIcon as string || "").open();

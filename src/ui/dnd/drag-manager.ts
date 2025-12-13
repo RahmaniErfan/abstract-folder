@@ -33,8 +33,7 @@ export class DragManager {
 
         // Attach dragend listener to cleanup if drop doesn't fire (e.g. invalid drop target)
         const el = event.currentTarget as HTMLElement;
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-        el.addEventListener("dragend", this.handleDragEnd.bind(this), { once: true });
+        el.addEventListener("dragend", (e) => this.handleDragEnd(e), { once: true });
 
         const sourcePaths = multiSelectedPaths.has(node.path)
             ? Array.from(multiSelectedPaths)
