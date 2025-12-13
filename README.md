@@ -72,6 +72,7 @@ Using groups to filter and manage a subset of your abstract folders.
 ## Key Features
 
   * **Virtual Hierarchy:** Create deep nesting and folder structures entirely via metadata.
+  * **Drag & Drop:** Reorganize your abstract folders naturally. Drag to move, or hold `Ctrl`/`Cmd` to copy (add to a second parent).
   * **Multi-Parenting:** Assign a file to multiple "parents" using the `parent` property. It will appear in all of them in the tree view.
   * **Parent-Defined Children:** Use the `children` property to manually list files that belong to a parent file.
   * **Non-Markdown Support:** Using the "Parent-Defined Children" feature, you can organize files that don't have frontmatter (like Canvas, Excalidraw, Images, or PDFs) into your abstract folders.
@@ -122,6 +123,14 @@ children:
   - "[[Meeting Recording.mp3]]"
 ---
 ```
+
+### 3\. Drag and Drop
+
+You can reorganize your structure directly in the view.
+
+*   **Move (Default):** Dragging a file from Folder A to Folder B will *move* it (remove it from A, add it to B).
+*   **Copy (Add Parent):** Holding `Ctrl` (Windows/Linux) or `Cmd` (macOS) while dragging will *copy* the file (keep it in A, and *also* add it to B). This is how you create multi-parent setups quickly.
+*   **Non-Markdown Files:** Dragging images or PDFs works too! The plugin will automatically update the `children` list of the target parent folder.
 
 -----
 
