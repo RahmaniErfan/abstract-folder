@@ -57,6 +57,8 @@ export class AbstractFolderViewToolbar {
         this.expandAllAction = this.addAction("chevrons-up-down", "Expand all folders", () => this.expandAllView());
         this.collapseAllAction = this.addAction("chevrons-down-up", "Collapse all folders", () => this.collapseAllView());
         
+        this.addAction("lucide-folder-sync", "Convert folder structure", (evt: MouseEvent) => this.showConversionMenu(evt));
+
         this.viewStyleToggleAction = this.addAction("list", "Switch view style", () => this.viewState.toggleViewStyle());
         this.updateViewStyleToggleButton();
         this.updateButtonStates();
@@ -155,6 +157,30 @@ export class AbstractFolderViewToolbar {
                     this.settings.activeGroupId = null;
                     await this.plugin.saveSettings();
                     this.renderView(); // Trigger re-render of the view
+                })
+        );
+
+        menu.showAtMouseEvent(event);
+    }
+
+    private showConversionMenu(event: MouseEvent): void {
+        const menu = new Menu();
+
+        menu.addItem((item) =>
+            item
+                .setTitle("Convert physical folder to abstract folder")
+                .setIcon("folder-symlink")
+                .onClick(() => {
+                    this.plugin.app.commands.executeCommandById("abstract-folder:convert-folder-to-plugin");
+                })
+        );
+
+        menu.addItem((item) =>
+            item
+                .setTitle("Create folder structure from plugin format")
+                .setIcon("folder-plus")
+                .onClick(() => {
+                    this.plugin.app.commands.executeCommandById("abstract-folder:create-folders-from-plugin");
                 })
         );
 

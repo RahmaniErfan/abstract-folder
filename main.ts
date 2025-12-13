@@ -84,44 +84,43 @@ this.addCommand({
 	},
 });
 
+this.addCommand({
+	id: "convert-folder-to-plugin",
+	name: "Convert folder structure to plugin format",
+	callback: () => {
+		new FolderSelectionModal(this.app, (folder: TFolder) => {
+			new ConversionOptionsModal(this.app, folder, (options) => {
+				convertFoldersToPluginFormat(this.app, this.settings, folder, options);
+			}).open();
+		}).open();
+	}
+});
 	this.addCommand({
-		id: "convert-folder-to-plugin",
-		name: "Convert folder structure to plugin format",
+		id: "create-folders-from-plugin",
+		name: "Create folder structure from plugin format",
 		callback: () => {
-			new FolderSelectionModal(this.app, (folder: TFolder) => {
-				new ConversionOptionsModal(this.app, folder, (options) => {
-					convertFoldersToPluginFormat(this.app, this.settings, folder, options);
+			new ScopeSelectionModal(this.app, (scope) => {
+				new DestinationPickerModal(this.app, (parentFolder: TFolder) => {
+					new NewFolderNameModal(this.app, parentFolder, (destinationPath: string, placeIndexFileInside: boolean) => {
+						// Automatically add the export folder to excluded paths if not already present
+						if (!this.settings.excludedPaths.includes(destinationPath)) {
+							this.settings.excludedPaths.push(destinationPath);
+							this.saveSettings().then(() => {
+								this.indexer.updateSettings(this.settings);
+							});
+						}
+
+						const rootScope = (scope instanceof TFile) ? scope : undefined;
+						generateFolderStructurePlan(this.app, this.settings, this.indexer, destinationPath, placeIndexFileInside, rootScope).then(plan => {
+							new SimulationModal(this.app, plan.conflicts, (resolvedConflicts) => {
+								executeFolderGeneration(this.app, plan);
+							}).open();
+						});
+					}).open();
 				}).open();
 			}).open();
 		}
 	});
-		this.addCommand({
-			id: "create-folders-from-plugin",
-			name: "Create folder structure from plugin format",
-			callback: () => {
-				new ScopeSelectionModal(this.app, (scope) => {
-					new DestinationPickerModal(this.app, (parentFolder: TFolder) => {
-						new NewFolderNameModal(this.app, parentFolder, (destinationPath: string, placeIndexFileInside: boolean) => {
-							// Automatically add the export folder to excluded paths if not already present
-							if (!this.settings.excludedPaths.includes(destinationPath)) {
-								this.settings.excludedPaths.push(destinationPath);
-								this.saveSettings().then(() => {
-									this.indexer.updateSettings(this.settings);
-								});
-							}
-
-							const rootScope = (scope instanceof TFile) ? scope : undefined;
-							generateFolderStructurePlan(this.app, this.settings, this.indexer, destinationPath, placeIndexFileInside, rootScope).then(plan => {
-								new SimulationModal(this.app, plan.conflicts, (resolvedConflicts) => {
-									executeFolderGeneration(this.app, plan);
-								}).open();
-							});
-						}).open();
-					}).open();
-				}).open();
-			}
-		});
-
 		this.addSettingTab(new AbstractFolderSettingTab(this.app, this));
 
 		      this.addCommand({

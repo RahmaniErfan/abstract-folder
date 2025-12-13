@@ -8,6 +8,7 @@ import { AbstractFolderView } from "../../view"; // Import AbstractFolderView
 export interface DragData {
     sourcePaths: string[];
     sourceParentPath: string;
+    isCopy: boolean; // Add isCopy flag
 }
 
 export class DragManager {
@@ -40,11 +41,11 @@ export class DragManager {
 
         this.dragData = {
             sourcePaths: sourcePaths,
-            sourceParentPath: parentPath
+            sourceParentPath: parentPath,
+            isCopy: false // Will be determined dynamically during dragover/drop
         };
-
-        // Set drag image/effect
-        event.dataTransfer.effectAllowed = "move";
+        // Set drag image/effect to allow both move and copy
+        event.dataTransfer.effectAllowed = "copyMove";
         
         // We can put the first path in text/plain for external apps, though mostly internal
         event.dataTransfer.setData("text/plain", node.path);
@@ -110,9 +111,11 @@ export class DragManager {
             }
         }
 
+        const isCopyOperation = event.ctrlKey || event.altKey || event.metaKey;
+
         if (isValid) {
             event.preventDefault(); // Necessary to allow dropping
-            event.dataTransfer!.dropEffect = "move";
+            event.dataTransfer!.dropEffect = isCopyOperation ? "copy" : "move";
             targetEl.addClass("abstract-folder-drag-over");
             targetEl.removeClass("abstract-folder-drag-invalid");
         } else {
@@ -144,7 +147,8 @@ export class DragManager {
 
         event.preventDefault();
         event.stopPropagation();
-
+        
+        const isCopyOperation = event.ctrlKey || event.altKey || event.metaKey;
         try {
             const { sourcePaths, sourceParentPath } = this.dragData;
             const targetPath = targetNode?.path ?? ""; // Use empty string for root target
@@ -152,8 +156,8 @@ export class DragManager {
             // Validation: Don't drop into self
             if (sourcePaths.includes(targetPath)) return;
             
-            // Validation: Don't drop into immediate parent (no-op)
-            if (targetPath === sourceParentPath) return;
+            // Validation: Don't drop into immediate parent (no-op for move, but allowed for copy)
+            if (!isCopyOperation && targetPath === sourceParentPath) return;
 
             // Validation: Target must be MD or virtual (if target is a specific node)
             if (targetNode?.file && targetNode.file.extension !== 'md') {
@@ -169,7 +173,7 @@ export class DragManager {
             }
 
             if (filesToMove.length > 0) {
-                await moveFiles(this.app, this.settings, filesToMove, targetPath, sourceParentPath, this.indexer);
+                await moveFiles(this.app, this.settings, filesToMove, targetPath, sourceParentPath, this.indexer, isCopyOperation);
                 
                 // Expand target folder if setting is enabled and target is a folder
                 if (this.settings.expandTargetFolderOnDrop && targetNode?.isFolder) {

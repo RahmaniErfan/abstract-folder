@@ -1,5 +1,15 @@
 import { TFile } from "obsidian";
 
+// Extend the App interface to include the 'commands' property,
+// which is available in Obsidian's internal API but might not be in default types.
+declare module "obsidian" {
+  interface App {
+    commands: {
+      executeCommandById(commandId: string): void;
+    };
+  }
+}
+
 export const HIDDEN_FOLDER_ID = "abstract-hidden-root"; // Unique ID for the special "Hidden" folder
 
 export interface ParentChildMap {

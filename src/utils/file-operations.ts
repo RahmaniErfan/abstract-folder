@@ -227,7 +227,8 @@ export async function moveFiles(
     files: TFile[],
     targetParentPath: string,
     sourceParentPath: string | null,
-    indexer: FolderIndexer
+    indexer: FolderIndexer,
+    isCopy: boolean
 ) {
     const targetParentFile = app.vault.getAbstractFileByPath(targetParentPath);
 
@@ -264,8 +265,8 @@ export async function moveFiles(
                 parentLinks = currentParents;
             }
 
-            // Remove the old source parent link
-            if (sourceParentPath) {
+            // Remove the old source parent link ONLY if not a copy operation
+            if (sourceParentPath && !isCopy) {
                 // We need to robustly identify the link to remove (could be [[Note]], [[Note.md]], Note)
                 const sourceParentFile = app.vault.getAbstractFileByPath(sourceParentPath);
                 if (sourceParentFile) {
@@ -320,8 +321,8 @@ export async function moveFiles(
     // For Non-MD files, we must update the PARENT files (both Source and Target).
     // This requires Source and Target to be Markdown files themselves.
     
-    // 2a. Remove from Source Parent (if it exists and is MD)
-    if (sourceParentPath && nonMdFiles.length > 0) {
+    // 2a. Remove from Source Parent (if it exists and is MD) ONLY if not a copy operation
+    if (sourceParentPath && nonMdFiles.length > 0 && !isCopy) {
         const sourceParentFile = app.vault.getAbstractFileByPath(sourceParentPath);
         if (sourceParentFile instanceof TFile && sourceParentFile.extension === 'md') {
             await app.fileManager.processFrontMatter(sourceParentFile, (frontmatter) => {
