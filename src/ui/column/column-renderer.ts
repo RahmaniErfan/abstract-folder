@@ -64,6 +64,7 @@ export class ColumnRenderer {
         itemEl.addEventListener("dragstart", (e) => this.dragManager.handleDragStart(e, node, parentPath, this.multiSelectedPaths));
         itemEl.addEventListener("dragover", (e) => this.dragManager.handleDragOver(e, node));
         itemEl.addEventListener("dragleave", (e) => this.dragManager.handleDragLeave(e));
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         itemEl.addEventListener("drop", (e) => this.dragManager.handleDrop(e, node));
 
         if (node.isFolder) itemEl.addClass("is-folder");

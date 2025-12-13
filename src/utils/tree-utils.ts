@@ -20,7 +20,7 @@ export function buildFolderTree(
             path: path,
             children: [],
             isFolder: Object.keys(parentToChildren).includes(path) || path === HIDDEN_FOLDER_ID,
-            icon: file instanceof TFile ? app.metadataCache.getFileCache(file)?.frontmatter?.icon : undefined,
+            icon: file instanceof TFile ? app.metadataCache.getFileCache(file)?.frontmatter?.icon as string | undefined : undefined,
             isHidden: path === HIDDEN_FOLDER_ID,
         });
     });

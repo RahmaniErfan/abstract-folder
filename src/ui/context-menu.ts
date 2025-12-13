@@ -50,12 +50,14 @@ export class ContextMenuHandler {
                 .setTitle(`Delete ${selectedFiles.length} items`)
                 .setIcon("trash")
                 .onClick(() => {
-                    new BatchDeleteConfirmModal(this.app, selectedFiles, async (deleteChildren: boolean) => {
-                        for (const file of selectedFiles) {
-                            await deleteAbstractFile(this.app, file, deleteChildren, this.indexer);
-                        }
-                        multiSelectedPaths.clear();
-                        this.plugin.app.workspace.trigger('abstract-folder:graph-updated');
+                    new BatchDeleteConfirmModal(this.app, selectedFiles, (deleteChildren: boolean) => {
+                        const deletePromises = selectedFiles.map(file =>
+                            deleteAbstractFile(this.app, file, deleteChildren, this.indexer)
+                        );
+                        Promise.all(deletePromises).then(() => {
+                            multiSelectedPaths.clear();
+                            this.plugin.app.workspace.trigger('abstract-folder:graph-updated');
+                        }).catch(console.error);
                     }).open();
                 })
         );
@@ -77,8 +79,9 @@ export class ContextMenuHandler {
             .setTitle("Delete file")
             .setIcon("trash")
             .onClick(() => {
-                new DeleteConfirmModal(this.app, node.file!, async (deleteChildren: boolean) => {
-                    await deleteAbstractFile(this.app, node.file!, deleteChildren, this.indexer);
+                new DeleteConfirmModal(this.app, node.file!, (deleteChildren: boolean) => {
+                    deleteAbstractFile(this.app, node.file!, deleteChildren, this.indexer)
+                        .catch(console.error);
                 }).open();
             })
         );
@@ -92,7 +95,8 @@ export class ContextMenuHandler {
             .setIcon("file-plus")
             .onClick(() => {
                 new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
-                createAbstractChildFile(this.app, this.settings, childName, parentFile, childType);
+                    createAbstractChildFile(this.app, this.settings, childName, parentFile, childType)
+                        .catch(console.error);
                 }, 'note').open();
             })
         );
@@ -103,7 +107,8 @@ export class ContextMenuHandler {
             .setIcon("layout-dashboard")
             .onClick(() => {
                 new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
-                createAbstractChildFile(this.app, this.settings, childName, parentFile, childType);
+                    createAbstractChildFile(this.app, this.settings, childName, parentFile, childType)
+                        .catch(console.error);
                 }, 'canvas').open();
             })
         );
@@ -114,7 +119,8 @@ export class ContextMenuHandler {
             .setIcon("database")
             .onClick(() => {
                 new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
-                createAbstractChildFile(this.app, this.settings, childName, parentFile, childType);
+                    createAbstractChildFile(this.app, this.settings, childName, parentFile, childType)
+                        .catch(console.error);
                 }, 'base').open();
             })
         );
@@ -127,7 +133,7 @@ export class ContextMenuHandler {
             .setTitle("Open in new tab")
             .setIcon("file-plus")
             .onClick(() => {
-                this.app.workspace.getLeaf('tab').openFile(file);
+                this.app.workspace.getLeaf('tab').openFile(file).catch(console.error);
             })
         );
 
@@ -136,7 +142,7 @@ export class ContextMenuHandler {
             .setTitle("Open to the right")
             .setIcon("separator-vertical")
             .onClick(() => {
-                this.app.workspace.getLeaf('split').openFile(file);
+                this.app.workspace.getLeaf('split').openFile(file).catch(console.error);
             })
         );
 
@@ -145,13 +151,14 @@ export class ContextMenuHandler {
             .setTitle("Open in new window")
             .setIcon("popout")
             .onClick(() => {
-                this.app.workspace.getLeaf('window').openFile(file);
+                this.app.workspace.getLeaf('window').openFile(file).catch(console.error);
             })
         );
 
         menu.addSeparator();
         
         const fileCache = this.app.metadataCache.getFileCache(file);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const parentProperty = fileCache?.frontmatter?.[this.settings.propertyName];
         let isCurrentlyHidden = false;
         if (parentProperty) {
@@ -165,7 +172,7 @@ export class ContextMenuHandler {
                 .setTitle("Unhide abstract note")
                 .setIcon("eye")
                 .onClick(() => {
-                toggleHiddenStatus(this.app, file, this.settings);
+                toggleHiddenStatus(this.app, file, this.settings).catch(console.error);
                 })
             );
         } else {
@@ -174,7 +181,7 @@ export class ContextMenuHandler {
                 .setTitle("Hide abstract note")
                 .setIcon("eye-off")
                 .onClick(() => {
-                toggleHiddenStatus(this.app, file, this.settings);
+                toggleHiddenStatus(this.app, file, this.settings).catch(console.error);
                 })
             );
         }
@@ -184,13 +191,14 @@ export class ContextMenuHandler {
             .setTitle("Set/change icon")
             .setIcon("image")
             .onClick(() => {
-                const currentIcon = this.app.metadataCache.getFileCache(file)?.frontmatter?.icon || "";
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                const currentIcon = this.app.metadataCache.getFileCache(file)?.frontmatter?.icon;
                 new IconModal(this.app, (result) => {
-                updateFileIcon(this.app, file, result);
-                }, currentIcon).open();
+                    updateFileIcon(this.app, file, result).catch(console.error);
+                }, currentIcon as string || "").open();
             })
         );
 
-        this.addCreationItems(menu, file); // Call addCreationItems with the current file as parent
+        this.addCreationItems(menu, file);
     }
 }

@@ -27,7 +27,7 @@ export class ViewState {
 
     toggleViewStyle() {
         this.settings.viewStyle = this.settings.viewStyle === 'tree' ? 'column' : 'tree';
-        this.plugin.saveSettings(); // Save settings via the plugin instance
+        this.plugin.saveSettings().catch(console.error); // Save settings via the plugin instance
         this.plugin.app.workspace.trigger('abstract-folder:view-style-changed'); // Trigger re-render and button update
     }
 

@@ -29,14 +29,14 @@ export type ChildFileType = 'note' | 'canvas' | 'base';
 export class CreateAbstractChildModal extends Modal {
   private settings: AbstractFolderPluginSettings;
   private childName = "";
-  private childType: ChildFileType; // Default handled by constructor or method
+  private childType: ChildFileType;
   private onSubmit: (childName: string, childType: ChildFileType) => void;
 
   constructor(app: App, settings: AbstractFolderPluginSettings, onSubmit: (childName: string, childType: ChildFileType) => void, initialChildType: ChildFileType = 'note') {
     super(app);
     this.settings = settings;
     this.onSubmit = onSubmit;
-    this.childType = initialChildType; // Set initial type from parameter
+    this.childType = initialChildType;
   }
 
   onOpen() {
@@ -66,7 +66,7 @@ export class CreateAbstractChildModal extends Modal {
         dropdown.addOption('note', 'Markdown note');
         dropdown.addOption('canvas', 'Canvas');
         dropdown.addOption('base', 'Bases');
-        dropdown.setValue(this.childType); // Set initial value from constructor
+        dropdown.setValue(this.childType);
         dropdown.onChange((value: ChildFileType) => {
           this.childType = value;
         });
@@ -118,13 +118,13 @@ export class RenameModal extends Modal {
             .addText((text) => {
                 text.setValue(this.newName);
                 text.inputEl.focus();
-                text.inputEl.select(); // Select all text for easy replacement
+                text.inputEl.select();
                 text.onChange((value) => {
                     this.newName = value;
                 });
                 text.inputEl.addEventListener("keydown", (e) => {
                     if (e.key === "Enter") {
-                        this.submit();
+                        this.submit().catch((error) => console.error(error));
                     }
                 });
             });
@@ -135,7 +135,7 @@ export class RenameModal extends Modal {
                     .setButtonText("Rename")
                     .setCta()
                     .onClick(() => {
-                        this.submit();
+                        this.submit().catch((error) => console.error(error));
                     })
             );
     }
@@ -196,7 +196,7 @@ export class DeleteConfirmModal extends Modal {
                 .setName("Delete children as well?")
                 .setDesc("If enabled, all notes and folders directly linked as children to this file will also be deleted.")
                 .addToggle(toggle => toggle
-                    .setValue(this.deleteChildren) // Default to true for markdown files
+                    .setValue(this.deleteChildren)
                     .onChange(value => this.deleteChildren = value));
         } else {
             // If it's a non-markdown file, this option doesn't make sense, so ensure deleteChildren is false.
@@ -247,7 +247,7 @@ export class BatchDeleteConfirmModal extends Modal {
                 .setName("Delete children as well?")
                 .setDesc("If enabled, all notes and folders directly linked as children to these files will also be deleted.")
                 .addToggle(toggle => toggle
-                    .setValue(this.deleteChildren) // Default to true if markdown files are present
+                    .setValue(this.deleteChildren)
                     .onChange(value => this.deleteChildren = value));
         } else {
             // If no markdown files are selected, this option doesn't make sense, so ensure deleteChildren is false.

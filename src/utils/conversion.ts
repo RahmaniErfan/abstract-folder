@@ -1,6 +1,7 @@
 import { App, TFolder, TFile, TAbstractFile, Notice, normalizePath } from "obsidian";
 import { AbstractFolderPluginSettings } from "../settings";
 import { FolderIndexer } from "../indexer";
+import { AbstractFolderFrontmatter } from "../types";
 
 export interface ConversionOptions {
     createParentNotes: boolean;
@@ -16,7 +17,7 @@ export interface GenerationOptions {
 export interface FileConflict {
     file: TFile;
     targetPaths: string[];
-    resolution?: 'duplicate' | string; // 'duplicate' or the specific target path to use
+    resolution?: string; // 'duplicate' or the specific target path to use
 }
 
 /**
@@ -174,15 +175,17 @@ async function addChildToParentNoteFrontmatter(
     childFile: TAbstractFile, // Can be TFile or TFolder
     parentNote: TFile
 ) {
-    await app.fileManager.processFrontMatter(parentNote, (frontmatter) => {
+    await app.fileManager.processFrontMatter(parentNote, (frontmatter: AbstractFolderFrontmatter) => {
         const childrenPropertyName = settings.childrenPropertyName || "children";
-        let currentChildren = frontmatter[childrenPropertyName] || [];
+        const rawChildren = frontmatter[childrenPropertyName];
+        let currentChildren: string[] = [];
 
-        if (typeof currentChildren === 'string') {
-            currentChildren = [currentChildren];
-        } else if (!Array.isArray(currentChildren)) {
-            if (currentChildren) currentChildren = [String(currentChildren)];
-            else currentChildren = [];
+        if (typeof rawChildren === 'string') {
+            currentChildren = [rawChildren];
+        } else if (Array.isArray(rawChildren)) {
+            currentChildren = rawChildren as string[];
+        } else if (typeof rawChildren === 'number' || typeof rawChildren === 'boolean') {
+             currentChildren = [String(rawChildren)];
         }
 
         // Use the basename for the link, regardless of file type
@@ -203,17 +206,18 @@ async function linkChildToParent(
     strategy: 'append' | 'replace'
 ) {
     // 1. Update CHILD to point to PARENT (propertyName)
-    await app.fileManager.processFrontMatter(child, (frontmatter) => {
+    await app.fileManager.processFrontMatter(child, (frontmatter: AbstractFolderFrontmatter) => {
         const parentPropertyName = settings.propertyName || "parent";
-        let currentParents = frontmatter[parentPropertyName] || [];
+        const rawParents = frontmatter[parentPropertyName];
+        let currentParents: string[] = [];
 
         // Normalize to array
-        if (typeof currentParents === 'string') {
-            currentParents = [currentParents];
-        } else if (!Array.isArray(currentParents)) {
-             // Handle potential weirdness or single value
-             if (currentParents) currentParents = [String(currentParents)];
-             else currentParents = [];
+        if (typeof rawParents === 'string') {
+            currentParents = [rawParents];
+        } else if (Array.isArray(rawParents)) {
+             currentParents = rawParents as string[];
+        } else if (typeof rawParents === 'number' || typeof rawParents === 'boolean') {
+             currentParents = [String(rawParents)];
         }
 
         const parentLink = `[[${parent.basename}]]`;
@@ -234,14 +238,14 @@ async function linkChildToParent(
  * Generates a physical folder structure from the plugin's abstract folder format.
  * This function prepares the operations but does not execute them until confirmed.
  */
-export async function generateFolderStructurePlan(
+export function generateFolderStructurePlan(
     app: App,
     settings: AbstractFolderPluginSettings,
     indexer: FolderIndexer,
     destinationPath: string,
     placeIndexFileInside: boolean,
     rootScope?: TFile
-): Promise<{ fileTree: Map<string, string[]>, conflicts: FileConflict[] }> {
+): { fileTree: Map<string, string[]>, conflicts: FileConflict[] } {
     const normalizedDestinationPath = normalizePath(destinationPath);
     const fileTree = new Map<string, string[]>(); // FolderPath -> List of FilePaths to move/copy there
     const conflicts: FileConflict[] = [];
@@ -251,7 +255,6 @@ export async function generateFolderStructurePlan(
     const graph = indexer.getGraph();
     const parentToChildrenMap = graph.parentToChildren;
 
-    // Helper to get children of a single file from the graph
     const getChildren = (file: TFile): Set<TFile> => {
         const childrenFiles = new Set<TFile>();
         const childPaths = parentToChildrenMap[file.path];
@@ -267,36 +270,26 @@ export async function generateFolderStructurePlan(
         return childrenFiles;
     };
 
-    // 2. Map files to their new folders
     const processNode = (file: TFile, currentPath: string, visited: Set<string>) => {
-        if (visited.has(file.path)) return; // Cycle detection
+        if (visited.has(file.path)) return;
         visited.add(file.path);
 
-        // This file 'file' acts as a folder at 'currentPath'
         const children = getChildren(file);
         
         if (children && children.size > 0) {
             const newFolderPath = `${currentPath}/${file.basename}`;
             
-            // If placeIndexFileInside is true, we put the PARENT file inside the new folder too
             if (placeIndexFileInside) {
                 if (!fileDestinations.has(file.path)) fileDestinations.set(file.path, []);
                 
-                // If we are moving it inside, we should remove it from the currentPath (outside)
-                // to avoid duplication (having it both outside and inside)
                 const targets = fileDestinations.get(file.path)!;
                 const outsideIndex = targets.indexOf(currentPath);
                 if (outsideIndex > -1) {
                     targets.splice(outsideIndex, 1);
                 }
                 
-                // We add it to the new folder.
                 targets.push(newFolderPath);
             } else {
-                // If placeIndexFileInside is FALSE (OFF), the user wants a pure folder structure.
-                // This means the parent file itself should NOT be included in the export (it becomes just a folder).
-                // We must remove the file from its currently assigned destination (outside/sibling).
-                
                  const targets = fileDestinations.get(file.path);
                  if (targets) {
                      const outsideIndex = targets.indexOf(currentPath);
@@ -307,13 +300,11 @@ export async function generateFolderStructurePlan(
             }
 
             for (const child of children) {
-                if (child.path === file.path) continue; // Prevent self-reference loops
+                if (child.path === file.path) continue;
 
-                // Record that 'child' belongs in 'newFolderPath'
                 if (!fileDestinations.has(child.path)) fileDestinations.set(child.path, []);
                 fileDestinations.get(child.path)!.push(newFolderPath);
 
-                // Recurse
                 processNode(child, newFolderPath, new Set(visited));
             }
         }
@@ -398,7 +389,6 @@ export async function executeFolderGeneration(
     const conflictMap = new Map<string, FileConflict>();
     conflicts.forEach(c => conflictMap.set(c.file.path, c));
 
-    // Helper to recursively create folders
     const createFolderRecursively = async (path: string) => {
         const parts = path.split('/');
         let currentPath = "";
@@ -410,7 +400,6 @@ export async function executeFolderGeneration(
                 try {
                     await app.vault.createFolder(currentPath);
                 } catch (error) {
-                    // Ignore error if it already exists (race condition) or handled
                      const check = app.vault.getAbstractFileByPath(currentPath);
                      if (!check) {
                          console.error(`[Abstract Folder] Failed to create folder ${currentPath}:`, error);
@@ -422,24 +411,20 @@ export async function executeFolderGeneration(
 
     for (const [folderPath, filePaths] of fileTree.entries()) {
         
-        // 1. Create Folder (Recursively)
         await createFolderRecursively(folderPath);
 
-        // 2. Move/Copy Files
         for (const filePath of filePaths) {
             const file = app.vault.getAbstractFileByPath(filePath);
             if (file instanceof TFile) {
                 const conflict = conflictMap.get(filePath);
                 let action = 'copy';
                 
-                // If it's a conflict and resolution is 'resolve' (pick one), we check if THIS folder is the chosen one.
                 if (conflict) {
                     if (conflict.resolution === 'duplicate') {
                         action = 'copy';
                     } else if (conflict.resolution === folderPath) {
                         action = 'move';
                     } else {
-                        // This folder was NOT chosen. Skip.
                         continue;
                     }
                 } else {
@@ -450,7 +435,6 @@ export async function executeFolderGeneration(
                 if (action === 'copy') {
                      await app.vault.copy(file, newFilePath);
                 } else {
-                    // move
                     await app.fileManager.renameFile(file, newFilePath);
                 }
             }

@@ -33,6 +33,7 @@ export class DragManager {
 
         // Attach dragend listener to cleanup if drop doesn't fire (e.g. invalid drop target)
         const el = event.currentTarget as HTMLElement;
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         el.addEventListener("dragend", this.handleDragEnd.bind(this), { once: true });
 
         const sourcePaths = multiSelectedPaths.has(node.path)
@@ -177,7 +178,7 @@ export class DragManager {
                 
                 // Expand target folder if setting is enabled and target is a folder
                 if (this.settings.expandTargetFolderOnDrop && targetNode?.isFolder) {
-                  this.view.expandFolderByPath(targetNode.path);
+                  this.view.expandFolderByPath(targetNode.path).catch(console.error);
                 }
             }
         } finally {

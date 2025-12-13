@@ -47,7 +47,7 @@ export class AbstractFolderViewToolbar {
     public setupToolbarActions(): void {
         this.addAction("file-plus", "Create new root note", () => {
             new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
-                createAbstractChildFile(this.app, this.settings, childName, null, childType);
+                createAbstractChildFile(this.app, this.settings, childName, null, childType).catch(console.error);
             }, 'note').open();
         });
 
@@ -141,11 +141,12 @@ export class AbstractFolderViewToolbar {
             item.setTitle("Manage groups")
                 .setIcon("gear")
                 .onClick(() => {
-                    new ManageGroupsModal(this.app, this.settings, async (updatedGroups: Group[], activeGroupId: string | null) => {
+                    new ManageGroupsModal(this.app, this.settings, (updatedGroups: Group[], activeGroupId: string | null) => {
                         this.plugin.settings.groups = updatedGroups;
                         this.plugin.settings.activeGroupId = activeGroupId;
-                        await this.plugin.saveSettings();
-                        this.plugin.app.workspace.trigger('abstract-folder:group-changed');
+                        this.plugin.saveSettings().then(() => {
+                            this.plugin.app.workspace.trigger('abstract-folder:group-changed');
+                        }).catch(console.error);
                     }).open();
                 })
         );

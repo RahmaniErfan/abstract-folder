@@ -40,7 +40,7 @@ export class AbstractFolderView extends ItemView {
     this.icon = "folder-tree";
     this.navigation = false;
 
-    this.dragManager = new DragManager(this.app, this.settings, this.indexer, this); // Pass 'this' (the view instance)
+    this.dragManager = new DragManager(this.app, this.settings, this.indexer, this);
     this.viewState = new ViewState(this.settings, this.plugin);
     this.treeRenderer = new TreeRenderer(
       this.app,
@@ -49,7 +49,7 @@ export class AbstractFolderView extends ItemView {
       this.viewState.multiSelectedPaths,
       this.getDisplayName,
       (itemEl: HTMLElement, path: string) => this.toggleCollapse(itemEl, path),
-      this.indexer, // Pass the indexer here
+      this.indexer,
       this.dragManager
     );
     this.columnRenderer = new ColumnRenderer(
@@ -60,7 +60,7 @@ export class AbstractFolderView extends ItemView {
       this.viewState.multiSelectedPaths,
       this.getDisplayName,
       (node, depth, event) => this.handleColumnNodeClick(node, depth, event),
-      this.indexer, // Pass the indexer here
+      this.indexer,
       this.dragManager
     );
     this.contextMenuHandler = new ContextMenuHandler(this.app, this.settings, this.plugin, this.indexer);
@@ -69,10 +69,10 @@ export class AbstractFolderView extends ItemView {
        this.settings,
        this.plugin,
        this.viewState,
-       this.addAction.bind(this),
-       this.renderView.bind(this),
-       this.expandAll.bind(this),
-       this.collapseAll.bind(this),
+       (icon, title, onclick) => this.addAction(icon, title, onclick),
+       () => this.renderView(),
+       () => this.expandAll(),
+       () => this.collapseAll(),
     );
   }
 
@@ -88,6 +88,7 @@ export class AbstractFolderView extends ItemView {
     this.contentEl = this.containerEl.children[1] as HTMLElement;
     this.contentEl.empty();
     this.contentEl.addClass("abstract-folder-view");
+    await Promise.resolve();
     this.fileRevealManager = new FileRevealManager(
         this.app,
         this.settings,
@@ -95,24 +96,24 @@ export class AbstractFolderView extends ItemView {
         this.viewState,
         this.indexer,
         this.columnRenderer,
-        this.renderView.bind(this),
+        () => this.renderView(),
         this.plugin
     );
 
     this.toolbar.setupToolbarActions();
     this.renderView();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.registerEvent(this.app.workspace.on("abstract-folder:graph-updated" as any, this.renderView, this));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.registerEvent(this.app.workspace.on("abstract-folder:view-style-changed" as any, this.handleViewStyleChanged, this));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.registerEvent(this.app.workspace.on("abstract-folder:group-changed" as any, this.renderView, this));
+    // @ts-ignore: Custom event name not in Obsidian types
+    this.registerEvent(this.app.workspace.on("abstract-folder:graph-updated", this.renderView, this));
+    // @ts-ignore: Custom event name not in Obsidian types
+    this.registerEvent(this.app.workspace.on("abstract-folder:view-style-changed", this.handleViewStyleChanged, this));
+    // @ts-ignore: Custom event name not in Obsidian types
+    this.registerEvent(this.app.workspace.on("abstract-folder:group-changed", this.renderView, this));
     // Register events for expand/collapse all
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.registerEvent(this.app.workspace.on("abstract-folder:expand-all" as any, this.expandAll, this));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.registerEvent(this.app.workspace.on("abstract-folder:collapse-all" as any, this.collapseAll, this));
+    // @ts-ignore: Custom event name not in Obsidian types
+    this.registerEvent(this.app.workspace.on("abstract-folder:expand-all", () => this.expandAll(), this));
+    // @ts-ignore: Custom event name not in Obsidian types
+    this.registerEvent(this.app.workspace.on("abstract-folder:collapse-all", () => this.collapseAll(), this));
     this.registerEvent(this.app.workspace.on("file-open", this.fileRevealManager.onFileOpen, this.fileRevealManager));
  
     this.contentEl.addEventListener("contextmenu", (event: MouseEvent) => {
@@ -124,7 +125,9 @@ export class AbstractFolderView extends ItemView {
     // Allow dropping into the root of the view
     this.contentEl.addEventListener("dragover", (e) => this.dragManager.handleDragOver(e, null));
     this.contentEl.addEventListener("dragleave", (e) => this.dragManager.handleDragLeave(e));
-    this.contentEl.addEventListener("drop", (e) => this.dragManager.handleDrop(e, null));
+    this.contentEl.addEventListener("drop", (e) => {
+        this.dragManager.handleDrop(e, null).catch(console.error);
+    });
   }
 
   public onClose = async () => {
@@ -142,7 +145,6 @@ export class AbstractFolderView extends ItemView {
     this.contentEl.removeClass("abstract-folder-columns-wrapper");
     this.contentEl.removeClass("abstract-folder-tree-wrapper");
 
-    // Add header for active group
     const activeGroup = this.settings.activeGroupId
         ? this.settings.groups.find(group => group.id === this.settings.activeGroupId)
         : null;
@@ -175,8 +177,7 @@ export class AbstractFolderView extends ItemView {
  
      if (rootNodes.length === 0) {
        this.contentEl.createEl("div", {
-           // eslint-disable-next-line obsidianmd/ui/sentence-case
-           text: "No abstract folders found. Add 'parent: [[Parent note]]' to your notes' frontmatter to create a structure.",
+           text: "No abstract folders found. Add parent property to your notes to create a structure.",
            cls: "abstract-folder-empty-state"
        });
        return;
@@ -208,8 +209,7 @@ export class AbstractFolderView extends ItemView {
  
      if (rootNodes.length === 0) {
          this.contentEl.createEl("div", {
-             // eslint-disable-next-line obsidianmd/ui/sentence-case
-             text: "No abstract folders found. Add 'parent: [[Parent note]]' to your notes' frontmatter to create a structure.",
+             text: "No abstract folders found. Add parent property to your notes to create a structure.",
              cls: "abstract-folder-empty-state"
          });
          return;
@@ -228,17 +228,17 @@ export class AbstractFolderView extends ItemView {
          const selectedNode = currentNodes.find(node => node.path === selectedPath);
          
          if (!selectedNode) {
-             break; // Break if selected node isn't found in the current column's nodes
+             break;
          }
  
          if (selectedNode && selectedNode.isFolder && selectedNode.children.length > 0) {
-             currentNodes = selectedNode.children; // Determine nodes for the next column
+             currentNodes = selectedNode.children;
              renderedDepth++;
              this.columnRenderer.renderColumn(currentNodes, columnsContainer, renderedDepth, selectedPath);
          } else if (selectedNode && !selectedNode.isFolder) {
-             break; // If a file is selected, no further columns are rendered
+             break;
          } else {
-             break; // Break if selected node isn't a folder with children, or somehow not found
+             break;
          }
      }
    }
@@ -263,7 +263,7 @@ export class AbstractFolderView extends ItemView {
     return this.viewState.sortOrder === 'asc' ? compareResult : -compareResult;
   }
  
-  private expandAll() {
+  private expandAll = () => {
     if (this.settings.viewStyle === 'tree') {
       this.contentEl.querySelectorAll(".abstract-folder-item.is-collapsed").forEach(el => {
         el.removeClass("is-collapsed");
@@ -271,7 +271,7 @@ export class AbstractFolderView extends ItemView {
     }
   }
 
-  private collapseAll() {
+  private collapseAll = () => {
     if (this.settings.viewStyle === 'tree') {
       this.contentEl.querySelectorAll(".abstract-folder-item.is-folder:not(.is-collapsed)").forEach(el => {
         el.addClass("is-collapsed");
@@ -314,10 +314,10 @@ export class AbstractFolderView extends ItemView {
     if (node.file) {
       if (this.settings.showAliases && node.file.extension === 'md') {
         const cache = this.app.metadataCache.getFileCache(node.file);
-        const aliases = cache?.frontmatter?.aliases;
+        const aliases = cache?.frontmatter?.aliases as unknown;
         if (aliases && Array.isArray(aliases) && aliases.length > 0) {
-          return aliases[0];
-        } else if (aliases && typeof aliases === 'string') {
+          return String(aliases[0]);
+        } else if (typeof aliases === 'string') {
           return aliases;
         }
       }
@@ -345,11 +345,11 @@ export class AbstractFolderView extends ItemView {
     if (node.file) {
       const fileExists = this.app.vault.getAbstractFileByPath(node.file.path);
       if (fileExists) {
-        this.app.workspace.getLeaf(false).openFile(node.file);
+        this.app.workspace.getLeaf(false).openFile(node.file).catch(console.error);
       }
     }
 
-    if (node.isFolder || node.file) { // If it's a file or folder, update the selection path
+    if (node.isFolder || node.file) {
       // Get the full path to the clicked node from the indexer
       // The problem is that getPathToRoot is deterministic and will always return the same path
       // for a multi-parent node, which might not be the path the user is currently traversing.
@@ -359,8 +359,8 @@ export class AbstractFolderView extends ItemView {
       const newSelectionPath = [...currentColumnPath, node.path];
 
       this.viewState.selectionPath = newSelectionPath;
-      this.columnRenderer.setSelectionPath(this.viewState.selectionPath); // Update column renderer with the new path
-      this.renderView(); // Re-render to update column highlights
+      this.columnRenderer.setSelectionPath(this.viewState.selectionPath);
+      this.renderView();
     }
   }
 
@@ -368,7 +368,6 @@ export class AbstractFolderView extends ItemView {
     const finalFilteredRoots: FolderNode[] = [];
     const explicitlyIncludedPaths = new Set(activeGroup.parentFolders.map(path => this.app.vault.getAbstractFileByPath(path)?.path).filter(Boolean) as string[]);
 
-    // Create a flat map of all nodes in the original tree for easy lookup
     const allNodesMap = new Map<string, FolderNode>();
     const buildNodeMap = (currentNodes: FolderNode[]) => {
         for (const node of currentNodes) {
@@ -376,9 +375,8 @@ export class AbstractFolderView extends ItemView {
             buildNodeMap(node.children);
         }
     };
-    buildNodeMap(nodes); // Build map from the full original tree
+    buildNodeMap(nodes);
 
-    // Deep copy helper to ensure we don't modify the original tree nodes
     const deepCopyNode = (node: FolderNode): FolderNode => {
         return {
             ...node,
@@ -386,14 +384,10 @@ export class AbstractFolderView extends ItemView {
         };
     };
 
-    // For each path explicitly included in the active group, find that node
-    // and include its full subtree as a new root in the filtered view.
     for (const includedPath of explicitlyIncludedPaths) {
         let matchingNode = allNodesMap.get(includedPath);
 
-        // If no exact match, try to find a corresponding "Folder Note"
         if (!matchingNode) {
-             // Strategy 1: Look for {path}/{foldername}.md (Folder Note inside)
              const folderName = includedPath.split('/').pop();
              if (folderName) {
                  const insideNotePath = `${includedPath}/${folderName}.md`;
@@ -402,8 +396,6 @@ export class AbstractFolderView extends ItemView {
         }
 
         if (!matchingNode) {
-            // Strategy 2: Look for {path}.md (Folder Note sibling)
-            // Only if includedPath doesn't already end in .md
             if (!includedPath.endsWith('.md')) {
                  const siblingNotePath = `${includedPath}.md`;
                  matchingNode = allNodesMap.get(siblingNotePath);
@@ -411,12 +403,10 @@ export class AbstractFolderView extends ItemView {
         }
 
         if (matchingNode) {
-            // Add a deep copy of the matched node and its entire subtree
             finalFilteredRoots.push(deepCopyNode(matchingNode));
         }
     }
 
-    // Sort the final root nodes for consistent display
     finalFilteredRoots.sort((a, b) => this.sortNodes(a, b));
 
     return finalFilteredRoots;

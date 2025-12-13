@@ -35,7 +35,7 @@ export class FileRevealManager {
         this.plugin = plugin;
     }
 
-    public onFileOpen = async (file: TFile | null) => {
+    public onFileOpen = (file: TFile | null) => {
         if (!file) return;
         this.revealFile(file.path, this.settings.autoExpandParents);
     }
@@ -47,7 +47,6 @@ export class FileRevealManager {
             let hasExpandedOneParentChain = false; // Flag to ensure parent expansion happens only once across all paths
 
             fileNodeEls.forEach(itemEl => {
-                // Ensure expandParents is true and autoExpandParents is enabled in settings
                 if (expandParents && this.settings.autoExpandParents && !hasExpandedOneParentChain) {
                     let currentEl = itemEl.parentElement;
                     while (currentEl) {
@@ -60,7 +59,7 @@ export class FileRevealManager {
                                         const parentPath = parentItem.dataset.path;
                                         if (parentPath && !this.settings.expandedFolders.includes(parentPath)) {
                                             this.settings.expandedFolders.push(parentPath);
-                                            this.plugin.saveSettings();
+                                            this.plugin.saveSettings().catch(console.error);
                                         }
                                     }
                                 }
@@ -74,15 +73,15 @@ export class FileRevealManager {
                             currentEl = currentEl.parentElement;
                         }
                     }
-                    hasExpandedOneParentChain = true; // Set the flag after the first parent chain has been processed
+                    hasExpandedOneParentChain = true;
                 }
 
                 itemEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
 
                 // First, remove 'is-active' from any elements that are currently active but do not match the filePath
                 this.contentEl.querySelectorAll(".abstract-folder-item-self.is-active").forEach(el => {
-                    const parentItem = el.closest(".abstract-folder-item") as HTMLElement | null;
-                    if (parentItem && parentItem.dataset.path !== filePath) {
+                    const parentItem = el.closest(".abstract-folder-item");
+                    if (parentItem instanceof HTMLElement && parentItem.dataset.path !== filePath) {
                         el.removeClass("is-active");
                     }
                 });

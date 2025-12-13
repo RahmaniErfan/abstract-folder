@@ -1,24 +1,24 @@
 import { App, TFile, CachedMetadata, TAbstractFile, Notice } from "obsidian";
 import { AbstractFolderPluginSettings } from "./settings";
-import { FileGraph, ParentChildMap, HIDDEN_FOLDER_ID, Cycle } from "./types";
-import AbstractFolderPlugin from '../main'; // Import the main plugin class
+import { FileGraph, ParentChildMap, HIDDEN_FOLDER_ID, Cycle, AbstractFolderFrontmatter } from "./types";
+import AbstractFolderPlugin from '../main';
 
 export class FolderIndexer {
   private app: App;
   private settings: AbstractFolderPluginSettings;
-  private plugin: AbstractFolderPlugin; // Add this line
-  private PARENT_PROPERTIES_TO_CHECK_FOR_CHILD_DEFINED_PARENTS: string[] = []; // Dynamically generated property names for child-defined parents
-  private CHILD_PROPERTIES_TO_CHECK_FOR_PARENT_DEFINED_CHILDREN: string[] = []; // Dynamically generated property names for parent-defined children
+  private plugin: AbstractFolderPlugin;
+  private PARENT_PROPERTIES_TO_CHECK_FOR_CHILD_DEFINED_PARENTS: string[] = [];
+  private CHILD_PROPERTIES_TO_CHECK_FOR_PARENT_DEFINED_CHILDREN: string[] = [];
 
   private graph: FileGraph;
   private parentToChildren: ParentChildMap;
   private childToParents: Map<string, Set<string>>;
-  private allFiles: Set<string>; // All files encountered (parents or children, including non-MD)
+  private allFiles: Set<string>;
 
   constructor(app: App, settings: AbstractFolderPluginSettings, plugin: AbstractFolderPlugin) {
     this.app = app;
     this.settings = settings;
-    this.plugin = plugin; // Assign the plugin instance
+    this.plugin = plugin;
     this.parentToChildren = {};
     this.childToParents = new Map();
     this.allFiles = new Set();
@@ -31,19 +31,19 @@ export class FolderIndexer {
 
   updateSettings(newSettings: AbstractFolderPluginSettings) {
     this.settings = newSettings;
-    this.initializePropertyNames(); // Re-initialize property names on settings change
-    this.buildGraph(); // Rebuild graph with new setting
+    this.initializePropertyNames();
+    this.buildGraph();
     this.app.workspace.trigger('abstract-folder:graph-updated');
   }
 
   async initializeIndexer() {
-    this.initializePropertyNames(); // Initialize property names on load
+    this.initializePropertyNames();
     this.registerEvents();
   }
 
   rebuildGraphAndTriggerUpdate() {
     this.buildGraph();
-    this.app.workspace.trigger('abstract-folder:graph-updated'); // Notify view to re-render
+    this.app.workspace.trigger('abstract-folder:graph-updated');
   }
 
   onunload() {
@@ -76,7 +76,7 @@ getGraph(): FileGraph {
         }
         
         // Take the first parent found
-        const nextParent = parents.values().next().value;
+        const nextParent = parents.values().next().value as string;
         
         if (nextParent === HIDDEN_FOLDER_ID) {
              if (pathSegments[0] !== HIDDEN_FOLDER_ID) {
@@ -104,7 +104,7 @@ getGraph(): FileGraph {
     this.plugin.registerEvent(
       this.app.vault.on("delete", (file) => {
         if (file instanceof TFile) {
-          this.deleteFileFromGraph(file);
+          this.deleteFileFromGraph(file).catch((error) => console.error(error));
         }
       })
     );
@@ -112,16 +112,14 @@ getGraph(): FileGraph {
     this.plugin.registerEvent(
       this.app.vault.on("rename", (file, oldPath) => {
         if (file instanceof TFile) {
-          this.renameFileInGraph(file, oldPath);
+          this.renameFileInGraph(file, oldPath).catch((error) => console.error(error));
         }
       })
     );
 
-    // Register event for file creation
     this.plugin.registerEvent(
       this.app.vault.on("create", (file) => {
         if (file instanceof TFile) {
-          // A new file has been created, rebuild the graph to include it
           this.rebuildGraphAndTriggerUpdate();
         }
       })
@@ -129,12 +127,11 @@ getGraph(): FileGraph {
   }
 
   private buildGraph() {
-    // Clear existing graph data before rebuilding
     this.parentToChildren = {};
     this.childToParents = new Map();
-    this.allFiles = new Set(); // Reset allFiles to include only currently existing and linked files
+    this.allFiles = new Set();
 
-    const allFiles = this.app.vault.getFiles(); // Get ALL files, not just markdown
+    const allFiles = this.app.vault.getFiles();
     for (const file of allFiles) {
       // Check if file is in an excluded path
       if (this.isExcluded(file.path)) {
@@ -197,9 +194,7 @@ getGraph(): FileGraph {
   }
 
   private initializePropertyNames() {
-    // Parent-defined children: property name defined in settings
     this.CHILD_PROPERTIES_TO_CHECK_FOR_PARENT_DEFINED_CHILDREN = [this.settings.childrenPropertyName];
-    // Child-defined parents: property name defined in settings
     this.PARENT_PROPERTIES_TO_CHECK_FOR_CHILD_DEFINED_PARENTS = [this.settings.propertyName];
   }
 
@@ -239,9 +234,9 @@ getGraph(): FileGraph {
       // --- Process child-defined parents (using this file's 'parent' frontmatter) ---
       // First pass: Check for 'hidden' status across all possible parent properties
       for (const propName of this.PARENT_PROPERTIES_TO_CHECK_FOR_CHILD_DEFINED_PARENTS) {
-        const parentProperty = metadata.frontmatter[propName];
+        const parentProperty = metadata.frontmatter[propName] as unknown;
         if (parentProperty) {
-          const parentLinks = Array.isArray(parentProperty) ? parentProperty : [parentProperty];
+          const parentLinks = Array.isArray(parentProperty) ? parentProperty as unknown[] : [parentProperty];
           for (const parentLink of parentLinks) {
             if (typeof parentLink === 'string' && parentLink.toLowerCase().trim() === 'hidden') {
               isHidden = true;
@@ -259,9 +254,9 @@ getGraph(): FileGraph {
       } else {
         // If not hidden, process all valid parent links from ALL configured properties
         for (const propName of this.PARENT_PROPERTIES_TO_CHECK_FOR_CHILD_DEFINED_PARENTS) {
-          const parentProperty = metadata.frontmatter[propName];
+          const parentProperty = metadata.frontmatter[propName] as unknown;
           if (parentProperty) {
-            const parentLinks = Array.isArray(parentProperty) ? parentProperty : [parentProperty];
+            const parentLinks = Array.isArray(parentProperty) ? parentProperty as unknown[] : [parentProperty];
             for (const parentLink of parentLinks) {
               if (typeof parentLink === 'string' && parentLink.toLowerCase().trim() !== 'hidden') {
                 const resolvedParentPath = this.resolveLinkToPath(parentLink, file.path);
@@ -281,9 +276,9 @@ getGraph(): FileGraph {
 
       // --- Process parent-defined children (using this file's 'children' frontmatter) ---
       for (const propName of this.CHILD_PROPERTIES_TO_CHECK_FOR_PARENT_DEFINED_CHILDREN) {
-        const childrenProperty = metadata.frontmatter[propName];
+        const childrenProperty = metadata.frontmatter[propName] as unknown;
         if (childrenProperty) {
-          const childLinks = Array.isArray(childrenProperty) ? childrenProperty : [childrenProperty];
+          const childLinks = Array.isArray(childrenProperty) ? childrenProperty as unknown[] : [childrenProperty];
           for (const childLink of childLinks) {
             if (typeof childLink === 'string') {
               const resolvedChildPath = this.resolveLinkToPath(childLink, file.path);
@@ -374,23 +369,15 @@ getGraph(): FileGraph {
   }
 
   private updateFileInGraph(file: TFile, cache: CachedMetadata) {
-    // A full rebuild is the most robust way to ensure consistency when
-    // relationships can be defined from multiple sources (child's parent property, parent's children property).
-    // This addresses potential issues where a change in one file's frontmatter
-    // might affect relationships that were previously established by another file.
     this.buildGraph();
-    this.app.workspace.trigger('abstract-folder:graph-updated'); // Notify view to re-render
+    this.app.workspace.trigger('abstract-folder:graph-updated');
   }
 
 
-private async deleteFileFromGraph(file: TAbstractFile) {
-  // Before rebuilding the graph, clean up parent references in their frontmatter
+  private async deleteFileFromGraph(file: TAbstractFile) {
   await this.removeFileFromParentFrontmatters(file.path);
-  // When a file is deleted, all its associated relationships (both as child and parent)
-  // need to be cleared. A full graph rebuild ensures that any remaining references
-  // from other files that defined the deleted file as a child/parent are also cleaned up.
   this.buildGraph();
-  this.app.workspace.trigger('abstract-folder:graph-updated'); // Notify view to re-render
+  this.app.workspace.trigger('abstract-folder:graph-updated');
 }
 
 private async removeFileFromParentFrontmatters(deletedFilePath: string) {
@@ -402,36 +389,35 @@ private async removeFileFromParentFrontmatters(deletedFilePath: string) {
   const fileNameWithoutExtension = fileNameWithExtension.split('.').slice(0, -1).join('.');
 
   for (const file of allFiles) {
-    if (file.path === deletedFilePath) continue; // Don't process the deleted file itself
+    if (file.path === deletedFilePath) continue;
 
-    await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-      const currentChildren = frontmatter[childrenPropertyName];
+    await this.app.fileManager.processFrontMatter(file, (frontmatter: AbstractFolderFrontmatter) => {
+      const rawChildren = frontmatter[childrenPropertyName];
 
-      if (!currentChildren) return;
+      if (!rawChildren) return;
 
       let childrenArray: string[] = [];
-      if (typeof currentChildren === 'string') {
-        childrenArray = [currentChildren];
-      } else if (Array.isArray(currentChildren)) {
-        childrenArray = currentChildren;
+      if (typeof rawChildren === 'string') {
+        childrenArray = [rawChildren];
+      } else if (Array.isArray(rawChildren)) {
+        childrenArray = rawChildren as string[];
       } else {
-        return; // Not a recognized format
+        return;
       }
 
       const initialLength = childrenArray.length;
       const updatedChildren = childrenArray.filter(childLink => {
-        let cleanedLink = childLink.replace(/^["']+|["']+$|^\s+|[\s]+$/g, ''); // Remove quotes/trim
-        cleanedLink = cleanedLink.replace(/\[\[|\]\]/g, ''); // Remove wiki-link brackets
-        cleanedLink = cleanedLink.split('|')[0]; // Handle pipe aliases
+        let cleanedLink = childLink.replace(/^["']+|["']+$|^\s+|[\s]+$/g, '');
+        cleanedLink = cleanedLink.replace(/\[\[|\]\]/g, '');
+        cleanedLink = cleanedLink.split('|')[0];
         cleanedLink = cleanedLink.trim();
 
-        // Check if the cleaned link refers to the deleted file
         const refersToDeletedFile =
-          cleanedLink === fileNameWithoutExtension || // e.g., [[My Note]]
-          cleanedLink === fileNameWithExtension ||     // e.g., [[My Note.md]]
-          cleanedLink === deletedFilePath;             // e.g., [[folder/subfolder/My Note.md]]
+          cleanedLink === fileNameWithoutExtension ||
+          cleanedLink === fileNameWithExtension ||
+          cleanedLink === deletedFilePath;
 
-        return !refersToDeletedFile; // Keep if it does NOT refer to the deleted file
+        return !refersToDeletedFile;
       });
 
       if (updatedChildren.length !== initialLength) {
@@ -447,11 +433,11 @@ private async removeFileFromParentFrontmatters(deletedFilePath: string) {
   }
 }
 
-private renameFileInGraph(file: TFile, oldPath: string) {
-  const oldFileStub = { path: oldPath } as TAbstractFile;
-  this.deleteFileFromGraph(oldFileStub); // This will handle removing old references and rebuilding
-  this.processFile(file); // Re-process the renamed file with its new path
-  this.buildGraph();
-  this.app.workspace.trigger('abstract-folder:graph-updated'); // Notify view to re-render
+private async renameFileInGraph(file: TFile, oldPath: string) {
+const oldFileStub = { path: oldPath } as TAbstractFile;
+await this.deleteFileFromGraph(oldFileStub);
+this.processFile(file);
+this.buildGraph();
+this.app.workspace.trigger('abstract-folder:graph-updated');
 }
 }

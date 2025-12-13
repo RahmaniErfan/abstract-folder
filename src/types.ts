@@ -12,6 +12,12 @@ declare module "obsidian" {
 
 export const HIDDEN_FOLDER_ID = "abstract-hidden-root"; // Unique ID for the special "Hidden" folder
 
+export interface AbstractFolderFrontmatter {
+  children?: string[];
+  icon?: string;
+  [key: string]: unknown; // Allow other properties
+}
+
 export interface ParentChildMap {
   [parentPath: string]: Set<string>; // Parent path -> Set of child paths
 }

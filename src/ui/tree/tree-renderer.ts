@@ -59,6 +59,7 @@ itemEl.draggable = true;
 itemEl.addEventListener("dragstart", (e) => this.dragManager.handleDragStart(e, node, parentPath || "", this.multiSelectedPaths));
 itemEl.addEventListener("dragover", (e) => this.dragManager.handleDragOver(e, node));
 itemEl.addEventListener("dragleave", (e) => this.dragManager.handleDragLeave(e));
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
 itemEl.addEventListener("drop", (e) => this.dragManager.handleDrop(e, node));
 
 if (node.isFolder) {
@@ -88,7 +89,7 @@ if (activeFile && activeFile.path === node.path) {
 
             iconEl.addEventListener("click", (e) => {
                 e.stopPropagation();
-                this.toggleCollapse(itemEl, node.path);
+                this.toggleCollapse(itemEl, node.path).catch(console.error);
             });
         }
 
@@ -115,6 +116,7 @@ if (activeFile && activeFile.path === node.path) {
 
         selfEl.addEventListener("click", (e) => {
             e.stopPropagation();
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             this.handleNodeClick(node, e);
         });
 
@@ -177,7 +179,7 @@ if (activeFile && activeFile.path === node.path) {
         if (node.file) {
             const fileExists = this.app.vault.getAbstractFileByPath(node.file.path);
             if (fileExists) {
-                this.app.workspace.getLeaf(false).openFile(node.file);
+                this.app.workspace.getLeaf(false).openFile(node.file).catch(console.error);
 
                 // If this file also has children and autoExpandChildren is enabled, toggle its expanded state
                 if (this.settings.autoExpandChildren && node.children.length > 0) {
@@ -189,18 +191,11 @@ if (activeFile && activeFile.path === node.path) {
                 }
             }
         } else if (node.isFolder) {
-            // For virtual folders without a linked file, clicking toggles collapse
-            const selfEl = e.currentTarget as HTMLElement; // This is .abstract-folder-item-self
-            const itemEl = selfEl.parentElement; // This is .abstract-folder-item
+            const selfEl = e.currentTarget as HTMLElement;
+            const itemEl = selfEl.parentElement;
 
             if (itemEl) {
-                // If autoExpandChildren is enabled, toggle the collapsed state
-                if (this.settings.autoExpandChildren) {
-                    await this.toggleCollapse(itemEl, node.path);
-                } else {
-                    // If autoExpandChildren is false, behave as before: toggle collapse state
-                    await this.toggleCollapse(itemEl, node.path);
-                }
+                await this.toggleCollapse(itemEl, node.path);
             }
         }
     }

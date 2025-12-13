@@ -2,6 +2,7 @@ import { App, TFile, Notice, TFolder } from "obsidian";
 import { AbstractFolderPluginSettings } from "../settings";
 import { ChildFileType } from "../ui/modals";
 import { FolderIndexer } from "../indexer";
+import { AbstractFolderFrontmatter } from "../types";
 
 /**
  * Creates a new abstract child file (note, canvas, or base) with appropriate frontmatter and content.
@@ -47,6 +48,7 @@ aliases:
             initialContent = `{}`;
             break;
         default:
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             new Notice(`Unsupported child type: ${childType}`);
             return;
     }
@@ -63,18 +65,16 @@ aliases:
         const file = await app.vault.create(fileName, initialContent);
         new Notice(`Created: ${fileName}`);
 
-        // Only add to parent's children list if the child is NOT a markdown file (since markdown files define their own parent)
-        // AND the parent is a markdown file (so it can have frontmatter)
         if (fileExtension !== '.md' && parentFile && parentFile.extension === 'md') {
-            await app.fileManager.processFrontMatter(parentFile, (frontmatter) => {
+            await app.fileManager.processFrontMatter(parentFile, (frontmatter: AbstractFolderFrontmatter) => {
                 const childrenPropertyName = settings.childrenPropertyName;
-                const currentChildren = frontmatter[childrenPropertyName];
+                const rawChildren = frontmatter[childrenPropertyName];
                 let childrenArray: string[] = [];
 
-                if (typeof currentChildren === 'string') {
-                    childrenArray = [currentChildren];
-                } else if (Array.isArray(currentChildren)) {
-                    childrenArray = currentChildren;
+                if (typeof rawChildren === 'string') {
+                    childrenArray = [rawChildren];
+                } else if (Array.isArray(rawChildren)) {
+                    childrenArray = rawChildren as string[];
                 }
 
                 const newChildLink = `[[${file.name}]]`; // Link to the new file, including extension
@@ -86,7 +86,7 @@ aliases:
             });
         }
 
-        app.workspace.getLeaf(true).openFile(file);
+        app.workspace.getLeaf(true).openFile(file).catch(console.error);
         app.workspace.trigger('abstract-folder:graph-updated');
     } catch (error) {
         new Notice(`Failed to create file: ${error}`);
@@ -111,10 +111,8 @@ export async function deleteAbstractFile(app: App, file: TFile, deleteChildren: 
                 for (const childPath of childrenPaths) {
                     const childAbstractFile = app.vault.getAbstractFileByPath(childPath);
                     if (childAbstractFile instanceof TFile) {
-                        // Recursively delete children
                         await deleteAbstractFile(app, childAbstractFile, deleteChildren, indexer);
                     } else if (childAbstractFile instanceof TFolder) {
-                        // For folders, we need to list its contents and delete them
                         await deleteFolderRecursive(app, childAbstractFile, deleteChildren, indexer);
                     }
                 }
@@ -123,7 +121,8 @@ export async function deleteAbstractFile(app: App, file: TFile, deleteChildren: 
         await app.fileManager.trashFile(file);
         new Notice(`Deleted file: ${file.name}`);
     } catch (error) {
-        new Notice(`Failed to delete file ${file.name}: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        new Notice(`Failed to delete file ${file.name}: ${errorMessage}`);
         console.error(`Error deleting file ${file.name}:`, error);
     }
 }
@@ -148,7 +147,8 @@ async function deleteFolderRecursive(app: App, folder: TFolder, deleteChildren: 
         await app.fileManager.trashFile(folder);
         new Notice(`Deleted folder: ${folder.name}`);
     } catch (error) {
-        new Notice(`Failed to delete folder ${folder.name}: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        new Notice(`Failed to delete folder ${folder.name}: ${errorMessage}`);
         console.error(`Error deleting folder ${folder.name}:`, error);
     }
 }
@@ -160,7 +160,7 @@ async function deleteFolderRecursive(app: App, folder: TFolder, deleteChildren: 
  * @param iconName The name of the icon to set, or empty string to remove.
  */
 export async function updateFileIcon(app: App, file: TFile, iconName: string) {
-    await app.fileManager.processFrontMatter(file, (frontmatter) => {
+    await app.fileManager.processFrontMatter(file, (frontmatter: AbstractFolderFrontmatter) => {
       if (iconName) {
         frontmatter.icon = iconName;
       } else {
@@ -177,15 +177,15 @@ export async function updateFileIcon(app: App, file: TFile, iconName: string) {
  * @param settings The plugin settings to get the propertyName.
  */
 export async function toggleHiddenStatus(app: App, file: TFile, settings: AbstractFolderPluginSettings) {
-    await app.fileManager.processFrontMatter(file, (frontmatter) => {
+    await app.fileManager.processFrontMatter(file, (frontmatter: AbstractFolderFrontmatter) => {
       const primaryPropertyName = settings.propertyName;
-      const currentParents = frontmatter[primaryPropertyName];
+      const rawParents = frontmatter[primaryPropertyName];
       let parentLinks: string[] = [];
 
-      if (typeof currentParents === 'string') {
-        parentLinks = [currentParents];
-      } else if (Array.isArray(currentParents)) {
-        parentLinks = currentParents;
+      if (typeof rawParents === 'string') {
+        parentLinks = [rawParents];
+      } else if (Array.isArray(rawParents)) {
+        parentLinks = rawParents as string[];
       }
 
       const isCurrentlyHidden = parentLinks.some((p: string) => p.toLowerCase().trim() === 'hidden');
@@ -250,43 +250,33 @@ export async function moveFiles(
         }
     }
 
-    // --- 1. Handle MD Files (Child-Defined Parents) ---
-    // For each MD file, we update ITS OWN frontmatter to change the parent pointer.
     for (const file of mdFiles) {
-        await app.fileManager.processFrontMatter(file, (frontmatter) => {
+        await app.fileManager.processFrontMatter(file, (frontmatter: AbstractFolderFrontmatter) => {
             const parentPropertyName = settings.propertyName;
-            const currentParents = frontmatter[parentPropertyName];
+            const rawParents = frontmatter[parentPropertyName];
             let parentLinks: string[] = [];
 
-            // Normalize current parents to array
-            if (typeof currentParents === 'string') {
-                parentLinks = [currentParents];
-            } else if (Array.isArray(currentParents)) {
-                parentLinks = currentParents;
+            if (typeof rawParents === 'string') {
+                parentLinks = [rawParents];
+            } else if (Array.isArray(rawParents)) {
+                parentLinks = rawParents as string[];
             }
 
-            // Remove the old source parent link ONLY if not a copy operation
             if (sourceParentPath && !isCopy) {
-                // We need to robustly identify the link to remove (could be [[Note]], [[Note.md]], Note)
                 const sourceParentFile = app.vault.getAbstractFileByPath(sourceParentPath);
                 if (sourceParentFile) {
                     parentLinks = parentLinks.filter(link => {
-                        // Robustly check if the link refers to the sourceParentFile
-                        // Remove quotes, brackets, and trim
                         let cleanLink = link.replace(/^["']+|["']+$|^\s+|[\s]+$/g, '');
                         cleanLink = cleanLink.replace(/\[\[|\]\]/g, '');
                         cleanLink = cleanLink.split('|')[0];
                         cleanLink = cleanLink.trim();
 
-                        // Resolve the link to a file to be sure
                         const linkTargetFile = app.metadataCache.getFirstLinkpathDest(cleanLink, file.path);
                         
                         let isMatch = false;
                         if (linkTargetFile) {
-                             // Precise match: The link resolves to exactly the sourceParentFile
                              isMatch = linkTargetFile.path === sourceParentFile.path;
                         } else {
-                            // Fallback: String match if resolution fails (e.g. file not yet indexed or new)
                             const sourceName = sourceParentFile.name;
                             const sourceBasename = (sourceParentFile instanceof TFile) ? sourceParentFile.basename : sourceParentFile.name;
                             isMatch = cleanLink === sourceName || cleanLink === sourceBasename;
@@ -317,25 +307,24 @@ export async function moveFiles(
         });
     }
 
-    // --- 2. Handle Non-MD Files (Parent-Defined Children) ---
-    // For Non-MD files, we must update the PARENT files (both Source and Target).
-    // This requires Source and Target to be Markdown files themselves.
-    
-    // 2a. Remove from Source Parent (if it exists and is MD) ONLY if not a copy operation
     if (sourceParentPath && nonMdFiles.length > 0 && !isCopy) {
         const sourceParentFile = app.vault.getAbstractFileByPath(sourceParentPath);
         if (sourceParentFile instanceof TFile && sourceParentFile.extension === 'md') {
-            await app.fileManager.processFrontMatter(sourceParentFile, (frontmatter) => {
+            await app.fileManager.processFrontMatter(sourceParentFile, (frontmatter: AbstractFolderFrontmatter) => {
                 const childrenProp = settings.childrenPropertyName;
-                const children = frontmatter[childrenProp];
-                if (!children) return;
+                const rawChildren = frontmatter[childrenProp];
+                if (!rawChildren) return;
                 
-                let childrenList: string[] = Array.isArray(children) ? children : [children];
+                let childrenList: string[] = [];
+                if (Array.isArray(rawChildren)) {
+                    childrenList = rawChildren as string[];
+                } else if (typeof rawChildren === 'string') {
+                    childrenList = [rawChildren];
+                }
                 
-                // Remove all moved files from this parent's list
                 childrenList = childrenList.filter(link => {
                     return !nonMdFiles.some(movedFile =>
-                        link.includes(movedFile.name) // Check if link matches any moved file
+                        link.includes(movedFile.name)
                     );
                 });
 
@@ -345,16 +334,19 @@ export async function moveFiles(
         }
     }
 
-    // 2b. Add to Target Parent (if it exists and is MD)
     if (targetParentFile instanceof TFile && targetParentFile.extension === 'md' && nonMdFiles.length > 0) {
-         await app.fileManager.processFrontMatter(targetParentFile, (frontmatter) => {
+         await app.fileManager.processFrontMatter(targetParentFile, (frontmatter: AbstractFolderFrontmatter) => {
             const childrenProp = settings.childrenPropertyName;
-            const children = frontmatter[childrenProp] || [];
-            const childrenList: string[] = Array.isArray(children) ? children : [children];
+            const rawChildren = frontmatter[childrenProp] || [];
+            let childrenList: string[] = [];
+            if (Array.isArray(rawChildren)) {
+                childrenList = rawChildren as string[];
+            } else if (typeof rawChildren === 'string') {
+                childrenList = [rawChildren];
+            }
 
-            // Add all non-MD files
             for (const file of nonMdFiles) {
-                const newLink = `[[${file.name}]]`; // Must use full name with extension for non-md
+                const newLink = `[[${file.name}]]`;
                 if (!childrenList.includes(newLink)) {
                     childrenList.push(newLink);
                 }
@@ -363,7 +355,6 @@ export async function moveFiles(
             frontmatter[childrenProp] = childrenList.length === 1 ? childrenList[0] : childrenList;
          });
     } else if (nonMdFiles.length > 0 && (!targetParentFile || !(targetParentFile instanceof TFile) || targetParentFile.extension !== 'md')) {
-        // Fallback/Warning: Trying to drop non-md files into a container that can't hold them (like root folder or non-md file)
         new Notice(`Cannot move ${nonMdFiles.length} non-markdown files: Target parent must be a Markdown file.`);
     }
 

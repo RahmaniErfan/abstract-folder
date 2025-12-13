@@ -21,26 +21,27 @@ import { Group } from './src/types';
 export default class AbstractFolderPlugin extends Plugin {
 	settings: AbstractFolderPluginSettings;
 	indexer: FolderIndexer;
-	ribbonIconEl: HTMLElement | null = null; // To store the ribbon icon element
+	ribbonIconEl: HTMLElement | null = null;
 
 	async onload() {
 		await this.loadSettings();
 
 		this.indexer = new FolderIndexer(this.app, this.settings, this);
-		await this.indexer.initializeIndexer(); // Initialize the indexer (registers events)
+		await this.indexer.initializeIndexer();
 
 		this.registerView(
 			VIEW_TYPE_ABSTRACT_FOLDER,
-			(leaf) => new AbstractFolderView(leaf, this.indexer, this.settings, this) // Pass the plugin instance
+			(leaf) => new AbstractFolderView(leaf, this.indexer, this.settings, this)
 		);
 
-		// Initialize ribbon icon visibility based on settings
 		this.updateRibbonIconVisibility();
 
 		this.addCommand({
 			id: "open-view",
 			name: "Open view",
-			callback: () => this.activateView(),
+			callback: () => {
+				this.activateView().catch(console.error);
+			},
 		});
 
 		this.addCommand({
@@ -49,7 +50,8 @@ export default class AbstractFolderPlugin extends Plugin {
 			callback: () => {
 				new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
 					new ParentPickerModal(this.app, (parentFile) => {
-						createAbstractChildFile(this.app, this.settings, childName, parentFile, childType);
+						createAbstractChildFile(this.app, this.settings, childName, parentFile, childType)
+							.catch(console.error);
 					}).open();
 				}).open();
 			},
@@ -59,12 +61,12 @@ this.addCommand({
 	id: "manage-groups",
 	name: "Manage groups",
 	callback: () => {
-		new ManageGroupsModal(this.app, this.settings, async (updatedGroups: Group[], activeGroupId: string | null) => {
+		new ManageGroupsModal(this.app, this.settings, (updatedGroups: Group[], activeGroupId: string | null) => {
 			this.settings.groups = updatedGroups;
 			this.settings.activeGroupId = activeGroupId;
-			await this.saveSettings();
-			// Trigger a view update after groups are managed
-			this.app.workspace.trigger('abstract-folder:group-changed');
+			this.saveSettings().then(() => {
+				this.app.workspace.trigger('abstract-folder:group-changed');
+			}).catch(console.error);
 		}).open();
 	},
 });
@@ -75,9 +77,10 @@ this.addCommand({
 	callback: async () => {
 		if (this.settings.activeGroupId) {
 			this.settings.activeGroupId = null;
-			await this.saveSettings();
-			new Notice("Active group cleared.");
-			this.app.workspace.trigger('abstract-folder:group-changed');
+			this.saveSettings().then(() => {
+				new Notice("Active group cleared.");
+				this.app.workspace.trigger('abstract-folder:group-changed');
+			}).catch(console.error);
 		} else {
 			new Notice("No active group to clear.");
 		}
@@ -90,7 +93,8 @@ this.addCommand({
 	callback: () => {
 		new FolderSelectionModal(this.app, (folder: TFolder) => {
 			new ConversionOptionsModal(this.app, folder, (options) => {
-				convertFoldersToPluginFormat(this.app, this.settings, folder, options);
+				convertFoldersToPluginFormat(this.app, this.settings, folder, options)
+					.catch(console.error);
 			}).open();
 		}).open();
 	}
@@ -107,15 +111,14 @@ this.addCommand({
 							this.settings.excludedPaths.push(destinationPath);
 							this.saveSettings().then(() => {
 								this.indexer.updateSettings(this.settings);
-							});
+							}).catch(console.error);
 						}
 
 						const rootScope = (scope instanceof TFile) ? scope : undefined;
-						generateFolderStructurePlan(this.app, this.settings, this.indexer, destinationPath, placeIndexFileInside, rootScope).then(plan => {
-							new SimulationModal(this.app, plan.conflicts, (resolvedConflicts) => {
-								executeFolderGeneration(this.app, plan);
-							}).open();
-						});
+						const plan = generateFolderStructurePlan(this.app, this.settings, this.indexer, destinationPath, placeIndexFileInside, rootScope);
+						new SimulationModal(this.app, plan.conflicts, (resolvedConflicts) => {
+							executeFolderGeneration(this.app, plan).catch((error) => console.error(error));
+						}).open();
 					}).open();
 				}).open();
 			}).open();
@@ -123,42 +126,16 @@ this.addCommand({
 	});
 		this.addSettingTab(new AbstractFolderSettingTab(this.app, this));
 
-		      this.addCommand({
-		          id: "debug-log-graph",
-		          name: "Debug: log folder graph",
-		          callback: () => {
-		              const graph = this.indexer.getGraph();
-		              console.log("--- Abstract Folder Graph Debug ---");
-		              console.log("Parent -> Children Map:", graph.parentToChildren);
-		              console.log("Child -> Parents Map:", graph.childToParents);
-		              console.log("All Files:", graph.allFiles);
-		              
-		              // Detailed file check
-		              console.log("--- Detailed File Frontmatter Check ---");
-		              this.app.vault.getMarkdownFiles().forEach(file => {
-		                  const cache = this.app.metadataCache.getFileCache(file);
-		                  if (cache?.frontmatter) {
-		                      console.log(`File: ${file.path}`);
-		                      console.log(`  Parents (${this.settings.propertyName}):`, cache.frontmatter[this.settings.propertyName]);
-		                      console.log(`  Children (${this.settings.childrenPropertyName}):`, cache.frontmatter[this.settings.childrenPropertyName]);
-		                  }
-		              });
-		              console.log("-----------------------------------");
-		          }
-		      });
-
-		// Defer initial graph building until the workspace layout is ready
 		this.app.workspace.onLayoutReady(() => {
-			this.indexer.rebuildGraphAndTriggerUpdate(); // Build graph and notify view
+			this.indexer.rebuildGraphAndTriggerUpdate();
 			if (this.settings.startupOpen) {
-				this.activateView();
+				this.activateView().catch(console.error);
 			}
 		});
 	}
 
 	onunload() {
 		this.indexer.onunload();
-		// Ensure the ribbon icon is removed on unload
 		if (this.ribbonIconEl) {
 			this.ribbonIconEl.remove();
 			this.ribbonIconEl = null;
@@ -175,17 +152,15 @@ this.addCommand({
 		} else {
 			// No existing leaf found, create a new one
 			const side = this.settings.openSide;
-			// Attempt to get an existing leaf in the target sidebar without forcing creation
-			// Then, if still null, create a new one.
 			if (side === 'left') {
-				leaf = this.app.workspace.getLeftLeaf(false); // Try to get existing left leaf
+				leaf = this.app.workspace.getLeftLeaf(false);
 				if (!leaf) {
-					leaf = this.app.workspace.getLeftLeaf(true); // If none, create a new one
+					leaf = this.app.workspace.getLeftLeaf(true);
 				}
 			} else { // right
-				leaf = this.app.workspace.getRightLeaf(false); // Try to get existing right leaf
+				leaf = this.app.workspace.getRightLeaf(false);
 				if (!leaf) {
-					leaf = this.app.workspace.getRightLeaf(true); // If none, create a new one
+					leaf = this.app.workspace.getRightLeaf(true);
 				}
 			}
 		}
@@ -195,29 +170,31 @@ this.addCommand({
 				type: VIEW_TYPE_ABSTRACT_FOLDER,
 				active: true,
 			});
-			this.app.workspace.revealLeaf(leaf);
+			if (leaf instanceof WorkspaceLeaf) {
+				// eslint-disable-next-line @typescript-eslint/no-floating-promises
+				this.app.workspace.revealLeaf(leaf);
+			}
 		}
 	}
 
 	async loadSettings() {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 	}
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-		this.updateRibbonIconVisibility(); // Update ribbon icon visibility on settings change
+		this.updateRibbonIconVisibility();
 	}
 
 	updateRibbonIconVisibility() {
 		if (this.settings.showRibbonIcon) {
 			if (!this.ribbonIconEl) {
-				// Add the ribbon icon if it doesn't exist and setting is true
 				this.ribbonIconEl = this.addRibbonIcon("folder-tree", "Open abstract folders", () => {
-					this.activateView();
+					this.activateView().catch(console.error);
 				});
 			}
 		} else {
-			// Remove the ribbon icon if it exists and setting is false
 			if (this.ribbonIconEl) {
 				this.ribbonIconEl.remove();
 				this.ribbonIconEl = null;
