@@ -389,7 +389,27 @@ export class AbstractFolderView extends ItemView {
     // For each path explicitly included in the active group, find that node
     // and include its full subtree as a new root in the filtered view.
     for (const includedPath of explicitlyIncludedPaths) {
-        const matchingNode = allNodesMap.get(includedPath);
+        let matchingNode = allNodesMap.get(includedPath);
+
+        // If no exact match, try to find a corresponding "Folder Note"
+        if (!matchingNode) {
+             // Strategy 1: Look for {path}/{foldername}.md (Folder Note inside)
+             const folderName = includedPath.split('/').pop();
+             if (folderName) {
+                 const insideNotePath = `${includedPath}/${folderName}.md`;
+                 matchingNode = allNodesMap.get(insideNotePath);
+             }
+        }
+
+        if (!matchingNode) {
+            // Strategy 2: Look for {path}.md (Folder Note sibling)
+            // Only if includedPath doesn't already end in .md
+            if (!includedPath.endsWith('.md')) {
+                 const siblingNotePath = `${includedPath}.md`;
+                 matchingNode = allNodesMap.get(siblingNotePath);
+            }
+        }
+
         if (matchingNode) {
             // Add a deep copy of the matched node and its entire subtree
             finalFilteredRoots.push(deepCopyNode(matchingNode));
