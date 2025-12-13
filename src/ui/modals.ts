@@ -45,8 +45,7 @@ export class CreateAbstractChildModal extends Modal {
 
     new Setting(contentEl)
       .setName("Child name")
-      // eslint-disable-next-line obsidianmd/ui/sentence-case
-      .setDesc("The name for the new file (e.g. 'Meeting notes', 'Project board').")
+      .setDesc("The name for the new file (e.g. 'meeting notes', 'project board').")
       .addText((text) => {
         text.inputEl.focus();
         text.onChange((value) => {

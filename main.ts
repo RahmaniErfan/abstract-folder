@@ -27,7 +27,7 @@ export default class AbstractFolderPlugin extends Plugin {
 		await this.loadSettings();
 
 		this.indexer = new FolderIndexer(this.app, this.settings, this);
-		await this.indexer.initializeIndexer();
+		this.indexer.initializeIndexer();
 
 		this.registerView(
 			VIEW_TYPE_ABSTRACT_FOLDER,
@@ -74,7 +74,7 @@ this.addCommand({
 this.addCommand({
 	id: "clear-active-group",
 	name: "Clear active group",
-	callback: async () => {
+	callback: () => {
 		if (this.settings.activeGroupId) {
 			this.settings.activeGroupId = null;
 			this.saveSettings().then(() => {
@@ -171,15 +171,13 @@ this.addCommand({
 				active: true,
 			});
 			if (leaf instanceof WorkspaceLeaf) {
-				// eslint-disable-next-line @typescript-eslint/no-floating-promises
-				this.app.workspace.revealLeaf(leaf);
+				void this.app.workspace.revealLeaf(leaf);
 			}
 		}
 	}
 
 	async loadSettings() {
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, (await this.loadData()) as AbstractFolderPluginSettings);
 	}
 
 	async saveSettings() {

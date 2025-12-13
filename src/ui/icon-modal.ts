@@ -114,8 +114,7 @@ export class IconModal extends Modal {
       .setDesc("Enter an Obsidian icon ID (e.g., 'star', 'lucide-file'), any emoji (e.g., '📝'), or filter the list below. The field's content will be saved as the icon.")
       .addText((text) =>
         text
-          // eslint-disable-next-line obsidianmd/ui/sentence-case
-          .setPlaceholder("E.g. star, folder-tree, 📝")
+          .setPlaceholder("Example: star, folder-tree, 📝")
           .setValue(this.result) // Use 'result' as the primary value for direct input
           .onChange((value) => {
             this.result = value; // Update result directly

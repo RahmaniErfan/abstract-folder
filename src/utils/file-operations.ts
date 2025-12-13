@@ -48,8 +48,7 @@ aliases:
             initialContent = `{}`;
             break;
         default:
-            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-            new Notice(`Unsupported child type: ${childType}`);
+            new Notice(`Unsupported child type: ${childType as string}`);
             return;
     }
     

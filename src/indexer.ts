@@ -36,7 +36,7 @@ export class FolderIndexer {
     this.app.workspace.trigger('abstract-folder:graph-updated');
   }
 
-  async initializeIndexer() {
+  initializeIndexer() {
     this.initializePropertyNames();
     this.registerEvents();
   }

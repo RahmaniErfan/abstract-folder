@@ -59,8 +59,9 @@ itemEl.draggable = true;
 itemEl.addEventListener("dragstart", (e) => this.dragManager.handleDragStart(e, node, parentPath || "", this.multiSelectedPaths));
 itemEl.addEventListener("dragover", (e) => this.dragManager.handleDragOver(e, node));
 itemEl.addEventListener("dragleave", (e) => this.dragManager.handleDragLeave(e));
-// eslint-disable-next-line @typescript-eslint/no-misused-promises
-itemEl.addEventListener("drop", (e) => this.dragManager.handleDrop(e, node));
+itemEl.addEventListener("drop", (e) => {
+    this.dragManager.handleDrop(e, node).catch(console.error);
+});
 
 if (node.isFolder) {
     itemEl.addClass("is-folder");
@@ -116,8 +117,7 @@ if (activeFile && activeFile.path === node.path) {
 
         selfEl.addEventListener("click", (e) => {
             e.stopPropagation();
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            this.handleNodeClick(node, e);
+            this.handleNodeClick(node, e).catch(console.error);
         });
 
         if (node.file) {

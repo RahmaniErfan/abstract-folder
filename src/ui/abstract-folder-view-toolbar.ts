@@ -89,15 +89,13 @@ export class AbstractFolderViewToolbar {
 
         menu.addItem((item) =>
             item
-                // eslint-disable-next-line obsidianmd/ui/sentence-case
-                .setTitle("Sort by name (A to Z)")
+                .setTitle("Sort by name (ascending)")
                 .setIcon(this.viewState.sortBy === 'name' && this.viewState.sortOrder === 'asc' ? "check" : "sort-asc")
                 .onClick(() => this.viewState.setSort('name', 'asc'))
         );
         menu.addItem((item) =>
             item
-                // eslint-disable-next-line obsidianmd/ui/sentence-case
-                .setTitle("Sort by name (Z to A)")
+                .setTitle("Sort by name (descending)")
                 .setIcon(this.viewState.sortBy === 'name' && this.viewState.sortOrder === 'desc' ? "check" : "sort-desc")
                 .onClick(() => this.viewState.setSort('name', 'desc'))
         );
