@@ -1,11 +1,12 @@
-import { App, Menu, TFile } from "obsidian";
+import { App, Menu, TFile, Notice } from "obsidian";
 import { FolderNode } from "../types";
 import { AbstractFolderPluginSettings } from "../settings";
 import AbstractFolderPlugin from "../../main";
-import { BatchDeleteConfirmModal, CreateAbstractChildModal, ChildFileType, DeleteConfirmModal } from './modals';
+import { BatchDeleteConfirmModal, CreateAbstractChildModal, ChildFileType, DeleteConfirmModal, FolderSelectionModal } from './modals';
 import { IconModal } from './icon-modal';
 import { updateFileIcon, toggleHiddenStatus, createAbstractChildFile, deleteAbstractFile } from '../utils/file-operations';
 import { FolderIndexer } from "../indexer";
+import { AbstractFolderFrontmatter } from "../types";
 
 export class ContextMenuHandler {
     constructor(
@@ -194,6 +195,22 @@ export class ContextMenuHandler {
                 new IconModal(this.app, (result) => {
                     updateFileIcon(this.app, file, result).catch(console.error);
                 }, currentIcon as string || "").open();
+            })
+        );
+
+        menu.addItem((item) =>
+            item
+            .setTitle("Sync with specific folder")
+            .setIcon("folder-sync")
+            .onClick(() => {
+                 new FolderSelectionModal(this.app, (folder) => {
+                     this.app.fileManager.processFrontMatter(file, (frontmatter: AbstractFolderFrontmatter) => {
+                         frontmatter[this.settings.syncPropertyName] = folder.path;
+                     }).then(() => {
+                        new Notice(`Synced ${file.basename} to ${folder.path}`);
+                        this.indexer.rebuildGraphAndTriggerUpdate();
+                     }).catch(console.error);
+                 }).open();
             })
         );
 

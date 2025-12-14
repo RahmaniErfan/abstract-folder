@@ -3,6 +3,7 @@ import { Group } from "./types";
 export interface AbstractFolderPluginSettings {
   propertyName: string; // The frontmatter property key used to define parent notes (child-defined parent)
   childrenPropertyName: string; // The frontmatter property key used by a parent to define its children (parent-defined children)
+  syncPropertyName: string; // The frontmatter property key used to define the synced physical folder
   showAliases: boolean; // Whether to show aliases instead of file names in the view
   autoExpandParents: boolean; // Whether to expand parent folders when revealing the active file
   autoExpandChildren: boolean; // Whether to expand all children folders when a file is opened
@@ -24,6 +25,7 @@ export interface AbstractFolderPluginSettings {
 export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   propertyName: 'parent',
   childrenPropertyName: 'children', // Default to 'children'
+  syncPropertyName: 'abstract-sync-folder',
   showAliases: true,
   autoExpandParents: true,
   autoExpandChildren: false,

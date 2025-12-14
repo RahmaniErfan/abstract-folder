@@ -6,6 +6,7 @@ import { ManageGroupsModal } from './modals/manage-groups-modal';
 import { ViewState } from './view-state';
 import { createAbstractChildFile } from '../utils/file-operations';
 import { Group } from "../types";
+import { ManageSyncedFoldersModal } from './modals/manage-synced-folders-modal';
 
 export class AbstractFolderViewToolbar {
     private app: App;
@@ -57,6 +58,10 @@ export class AbstractFolderViewToolbar {
         this.expandAllAction = this.addAction("chevrons-up-down", "Expand all folders", () => this.expandAllView());
         this.collapseAllAction = this.addAction("chevrons-down-up", "Collapse all folders", () => this.collapseAllView());
         
+        this.addAction("link", "Manage synced folders", () => {
+            new ManageSyncedFoldersModal(this.app, this.settings, this.plugin.indexer).open();
+        });
+
         this.addAction("lucide-folder-sync", "Convert folder structure", (evt: MouseEvent) => this.showConversionMenu(evt));
 
         this.viewStyleToggleAction = this.addAction("list", "Switch view style", () => this.viewState.toggleViewStyle());

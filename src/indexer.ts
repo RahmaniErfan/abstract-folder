@@ -14,6 +14,8 @@ export class FolderIndexer {
   private parentToChildren: ParentChildMap;
   private childToParents: Map<string, Set<string>>;
   private allFiles: Set<string>;
+  // Map physical folder path -> Abstract File Path (the parent note)
+  private physicalToAbstractMap: Map<string, string>;
 
   constructor(app: App, settings: AbstractFolderPluginSettings, plugin: AbstractFolderPlugin) {
     this.app = app;
@@ -22,6 +24,7 @@ export class FolderIndexer {
     this.parentToChildren = {};
     this.childToParents = new Map();
     this.allFiles = new Set();
+    this.physicalToAbstractMap = new Map();
     this.graph = {
       parentToChildren: this.parentToChildren,
       childToParents: this.childToParents,
@@ -58,6 +61,16 @@ getGraph(): FileGraph {
     // Return a combined list of properties that can define a parent relationship, for settings display or other uses.
     // This currently combines child-defined parent properties.
     return [...this.PARENT_PROPERTIES_TO_CHECK_FOR_CHILD_DEFINED_PARENTS];
+  }
+
+  getAbstractParentForPhysicalFolder(physicalFolderPath: string): string | undefined {
+    // Normalize path just in case (remove trailing slashes)
+    const normalizedPath = physicalFolderPath.replace(/\/+$/, '');
+    return this.physicalToAbstractMap.get(normalizedPath);
+  }
+
+  getAllSyncedFolders(): Map<string, string> {
+      return this.physicalToAbstractMap;
   }
 
   getPathToRoot(filePath: string): string[] {
@@ -130,6 +143,7 @@ getGraph(): FileGraph {
     this.parentToChildren = {};
     this.childToParents = new Map();
     this.allFiles = new Set();
+    this.physicalToAbstractMap = new Map();
 
     const allFiles = this.app.vault.getFiles();
     for (const file of allFiles) {
@@ -227,6 +241,18 @@ getGraph(): FileGraph {
 
 
     if (metadata?.frontmatter) {
+      // --- Process Synced Folder Property ---
+      const syncProp = this.settings.syncPropertyName;
+      if (metadata.frontmatter[syncProp]) {
+          let physicalPath = metadata.frontmatter[syncProp] as string;
+          if (physicalPath && typeof physicalPath === 'string') {
+              physicalPath = physicalPath.trim().replace(/\/+$/, '');
+              // We map the physical folder -> This Abstract File
+              // If multiple abstract files claim the same folder, the last one processed wins (limitation accepted for now)
+              this.physicalToAbstractMap.set(physicalPath, file.path);
+          }
+      }
+
       let isHidden = false;
       const potentialChildDefinedParents: Set<string> = new Set();
       const potentialParentDefinedChildren: Set<string> = new Set();

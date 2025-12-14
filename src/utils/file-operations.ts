@@ -53,11 +53,32 @@ aliases:
     }
     
     const safeChildName = childName.replace(/[\\/:*?"<>|]/g, "");
-    let fileName = `${safeChildName}${fileExtension}`;
+    
+    // Determine the folder path
+    let folderPath = ""; // Default to root
+    
+    // Check if the parent file has a synced physical folder
+    if (parentFile) {
+        const frontmatter = app.metadataCache.getFileCache(parentFile)?.frontmatter;
+        const syncProp = settings.syncPropertyName;
+        if (frontmatter && frontmatter[syncProp]) {
+            const syncedPath = frontmatter[syncProp];
+            if (typeof syncedPath === 'string') {
+                folderPath = syncedPath.trim();
+                // Ensure folder exists (optional but good practice, though user should have selected valid folder)
+                if (!app.vault.getAbstractFileByPath(folderPath)) {
+                   await app.vault.createFolder(folderPath);
+                }
+            }
+        }
+    }
+
+    let fileName = folderPath ? `${folderPath}/${safeChildName}${fileExtension}` : `${safeChildName}${fileExtension}`;
     let counter = 0;
     while (app.vault.getAbstractFileByPath(fileName)) {
         counter++;
-        fileName = `${safeChildName} ${counter}${fileExtension}`;
+        const namePart = `${safeChildName} ${counter}`;
+        fileName = folderPath ? `${folderPath}/${namePart}${fileExtension}` : `${namePart}${fileExtension}`;
     }
 
     try {
@@ -237,6 +258,16 @@ export async function moveFiles(
         return;
     }
 
+    // Check if target parent has a synced physical folder
+    let targetPhysicalFolder: string | null = null;
+    if (targetParentFile instanceof TFile) {
+        const frontmatter = app.metadataCache.getFileCache(targetParentFile)?.frontmatter;
+        const syncProp = settings.syncPropertyName;
+        if (frontmatter && frontmatter[syncProp] && typeof frontmatter[syncProp] === 'string') {
+            targetPhysicalFolder = frontmatter[syncProp].trim();
+        }
+    }
+
     // Group files by type
     const mdFiles: TFile[] = [];
     const nonMdFiles: TFile[] = [];
@@ -355,6 +386,33 @@ export async function moveFiles(
          });
     } else if (nonMdFiles.length > 0 && (!targetParentFile || !(targetParentFile instanceof TFile) || targetParentFile.extension !== 'md')) {
         new Notice(`Cannot move ${nonMdFiles.length} non-markdown files: Target parent must be a Markdown file.`);
+    }
+
+    // Physical Move Logic for Synced Folders
+    if (targetPhysicalFolder) {
+        for (const file of files) {
+            // Determine new path
+            const newPath = `${targetPhysicalFolder}/${file.name}`;
+            
+            // Check if file is already in the target folder
+            if (file.parent && file.parent.path === targetPhysicalFolder) {
+                continue; // Already there
+            }
+            
+            // Check for collision
+            if (app.vault.getAbstractFileByPath(newPath)) {
+                new Notice(`Cannot move ${file.name} to synced folder: File with same name exists.`);
+                continue;
+            }
+
+            try {
+                await app.fileManager.renameFile(file, newPath);
+                new Notice(`Moved ${file.name} to synced folder: ${targetPhysicalFolder}`);
+            } catch (error) {
+                console.error(`Failed to move file to synced folder:`, error);
+                new Notice(`Failed to move ${file.name} to synced folder.`);
+            }
+        }
     }
 
     // Trigger update

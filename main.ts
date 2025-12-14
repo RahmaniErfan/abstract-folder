@@ -12,6 +12,7 @@ import { FolderIndexer } from './src/indexer';
 import { AbstractFolderView, VIEW_TYPE_ABSTRACT_FOLDER } from './src/view';
 import { CreateAbstractChildModal, ParentPickerModal, ChildFileType, FolderSelectionModal, ConversionOptionsModal, DestinationPickerModal, NewFolderNameModal, SimulationModal, ScopeSelectionModal } from './src/ui/modals';
 import { ManageGroupsModal } from './src/ui/modals/manage-groups-modal';
+import { SyncManager } from './src/sync-manager';
 import { AbstractFolderSettingTab } from './src/ui/settings-tab';
 import { createAbstractChildFile } from './src/utils/file-operations';
 import { convertFoldersToPluginFormat, generateFolderStructurePlan, executeFolderGeneration } from './src/utils/conversion';
@@ -21,6 +22,7 @@ import { Group } from './src/types';
 export default class AbstractFolderPlugin extends Plugin {
 	settings: AbstractFolderPluginSettings;
 	indexer: FolderIndexer;
+	syncManager: SyncManager;
 	ribbonIconEl: HTMLElement | null = null;
 
 	async onload() {
@@ -28,6 +30,9 @@ export default class AbstractFolderPlugin extends Plugin {
 
 		this.indexer = new FolderIndexer(this.app, this.settings, this);
 		this.indexer.initializeIndexer();
+
+		this.syncManager = new SyncManager(this.app, this.settings, this.indexer, this);
+		this.syncManager.registerEvents();
 
 		this.registerView(
 			VIEW_TYPE_ABSTRACT_FOLDER,
