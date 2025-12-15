@@ -12,7 +12,7 @@ import { AbstractFolderFrontmatter } from "../types";
  * @param parentFile The parent TFile, if creating a child for an existing parent.
  * @param childType The type of child file to create ('note', 'canvas', 'base').
  */
-export async function createAbstractChildFile(app: App, settings: AbstractFolderPluginSettings, childName: string, parentFile: TFile | null, childType: ChildFileType) {
+export async function createAbstractChildFile(app: App, settings: AbstractFolderPluginSettings, childName: string, parentFile: TFile | null, childType: ChildFileType): Promise<TFile | null> {
     let fileExtension: string;
     let initialContent: string;
 
@@ -49,7 +49,7 @@ aliases:
             break;
         default:
             new Notice(`Unsupported child type: ${childType as string}`);
-            return;
+            return null;
     }
     
     const safeChildName = childName.replace(/[\\/:*?"<>|]/g, "");
@@ -59,7 +59,7 @@ aliases:
     
     // Check if the parent file has a synced physical folder
     if (parentFile) {
-        const frontmatter = app.metadataCache.getFileCache(parentFile)?.frontmatter;
+        const frontmatter = app.metadataCache.getFileCache(parentFile)?.frontmatter as AbstractFolderFrontmatter | undefined;
         const syncProp = settings.syncPropertyName;
         if (frontmatter && frontmatter[syncProp]) {
             const syncedPath = frontmatter[syncProp];
@@ -108,9 +108,11 @@ aliases:
 
         app.workspace.getLeaf(true).openFile(file).catch(console.error);
         app.workspace.trigger('abstract-folder:graph-updated');
+        return file;
     } catch (error) {
         new Notice(`Failed to create file: ${error}`);
         console.error(error);
+        return null;
     }
 }
 
@@ -261,10 +263,13 @@ export async function moveFiles(
     // Check if target parent has a synced physical folder
     let targetPhysicalFolder: string | null = null;
     if (targetParentFile instanceof TFile) {
-        const frontmatter = app.metadataCache.getFileCache(targetParentFile)?.frontmatter;
+        const frontmatter = app.metadataCache.getFileCache(targetParentFile)?.frontmatter as AbstractFolderFrontmatter | undefined;
         const syncProp = settings.syncPropertyName;
-        if (frontmatter && frontmatter[syncProp] && typeof frontmatter[syncProp] === 'string') {
-            targetPhysicalFolder = frontmatter[syncProp].trim();
+        if (frontmatter) {
+            const rawProp = frontmatter[syncProp];
+            if (typeof rawProp === 'string') {
+                targetPhysicalFolder = rawProp.trim();
+            }
         }
     }
 

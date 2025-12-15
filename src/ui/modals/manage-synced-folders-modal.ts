@@ -1,13 +1,13 @@
-import { App, Modal, Setting, TFile, Notice } from "obsidian";
+import { App, Modal, Setting, TFile, Notice, EventRef } from "obsidian";
 import { AbstractFolderPluginSettings } from "../../settings";
 import { FolderIndexer } from "../../indexer";
-import { FolderSelectionModal } from "../modals";
-import { updateFileIcon } from "../../utils/file-operations";
+import { AbstractFolderFrontmatter } from "../../types";
 import { CreateSyncedFolderModal } from "./create-synced-folder-modal";
 
 export class ManageSyncedFoldersModal extends Modal {
   private settings: AbstractFolderPluginSettings;
   private indexer: FolderIndexer;
+  private eventRef: EventRef | null = null;
 
   constructor(app: App, settings: AbstractFolderPluginSettings, indexer: FolderIndexer) {
     super(app);
@@ -16,12 +16,20 @@ export class ManageSyncedFoldersModal extends Modal {
   }
 
   onOpen() {
+    this.render();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    this.eventRef = (this.app.workspace as any).on('abstract-folder:graph-updated', () => {
+        this.render();
+    }) as EventRef;
+  }
+
+  render() {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.createEl("h2", { text: "Manage synced folders" });
     
     contentEl.createEl("p", {
-        text: "These are Abstract Files that are synced to Physical Folders. Creating a file under the abstract node will physically place it in the synced folder.",
+        text: "These are abstract files that are synced to physical folders. Creating a file under the abstract node will physically place it in the synced folder.",
         cls: "setting-item-description"
     });
 
@@ -58,7 +66,7 @@ export class ManageSyncedFoldersModal extends Modal {
         const abstractFile = this.app.vault.getAbstractFileByPath(abstractPath);
         const abstractName = abstractFile ? abstractFile.name : abstractPath;
         
-        const setting = new Setting(listContainer)
+        new Setting(listContainer)
             .setName(abstractName)
             .setDesc(`Synced to: ${physicalPath}`)
             .addButton(button => button
@@ -75,7 +83,7 @@ export class ManageSyncedFoldersModal extends Modal {
   async removeSync(abstractPath: string) {
       const file = this.app.vault.getAbstractFileByPath(abstractPath);
       if (file instanceof TFile) {
-          await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+          await this.app.fileManager.processFrontMatter(file, (frontmatter: AbstractFolderFrontmatter) => {
               delete frontmatter[this.settings.syncPropertyName];
           });
           new Notice(`Removed sync from ${file.basename}`);
@@ -84,6 +92,10 @@ export class ManageSyncedFoldersModal extends Modal {
   }
 
   onClose() {
+    if (this.eventRef) {
+        this.app.workspace.offref(this.eventRef);
+        this.eventRef = null;
+    }
     const { contentEl } = this;
     contentEl.empty();
   }

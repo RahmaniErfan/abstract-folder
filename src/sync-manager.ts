@@ -32,11 +32,12 @@ export class SyncManager {
 
         // Check if the parent folder is synced
         const parentPath = file.parent ? file.parent.path : "";
-        // Root is "/", but getAbstractParentForPhysicalFolder expects "" for root or "Folder"
-        // Adjust logic: file.parent.path returns "/" for root if using getAbstractFileByPath("/") but usually it returns parent folder name or "/"
-        // Let's standardise: if parent is root, path is "/"
+        // file.parent.path returns "/" for root on some systems/versions or empty string?
+        // Typically: "Folder" or "Folder/Subfolder". For root it is "/".
         
-        const abstractParentPath = this.indexer.getAbstractParentForPhysicalFolder(parentPath === "/" ? "" : parentPath);
+        const normalizedParentPath = parentPath === "/" ? "" : parentPath;
+        
+        const abstractParentPath = this.indexer.getAbstractParentForPhysicalFolder(normalizedParentPath);
 
         if (abstractParentPath) {
             await this.linkFileToAbstractParent(file, abstractParentPath);
@@ -47,12 +48,11 @@ export class SyncManager {
         if (!(file instanceof TFile) || file.extension !== 'md') return;
 
         const newParentPath = file.parent ? file.parent.path : "";
-        const abstractParentPath = this.indexer.getAbstractParentForPhysicalFolder(newParentPath === "/" ? "" : newParentPath);
+        const normalizedParentPath = newParentPath === "/" ? "" : newParentPath;
+        const abstractParentPath = this.indexer.getAbstractParentForPhysicalFolder(normalizedParentPath);
 
         // If moved INTO a synced folder
         if (abstractParentPath) {
-             // We check if it is already linked to avoid double linking or overwriting intentional changes?
-             // For now, "Sync" implies strict adherence. If you move it physically, you want it there abstractly.
             await this.linkFileToAbstractParent(file, abstractParentPath);
         }
         
@@ -64,15 +64,13 @@ export class SyncManager {
 
     private async linkFileToAbstractParent(file: TFile, abstractParentPath: string) {
         const abstractParentFile = this.app.vault.getAbstractFileByPath(abstractParentPath);
-        if (!abstractParentFile) return;
-
-        const abstractParentName = abstractParentFile.name.replace(/\.md$/, '');
+        if (!(abstractParentFile instanceof TFile)) return;
 
         await this.app.fileManager.processFrontMatter(file, (frontmatter: AbstractFolderFrontmatter) => {
             const propertyName = this.settings.propertyName;
             const currentParents = frontmatter[propertyName];
             
-            const newLink = `[[${abstractParentName}]]`;
+            const newLink = `[[${abstractParentFile.basename}]]`;
             
             let parentLinks: string[] = [];
 
@@ -83,8 +81,12 @@ export class SyncManager {
             }
 
             // Check if already linked
-            // Simple check
-            const alreadyLinked = parentLinks.some(link => link.includes(abstractParentName));
+            // We strip brackets and whitespace to compare
+            const cleanNewLink = abstractParentFile.basename;
+            const alreadyLinked = parentLinks.some(link => {
+                const cleanLink = link.replace(/[[\]"]/g, '').split('|')[0].trim();
+                return cleanLink === cleanNewLink;
+            });
             
             if (!alreadyLinked) {
                 parentLinks.push(newLink);
@@ -94,7 +96,7 @@ export class SyncManager {
                 } else {
                     frontmatter[propertyName] = parentLinks;
                 }
-                new Notice(`Auto-linked ${file.basename} to synced abstract folder: ${abstractParentName}`);
+                new Notice(`Auto-linked ${file.basename} to synced abstract folder: ${abstractParentFile.basename}`);
             }
         });
     }
