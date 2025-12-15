@@ -389,6 +389,16 @@ getGraph(): FileGraph {
                 return abstractFile.path;
             }
         }
+
+        // Fallback: search by name in all files
+        // This is necessary for non-md files that might not be fully indexed by getFirstLinkpathDest immediately
+        // or if they are in a subfolder but linked just by name
+        const allFiles = this.app.vault.getFiles();
+        for (const file of allFiles) {
+            if (file.name === finalCleaned || file.path === finalCleaned) {
+                return file.path;
+            }
+        }
     }
     
     return resolvedFile ? resolvedFile.path : null;
