@@ -1,7 +1,7 @@
-import { App, PluginSettingTab, Setting, AbstractInputSuggest, normalizePath } from 'obsidian';
+import { App, PluginSettingTab, Setting, AbstractInputSuggest, normalizePath, TFile } from 'obsidian';
 import AbstractFolderPlugin from '../../main'; // Adjust path if necessary
 
-// Helper for path suggestions
+// Helper for path suggestions (Files and Folders)
 export class PathInputSuggest extends AbstractInputSuggest<string> {
     constructor(app: App, private inputEl: HTMLInputElement) {
         super(app, inputEl);
@@ -12,6 +12,38 @@ export class PathInputSuggest extends AbstractInputSuggest<string> {
         const paths: string[] = [];
         for (const file of files) {
             paths.push(file.path);
+        }
+
+        const lowerCaseInputStr = inputStr.toLowerCase();
+        return paths.filter(path =>
+            path.toLowerCase().includes(lowerCaseInputStr)
+        );
+    }
+
+    renderSuggestion(value: string, el: HTMLElement): void {
+        el.setText(value);
+    }
+
+    selectSuggestion(value: string, evt: MouseEvent | KeyboardEvent): void {
+        this.inputEl.value = value;
+        this.inputEl.trigger("input");
+        this.close();
+    }
+}
+
+// Helper for file path suggestions (Files only)
+export class FileInputSuggest extends AbstractInputSuggest<string> {
+    constructor(app: App, private inputEl: HTMLInputElement) {
+        super(app, inputEl);
+    }
+
+    getSuggestions(inputStr: string): string[] {
+        const files = this.app.vault.getAllLoadedFiles();
+        const paths: string[] = [];
+        for (const file of files) {
+            if (file instanceof TFile) {
+                paths.push(file.path);
+            }
         }
 
         const lowerCaseInputStr = inputStr.toLowerCase();

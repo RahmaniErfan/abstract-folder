@@ -3,7 +3,7 @@ import { AbstractFolderPluginSettings } from "../../settings";
 import { FolderIndexer } from "../../indexer";
 import { FolderSelectionModal, ParentPickerModal } from "../modals";
 import { AbstractFolderFrontmatter } from "../../types";
-import { PathInputSuggest } from "../settings-tab";
+import { FileInputSuggest } from "../settings-tab";
 import { createAbstractChildFile } from "../../utils/file-operations";
 
 class FolderInputSuggest extends AbstractInputSuggest<string> {
@@ -14,13 +14,9 @@ class FolderInputSuggest extends AbstractInputSuggest<string> {
     getSuggestions(inputStr: string): string[] {
         const folders: string[] = [];
         
-        // This usually returns files. Let's get folders recursively properly or rely on what we have.
-        // Actually vault.getAllLoadedFiles() returns TAbstractFile[] which includes folders?
-        // documentation says getAllLoadedFiles(): TFile[] usually.
-        // Let's iterate vault.getRoot() recursively to be safe.
         
         const collectFolders = (folder: TFolder) => {
-            if (folder.path !== "/") { // Skip root slash if preferred, or keep it. Obsidian usually treats root as "/" or empty string
+            if (folder.path !== "/") {
                  folders.push(folder.path);
             }
             for (const child of folder.children) {
@@ -94,7 +90,7 @@ export class CreateSyncedFolderModal extends Modal {
                     text.setPlaceholder("Path to note")
                         .setValue(this.abstractFilePath)
                         .onChange(value => this.abstractFilePath = value);
-                    new PathInputSuggest(this.app, text.inputEl);
+                    new FileInputSuggest(this.app, text.inputEl);
                 })
                 .addButton(button => button
                     .setIcon("file")
@@ -126,7 +122,7 @@ export class CreateSyncedFolderModal extends Modal {
                     text.setPlaceholder("Path to parent note")
                         .setValue(this.newFileParentPath)
                         .onChange(value => this.newFileParentPath = value);
-                    new PathInputSuggest(this.app, text.inputEl);
+                    new FileInputSuggest(this.app, text.inputEl);
                 })
                 .addButton(button => button
                     .setIcon("file")
@@ -211,30 +207,12 @@ export class CreateSyncedFolderModal extends Modal {
             
             // Check existence
             const safeName = this.newFileName.replace(/[\\/:*?"<>|]/g, "");
-            // Ideally should check path collision properly, but createAbstractChildFile handles renames.
-            // But we want to reuse if exists?
-            // "if we do that and theres already a file named the same as the folder, we would handle it accordinly"
-            // The user implies reusing.
-            
-            // Where will it be created?
-            // createAbstractChildFile logic places it in root or sync folder of parent.
-            // If we are creating a synced root, we might want it in root or specific place.
-            // The physical location of this abstract file itself is not critical unless it is inside a synced folder.
-            // But wait, if this file represents the synced folder, where should IT physically live?
-            // Usually in root or wherever the parent is.
             
             let parentFile: TFile | null = null;
             if (this.newFileParentPath) {
                 const p = this.app.vault.getAbstractFileByPath(this.newFileParentPath);
                 if (p instanceof TFile) parentFile = p;
             }
-
-            // Let's assume we create it.
-            // We can check if a file with this name already exists in the expected location.
-            // But file-ops creates with unique name.
-            // If user wants to reuse, they should probably select "Existing".
-            // If they select "Create" and type a name that exists, createAbstractChildFile creates "Name 1".
-            // Let's stick to creating a new one for now as per "Create new file" intent.
             
             const newFile = await createAbstractChildFile(this.app, this.settings, safeName, parentFile, 'note');
             

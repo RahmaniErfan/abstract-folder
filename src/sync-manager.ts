@@ -145,14 +145,9 @@ export class SyncManager {
                     let addedCount = 0;
                     for (const childPath of childrenPathsToAdd) {
                         // Use full path for the link to avoid ambiguity
-                        // This prevents Obsidian from accidentally updating this link
-                        // when a different file with the same name is moved/renamed.
                         const newLink = `[[${childPath}]]`;
                         
-                        // Check if this link (or a short version of it) is already present?
-                        // Actually, we should check exact match first.
                         if (!childrenList.includes(newLink)) {
-                             // Also check if the file is already linked by just name (legacy/standard links)
                              const nameLink = `[[${childPath.split('/').pop()}]]`;
                              if (!childrenList.includes(nameLink)) {
                                 childrenList.push(newLink);

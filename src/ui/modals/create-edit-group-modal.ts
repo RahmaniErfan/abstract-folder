@@ -1,7 +1,7 @@
 import { App, Modal, Setting, Notice, normalizePath } from "obsidian";
 import { AbstractFolderPluginSettings } from "../../settings";
 import { Group } from "../../types";
-import { PathInputSuggest } from "../settings-tab";
+import { FileInputSuggest } from "../settings-tab";
 
 export class CreateEditGroupModal extends Modal {
   private settings: AbstractFolderPluginSettings;
@@ -82,7 +82,7 @@ export class CreateEditGroupModal extends Modal {
       .setDesc("Enter the full path of a folder to include (e.g., 'Projects/Work').")
       .addText(text => {
         this.newParentFolderInput = text.inputEl;
-        new PathInputSuggest(this.app, text.inputEl); // Use PathInputSuggest
+        new FileInputSuggest(this.app, text.inputEl); // Use FileInputSuggest
         text.setPlaceholder("Folder path")
           .onChange(value => {
             // No direct update here, wait for add button or enter
