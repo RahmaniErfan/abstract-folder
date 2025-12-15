@@ -69,7 +69,8 @@ export class SyncManager {
                 const propertyName = this.settings.propertyName;
                 const currentParents = frontmatter[propertyName];
                 
-                const newLink = `[[${abstractParentFile.basename}]]`;
+                // Use full path to avoid ambiguity if a file with the same name exists in root
+                const newLink = `[[${abstractParentFile.path}]]`;
                 
                 let parentLinks: string[] = [];
 
@@ -79,11 +80,19 @@ export class SyncManager {
                     parentLinks = currentParents as string[];
                 }
 
-                // Check if already linked
-                const cleanNewLink = abstractParentFile.basename;
+                // Check if already linked using resolved path or basename match as fallback
+                const targetPath = abstractParentFile.path;
+                const targetBasename = abstractParentFile.basename;
+                
                 const alreadyLinked = parentLinks.some(link => {
                     const cleanLink = link.replace(/[[\]"]/g, '').split('|')[0].trim();
-                    return cleanLink === cleanNewLink;
+                    
+                    // Simple check: if link is exactly the basename or full path
+                    if (cleanLink === targetBasename || cleanLink === targetPath) return true;
+
+                    // Deep check: resolve the link to see if it points to the target file
+                    const resolvedFile = this.app.metadataCache.getFirstLinkpathDest(cleanLink, file.path);
+                    return resolvedFile && resolvedFile.path === targetPath;
                 });
                 
                 if (!alreadyLinked) {
