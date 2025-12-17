@@ -2,6 +2,7 @@ import { App, TFile, CachedMetadata, TAbstractFile, Notice } from "obsidian";
 import { AbstractFolderPluginSettings } from "./settings";
 import { FileGraph, ParentChildMap, HIDDEN_FOLDER_ID, Cycle, AbstractFolderFrontmatter } from "./types";
 import AbstractFolderPlugin from '../main';
+import { debounce, Debouncer } from 'obsidian';
 
 export class FolderIndexer {
   private app: App;
@@ -14,6 +15,9 @@ export class FolderIndexer {
   private parentToChildren: ParentChildMap;
   private childToParents: Map<string, Set<string>>;
   private allFiles: Set<string>;
+  private cycles: Cycle[] = []; // Store detected cycles
+  private lastCycleSignature: string = '';
+  private debouncedRebuildGraphAndTriggerUpdate: Debouncer<[], void>;
 
   constructor(app: App, settings: AbstractFolderPluginSettings, plugin: AbstractFolderPlugin) {
     this.app = app;
@@ -27,31 +31,43 @@ export class FolderIndexer {
       childToParents: this.childToParents,
       allFiles: this.allFiles,
     };
+    this.debouncedRebuildGraphAndTriggerUpdate = debounce(() => this.rebuildGraphAndTriggerUpdateImpl(), 1000, true);
   }
 
   updateSettings(newSettings: AbstractFolderPluginSettings) {
     this.settings = newSettings;
     this.initializePropertyNames();
-    this.buildGraph();
-    this.app.workspace.trigger('abstract-folder:graph-updated');
+    this.debouncedRebuildGraphAndTriggerUpdate();
   }
 
   initializeIndexer() {
     this.initializePropertyNames();
     this.registerEvents();
+    this.debouncedRebuildGraphAndTriggerUpdate(); // Initial graph build
   }
 
   rebuildGraphAndTriggerUpdate() {
+    this.debouncedRebuildGraphAndTriggerUpdate();
+  }
+
+  private rebuildGraphAndTriggerUpdateImpl() {
     this.buildGraph();
     this.app.workspace.trigger('abstract-folder:graph-updated');
   }
 
   onunload() {
     // Obsidian's registerEvent automatically handles unregistering during unload
+    if (this.debouncedRebuildGraphAndTriggerUpdate && typeof this.debouncedRebuildGraphAndTriggerUpdate.cancel === 'function') {
+      this.debouncedRebuildGraphAndTriggerUpdate.cancel();
+    }
   }
 
-getGraph(): FileGraph {
+  getGraph(): FileGraph {
     return this.graph;
+  }
+
+  getCycles(): Cycle[] {
+    return this.cycles;
   }
 
   getRelevantParentPropertyNames(): string[] {
@@ -97,7 +113,7 @@ getGraph(): FileGraph {
   private registerEvents() {
     this.plugin.registerEvent(
       this.app.metadataCache.on("changed", (file: TFile, _data: string, cache: CachedMetadata) => {
-        this.updateFileInGraph(file, cache);
+        this.debouncedRebuildGraphAndTriggerUpdate();
       })
     );
 
@@ -120,7 +136,7 @@ getGraph(): FileGraph {
     this.plugin.registerEvent(
       this.app.vault.on("create", (file) => {
         if (file instanceof TFile) {
-          this.rebuildGraphAndTriggerUpdate();
+          this.debouncedRebuildGraphAndTriggerUpdate();
         }
       })
     );
@@ -144,6 +160,7 @@ getGraph(): FileGraph {
     childToParents: this.childToParents,
     allFiles: this.allFiles,
   };
+  this.cycles = []; // Clear previous cycles
   this.detectCycles(); // Call after graph is built
   }
 
@@ -180,17 +197,23 @@ getGraph(): FileGraph {
   }
 
   if (cycles.length > 0) {
-    this.displayCycleWarning(cycles);
+    this.cycles = cycles; // Store cycles
+    const currentSignature = JSON.stringify(cycles);
+    if (currentSignature !== this.lastCycleSignature) {
+      this.lastCycleSignature = currentSignature;
+      this.displayCycleWarning(cycles);
+    }
+  } else {
+    this.lastCycleSignature = ''; // Reset if no cycles
   }
   }
 
   private displayCycleWarning(cycles: Cycle[]) {
-  let warningMessage = "Abstract Folder Plugin: Circular relationships detected!\n";
-  cycles.forEach((cycle, index) => {
-    warningMessage += `\nCycle ${index + 1}: ${cycle.join(" -> ")}`;
-  });
-  warningMessage += "\n\nPlease review your frontmatter connections to resolve these cycles.";
-  new Notice(warningMessage, 10000); // Display notice for 10 seconds
+    if (cycles.length > 0) {
+      const message = `Abstract Folder Plugin: ${cycles.length} circular relationship(s) detected. See console for details.`;
+      new Notice(message, 5000); // Display a concise notice for 5 seconds
+      console.warn("Abstract Folder Plugin: Circular relationships detected!", cycles);
+    }
   }
 
   private initializePropertyNames() {
@@ -369,75 +392,72 @@ getGraph(): FileGraph {
   }
 
   private updateFileInGraph(file: TFile, cache: CachedMetadata) {
-    this.buildGraph();
-    this.app.workspace.trigger('abstract-folder:graph-updated');
+    this.debouncedRebuildGraphAndTriggerUpdate();
   }
 
 
   private async deleteFileFromGraph(file: TAbstractFile) {
-  await this.removeFileFromParentFrontmatters(file.path);
-  this.buildGraph();
-  this.app.workspace.trigger('abstract-folder:graph-updated');
-}
-
-private async removeFileFromParentFrontmatters(deletedFilePath: string) {
-  const allFiles = this.app.vault.getFiles();
-  const childrenPropertyName = this.settings.childrenPropertyName;
-
-  const lastSlashIndex = deletedFilePath.lastIndexOf('/');
-  const fileNameWithExtension = lastSlashIndex === -1 ? deletedFilePath : deletedFilePath.substring(lastSlashIndex + 1);
-  const fileNameWithoutExtension = fileNameWithExtension.split('.').slice(0, -1).join('.');
-
-  for (const file of allFiles) {
-    if (file.path === deletedFilePath) continue;
-
-    await this.app.fileManager.processFrontMatter(file, (frontmatter: AbstractFolderFrontmatter) => {
-      const rawChildren = frontmatter[childrenPropertyName];
-
-      if (!rawChildren) return;
-
-      let childrenArray: string[] = [];
-      if (typeof rawChildren === 'string') {
-        childrenArray = [rawChildren];
-      } else if (Array.isArray(rawChildren)) {
-        childrenArray = rawChildren as string[];
-      } else {
-        return;
-      }
-
-      const initialLength = childrenArray.length;
-      const updatedChildren = childrenArray.filter(childLink => {
-        let cleanedLink = childLink.replace(/^["']+|["']+$|^\s+|[\s]+$/g, '');
-        cleanedLink = cleanedLink.replace(/\[\[|\]\]/g, '');
-        cleanedLink = cleanedLink.split('|')[0];
-        cleanedLink = cleanedLink.trim();
-
-        const refersToDeletedFile =
-          cleanedLink === fileNameWithoutExtension ||
-          cleanedLink === fileNameWithExtension ||
-          cleanedLink === deletedFilePath;
-
-        return !refersToDeletedFile;
-      });
-
-      if (updatedChildren.length !== initialLength) {
-        if (updatedChildren.length === 0) {
-          delete frontmatter[childrenPropertyName];
-        } else if (updatedChildren.length === 1) {
-          frontmatter[childrenPropertyName] = updatedChildren[0];
-        } else {
-          frontmatter[childrenPropertyName] = updatedChildren;
-        }
-      }
-    });
+    await this.removeFileFromParentFrontmatters(file.path);
+    this.debouncedRebuildGraphAndTriggerUpdate();
   }
-}
 
-private async renameFileInGraph(file: TFile, oldPath: string) {
-const oldFileStub = { path: oldPath } as TAbstractFile;
-await this.deleteFileFromGraph(oldFileStub);
-this.processFile(file);
-this.buildGraph();
-this.app.workspace.trigger('abstract-folder:graph-updated');
-}
+  private async removeFileFromParentFrontmatters(deletedFilePath: string) {
+    const allFiles = this.app.vault.getFiles();
+    const childrenPropertyName = this.settings.childrenPropertyName;
+
+    const lastSlashIndex = deletedFilePath.lastIndexOf('/');
+    const fileNameWithExtension = lastSlashIndex === -1 ? deletedFilePath : deletedFilePath.substring(lastSlashIndex + 1);
+    const fileNameWithoutExtension = fileNameWithExtension.split('.').slice(0, -1).join('.');
+
+    for (const file of allFiles) {
+      if (file.path === deletedFilePath) continue;
+
+      await this.app.fileManager.processFrontMatter(file, (frontmatter: AbstractFolderFrontmatter) => {
+        const rawChildren = frontmatter[childrenPropertyName];
+
+        if (!rawChildren) return;
+
+        let childrenArray: string[] = [];
+        if (typeof rawChildren === 'string') {
+          childrenArray = [rawChildren];
+        } else if (Array.isArray(rawChildren)) {
+          childrenArray = rawChildren as string[];
+        } else {
+          return;
+        }
+
+        const initialLength = childrenArray.length;
+        const updatedChildren = childrenArray.filter(childLink => {
+          let cleanedLink = childLink.replace(/^["']+|["']+$|^\s+|[\s]+$/g, '');
+          cleanedLink = cleanedLink.replace(/\[\[|\]\]/g, '');
+          cleanedLink = cleanedLink.split('|')[0];
+          cleanedLink = cleanedLink.trim();
+
+          const refersToDeletedFile =
+            cleanedLink === fileNameWithoutExtension ||
+            cleanedLink === fileNameWithExtension ||
+            cleanedLink === deletedFilePath;
+
+          return !refersToDeletedFile;
+        });
+
+        if (updatedChildren.length !== initialLength) {
+          if (updatedChildren.length === 0) {
+            delete frontmatter[childrenPropertyName];
+          } else if (updatedChildren.length === 1) {
+            frontmatter[childrenPropertyName] = updatedChildren[0];
+          } else {
+            frontmatter[childrenPropertyName] = updatedChildren;
+          }
+        }
+      });
+    }
+  }
+
+  private async renameFileInGraph(file: TFile, oldPath: string) {
+    const oldFileStub = { path: oldPath } as TAbstractFile;
+    await this.deleteFileFromGraph(oldFileStub);
+    this.processFile(file);
+    this.debouncedRebuildGraphAndTriggerUpdate();
+  }
 }
