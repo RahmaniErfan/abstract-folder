@@ -24,3 +24,6 @@ data.json
 # Logs
 CHANGELOG.md
 TECHNICAL_CHANGELOG.md
+
+# Test scripts
+generate_md.py
