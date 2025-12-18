@@ -26,6 +26,7 @@ export interface FileGraph {
   parentToChildren: ParentChildMap;
   childToParents: Map<string, Set<string>>; // Child path -> Set of parent paths (for easier updates)
   allFiles: Set<string>; // All files encountered (parents or children)
+  roots: Set<string>; // Root files (those without parents in the graph)
 }
 
 export interface FolderNode {

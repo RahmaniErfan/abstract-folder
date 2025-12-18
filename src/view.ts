@@ -7,7 +7,7 @@ import { TreeRenderer } from './ui/tree/tree-renderer';
 import { ColumnRenderer } from './ui/column/column-renderer';
 import { ViewState } from './ui/view-state';
 import { buildFolderTree } from './utils/tree-utils';
-import { flattenTree, FlatItem } from './utils/virtualization';
+import { FlatItem, generateFlatItemsFromGraph } from './utils/virtualization';
 import { ContextMenuHandler } from "./ui/context-menu";
 import { AbstractFolderViewToolbar } from "./ui/abstract-folder-view-toolbar";
 import { FileRevealManager } from "./file-reveal-manager";
@@ -31,6 +31,7 @@ export class AbstractFolderView extends ItemView {
   private flatItems: FlatItem[] = [];
   private readonly ITEM_HEIGHT = 24;
   private lastScrollTop = 0;
+
 
   // Virtual Scroll State
   private virtualContainer: HTMLElement | null = null;
@@ -230,17 +231,23 @@ export class AbstractFolderView extends ItemView {
 
   private renderVirtualTreeView = () => {
     // No need to save/restore scrollTop explicitly because we aren't nuking the container
-    
-    let rootNodes = buildFolderTree(this.app, this.indexer.getGraph(), (a, b) => this.sortNodes(a, b));
 
-    if (this.settings.activeGroupId) {
-        const activeGroup = this.settings.groups.find(group => group.id === this.settings.activeGroupId);
-        if (activeGroup) {
-            rootNodes = this.filterNodesByGroup(rootNodes, activeGroup);
-        }
-    }
+    const activeGroup = this.settings.activeGroupId
+        ? this.settings.groups.find(group => group.id === this.settings.activeGroupId)
+        : undefined;
 
-    if (rootNodes.length === 0) {
+    const expandedSet = new Set(this.settings.expandedFolders);
+
+    // Lazy generation: build flat list directly from graph, skipping full tree construction
+    this.flatItems = generateFlatItemsFromGraph(
+        this.app,
+        this.indexer.getGraph(),
+        expandedSet,
+        (a, b) => this.sortNodes(a, b),
+        activeGroup
+    );
+
+    if (this.flatItems.length === 0) {
         if (this.virtualContainer) this.virtualContainer.toggleClass('abstract-folder-hidden', true);
         if (this.virtualSpacer) this.virtualSpacer.toggleClass('abstract-folder-hidden', true);
         this.contentEl.createEl("div", {
@@ -249,10 +256,6 @@ export class AbstractFolderView extends ItemView {
         });
         return;
     }
-
-    // Flatten the tree for virtualization
-    const expandedSet = new Set(this.settings.expandedFolders);
-    this.flatItems = flattenTree(rootNodes, expandedSet);
 
     // Reset buffer to force update of content when structure changes (e.g. expand/collapse)
     this.renderedItems.clear();

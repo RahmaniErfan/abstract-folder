@@ -4,6 +4,11 @@ import { FileGraph, ParentChildMap, HIDDEN_FOLDER_ID, Cycle, AbstractFolderFront
 import AbstractFolderPlugin from '../main';
 import { debounce, Debouncer } from 'obsidian';
 
+interface FileDefinedRelationships {
+    definedParents: Set<string>;
+    definedChildren: Set<string>;
+}
+
 export class FolderIndexer {
   private app: App;
   private settings: AbstractFolderPluginSettings;
@@ -15,6 +20,10 @@ export class FolderIndexer {
   private parentToChildren: ParentChildMap;
   private childToParents: Map<string, Set<string>>;
   private allFiles: Set<string>;
+  
+  // Store which relationships are defined by which file to allow incremental updates
+  private fileRelationships: Map<string, FileDefinedRelationships> = new Map();
+
   private cycles: Cycle[] = []; // Store detected cycles
   private lastCycleSignature: string = '';
   private debouncedRebuildGraphAndTriggerUpdate: Debouncer<[], void>;
@@ -32,6 +41,7 @@ export class FolderIndexer {
       parentToChildren: this.parentToChildren,
       childToParents: this.childToParents,
       allFiles: this.allFiles,
+      roots: new Set(),
     };
     this.debouncedRebuildGraphAndTriggerUpdate = debounce(() => this.rebuildGraphAndTriggerUpdateImpl(), 1000, true);
   }
@@ -130,7 +140,8 @@ export class FolderIndexer {
   private registerEvents() {
     this.plugin.registerEvent(
       this.app.metadataCache.on("changed", (file: TFile, _data: string, cache: CachedMetadata) => {
-        this.debouncedRebuildGraphAndTriggerUpdate();
+        // Optimized: Incremental update
+        this.updateFileIncremental(file, cache);
       })
     );
 
@@ -153,7 +164,8 @@ export class FolderIndexer {
     this.plugin.registerEvent(
       this.app.vault.on("create", (file) => {
         if (file instanceof TFile) {
-          this.debouncedRebuildGraphAndTriggerUpdate();
+          // New file needs to be added to graph
+          this.updateFileIncremental(file, this.app.metadataCache.getFileCache(file) || {});
         }
       })
     );
@@ -164,6 +176,8 @@ export class FolderIndexer {
     this.parentToChildren = {};
     this.childToParents = new Map();
     this.allFiles = new Set();
+    this.fileRelationships = new Map();
+    this.graph.roots = new Set(); // Clear roots
 
     const allFiles = this.app.vault.getFiles();
     console.warn(`[Abstract Folder Benchmark] Processing ${allFiles.length} files`);
@@ -176,20 +190,48 @@ export class FolderIndexer {
             if (this.isExcluded(file.path)) {
                 continue;
             }
-            this.processFile(file);
+            // Process file and store its definitions
+            const relationships = this.getFileRelationships(file);
+            this.fileRelationships.set(file.path, relationships);
+            
+            // Apply to graph
+            this.applyRelationshipsToGraph(file.path, relationships);
+            
+            this.allFiles.add(file.path);
         }
         // Yield to main thread
         await new Promise(resolve => setTimeout(resolve, 0));
     }
+    
+    this.recalculateAllRoots();
 
-  this.graph = {
-    parentToChildren: this.parentToChildren,
-    childToParents: this.childToParents,
-    allFiles: this.allFiles,
-  };
-  this.cycles = []; // Clear previous cycles
-  this.detectCycles(); // Call after graph is built
-  console.warn(`[Abstract Folder Benchmark] buildGraph took ${Date.now() - start}ms`);
+    this.graph = {
+      parentToChildren: this.parentToChildren,
+      childToParents: this.childToParents,
+      allFiles: this.allFiles,
+      roots: this.graph.roots,
+    };
+    
+    this.cycles = []; // Clear previous cycles
+    this.detectCycles(); // Call after graph is built
+    console.warn(`[Abstract Folder Benchmark] buildGraph took ${Date.now() - start}ms`);
+  }
+
+  private recalculateAllRoots() {
+      this.graph.roots = new Set();
+      for (const file of this.allFiles) {
+        if (!this.childToParents.has(file) || this.childToParents.get(file)!.size === 0) {
+          this.graph.roots.add(file);
+        }
+      }
+  }
+
+  private updateRootStatus(path: string) {
+      if (!this.childToParents.has(path) || this.childToParents.get(path)!.size === 0) {
+          this.graph.roots.add(path);
+      } else {
+          this.graph.roots.delete(path);
+      }
   }
 
   private detectCycles() {
@@ -266,107 +308,172 @@ export class FolderIndexer {
       return false;
   }
 
-  private processFile(file: TAbstractFile) {
-    if (!(file instanceof TFile)) {
-      // If it's not a TFile (e.g., a folder), we don't process its frontmatter for relationships.
-      // However, we still need to add it to allFiles if it's referenced as a parent or child.
-      // For now, we only care about TFile for frontmatter.
-      this.allFiles.add(file.path); // Ensure folder paths are tracked if they become parents
-      return;
-    }
+  private getFileRelationships(file: TFile): FileDefinedRelationships {
+    const relationships: FileDefinedRelationships = {
+        definedParents: new Set(),
+        definedChildren: new Set()
+    };
 
-    this.allFiles.add(file.path);
     const metadata = this.app.metadataCache.getFileCache(file);
+    if (!metadata?.frontmatter) return relationships;
 
+    let isHidden = false;
 
-    if (metadata?.frontmatter) {
-      let isHidden = false;
-      const potentialChildDefinedParents: Set<string> = new Set();
-      const potentialParentDefinedChildren: Set<string> = new Set();
-
-      // --- Process child-defined parents (using this file's 'parent' frontmatter) ---
-      // First pass: Check for 'hidden' status across all possible parent properties
-      for (const propName of this.PARENT_PROPERTIES_TO_CHECK_FOR_CHILD_DEFINED_PARENTS) {
+    // --- Process child-defined parents ---
+    for (const propName of this.PARENT_PROPERTIES_TO_CHECK_FOR_CHILD_DEFINED_PARENTS) {
         const parentProperty = metadata.frontmatter[propName] as unknown;
         if (parentProperty) {
-          const parentLinks = Array.isArray(parentProperty) ? parentProperty as unknown[] : [parentProperty];
-          for (const parentLink of parentLinks) {
-            if (typeof parentLink === 'string' && parentLink.toLowerCase().trim() === 'hidden') {
-              isHidden = true;
-              break;
-            }
-          }
-        }
-        if (isHidden) break;
-      }
-
-      if (isHidden) {
-        // If explicitly hidden, link only to HIDDEN_FOLDER_ID
-        this.addRelationship(HIDDEN_FOLDER_ID, file.path);
-        this.allFiles.add(HIDDEN_FOLDER_ID);
-      } else {
-        // If not hidden, process all valid parent links from ALL configured properties
-        for (const propName of this.PARENT_PROPERTIES_TO_CHECK_FOR_CHILD_DEFINED_PARENTS) {
-          const parentProperty = metadata.frontmatter[propName] as unknown;
-          if (parentProperty) {
             const parentLinks = Array.isArray(parentProperty) ? parentProperty as unknown[] : [parentProperty];
             for (const parentLink of parentLinks) {
-              if (typeof parentLink === 'string' && parentLink.toLowerCase().trim() !== 'hidden') {
-                const resolvedParentPath = this.resolveLinkToPath(parentLink, file.path);
-                if (resolvedParentPath) {
-                  potentialChildDefinedParents.add(resolvedParentPath);
+                if (typeof parentLink === 'string' && parentLink.toLowerCase().trim() === 'hidden') {
+                    isHidden = true;
+                    break;
                 }
-              }
             }
-          }
         }
+        if (isHidden) break;
+    }
 
-        for (const resolvedParentPath of potentialChildDefinedParents) {
-          this.addRelationship(resolvedParentPath, file.path);
-          this.allFiles.add(resolvedParentPath);
+    if (isHidden) {
+        relationships.definedParents.add(HIDDEN_FOLDER_ID);
+    } else {
+        const potentialParents = new Set<string>();
+        for (const propName of this.PARENT_PROPERTIES_TO_CHECK_FOR_CHILD_DEFINED_PARENTS) {
+            const parentProperty = metadata.frontmatter[propName] as unknown;
+            if (parentProperty) {
+                const parentLinks = Array.isArray(parentProperty) ? parentProperty as unknown[] : [parentProperty];
+                for (const parentLink of parentLinks) {
+                    if (typeof parentLink === 'string' && parentLink.toLowerCase().trim() !== 'hidden') {
+                        const resolvedParentPath = this.resolveLinkToPath(parentLink, file.path);
+                        if (resolvedParentPath) {
+                            potentialParents.add(resolvedParentPath);
+                        }
+                    }
+                }
+            }
         }
-      }
+        relationships.definedParents = potentialParents;
+    }
 
-      // --- Process parent-defined children (using this file's 'children' frontmatter) ---
-      for (const propName of this.CHILD_PROPERTIES_TO_CHECK_FOR_PARENT_DEFINED_CHILDREN) {
+    // --- Process parent-defined children ---
+    const potentialChildren = new Set<string>();
+    for (const propName of this.CHILD_PROPERTIES_TO_CHECK_FOR_PARENT_DEFINED_CHILDREN) {
         const childrenProperty = metadata.frontmatter[propName] as unknown;
         if (childrenProperty) {
-          const childLinks = Array.isArray(childrenProperty) ? childrenProperty as unknown[] : [childrenProperty];
-          for (const childLink of childLinks) {
-            if (typeof childLink === 'string') {
-              const resolvedChildPath = this.resolveLinkToPath(childLink, file.path);
-              if (resolvedChildPath && resolvedChildPath.toLowerCase().trim() !== 'hidden') {
-                potentialParentDefinedChildren.add(resolvedChildPath);
-              }
+            const childLinks = Array.isArray(childrenProperty) ? childrenProperty as unknown[] : [childrenProperty];
+            for (const childLink of childLinks) {
+                if (typeof childLink === 'string') {
+                    const resolvedChildPath = this.resolveLinkToPath(childLink, file.path);
+                    if (resolvedChildPath && resolvedChildPath.toLowerCase().trim() !== 'hidden') {
+                         if (resolvedChildPath !== file.path) { // Prevent self-linking
+                             potentialChildren.add(resolvedChildPath);
+                         }
+                    }
+                }
             }
-          }
         }
-      }
-
-      for (const resolvedChildPath of potentialParentDefinedChildren) {
-        // If a file lists itself as a child, ignore it to prevent circular references and self-linking
-        if (resolvedChildPath !== file.path) {
-          this.addRelationship(file.path, resolvedChildPath);
-          this.allFiles.add(resolvedChildPath); // Ensure the child (even non-MD) is tracked
-        }
-      }
     }
-    this.allFiles.add(file.path); // Ensure the file itself is always tracked
+    relationships.definedChildren = potentialChildren;
+
+    return relationships;
   }
 
-  // Helper to add a relationship, consolidating logic
-  private addRelationship(parentPath: string, childPath: string) {
-    if (!this.parentToChildren[parentPath]) {
-      this.parentToChildren[parentPath] = new Set();
-    }
-    this.parentToChildren[parentPath].add(childPath);
+  private applyRelationshipsToGraph(filePath: string, relationships: FileDefinedRelationships) {
+      // Apply parents (filePath is child)
+      for (const parent of relationships.definedParents) {
+          this.addRelationshipToGraphStructure(parent, filePath);
+      }
+      
+      // Apply children (filePath is parent)
+      for (const child of relationships.definedChildren) {
+          this.addRelationshipToGraphStructure(filePath, child);
+      }
+  }
+  
+  private addRelationshipToGraphStructure(parentPath: string, childPath: string) {
+      if (!this.parentToChildren[parentPath]) {
+          this.parentToChildren[parentPath] = new Set();
+      }
+      this.parentToChildren[parentPath].add(childPath);
 
-    if (!this.childToParents.has(childPath)) {
-      this.childToParents.set(childPath, new Set());
-    }
-    this.childToParents.get(childPath)?.add(parentPath);
-    this.allFiles.add(parentPath); // Ensure both parent and child are in allFiles
-    this.allFiles.add(childPath);
+      if (!this.childToParents.has(childPath)) {
+          this.childToParents.set(childPath, new Set());
+      }
+      this.childToParents.get(childPath)?.add(parentPath);
+      
+      this.allFiles.add(parentPath);
+      this.allFiles.add(childPath);
+  }
+
+  private removeRelationshipFromGraphStructure(parentPath: string, childPath: string) {
+      // Only remove if NEITHER file defines it anymore
+      const parentDefs = this.fileRelationships.get(parentPath);
+      const childDefs = this.fileRelationships.get(childPath);
+      
+      const definedByParent = parentDefs?.definedChildren.has(childPath);
+      const definedByChild = childDefs?.definedParents.has(parentPath);
+      
+      if (!definedByParent && !definedByChild) {
+          // It's safe to remove
+          if (this.parentToChildren[parentPath]) {
+              this.parentToChildren[parentPath].delete(childPath);
+              if (this.parentToChildren[parentPath].size === 0) {
+                  delete this.parentToChildren[parentPath];
+              }
+          }
+          
+          if (this.childToParents.has(childPath)) {
+              this.childToParents.get(childPath)?.delete(parentPath);
+              // Do NOT delete the Set from childToParents if empty, 
+              // as we rely on .has() or size check for roots. 
+              // Or if we delete it, we must ensure roots logic checks for undefined.
+              if (this.childToParents.get(childPath)!.size === 0) {
+                  this.childToParents.delete(childPath);
+              }
+          }
+      }
+  }
+
+  private updateFileIncremental(file: TFile, cache: CachedMetadata) {
+      if (this.isExcluded(file.path)) return;
+      
+      const start = Date.now();
+      
+      const oldRelationships = this.fileRelationships.get(file.path) || { definedParents: new Set(), definedChildren: new Set() };
+      const newRelationships = this.getFileRelationships(file);
+      
+      // 1. Remove Old
+      for (const p of oldRelationships.definedParents) {
+          this.removeRelationshipFromGraphStructure(p, file.path);
+          this.updateRootStatus(file.path);
+          this.updateRootStatus(p);
+      }
+      for (const c of oldRelationships.definedChildren) {
+          this.removeRelationshipFromGraphStructure(file.path, c);
+          this.updateRootStatus(c);
+          this.updateRootStatus(file.path);
+      }
+      
+      // 2. Update Map
+      this.fileRelationships.set(file.path, newRelationships);
+      
+      // 3. Add New
+      for (const p of newRelationships.definedParents) {
+          this.addRelationshipToGraphStructure(p, file.path);
+          this.updateRootStatus(file.path);
+          this.updateRootStatus(p);
+      }
+      for (const c of newRelationships.definedChildren) {
+          this.addRelationshipToGraphStructure(file.path, c);
+          this.updateRootStatus(c);
+          this.updateRootStatus(file.path);
+      }
+
+      this.allFiles.add(file.path);
+      this.updateRootStatus(file.path);
+
+      this.app.workspace.trigger('abstract-folder:graph-updated');
+      console.warn(`[Abstract Folder Benchmark] Incremental Update took ${Date.now() - start}ms`);
   }
 
   private resolveLinkToPath(link: string, containingFilePath: string): string | null {
@@ -421,13 +528,20 @@ export class FolderIndexer {
     return resolvedFile ? resolvedFile.path : null;
   }
 
-  private updateFileInGraph(file: TFile, cache: CachedMetadata) {
-    this.debouncedRebuildGraphAndTriggerUpdate();
-  }
-
-
   private async deleteFileFromGraph(file: TAbstractFile) {
+    // For delete, we might still want to trigger a somewhat larger update or handle it incrementally
+    // But we need to remove references TO this file from OTHER files (which requires scanning or reverse lookup).
+    // The current incremental logic handles 'this file's' definitions.
+    // It DOES NOT automatically update 'other files' that point to 'this file'.
+    // However, removeFileFromParentFrontmatters DOES update the actual files, which triggers metadataCache.changed, which triggers updateFileIncremental.
+    // So we just need to wait for those updates?
+    // But removeFileFromParentFrontmatters is slow.
+    // Let's keep the existing logic for now, as delete is rare compared to edit.
+    
     await this.removeFileFromParentFrontmatters(file.path);
+    // Remove the file itself from the graph
+    this.fileRelationships.delete(file.path);
+    this.allFiles.delete(file.path);
     this.debouncedRebuildGraphAndTriggerUpdate();
   }
 
@@ -485,9 +599,17 @@ export class FolderIndexer {
   }
 
   private async renameFileInGraph(file: TFile, oldPath: string) {
-    const oldFileStub = { path: oldPath } as TAbstractFile;
-    await this.deleteFileFromGraph(oldFileStub);
-    this.processFile(file);
-    this.debouncedRebuildGraphAndTriggerUpdate();
+    // Rename is complex.
+    // 1. Update this file's path in graph
+    // 2. Update files that point TO this file (handled by Obsidian link fix usually? No, frontmatter is text)
+    // Obsidian usually asks to update links. If user says yes, metadataCache changes.
+    // So we might rely on metadataCache updates.
+    
+    // Clean up old path in our maps
+    this.fileRelationships.delete(oldPath);
+    this.allFiles.delete(oldPath);
+    
+    // Re-process file with new path
+    this.updateFileIncremental(file, this.app.metadataCache.getFileCache(file) || {});
   }
 }
