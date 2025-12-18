@@ -5,6 +5,7 @@ import AbstractFolderPlugin from "../../../main";
 import { ContextMenuHandler } from "../context-menu";
 import { FolderIndexer } from "../../indexer";
 import { DragManager } from "../dnd/drag-manager";
+import { FlatItem } from "../../utils/virtualization";
 
 function stringToNumberHash(str: string): number {
     let hash = 0;
@@ -54,6 +55,12 @@ const currentDepth = depth + 1;
 
 const itemEl = parentEl.createDiv({ cls: "abstract-folder-item" });
 itemEl.dataset.path = node.path;
+itemEl.dataset.depth = String(depth);
+// @ts-ignore
+itemEl._folderNode = node;
+// @ts-ignore
+itemEl._ancestors = ancestors;
+
 itemEl.draggable = true;
 
 itemEl.addEventListener("dragstart", (e) => this.dragManager.handleDragStart(e, node, parentPath || "", this.multiSelectedPaths));
@@ -144,10 +151,129 @@ if (activeFile && activeFile.path === node.path) {
               childrenEl.addClass(`${this.settings.rainbowPalette}-palette`);
             }
 
-            if (node.children.length > 0) {
-                const newAncestors = new Set(ancestors).add(node.path);
-                node.children.forEach(child => this.renderTreeNode(child, childrenEl, newAncestors, currentDepth, node.path));
+            // Lazy Rendering: Only render children if expanded
+            if (this.settings.expandedFolders.includes(node.path)) {
+                if (node.children.length > 0) {
+                    const newAncestors = new Set(ancestors).add(node.path);
+                    node.children.forEach(child => this.renderTreeNode(child, childrenEl, newAncestors, currentDepth, node.path));
+                }
             }
+        }
+    }
+
+    public renderChildren(itemEl: HTMLElement) {
+        // @ts-ignore
+        const node = itemEl._folderNode as FolderNode;
+        // @ts-ignore
+        const ancestors = itemEl._ancestors as Set<string>;
+        const depth = parseInt(itemEl.dataset.depth || "0");
+        
+        if (!node || !node.isFolder) return;
+
+        const childrenEl = itemEl.querySelector('.abstract-folder-children') as HTMLElement;
+        if (!childrenEl) return;
+        
+        // If already rendered, skip
+        if (childrenEl.childElementCount > 0) return;
+
+        const currentDepth = depth + 1;
+        const newAncestors = new Set(ancestors).add(node.path);
+        
+        node.children.forEach(child => this.renderTreeNode(child, childrenEl, newAncestors, currentDepth, node.path));
+    }
+
+    public renderFlatItem(item: FlatItem, container: HTMLElement | DocumentFragment, top: number) {
+        const node = item.node;
+        const depth = item.depth;
+        const activeFile = this.app.workspace.getActiveFile();
+
+        const itemEl = container.createDiv({ cls: "abstract-folder-item abstract-folder-virtual-item" });
+        itemEl.style.top = `${top}px`;
+        
+        itemEl.dataset.path = node.path;
+        itemEl.dataset.depth = String(depth);
+        // @ts-ignore
+        itemEl._folderNode = node;
+
+        itemEl.draggable = true;
+
+        itemEl.addEventListener("dragstart", (e) => this.dragManager.handleDragStart(e, node, item.parentPath || "", this.multiSelectedPaths));
+        itemEl.addEventListener("dragover", (e) => this.dragManager.handleDragOver(e, node));
+        itemEl.addEventListener("dragleave", (e) => this.dragManager.handleDragLeave(e));
+        itemEl.addEventListener("drop", (e) => {
+            this.dragManager.handleDrop(e, node).catch(console.error);
+        });
+
+        if (node.isFolder) {
+            itemEl.addClass("is-folder");
+            if (this.settings.expandedFolders.includes(node.path)) {
+                // Expanded
+            } else {
+                itemEl.addClass("is-collapsed");
+            }
+        } else {
+            itemEl.addClass("is-file");
+        }
+
+        const selfEl = itemEl.createDiv({ cls: "abstract-folder-item-self" });
+        // Virtual Indentation
+        selfEl.style.paddingLeft = `${6 + (depth * 20)}px`; // 6px base + 20px per level
+
+        if (activeFile && activeFile.path === node.path) {
+            selfEl.addClass("is-active");
+        }
+
+        if (this.multiSelectedPaths.has(node.path)) {
+            selfEl.addClass("is-multi-selected");
+        }
+
+        if (node.isFolder) {
+            const iconEl = selfEl.createDiv({ cls: "abstract-folder-collapse-icon" });
+            setIcon(iconEl, "chevron-right");
+
+            iconEl.addEventListener("click", (e) => {
+                e.stopPropagation();
+                // In virtual view, toggleCollapse should just update state and trigger re-render
+                // We pass itemEl, but view needs to know to handle it differently?
+                // Actually, toggleCollapse in view.ts now calls renderChildren.
+                // We need to override that behavior for virtual view.
+                // Or simply: the view handles the click event?
+                this.toggleCollapse(itemEl, node.path).catch(console.error);
+            });
+        }
+
+        let iconToUse = node.icon;
+        if (node.path === HIDDEN_FOLDER_ID && !iconToUse) {
+          iconToUse = "eye-off";
+        }
+
+        if (iconToUse) {
+          const iconContainerEl = selfEl.createDiv({ cls: "abstract-folder-item-icon" });
+          setIcon(iconContainerEl, iconToUse);
+          if (!iconContainerEl.querySelector('svg')) {
+            iconContainerEl.setText(iconToUse);
+          }
+        }
+
+        const innerEl = selfEl.createDiv({ cls: "abstract-folder-item-inner" });
+        innerEl.setText(this.getDisplayName(node));
+
+        if (node.file && node.path !== HIDDEN_FOLDER_ID && node.file.extension !== 'md') {
+          const fileTypeTag = selfEl.createDiv({ cls: "abstract-folder-file-tag" });
+          fileTypeTag.setText(node.file.extension.toUpperCase());
+        }
+
+        selfEl.addEventListener("click", (e) => {
+            e.stopPropagation();
+            this.handleNodeClick(node, e).catch(console.error);
+        });
+
+        if (node.file) {
+          selfEl.addEventListener("contextmenu", (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            this.contextMenuHandler.showContextMenu(e, node, this.multiSelectedPaths);
+          });
         }
     }
 

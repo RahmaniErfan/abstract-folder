@@ -7,6 +7,7 @@ import { TreeRenderer } from './ui/tree/tree-renderer';
 import { ColumnRenderer } from './ui/column/column-renderer';
 import { ViewState } from './ui/view-state';
 import { buildFolderTree } from './utils/tree-utils';
+import { flattenTree, FlatItem } from './utils/virtualization';
 import { ContextMenuHandler } from "./ui/context-menu";
 import { AbstractFolderViewToolbar } from "./ui/abstract-folder-view-toolbar";
 import { FileRevealManager } from "./file-reveal-manager";
@@ -26,6 +27,10 @@ export class AbstractFolderView extends ItemView {
   private toolbar: AbstractFolderViewToolbar;
   private fileRevealManager: FileRevealManager | undefined;
   private dragManager: DragManager;
+
+  private flatItems: FlatItem[] = [];
+  private readonly ITEM_HEIGHT = 24;
+  private lastScrollTop = 0;
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -128,6 +133,13 @@ export class AbstractFolderView extends ItemView {
     this.contentEl.addEventListener("drop", (e) => {
         this.dragManager.handleDrop(e, null).catch(console.error);
     });
+
+    // Virtual Scroll Listener
+    this.contentEl.addEventListener("scroll", () => {
+        if (this.settings.viewStyle === 'tree') {
+            window.requestAnimationFrame(() => this.updateVirtualRender());
+        }
+    });
   }
 
   public onClose = async () => {
@@ -141,6 +153,7 @@ export class AbstractFolderView extends ItemView {
   }
 
   private renderView = () => {
+    const start = Date.now();
     this.contentEl.empty();
     this.contentEl.removeClass("abstract-folder-columns-wrapper");
     this.contentEl.removeClass("abstract-folder-tree-wrapper");
@@ -158,14 +171,18 @@ export class AbstractFolderView extends ItemView {
 
     if (this.settings.viewStyle === 'tree') {
         this.contentEl.addClass("abstract-folder-tree-wrapper");
-        this.renderTreeView();
+        this.renderVirtualTreeView();
     } else {
         this.contentEl.addClass("abstract-folder-columns-wrapper");
         this.renderColumnView();
     }
+    console.debug(`[Abstract Folder Benchmark] renderView took ${Date.now() - start}ms`);
   };
 
-  private renderTreeView = () => {
+  private renderVirtualTreeView = () => {
+    // Restore scroll position logic if needed, but for now we reset or keep based on contentEl
+    const scrollTop = this.contentEl.scrollTop;
+
     let rootNodes = buildFolderTree(this.app, this.indexer.getGraph(), (a, b) => this.sortNodes(a, b));
 
     if (this.settings.activeGroupId) {
@@ -174,24 +191,52 @@ export class AbstractFolderView extends ItemView {
             rootNodes = this.filterNodesByGroup(rootNodes, activeGroup);
         }
     }
- 
-     if (rootNodes.length === 0) {
-       this.contentEl.createEl("div", {
-           text: "No abstract folders found. Add parent property to your notes to create a structure.",
-           cls: "abstract-folder-empty-state"
-       });
-       return;
-     }
- 
-     const treeContainer = this.contentEl.createEl("div", { cls: "abstract-folder-tree" });
-     rootNodes.forEach(node => {
-       this.treeRenderer.renderTreeNode(node, treeContainer, new Set(), 0, null);
-     });
- 
-    const activeFile = this.app.workspace.getActiveFile();
-    if (activeFile && this.fileRevealManager) {
-        this.fileRevealManager.revealFile(activeFile.path);
+
+    if (rootNodes.length === 0) {
+        this.contentEl.createEl("div", {
+            text: "No abstract folders found. Add parent property to your notes to create a structure.",
+            cls: "abstract-folder-empty-state"
+        });
+        return;
     }
+
+    // Flatten the tree for virtualization
+    const expandedSet = new Set(this.settings.expandedFolders);
+    this.flatItems = flattenTree(rootNodes, expandedSet);
+
+    // Create Spacer for scroll height
+    const spacer = this.contentEl.createDiv({ cls: "abstract-folder-virtual-spacer" });
+    spacer.style.height = `${this.flatItems.length * this.ITEM_HEIGHT}px`;
+
+    // Restore scroll
+    this.contentEl.scrollTop = scrollTop;
+
+    this.updateVirtualRender();
+   }
+
+   private updateVirtualRender = () => {
+       const scrollTop = this.contentEl.scrollTop;
+       const viewportHeight = this.contentEl.clientHeight;
+       
+       const startIndex = Math.floor(scrollTop / this.ITEM_HEIGHT);
+       const endIndex = Math.min(this.flatItems.length, Math.ceil((scrollTop + viewportHeight) / this.ITEM_HEIGHT) + 1); // +1 buffer
+
+       // Clear existing rendered items (but keep spacer and header if any)
+       // We identify items by class .abstract-folder-virtual-item
+       const existingItems = this.contentEl.querySelectorAll(".abstract-folder-virtual-item");
+       existingItems.forEach(el => el.remove());
+
+       // Render new items
+       // We create a fragment
+       const fragment = document.createDocumentFragment();
+
+       for (let i = startIndex; i < endIndex; i++) {
+           const item = this.flatItems[i];
+           if (item) {
+               this.treeRenderer.renderFlatItem(item, fragment, i * this.ITEM_HEIGHT);
+           }
+       }
+       this.contentEl.appendChild(fragment);
    }
  
    private renderColumnView = () => {
@@ -215,7 +260,9 @@ export class AbstractFolderView extends ItemView {
          return;
      }
  
-     const columnsContainer = this.contentEl.createDiv({ cls: "abstract-folder-columns-container" });
+     // Optimization: Create disconnected element to prevent reflows during build
+     const columnsContainer = document.createElement("div");
+     columnsContainer.addClass("abstract-folder-columns-container");
  
      let currentNodes: FolderNode[] = rootNodes;
      let renderedDepth = 0;
@@ -241,6 +288,8 @@ export class AbstractFolderView extends ItemView {
              break;
          }
      }
+     
+     this.contentEl.appendChild(columnsContainer);
    }
 
   private sortNodes(a: FolderNode, b: FolderNode): number {
@@ -292,19 +341,20 @@ export class AbstractFolderView extends ItemView {
   }
 
   private async toggleCollapse(itemEl: HTMLElement, path: string) {
-    const isCollapsed = !itemEl.hasClass("is-collapsed");
-    itemEl.toggleClass("is-collapsed", isCollapsed);
-
-    if (this.settings.rememberExpanded) {
-      if (isCollapsed) {
+    // Virtual View Logic: Update settings and full re-render
+    const expanded = this.settings.expandedFolders.includes(path);
+    if (expanded) {
         this.settings.expandedFolders = this.settings.expandedFolders.filter(p => p !== path);
-      } else {
-        if (!this.settings.expandedFolders.includes(path)) {
-          this.settings.expandedFolders.push(path);
-        }
-      }
-      await this.plugin.saveSettings();
+    } else {
+        this.settings.expandedFolders.push(path);
     }
+    
+    if (this.settings.rememberExpanded) {
+        await this.plugin.saveSettings();
+    }
+    
+    // Trigger re-render to update the virtual list structure
+    this.renderView();
   }
 
   private getDisplayName = (node: FolderNode): string => {

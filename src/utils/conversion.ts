@@ -29,6 +29,7 @@ export async function convertFoldersToPluginFormat(
     rootFolder: TFolder,
     options: ConversionOptions
 ): Promise<void> {
+    const startTotal = Date.now();
     new Notice("Starting folder to plugin conversion...");
     let updatedCount = 0;
     const filesToProcess: TFile[] = [];
@@ -59,6 +60,10 @@ export async function convertFoldersToPluginFormat(
     collectFolders(rootFolder);
 
     // First pass: Create parent notes for all folders and link regular files to them
+    // Queue for batch processing
+    const operations: (() => Promise<void>)[] = [];
+
+    const startPass1 = Date.now();
     for (const folder of allFoldersInScope) {
         if (folder === rootFolder && rootFolder.parent === null) { // Handle vault root case
             // If the rootFolder is the actual vault root, don't try to create a parent note for it based on a parent folder.
@@ -97,20 +102,31 @@ export async function convertFoldersToPluginFormat(
             for (const child of folder.children) {
                 if (child instanceof TFile) {
                     if (child.extension === 'md' && child.path !== folderNote.path) {
-                        await linkChildToParent(app, settings, child, folderNote, options.existingRelationshipsStrategy);
+                        operations.push(async () => {
+                            await linkChildToParent(app, settings, child, folderNote, options.existingRelationshipsStrategy);
+                        });
                         updatedCount++;
                     } else if (child.path !== folderNote.path) {
                         // Non-markdown file: only add to parent note's children, not vice-versa
-                        await addChildToParentNoteFrontmatter(app, settings, child, folderNote);
+                        operations.push(async () => {
+                            await addChildToParentNoteFrontmatter(app, settings, child, folderNote);
+                        });
                         updatedCount++;
                     }
-            }
+                }
             }
         }
     }
+    
+    // Execute Pass 1 Operations
+    await processInBatches(operations, 50);
+    operations.length = 0; // Clear queue
+
+    console.warn(`[Abstract Folder Benchmark] Conversion Pass 1 took ${Date.now() - startPass1}ms`);
 
     // Second pass: Link folder notes to their conceptual parent folder notes
     // This establishes the hierarchy between abstract folders themselves
+    const startPass2 = Date.now();
     for (const folder of allFoldersInScope) {
         if (folder === rootFolder && rootFolder.parent === null) {
             continue;
@@ -158,14 +174,21 @@ export async function convertFoldersToPluginFormat(
         const parentFolderNote = parentFile instanceof TFile ? parentFile : null;
 
         if (parentFolderNote && currentFolderNote.path !== parentFolderNote.path) {
-            await linkChildToParent(app, settings, currentFolderNote, parentFolderNote, options.existingRelationshipsStrategy);
+            operations.push(async () => {
+                await linkChildToParent(app, settings, currentFolderNote, parentFolderNote, options.existingRelationshipsStrategy);
+            });
             updatedCount++;
         } else {
             // No parent folder note or self-link, no linking needed.
         }
     }
 
+    // Execute Pass 2 Operations
+    await processInBatches(operations, 50);
+
     new Notice(`Conversion complete. Updated ${updatedCount} relationships.`);
+    console.debug(`[Abstract Folder Benchmark] Conversion Pass 2 took ${Date.now() - startPass2}ms`);
+    console.debug(`[Abstract Folder Benchmark] Total Conversion took ${Date.now() - startTotal}ms`);
     app.workspace.trigger('abstract-folder:graph-updated');
 }
 
@@ -194,7 +217,11 @@ async function addChildToParentNoteFrontmatter(
         if (!currentChildren.includes(childLink)) {
             currentChildren.push(childLink);
         }
-        frontmatter[childrenPropertyName] = currentChildren;
+
+        // Dirty Check
+        if (JSON.stringify(frontmatter[childrenPropertyName]) !== JSON.stringify(currentChildren)) {
+             frontmatter[childrenPropertyName] = currentChildren;
+        }
     });
 }
  
@@ -230,9 +257,19 @@ async function linkChildToParent(
             }
         }
         
-        frontmatter[parentPropertyName] = currentParents;
+        // Dirty Check
+        if (JSON.stringify(frontmatter[parentPropertyName]) !== JSON.stringify(currentParents)) {
+            frontmatter[parentPropertyName] = currentParents;
+        }
     });
 
+}
+
+async function processInBatches(operations: (() => Promise<void>)[], batchSize: number) {
+    for (let i = 0; i < operations.length; i += batchSize) {
+        const batch = operations.slice(i, i + batchSize);
+        await Promise.all(batch.map(op => op()));
+    }
 }
 /**
  * Generates a physical folder structure from the plugin's abstract folder format.

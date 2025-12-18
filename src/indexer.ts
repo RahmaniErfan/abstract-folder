@@ -18,6 +18,8 @@ export class FolderIndexer {
   private cycles: Cycle[] = []; // Store detected cycles
   private lastCycleSignature: string = '';
   private debouncedRebuildGraphAndTriggerUpdate: Debouncer<[], void>;
+  private isBuilding = false;
+  private pendingRebuild = false;
 
   constructor(app: App, settings: AbstractFolderPluginSettings, plugin: AbstractFolderPlugin) {
     this.app = app;
@@ -50,9 +52,24 @@ export class FolderIndexer {
     this.debouncedRebuildGraphAndTriggerUpdate();
   }
 
-  private rebuildGraphAndTriggerUpdateImpl() {
-    this.buildGraph();
-    this.app.workspace.trigger('abstract-folder:graph-updated');
+  private async rebuildGraphAndTriggerUpdateImpl() {
+    if (this.isBuilding) {
+        this.pendingRebuild = true;
+        return;
+    }
+    this.isBuilding = true;
+
+    try {
+        do {
+            this.pendingRebuild = false;
+            const start = Date.now();
+            await this.buildGraph();
+            this.app.workspace.trigger('abstract-folder:graph-updated');
+            console.warn(`[Abstract Folder Benchmark] Full Graph Rebuild took ${Date.now() - start}ms`);
+        } while (this.pendingRebuild);
+    } finally {
+        this.isBuilding = false;
+    }
   }
 
   onunload() {
@@ -142,19 +159,29 @@ export class FolderIndexer {
     );
   }
 
-  private buildGraph() {
+  private async buildGraph() {
+    const start = Date.now();
     this.parentToChildren = {};
     this.childToParents = new Map();
     this.allFiles = new Set();
 
     const allFiles = this.app.vault.getFiles();
-    for (const file of allFiles) {
-      // Check if file is in an excluded path
-      if (this.isExcluded(file.path)) {
-          continue;
-      }
-      this.processFile(file);
+    console.warn(`[Abstract Folder Benchmark] Processing ${allFiles.length} files`);
+    
+    const CHUNK_SIZE = 500;
+    for (let i = 0; i < allFiles.length; i += CHUNK_SIZE) {
+        const chunk = allFiles.slice(i, i + CHUNK_SIZE);
+        for (const file of chunk) {
+            // Check if file is in an excluded path
+            if (this.isExcluded(file.path)) {
+                continue;
+            }
+            this.processFile(file);
+        }
+        // Yield to main thread
+        await new Promise(resolve => setTimeout(resolve, 0));
     }
+
   this.graph = {
     parentToChildren: this.parentToChildren,
     childToParents: this.childToParents,
@@ -162,9 +189,11 @@ export class FolderIndexer {
   };
   this.cycles = []; // Clear previous cycles
   this.detectCycles(); // Call after graph is built
+  console.warn(`[Abstract Folder Benchmark] buildGraph took ${Date.now() - start}ms`);
   }
 
   private detectCycles() {
+  const start = Date.now();
   const cycles: Cycle[] = [];
   const visited: Set<string> = new Set();
   const recursionStack: Set<string> = new Set();
@@ -206,6 +235,7 @@ export class FolderIndexer {
   } else {
     this.lastCycleSignature = ''; // Reset if no cycles
   }
+  console.debug(`[Abstract Folder Benchmark] detectCycles took ${Date.now() - start}ms`);
   }
 
   private displayCycleWarning(cycles: Cycle[]) {
