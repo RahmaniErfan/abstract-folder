@@ -1,3 +1,13 @@
+# Technical Changelog - Abstract Folder Plugin v1.4.1
+
+## Bug Fixes
+
+### Incremental Indexer Reliability
+
+*   **Relationship State Synchronization**:
+    *   **Problem**: In `updateFileIncremental`, the map tracking file relationships (`this.fileRelationships`) was updated *after* attempting to remove old relationships. For self-referencing links (A->A), `removeRelationshipFromGraphStructure(A, A)` would check the map, find that A still defines the relationship (using the old state), and skip removal. This left "phantom" links in the graph, preventing files from returning to a Root state when the self-reference was removed.
+    *   **Solution**: Moved `this.fileRelationships.set(file.path, newRelationships)` to before the removal loops. This ensures that the safety checks in `removeRelationshipFromGraphStructure` (which verify if any file *still* defines the link) correctly use the *new* intended state of the file being updated.
+
 # Technical Changelog - Abstract Folder Plugin v1.4.0
 
 ## Performance Optimization & Virtualization
