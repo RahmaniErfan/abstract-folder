@@ -9,6 +9,7 @@
 import { Plugin, WorkspaceLeaf, Notice } from 'obsidian';
 import { AbstractFolderPluginSettings, DEFAULT_SETTINGS } from './src/settings';
 import { FolderIndexer } from './src/indexer';
+import { MetricsManager } from './src/metrics-manager';
 import { AbstractFolderView, VIEW_TYPE_ABSTRACT_FOLDER } from './src/view';
 import { CreateAbstractChildModal, ParentPickerModal, ChildFileType, FolderSelectionModal, ConversionOptionsModal, DestinationPickerModal, NewFolderNameModal, SimulationModal, ScopeSelectionModal } from './src/ui/modals';
 import { ManageGroupsModal } from './src/ui/modals/manage-groups-modal';
@@ -21,17 +22,19 @@ import { Group } from './src/types';
 export default class AbstractFolderPlugin extends Plugin {
 	settings: AbstractFolderPluginSettings;
 	indexer: FolderIndexer;
+	metricsManager: MetricsManager;
 	ribbonIconEl: HTMLElement | null = null;
 
 	async onload() {
 		await this.loadSettings();
 
 		this.indexer = new FolderIndexer(this.app, this.settings, this);
+		this.metricsManager = new MetricsManager(this.app, this.indexer, this);
 		this.indexer.initializeIndexer();
 
 		this.registerView(
 			VIEW_TYPE_ABSTRACT_FOLDER,
-			(leaf) => new AbstractFolderView(leaf, this.indexer, this.settings, this)
+			(leaf) => new AbstractFolderView(leaf, this.indexer, this.settings, this, this.metricsManager)
 		);
 
 		this.updateRibbonIconVisibility();
@@ -127,6 +130,7 @@ this.addCommand({
 		this.addSettingTab(new AbstractFolderSettingTab(this.app, this));
 
 		this.app.workspace.onLayoutReady(() => {
+			this.metricsManager.applyDecay();
 			this.indexer.rebuildGraphAndTriggerUpdate();
 			if (this.settings.startupOpen) {
 				this.activateView().catch(console.error);
@@ -136,6 +140,7 @@ this.addCommand({
 
 	onunload() {
 		this.indexer.onunload();
+		void this.metricsManager.saveMetrics();
 		if (this.ribbonIconEl) {
 			this.ribbonIconEl.remove();
 			this.ribbonIconEl = null;

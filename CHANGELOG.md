@@ -1,5 +1,14 @@
 # Changelog
 
+## Version 1.5.0
+
+**Features:**
+*   **Advanced Sorting (Thermal, Stale Rot, Gravity)**: Introduced a suite of smart sorting methods that reflect real-world note interaction patterns.
+    *   **Thermal (Hotness)**: Surfaces active notes using an exponential decay logic (20% per day). Heat increases when notes are opened or modified.
+    *   **Stale Rot**: Identifies abandoned complex ideas by multiplying inactivity duration by the number of children.
+    *   **Gravity (Payload)**: Linear sorting based on recursive descendant count, highlighting the densest hubs in your vault.
+*   **Smart Icons**: Added descriptive icons (flame, skull, weight) to the sort menu for better visual clarity.
+
 ## Version 1.4.1
 
 **Fixes:**

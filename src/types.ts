@@ -44,4 +44,14 @@ export interface Group {
   parentFolders: string[]; // Paths of parent folders to display
 }
 
+export interface NodeMetrics {
+  thermal: number;
+  lastInteraction: number; // Timestamp
+  gravity: number; // Recursive descendant count (Payload)
+  rot: number; // Inactivity * Complexity
+  complexity: number; // Direct or recursive child count used for rot
+}
+
+export type SortBy = 'name' | 'mtime' | 'thermal' | 'rot' | 'gravity';
+
 export type Cycle = string[]; // Represents a cycle as an array of file paths

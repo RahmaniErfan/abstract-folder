@@ -1,5 +1,6 @@
 import { ItemView, WorkspaceLeaf, TFile } from "obsidian";
 import { FolderIndexer } from "./indexer";
+import { MetricsManager } from "./metrics-manager";
 import { FolderNode, HIDDEN_FOLDER_ID, Group } from "./types";
 import { AbstractFolderPluginSettings } from "./settings";
 import AbstractFolderPlugin from '../main';
@@ -17,6 +18,7 @@ export const VIEW_TYPE_ABSTRACT_FOLDER = "abstract-folder-view";
 
 export class AbstractFolderView extends ItemView {
   private indexer: FolderIndexer;
+  private metricsManager: MetricsManager;
   private settings: AbstractFolderPluginSettings;
   contentEl: HTMLElement;
 
@@ -42,10 +44,12 @@ export class AbstractFolderView extends ItemView {
     leaf: WorkspaceLeaf,
     indexer: FolderIndexer,
     settings: AbstractFolderPluginSettings,
-    private plugin: AbstractFolderPlugin
+    private plugin: AbstractFolderPlugin,
+    metricsManager: MetricsManager
   ) {
     super(leaf);
     this.indexer = indexer;
+    this.metricsManager = metricsManager;
     this.settings = settings;
     this.plugin = plugin;
     this.icon = "folder-tree";
@@ -130,6 +134,7 @@ export class AbstractFolderView extends ItemView {
     // @ts-ignore: Custom event name not in Obsidian types
     this.registerEvent(this.app.workspace.on("abstract-folder:graph-updated", () => {
         this.isLoading = false;
+        this.metricsManager.calculateGraphMetrics();
         this.renderView();
     }));
     // @ts-ignore: Custom event name not in Obsidian types
@@ -146,7 +151,12 @@ export class AbstractFolderView extends ItemView {
     this.registerEvent(this.app.workspace.on("abstract-folder:expand-all", () => this.expandAll(), this));
     // @ts-ignore: Custom event name not in Obsidian types
     this.registerEvent(this.app.workspace.on("abstract-folder:collapse-all", () => this.collapseAll(), this));
-    this.registerEvent(this.app.workspace.on("file-open", this.fileRevealManager.onFileOpen, this.fileRevealManager));
+    this.registerEvent(this.app.workspace.on("file-open", (file) => {
+        if (file) {
+            this.metricsManager.onInteraction(file.path);
+        }
+        this.fileRevealManager?.onFileOpen(file);
+    }));
  
     this.contentEl.addEventListener("contextmenu", (event: MouseEvent) => {
         if (event.defaultPrevented) return;
@@ -405,6 +415,18 @@ export class AbstractFolderView extends ItemView {
       const mtimeB = (fileB instanceof TFile) ? fileB.stat.mtime : 0;
       
       compareResult = mtimeA - mtimeB;
+    } else if (this.viewState.sortBy === 'thermal') {
+      const metricsA = this.metricsManager.getMetrics(a.path);
+      const metricsB = this.metricsManager.getMetrics(b.path);
+      compareResult = metricsA.thermal - metricsB.thermal;
+    } else if (this.viewState.sortBy === 'rot') {
+      const metricsA = this.metricsManager.getMetrics(a.path);
+      const metricsB = this.metricsManager.getMetrics(b.path);
+      compareResult = metricsA.rot - metricsB.rot;
+    } else if (this.viewState.sortBy === 'gravity') {
+      const metricsA = this.metricsManager.getMetrics(a.path);
+      const metricsB = this.metricsManager.getMetrics(b.path);
+      compareResult = metricsA.gravity - metricsB.gravity;
     } else {
       compareResult = a.path.localeCompare(b.path);
     }

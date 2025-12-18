@@ -1,3 +1,23 @@
+# Technical Changelog - Abstract Folder Plugin v1.5.0
+
+## Features
+
+### Metrics-Based Sorting (`src/metrics-manager.ts`)
+
+*   **Thermal Scoring**:
+    *   Implemented a decay-based activity tracking system. Scores increase on `file-open` and graph updates.
+    *   **Formula**: `score * (0.8 ^ days_since_last_interaction)`.
+    *   **Persistence**: Activity timestamps and scores are persisted in `data.json` for consistency across restarts.
+*   **Stale Rot Calculation**:
+    *   Identifies neglected nodes by calculating `Inactivity (Days) * Complexity (Direct Child Count)`.
+*   **Gravity Calculation**:
+    *   Optimized recursive descendant counting using memoization to determine branch density in the abstract graph.
+
+### UI & State Integration
+
+*   **Sort Options**: Expanded `SortBy` type to include `thermal`, `rot`, and `gravity`.
+*   **Toolbar Enhancements**: Integrated new sort modes into `AbstractFolderViewToolbar` with dedicated Lucide icons.
+
 # Technical Changelog - Abstract Folder Plugin v1.4.1
 
 ## Bug Fixes

@@ -6,7 +6,7 @@ export class ViewState {
     private plugin: AbstractFolderPlugin;
 
     public sortOrder: 'asc' | 'desc';
-    public sortBy: 'name' | 'mtime';
+    public sortBy: 'name' | 'mtime' | 'thermal' | 'rot' | 'gravity';
     public selectionPath: string[];
     public multiSelectedPaths: Set<string>;
 
@@ -19,7 +19,7 @@ export class ViewState {
         this.multiSelectedPaths = new Set();
     }
 
-    setSort(sortBy: 'name' | 'mtime', sortOrder: 'asc' | 'desc') {
+    setSort(sortBy: 'name' | 'mtime' | 'thermal' | 'rot' | 'gravity', sortOrder: 'asc' | 'desc') {
         this.sortBy = sortBy;
         this.sortOrder = sortOrder;
         this.plugin.app.workspace.trigger('abstract-folder:graph-updated'); // Trigger re-render

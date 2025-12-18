@@ -112,6 +112,45 @@ export class AbstractFolderViewToolbar {
                 .setIcon(this.viewState.sortBy === 'mtime' && this.viewState.sortOrder === 'desc' ? "check" : "sort-desc")
                 .onClick(() => this.viewState.setSort('mtime', 'desc'))
         );
+        menu.addSeparator();
+        menu.addItem((item) =>
+            item
+                .setTitle("Sort by thermal (most to least)")
+                .setIcon(this.viewState.sortBy === 'thermal' && this.viewState.sortOrder === 'desc' ? "check" : "flame")
+                .onClick(() => this.viewState.setSort('thermal', 'desc'))
+        );
+        menu.addItem((item) =>
+            item
+                .setTitle("Sort by thermal (least to most)")
+                .setIcon(this.viewState.sortBy === 'thermal' && this.viewState.sortOrder === 'asc' ? "check" : "flame")
+                .onClick(() => this.viewState.setSort('thermal', 'asc'))
+        );
+        menu.addSeparator();
+        menu.addItem((item) =>
+            item
+                .setTitle("Sort by stale rot (most to least)")
+                .setIcon(this.viewState.sortBy === 'rot' && this.viewState.sortOrder === 'desc' ? "check" : "skull")
+                .onClick(() => this.viewState.setSort('rot', 'desc'))
+        );
+        menu.addItem((item) =>
+            item
+                .setTitle("Sort by stale rot (least to most)")
+                .setIcon(this.viewState.sortBy === 'rot' && this.viewState.sortOrder === 'asc' ? "check" : "skull")
+                .onClick(() => this.viewState.setSort('rot', 'asc'))
+        );
+        menu.addSeparator();
+        menu.addItem((item) =>
+            item
+                .setTitle("Sort by gravity (heaviest to lightest)")
+                .setIcon(this.viewState.sortBy === 'gravity' && this.viewState.sortOrder === 'desc' ? "check" : "weight")
+                .onClick(() => this.viewState.setSort('gravity', 'desc'))
+        );
+        menu.addItem((item) =>
+            item
+                .setTitle("Sort by gravity (lightest to heaviest)")
+                .setIcon(this.viewState.sortBy === 'gravity' && this.viewState.sortOrder === 'asc' ? "check" : "weight")
+                .onClick(() => this.viewState.setSort('gravity', 'asc'))
+        );
         menu.showAtMouseEvent(event);
     }
 

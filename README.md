@@ -78,8 +78,8 @@ Using groups to filter and manage a subset of your abstract folders.
   * **Non-Markdown Support:** Using the "Parent-Defined Children" feature, you can organize files that don't have frontmatter (like Canvas, Excalidraw, Images, or PDFs) into your abstract folders.
   * **Custom Views:** Browse your files using a Tree view, Column view, or Groups.
   * **Migration Tools:** One-click tools to convert your physical folder structure to Abstract Folders (and vice-versa).
-
------
+  * **Advanced Sorting:** Organize your view using smart metrics like "Thermal," "Stale Rot," and "Gravity."
+  * **Hotness (Thermal):** Surface notes you are actively working on using exponential decay logic.
 
 ## Usage
 
@@ -131,6 +131,25 @@ You can reorganize your structure directly in the view.
 *   **Move (Default):** Dragging a file from Folder A to Folder B will *move* it (remove it from A, add it to B).
 *   **Copy (Add Parent):** Holding `Ctrl` (Windows/Linux) or `Cmd` (macOS) while dragging will *copy* the file (keep it in A, and *also* add it to B). This is how you create multi-parent setups quickly.
 *   **Non-Markdown Files:** Dragging images or PDFs works too! The plugin will automatically update the `children` list of the target parent folder.
+
+### 4\. Advanced Sorting
+
+Organize your knowledge map using abstract logic that mirrors how you actually interact with your notes. Unlike simple alphabetical sorting, these metrics help you surface what matters right now.
+
+#### The Metrics
+
+*   **The "Thermal" Sort (Focus Logic):** Identifies which part of your vault is currently "active" (The "Hotness"). It uses an exponential decay formula (20% every 24 hours) based on recency and interaction frequency. Scores increase when a note is opened or when its abstract structure changes.
+*   **The "Stale Rot" Sort (Cleanup Logic):** Identifies abandoned ideas. It calculates a score by multiplying the inactivity period (days since last edit) by the total number of abstract children (complexity). High scores represent large, complex structures you haven't touched in months.
+*   **The "Gravity" Sort (Recursive Density):** Identifies the biggest hubs in your vault. It recursively counts all descendants for each abstract folder, placing the "heaviest" branches at the top.
+
+#### Understanding Thermal (Hotness) vs. Rot
+
+While both involve "recency," they measure different aspects of your knowledge map:
+
+*   **Thermal (Hotness) rewards *Activity*:** A single note you just opened is "Hot," even if it has no children. It's about what you are thinking about *right now*.
+*   **Rot highlights *Neglect*:** A massive project folder with 50 notes that you haven't touched in 3 months has high "Rot." It's about large structures you've *forgotten about*.
+
+Sorting by **Thermal (Descending)** shows your current focus. Sorting by **Stale Rot (Descending)** shows you where it's time to clean up or archive.
 
 -----
 

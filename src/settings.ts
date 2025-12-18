@@ -19,6 +19,7 @@ export interface AbstractFolderPluginSettings {
   groups: Group[]; // New: List of defined groups
   activeGroupId: string | null; // New: ID of the currently active group, or null if no group is active
   expandTargetFolderOnDrop: boolean; // Whether to expand the target folder after a drag-and-drop operation
+  metrics: Record<string, { thermal: number; lastInteraction: number }>; // Path -> Metrics (persisted)
 }
 
 export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
@@ -40,4 +41,5 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   groups: [],
   activeGroupId: null,
   expandTargetFolderOnDrop: true, // Default to true for now
+  metrics: {},
 };
