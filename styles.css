@@ -8,7 +8,7 @@
 }
 
 .abstract-folder-virtual-spacer {
-    width: 1px;
+    width: 0px;
     position: absolute;
     top: 0;
     z-index: -10;
@@ -563,6 +563,7 @@
 .abstract-folder-virtual-item {
     position: absolute;
     width: 100%;
+    left: 0;
     /* Ensure height is consistent for virtual scrolling calculations */
     /* min-height: 24px; */
 }
