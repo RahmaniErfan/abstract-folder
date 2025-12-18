@@ -21,9 +21,6 @@ data.json
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store
 
-# Logs
-CHANGELOG.md
-TECHNICAL_CHANGELOG.md
 
 # Test scripts
 generate_md.py
