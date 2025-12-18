@@ -31,7 +31,7 @@ export class AbstractFolderView extends ItemView {
   private flatItems: FlatItem[] = [];
   private readonly ITEM_HEIGHT = 24;
   private lastScrollTop = 0;
-
+  private isLoading = true; // Default to true until first render/update
 
   // Virtual Scroll State
   private virtualContainer: HTMLElement | null = null;
@@ -128,7 +128,15 @@ export class AbstractFolderView extends ItemView {
     this.renderView();
 
     // @ts-ignore: Custom event name not in Obsidian types
-    this.registerEvent(this.app.workspace.on("abstract-folder:graph-updated", this.renderView, this));
+    this.registerEvent(this.app.workspace.on("abstract-folder:graph-updated", () => {
+        this.isLoading = false;
+        this.renderView();
+    }));
+    // @ts-ignore: Custom event name not in Obsidian types
+    this.registerEvent(this.app.workspace.on("abstract-folder:graph-build-start", () => {
+        this.isLoading = true;
+        this.renderView();
+    }));
     // @ts-ignore: Custom event name not in Obsidian types
     this.registerEvent(this.app.workspace.on("abstract-folder:view-style-changed", this.handleViewStyleChanged, this));
     // @ts-ignore: Custom event name not in Obsidian types
@@ -172,7 +180,6 @@ export class AbstractFolderView extends ItemView {
   }
 
   private renderView = () => {
-    const start = Date.now();
     // Do NOT empty contentEl here. It destroys the scroll container.
     // Instead, manage children visibility.
     
@@ -180,7 +187,7 @@ export class AbstractFolderView extends ItemView {
     this.contentEl.removeClass("abstract-folder-columns-wrapper");
     this.contentEl.removeClass("abstract-folder-tree-wrapper");
 
-    // Clean up non-static elements (legacy / empty states / column view)
+    // Clean up non-static elements (legacy / empty states / column view / loading state)
     const children = Array.from(this.contentEl.children);
     children.forEach(child => {
         if (!child.hasClass("abstract-folder-virtual-wrapper") &&
@@ -211,6 +218,17 @@ export class AbstractFolderView extends ItemView {
         headerEl.remove();
     }
 
+    if (this.isLoading) {
+        if (this.virtualContainer) this.virtualContainer.toggleClass('abstract-folder-hidden', true);
+        if (this.virtualSpacer) this.virtualSpacer.toggleClass('abstract-folder-hidden', true);
+        
+        this.contentEl.createEl("div", {
+            cls: "abstract-folder-loading-state",
+            text: "Loading abstract structure..."
+        });
+        return;
+    }
+
     if (this.settings.viewStyle === 'tree') {
         this.contentEl.addClass("abstract-folder-tree-wrapper");
         if (this.virtualContainer) this.virtualContainer.toggleClass('abstract-folder-hidden', false);
@@ -226,7 +244,6 @@ export class AbstractFolderView extends ItemView {
         
         this.renderColumnView();
     }
-    console.debug(`[Abstract Folder Benchmark] renderView took ${Date.now() - start}ms`);
   };
 
   private renderVirtualTreeView = () => {

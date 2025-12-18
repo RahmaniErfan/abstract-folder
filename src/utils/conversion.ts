@@ -29,7 +29,6 @@ export async function convertFoldersToPluginFormat(
     rootFolder: TFolder,
     options: ConversionOptions
 ): Promise<void> {
-    const startTotal = Date.now();
     new Notice("Starting folder to plugin conversion...");
     let updatedCount = 0;
     const filesToProcess: TFile[] = [];
@@ -63,7 +62,6 @@ export async function convertFoldersToPluginFormat(
     // Queue for batch processing
     const operations: (() => Promise<void>)[] = [];
 
-    const startPass1 = Date.now();
     for (const folder of allFoldersInScope) {
         if (folder === rootFolder && rootFolder.parent === null) { // Handle vault root case
             // If the rootFolder is the actual vault root, don't try to create a parent note for it based on a parent folder.
@@ -122,11 +120,8 @@ export async function convertFoldersToPluginFormat(
     await processInBatches(operations, 50);
     operations.length = 0; // Clear queue
 
-    console.warn(`[Abstract Folder Benchmark] Conversion Pass 1 took ${Date.now() - startPass1}ms`);
-
     // Second pass: Link folder notes to their conceptual parent folder notes
     // This establishes the hierarchy between abstract folders themselves
-    const startPass2 = Date.now();
     for (const folder of allFoldersInScope) {
         if (folder === rootFolder && rootFolder.parent === null) {
             continue;
@@ -187,8 +182,6 @@ export async function convertFoldersToPluginFormat(
     await processInBatches(operations, 50);
 
     new Notice(`Conversion complete. Updated ${updatedCount} relationships.`);
-    console.debug(`[Abstract Folder Benchmark] Conversion Pass 2 took ${Date.now() - startPass2}ms`);
-    console.debug(`[Abstract Folder Benchmark] Total Conversion took ${Date.now() - startTotal}ms`);
     app.workspace.trigger('abstract-folder:graph-updated');
 }
 

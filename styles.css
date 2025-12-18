@@ -103,6 +103,18 @@
     color: var(--text-muted);
 }
 
+/* Loading State */
+.abstract-folder-loading-state {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
 /* Tree Item Structure */
 .abstract-folder-item {
     /* For tree view: each item is a vertical stack of self + children */

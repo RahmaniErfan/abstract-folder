@@ -72,10 +72,9 @@ export class FolderIndexer {
     try {
         do {
             this.pendingRebuild = false;
-            const start = Date.now();
+            this.app.workspace.trigger('abstract-folder:graph-build-start');
             await this.buildGraph();
             this.app.workspace.trigger('abstract-folder:graph-updated');
-            console.warn(`[Abstract Folder Benchmark] Full Graph Rebuild took ${Date.now() - start}ms`);
         } while (this.pendingRebuild);
     } finally {
         this.isBuilding = false;
@@ -172,7 +171,6 @@ export class FolderIndexer {
   }
 
   private async buildGraph() {
-    const start = Date.now();
     this.parentToChildren = {};
     this.childToParents = new Map();
     this.allFiles = new Set();
@@ -180,7 +178,6 @@ export class FolderIndexer {
     this.graph.roots = new Set(); // Clear roots
 
     const allFiles = this.app.vault.getFiles();
-    console.warn(`[Abstract Folder Benchmark] Processing ${allFiles.length} files`);
     
     const CHUNK_SIZE = 500;
     for (let i = 0; i < allFiles.length; i += CHUNK_SIZE) {
@@ -214,7 +211,6 @@ export class FolderIndexer {
     
     this.cycles = []; // Clear previous cycles
     this.detectCycles(); // Call after graph is built
-    console.warn(`[Abstract Folder Benchmark] buildGraph took ${Date.now() - start}ms`);
   }
 
   private recalculateAllRoots() {
@@ -235,7 +231,6 @@ export class FolderIndexer {
   }
 
   private detectCycles() {
-  const start = Date.now();
   const cycles: Cycle[] = [];
   const visited: Set<string> = new Set();
   const recursionStack: Set<string> = new Set();
@@ -277,7 +272,6 @@ export class FolderIndexer {
   } else {
     this.lastCycleSignature = ''; // Reset if no cycles
   }
-  console.debug(`[Abstract Folder Benchmark] detectCycles took ${Date.now() - start}ms`);
   }
 
   private displayCycleWarning(cycles: Cycle[]) {
@@ -437,8 +431,6 @@ export class FolderIndexer {
   private updateFileIncremental(file: TFile, cache: CachedMetadata) {
       if (this.isExcluded(file.path)) return;
       
-      const start = Date.now();
-      
       const oldRelationships = this.fileRelationships.get(file.path) || { definedParents: new Set(), definedChildren: new Set() };
       const newRelationships = this.getFileRelationships(file);
       
@@ -473,7 +465,6 @@ export class FolderIndexer {
       this.updateRootStatus(file.path);
 
       this.app.workspace.trigger('abstract-folder:graph-updated');
-      console.warn(`[Abstract Folder Benchmark] Incremental Update took ${Date.now() - start}ms`);
   }
 
   private resolveLinkToPath(link: string, containingFilePath: string): string | null {
