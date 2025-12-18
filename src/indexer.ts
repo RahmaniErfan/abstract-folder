@@ -434,7 +434,10 @@ export class FolderIndexer {
       const oldRelationships = this.fileRelationships.get(file.path) || { definedParents: new Set(), definedChildren: new Set() };
       const newRelationships = this.getFileRelationships(file);
       
-      // 1. Remove Old
+      // 1. Update Map (Crucial: Update map BEFORE removing old relationships so checks against "current state" in removeRelationshipFromGraphStructure use the new state)
+      this.fileRelationships.set(file.path, newRelationships);
+
+      // 2. Remove Old
       for (const p of oldRelationships.definedParents) {
           this.removeRelationshipFromGraphStructure(p, file.path);
           this.updateRootStatus(file.path);
@@ -445,9 +448,6 @@ export class FolderIndexer {
           this.updateRootStatus(c);
           this.updateRootStatus(file.path);
       }
-      
-      // 2. Update Map
-      this.fileRelationships.set(file.path, newRelationships);
       
       // 3. Add New
       for (const p of newRelationships.definedParents) {

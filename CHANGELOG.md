@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 1.4.1
+
+**Fixes:**
+*   **Incremental Graph Updates**: Fixed a bug where removing a recursive parent link (a file being its own parent) did not correctly restore the file to the view. This was due to the incremental update logic using cached relationship data instead of the latest state during removal checks.
+*   **View Switching**: Fixed an issue where the Abstract Tree view would disappear after switching from Column View (Miller View). This was caused by the view container being incorrectly emptied, destroying stable DOM elements required for virtual scrolling.
+
 ## Version 1.4.0
 
 **Performance Optimization (Major):**

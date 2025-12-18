@@ -340,10 +340,10 @@ export class AbstractFolderView extends ItemView {
    }
  
    private renderColumnView = () => {
-    this.contentEl.addClass("abstract-folder-columns-wrapper");
-    this.contentEl.empty();
- 
-    let rootNodes = buildFolderTree(this.app, this.indexer.getGraph(), (a, b) => this.sortNodes(a, b));
+     // Note: CSS classes and basic cleanup are handled in renderView()
+     // to preserve stable virtual containers.
+  
+     let rootNodes = buildFolderTree(this.app, this.indexer.getGraph(), (a, b) => this.sortNodes(a, b));
 
     if (this.settings.activeGroupId) {
         const activeGroup = this.settings.groups.find(group => group.id === this.settings.activeGroupId);
