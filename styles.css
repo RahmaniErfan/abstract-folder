@@ -8,11 +8,34 @@
 }
 
 .abstract-folder-virtual-spacer {
-    width: 0px;
-    position: absolute;
-    top: 0;
+    width: 1px;
+    /* Position static to ensure parent wrapper takes up height */
+    position: static;
     z-index: -10;
     pointer-events: none;
+    visibility: hidden;
+}
+
+.abstract-folder-virtual-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.abstract-folder-virtual-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.abstract-folder-virtual-container > .abstract-folder-virtual-item {
+    pointer-events: auto;
+}
+
+.abstract-folder-hidden {
+    display: none !important;
 }
 
 /* Force the view header to display for the abstract-folder-view type */
@@ -180,8 +203,8 @@
     display: flex;
     align-items: center;
     cursor: pointer;
-    padding: 2px 6px 2px 6px; /* Revert to original padding */
-    margin-bottom: 2px; /* Add a small margin between items */
+    padding: 2px 6px 4px 6px; /* Increased bottom padding to replace margin */
+    margin-bottom: 0; /* Removed margin to fix broken indent lines */
     border-radius: var(--radius-s);
     color: var(--text-normal);
     transition: background-color 0.1s ease-in-out;
@@ -565,5 +588,57 @@
     width: 100%;
     left: 0;
     /* Ensure height is consistent for virtual scrolling calculations */
-    /* min-height: 24px; */
+    height: 24px;
 }
+
+.abstract-folder-indent-guides {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    pointer-events: none;
+}
+
+.abstract-folder-indent-guide {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 0;
+    box-sizing: content-box !important;
+    border-left: 2px solid transparent !important;
+    pointer-events: none;
+}
+
+/* Palette colors for indent guides */
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-0 { border-left-color: #61afef !important; }
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-1 { border-left-color: #c678dd !important; }
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-2 { border-left-color: #98c379 !important; }
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-3 { border-left-color: #e6c07b !important; }
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-4 { border-left-color: #e06c75 !important; }
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-5 { border-left-color: #56b6c2 !important; }
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-6 { border-left-color: #6a9955 !important; }
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-7 { border-left-color: #d1976a !important; }
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-8 { border-left-color: #9f7e69 !important; }
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-9 { border-left-color: #008080 !important; }
+
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-0 { border-left-color: #a7bed3 !important; }
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-1 { border-left-color: #d1c4e9 !important; }
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-2 { border-left-color: #c8e6c9 !important; }
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-3 { border-left-color: #ffe0b2 !important; }
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-4 { border-left-color: #ffccbc !important; }
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-5 { border-left-color: #bbdefb !important; }
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-6 { border-left-color: #c5e1a5 !important; }
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-7 { border-left-color: #b39ddb !important; }
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-8 { border-left-color: #ffb74d !important; }
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-9 { border-left-color: #9fa8da !important; }
+
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-0 { border-left-color: #00ffff !important; }
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-1 { border-left-color: #ff00ff !important; }
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-2 { border-left-color: #00ff00 !important; }
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-3 { border-left-color: #ffff00 !important; }
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-4 { border-left-color: #ff0000 !important; }
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-5 { border-left-color: #0000ff !important; }
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-6 { border-left-color: #a020f0 !important; }
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-7 { border-left-color: #ff69b4 !important; }
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-8 { border-left-color: #ffd700 !important; }
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-9 { border-left-color: #4b0082 !important; }

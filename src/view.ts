@@ -32,6 +32,11 @@ export class AbstractFolderView extends ItemView {
   private readonly ITEM_HEIGHT = 24;
   private lastScrollTop = 0;
 
+  // Virtual Scroll State
+  private virtualContainer: HTMLElement | null = null;
+  private virtualSpacer: HTMLElement | null = null;
+  private renderedItems: Map<number, HTMLElement> = new Map();
+
   constructor(
     leaf: WorkspaceLeaf,
     indexer: FolderIndexer,
@@ -93,6 +98,19 @@ export class AbstractFolderView extends ItemView {
     this.contentEl = this.containerEl.children[1] as HTMLElement;
     this.contentEl.empty();
     this.contentEl.addClass("abstract-folder-view");
+    
+    // Create stable containers for virtual scroll
+    // Wrapper for all virtual content
+    const virtualWrapper = this.contentEl.createDiv({ cls: "abstract-folder-virtual-wrapper" });
+    // Spacer for total height
+    this.virtualSpacer = virtualWrapper.createDiv({ cls: "abstract-folder-virtual-spacer" });
+    // Container for absolute positioned items
+    this.virtualContainer = virtualWrapper.createDiv({ cls: "abstract-folder-virtual-container" });
+    
+    // Hide initially if not tree mode or empty
+    this.virtualSpacer.toggleClass('abstract-folder-hidden', true);
+    this.virtualContainer.toggleClass('abstract-folder-hidden', true);
+
     await Promise.resolve();
     this.fileRevealManager = new FileRevealManager(
         this.app,
@@ -154,35 +172,65 @@ export class AbstractFolderView extends ItemView {
 
   private renderView = () => {
     const start = Date.now();
-    this.contentEl.empty();
+    // Do NOT empty contentEl here. It destroys the scroll container.
+    // Instead, manage children visibility.
+    
+    // Remove old classes
     this.contentEl.removeClass("abstract-folder-columns-wrapper");
     this.contentEl.removeClass("abstract-folder-tree-wrapper");
 
+    // Clean up non-static elements (legacy / empty states / column view)
+    const children = Array.from(this.contentEl.children);
+    children.forEach(child => {
+        if (!child.hasClass("abstract-folder-virtual-wrapper") &&
+            !child.hasClass("abstract-folder-header-title")) {
+            child.remove();
+        }
+    });
+
+    // Ensure Header
+    let headerEl = this.contentEl.querySelector(".abstract-folder-header-title");
     const activeGroup = this.settings.activeGroupId
         ? this.settings.groups.find(group => group.id === this.settings.activeGroupId)
         : null;
     const headerText = activeGroup ? activeGroup.name : "";
+
     if (headerText) {
-        this.contentEl.createEl("div", {
-            text: headerText,
-            cls: "abstract-folder-header-title"
-        });
+        if (!headerEl) {
+            headerEl = this.contentEl.createEl("div", {
+                text: headerText,
+                cls: "abstract-folder-header-title"
+            });
+            // Ensure header is first
+            this.contentEl.prepend(headerEl);
+        } else {
+             headerEl.textContent = headerText;
+        }
+    } else if (headerEl) {
+        headerEl.remove();
     }
 
     if (this.settings.viewStyle === 'tree') {
         this.contentEl.addClass("abstract-folder-tree-wrapper");
+        if (this.virtualContainer) this.virtualContainer.toggleClass('abstract-folder-hidden', false);
+        if (this.virtualSpacer) this.virtualSpacer.toggleClass('abstract-folder-hidden', false);
         this.renderVirtualTreeView();
     } else {
         this.contentEl.addClass("abstract-folder-columns-wrapper");
+        if (this.virtualContainer) this.virtualContainer.toggleClass('abstract-folder-hidden', true);
+        if (this.virtualSpacer) this.virtualSpacer.toggleClass('abstract-folder-hidden', true);
+        // Clear virtual items map
+        this.renderedItems.clear();
+        if (this.virtualContainer) this.virtualContainer.empty();
+        
         this.renderColumnView();
     }
     console.debug(`[Abstract Folder Benchmark] renderView took ${Date.now() - start}ms`);
   };
 
   private renderVirtualTreeView = () => {
-    // Restore scroll position logic if needed, but for now we reset or keep based on contentEl
-    const scrollTop = this.contentEl.scrollTop;
-
+    // No need to save/restore scrollTop explicitly because we aren't nuking the container
+    
     let rootNodes = buildFolderTree(this.app, this.indexer.getGraph(), (a, b) => this.sortNodes(a, b));
 
     if (this.settings.activeGroupId) {
@@ -193,6 +241,8 @@ export class AbstractFolderView extends ItemView {
     }
 
     if (rootNodes.length === 0) {
+        if (this.virtualContainer) this.virtualContainer.toggleClass('abstract-folder-hidden', true);
+        if (this.virtualSpacer) this.virtualSpacer.toggleClass('abstract-folder-hidden', true);
         this.contentEl.createEl("div", {
             text: "No abstract folders found. Add parent property to your notes to create a structure.",
             cls: "abstract-folder-empty-state"
@@ -204,39 +254,69 @@ export class AbstractFolderView extends ItemView {
     const expandedSet = new Set(this.settings.expandedFolders);
     this.flatItems = flattenTree(rootNodes, expandedSet);
 
-    // Create Spacer for scroll height
-    const spacer = this.contentEl.createDiv({ cls: "abstract-folder-virtual-spacer" });
-    spacer.style.height = `${this.flatItems.length * this.ITEM_HEIGHT}px`;
+    // Reset buffer to force update of content when structure changes (e.g. expand/collapse)
+    this.renderedItems.clear();
+    if (this.virtualContainer) this.virtualContainer.empty();
 
-    // Restore scroll
-    this.contentEl.scrollTop = scrollTop;
+    // Update Spacer for scroll height
+    if (this.virtualSpacer) {
+        this.virtualSpacer.style.setProperty('height', `${this.flatItems.length * this.ITEM_HEIGHT}px`);
+    }
 
     this.updateVirtualRender();
    }
 
    private updateVirtualRender = () => {
+       if (!this.virtualContainer) return;
+
        const scrollTop = this.contentEl.scrollTop;
-       const viewportHeight = this.contentEl.clientHeight;
+       const clientHeight = this.contentEl.clientHeight;
        
-       const startIndex = Math.floor(scrollTop / this.ITEM_HEIGHT);
-       const endIndex = Math.min(this.flatItems.length, Math.ceil((scrollTop + viewportHeight) / this.ITEM_HEIGHT) + 1); // +1 buffer
+       // Account for header height if present
+       const headerEl = this.contentEl.querySelector(".abstract-folder-header-title") as HTMLElement;
+       const headerHeight = headerEl ? headerEl.offsetHeight + (parseInt(getComputedStyle(headerEl).marginTop) || 0) + (parseInt(getComputedStyle(headerEl).marginBottom) || 0) : 0;
 
-       // Clear existing rendered items (but keep spacer and header if any)
-       // We identify items by class .abstract-folder-virtual-item
-       const existingItems = this.contentEl.querySelectorAll(".abstract-folder-virtual-item");
-       existingItems.forEach(el => el.remove());
+       // Calculate visible range relative to the list start
+       const effectiveScrollTop = Math.max(0, scrollTop - headerHeight);
+       
+       // Add buffer to render slightly outside viewport
+       const bufferItems = 5;
+       const startIndex = Math.max(0, Math.floor(effectiveScrollTop / this.ITEM_HEIGHT) - bufferItems);
+       const endIndex = Math.min(this.flatItems.length, Math.ceil((effectiveScrollTop + clientHeight) / this.ITEM_HEIGHT) + bufferItems);
 
-       // Render new items
-       // We create a fragment
-       const fragment = document.createDocumentFragment();
-
-       for (let i = startIndex; i < endIndex; i++) {
-           const item = this.flatItems[i];
-           if (item) {
-               this.treeRenderer.renderFlatItem(item, fragment, i * this.ITEM_HEIGHT);
+       // Identify items to remove (diffing)
+       const keysToRemove: number[] = [];
+       for (const index of this.renderedItems.keys()) {
+           if (index < startIndex || index >= endIndex) {
+               keysToRemove.push(index);
            }
        }
-       this.contentEl.appendChild(fragment);
+
+       // Remove items that are no longer visible
+       for (const index of keysToRemove) {
+           const el = this.renderedItems.get(index);
+           if (el) {
+               el.remove();
+           }
+           this.renderedItems.delete(index);
+       }
+
+       // Add new items
+       for (let i = startIndex; i < endIndex; i++) {
+           if (!this.renderedItems.has(i)) {
+               const item = this.flatItems[i];
+               if (item) {
+                   // Create a temp container to capture the reference
+                   const tempContainer = document.createElement("div");
+                   this.treeRenderer.renderFlatItem(item, tempContainer, i * this.ITEM_HEIGHT);
+                   const el = tempContainer.firstElementChild as HTMLElement;
+                   if (el) {
+                       this.virtualContainer.appendChild(el);
+                       this.renderedItems.set(i, el);
+                   }
+               }
+           }
+       }
    }
  
    private renderColumnView = () => {

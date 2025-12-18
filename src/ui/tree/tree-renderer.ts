@@ -188,7 +188,26 @@ if (activeFile && activeFile.path === node.path) {
         const activeFile = this.app.workspace.getActiveFile();
 
         const itemEl = container.createDiv({ cls: "abstract-folder-item abstract-folder-virtual-item" });
-        itemEl.style.top = `${top}px`;
+        itemEl.style.setProperty('top', `${top}px`);
+
+        // Render Indent Guides
+        if (this.settings.enableRainbowIndents && depth > 0) {
+            const guidesContainer = itemEl.createDiv({ cls: "abstract-folder-indent-guides" });
+            // Static styles moved to CSS class .abstract-folder-indent-guides
+
+            for (let i = 0; i < depth; i++) {
+                const guide = guidesContainer.createDiv({ cls: "abstract-folder-indent-guide" });
+                // Dynamic style for indentation position
+                guide.style.setProperty('left', `${6 + (i * 20)}px`);
+                
+                guide.addClass("rainbow-indent");
+                guide.addClass(`${this.settings.rainbowPalette}-palette`);
+                
+                // Color Logic (Depth based)
+                const colorIndex = i % 10;
+                guide.addClass(`rainbow-indent-${colorIndex}`);
+            }
+        }
         
         itemEl.dataset.path = node.path;
         itemEl.dataset.depth = String(depth);
@@ -217,7 +236,7 @@ if (activeFile && activeFile.path === node.path) {
 
         const selfEl = itemEl.createDiv({ cls: "abstract-folder-item-self" });
         // Virtual Indentation
-        selfEl.style.paddingLeft = `${6 + (depth * 20)}px`; // 6px base + 20px per level
+        selfEl.style.setProperty('padding-left', `${6 + (depth * 20)}px`); // 6px base + 20px per level
 
         if (activeFile && activeFile.path === node.path) {
             selfEl.addClass("is-active");
