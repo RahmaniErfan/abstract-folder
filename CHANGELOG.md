@@ -1,5 +1,14 @@
 # Changelog
 
+## Version 1.6.1
+
+**Features:**
+*   **Conversion Progress Tracking**: Added a visual progress tracker when converting large folders to the abstract structure, providing real-time feedback and preventing UI freezes.
+
+**Fixes:**
+*   **UI Stability during Conversion**: Refactored the folder conversion process to yield to the main thread, ensuring the application remains responsive even when processing thousands of files.
+*   **Post-Conversion Glitches**: Fixed an issue where files would seemingly disappear or the view would turn white after conversion by robustly re-initializing virtual scroll components and allowing the indexer time to settle.
+
 ## Version 1.6.0
 
 **Features:**

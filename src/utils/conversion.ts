@@ -30,6 +30,12 @@ export async function convertFoldersToPluginFormat(
     options: ConversionOptions
 ): Promise<void> {
     new Notice("Starting folder to plugin conversion...");
+    // Signal start immediately to lock the UI
+    app.workspace.trigger('abstract-folder:conversion-start', { total: 0, message: "Preparing conversion..." });
+    
+    // Yield to let the UI update to the 'Converting' state and prevent flickering
+    await new Promise(resolve => setTimeout(resolve, 0));
+
     let updatedCount = 0;
     const filesToProcess: TFile[] = [];
 
@@ -117,7 +123,24 @@ export async function convertFoldersToPluginFormat(
     }
     
     // Execute Pass 1 Operations
-    await processInBatches(operations, 50);
+    const pass1Total = operations.length;
+    app.workspace.trigger('abstract-folder:conversion-start', { total: pass1Total, message: "Phase 1/2: Linking files..." });
+    
+    let lastReportedTime = 0;
+    const REPORT_INTERVAL = 100; // Throttle UI updates to every 100ms
+
+    await processInBatches(operations, 50, (completed: number, total: number) => {
+        const now = Date.now();
+        if (now - lastReportedTime > REPORT_INTERVAL || completed === total) {
+             app.workspace.trigger('abstract-folder:conversion-progress', { 
+                processed: completed, 
+                total: pass1Total, 
+                message: `Phase 1/2: Linking files... (${completed}/${pass1Total})` 
+            });
+            lastReportedTime = now;
+        }
+    });
+    
     operations.length = 0; // Clear queue
 
     // Second pass: Link folder notes to their conceptual parent folder notes
@@ -179,9 +202,42 @@ export async function convertFoldersToPluginFormat(
     }
 
     // Execute Pass 2 Operations
-    await processInBatches(operations, 50);
+    const pass2Total = operations.length;
+    app.workspace.trigger('abstract-folder:conversion-progress', { 
+        processed: 0, 
+        total: pass2Total, 
+        message: "Phase 2/2: Structuring hierarchy..." 
+    });
+
+    lastReportedTime = 0; // Reset for phase 2
+
+    await processInBatches(operations, 50, (completed: number, total: number) => {
+         const now = Date.now();
+         if (now - lastReportedTime > REPORT_INTERVAL || completed === total) {
+             app.workspace.trigger('abstract-folder:conversion-progress', { 
+                processed: completed, 
+                total: pass2Total, 
+                message: `Phase 2/2: Structuring hierarchy... (${completed}/${pass2Total})` 
+            });
+            lastReportedTime = now;
+         }
+    });
+
+    // Wait for a short period to allow the indexer to process pending metadata cache updates.
+    // The Indexer listens to metadataCache.on('changed'), which happens asynchronously after processFrontMatter.
+    // By waiting here, we give the indexer a chance to update its graph BEFORE we unlock the UI.
+    // This reduces the visual "flickering" or "files jumping" effect.
+    app.workspace.trigger('abstract-folder:conversion-progress', { 
+        processed: pass2Total, 
+        total: pass2Total, 
+        message: "Finalizing... (Waiting for indexer)" 
+    });
+    
+    // Wait for 2 seconds to allow debounce and event processing to catch up
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     new Notice(`Conversion complete. Updated ${updatedCount} relationships.`);
+    app.workspace.trigger('abstract-folder:conversion-complete');
     app.workspace.trigger('abstract-folder:graph-updated');
 }
 
@@ -258,10 +314,25 @@ async function linkChildToParent(
 
 }
 
-async function processInBatches(operations: (() => Promise<void>)[], batchSize: number) {
+async function processInBatches(
+    operations: (() => Promise<void>)[], 
+    batchSize: number,
+    onProgress?: (completed: number, total: number) => void
+) {
+    const total = operations.length;
+    let completed = 0;
+
     for (let i = 0; i < operations.length; i += batchSize) {
         const batch = operations.slice(i, i + batchSize);
         await Promise.all(batch.map(op => op()));
+        
+        completed += batch.length;
+        if (onProgress) {
+            onProgress(Math.min(completed, total), total);
+        }
+
+        // Yield to main thread to allow UI updates
+        await new Promise(resolve => setTimeout(resolve, 0));
     }
 }
 /**

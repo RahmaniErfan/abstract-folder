@@ -35,6 +35,14 @@ export class AbstractFolderView extends ItemView {
   private lastScrollTop = 0;
   private isLoading = true; // Default to true until first render/update
 
+  // Conversion State
+  private isConverting = false;
+  private conversionStatus = {
+    processed: 0,
+    total: 0,
+    message: ""
+  };
+
   // Virtual Scroll State
   private virtualContainer: HTMLElement | null = null;
   private virtualSpacer: HTMLElement | null = null;
@@ -134,6 +142,9 @@ export class AbstractFolderView extends ItemView {
 
     // @ts-ignore: Custom event name not in Obsidian types
     this.registerEvent(this.app.workspace.on("abstract-folder:graph-updated", () => {
+        // Suppress updates during conversion to prevent UI glitches
+        if (this.isConverting) return;
+
         this.isLoading = false;
         this.metricsManager.calculateGraphMetrics();
         this.renderView();
@@ -157,6 +168,38 @@ export class AbstractFolderView extends ItemView {
             this.metricsManager.onInteraction(file.path);
         }
         this.fileRevealManager?.onFileOpen(file);
+    }));
+
+    // Conversion events
+    // @ts-ignore: Custom event name
+    this.registerEvent(this.app.workspace.on("abstract-folder:conversion-start", (data: { total: number, message: string }) => {
+        this.isConverting = true;
+        this.conversionStatus = {
+            processed: 0,
+            total: data.total || 0,
+            message: data.message || "Starting conversion..."
+        };
+        // Explicitly clear content and force conversion render immediately
+        this.contentEl.empty();
+        this.renderConversionProgress(); 
+    }));
+
+    // @ts-ignore: Custom event name
+    this.registerEvent(this.app.workspace.on("abstract-folder:conversion-progress", (data: { processed: number, total: number, message: string }) => {
+        if (this.isConverting) {
+            this.conversionStatus = {
+                processed: data.processed,
+                total: data.total,
+                message: data.message
+            };
+            this.renderConversionProgress(); // Targeted update
+        }
+    }));
+
+    // @ts-ignore: Custom event name
+    this.registerEvent(this.app.workspace.on("abstract-folder:conversion-complete", () => {
+        this.isConverting = false;
+        this.renderView(); // Go back to normal view
     }));
  
     this.contentEl.addEventListener("contextmenu", (event: MouseEvent) => {
@@ -207,6 +250,19 @@ export class AbstractFolderView extends ItemView {
         }
     });
 
+    // Re-initialize virtual containers if they are missing (e.g. after a full clear)
+    let virtualWrapper = this.contentEl.querySelector(".abstract-folder-virtual-wrapper") as HTMLElement;
+    if (!virtualWrapper) {
+        virtualWrapper = this.contentEl.createDiv({ cls: "abstract-folder-virtual-wrapper" });
+        this.virtualSpacer = virtualWrapper.createDiv({ cls: "abstract-folder-virtual-spacer" });
+        this.virtualContainer = virtualWrapper.createDiv({ cls: "abstract-folder-virtual-container" });
+        this.renderedItems.clear(); // Reset state
+    } else {
+        // Ensure references are valid
+        this.virtualSpacer = virtualWrapper.querySelector(".abstract-folder-virtual-spacer");
+        this.virtualContainer = virtualWrapper.querySelector(".abstract-folder-virtual-container");
+    }
+
     // Ensure Header
     let headerEl = this.contentEl.querySelector(".abstract-folder-header-title");
     const activeGroup = this.settings.activeGroupId
@@ -240,6 +296,14 @@ export class AbstractFolderView extends ItemView {
         return;
     }
 
+    if (this.isConverting) {
+        if (this.virtualContainer) this.virtualContainer.toggleClass('abstract-folder-hidden', true);
+        if (this.virtualSpacer) this.virtualSpacer.toggleClass('abstract-folder-hidden', true);
+        
+        this.renderConversionProgress();
+        return;
+    }
+
     if (this.settings.viewStyle === 'tree') {
         this.contentEl.addClass("abstract-folder-tree-wrapper");
         if (this.virtualContainer) this.virtualContainer.toggleClass('abstract-folder-hidden', false);
@@ -256,6 +320,49 @@ export class AbstractFolderView extends ItemView {
         this.renderColumnView();
     }
   };
+
+  private renderConversionProgress = () => {
+    // Ensure only the progress container exists
+    const existingProgress = this.contentEl.querySelector('.abstract-folder-conversion-progress');
+    let container = existingProgress as HTMLElement;
+    
+    if (!container) {
+        // Clear conflicting content if this is the first render
+        const children = Array.from(this.contentEl.children);
+        children.forEach(child => {
+            if (!child.hasClass("abstract-folder-virtual-wrapper") &&
+                !child.hasClass("abstract-folder-header-title")) {
+                child.remove();
+            }
+        });
+
+        container = this.contentEl.createDiv({ cls: 'abstract-folder-conversion-progress' });
+        
+        container.createDiv({ cls: 'conversion-title', text: 'Converting Folder Structure...' });
+        container.createDiv({ cls: 'conversion-message' });
+        
+        const progressBarContainer = container.createDiv({ cls: 'conversion-progress-bar-container' });
+        progressBarContainer.createDiv({ cls: 'conversion-progress-bar-fill' });
+        
+        container.createDiv({ cls: 'conversion-stats' });
+    }
+
+    // Update Content
+    const messageEl = container.querySelector('.conversion-message');
+    const fillEl = container.querySelector('.conversion-progress-bar-fill') as HTMLElement;
+    const statsEl = container.querySelector('.conversion-stats');
+
+    if (messageEl) messageEl.textContent = this.conversionStatus.message;
+    
+    if (fillEl && this.conversionStatus.total > 0) {
+        const percentage = Math.min(100, Math.round((this.conversionStatus.processed / this.conversionStatus.total) * 100));
+        fillEl.style.width = `${percentage}%`;
+    }
+
+    if (statsEl) {
+        statsEl.textContent = `${this.conversionStatus.processed} / ${this.conversionStatus.total} operations`;
+    }
+  }
 
   private renderVirtualTreeView = () => {
     // No need to save/restore scrollTop explicitly because we aren't nuking the container

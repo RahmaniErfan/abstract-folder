@@ -1,0 +1,41 @@
+.abstract-folder-conversion-progress {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 20px;
+    text-align: center;
+}
+
+.abstract-folder-conversion-progress .conversion-title {
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+.abstract-folder-conversion-progress .conversion-message {
+    margin-bottom: 20px;
+    color: var(--text-muted);
+}
+
+.abstract-folder-conversion-progress .conversion-progress-bar-container {
+    width: 100%;
+    height: 10px;
+    background-color: var(--background-modifier-border);
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.abstract-folder-conversion-progress .conversion-progress-bar-fill {
+    height: 100%;
+    background-color: var(--interactive-accent);
+    width: 0%;
+    transition: width 0.3s ease-out;
+}
+
+.abstract-folder-conversion-progress .conversion-stats {
+    font-size: 0.9em;
+    color: var(--text-faint);
+}
