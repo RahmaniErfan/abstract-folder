@@ -93,13 +93,11 @@ export class ManageSortingModal extends Modal {
   }
 
   saveSettings() {
-    // Update the main settings object with the local changes
-    const newSettings = {
-        ...this.settings,
-        groups: this.groups,
-        defaultSort: this.defaultSort
-    };
-    this.onSave(newSettings);
+    // Update the main settings object with the local changes IN PLACE to preserve reference
+    this.settings.groups = this.groups;
+    this.settings.defaultSort = this.defaultSort;
+    
+    this.onSave(this.settings);
     this.close();
   }
 
