@@ -21,6 +21,8 @@ export function createFolderNode(app: App, path: string, graph: FileGraph): Fold
 
     // Determine if it is a folder (has children in graph)
     const hasChildren = parentToChildren[path] && parentToChildren[path].size > 0;
+    
+    // A node is a folder only if it has children or is the hidden root
     const isFolder = hasChildren || path === HIDDEN_FOLDER_ID;
 
     // If it's not a valid file and not a known parent, skip it.

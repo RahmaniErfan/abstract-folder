@@ -16,6 +16,7 @@ export class ColumnRenderer {
     private handleColumnNodeClick: (node: FolderNode, depth: number, event?: MouseEvent) => void;
     private contextMenuHandler: ContextMenuHandler;
     private dragManager: DragManager;
+    private getContentEl: () => HTMLElement;
 
     constructor(
         app: App,
@@ -26,7 +27,8 @@ export class ColumnRenderer {
         getDisplayName: (node: FolderNode) => string,
         handleColumnNodeClick: (node: FolderNode, depth: number, event?: MouseEvent) => void,
         indexer: FolderIndexer,
-        dragManager: DragManager
+        dragManager: DragManager,
+        getContentEl: () => HTMLElement
     ) {
         this.app = app;
         this.settings = settings;
@@ -37,6 +39,7 @@ export class ColumnRenderer {
         this.handleColumnNodeClick = handleColumnNodeClick;
         this.contextMenuHandler = new ContextMenuHandler(app, settings, plugin, indexer);
         this.dragManager = dragManager;
+        this.getContentEl = getContentEl;
     }
 
     // New method to update the selection path
@@ -56,9 +59,19 @@ export class ColumnRenderer {
     }
 
     private renderColumnNode(node: FolderNode, parentEl: HTMLElement, depth: number, parentPath: string) {
+        // TEMPORARY DEBUG: Trace why files are treated as folders
+        const isFolder = node.isFolder && node.children.length > 0;
+        if (node.path.includes('file_') && isFolder) {
+            console.debug(`[ColumnRenderer] rendering ${node.path}: isFolder=${node.isFolder}, childrenCount=${node.children.length}, childrenNames=${node.children.map(c => c.path).join(', ')}`);
+        } else {
+            console.debug(`[ColumnRenderer] rendering ${node.path}: isFolder=${node.isFolder}, childrenCount=${node.children.length}`);
+        }
+
         const activeFile = this.app.workspace.getActiveFile();
-        const itemEl = parentEl.createDiv({ cls: "abstract-folder-item" });
-        itemEl.dataset.path = node.path;
+        const itemEl = parentEl.createDiv({ 
+            cls: "abstract-folder-item",
+            attr: { 'data-path': node.path }
+        });
         itemEl.draggable = true;
 
         itemEl.addEventListener("dragstart", (e) => this.dragManager.handleDragStart(e, node, parentPath, this.multiSelectedPaths));
@@ -68,8 +81,11 @@ export class ColumnRenderer {
             this.dragManager.handleDrop(e, node).catch(console.error);
         });
 
-        if (node.isFolder) itemEl.addClass("is-folder");
-        else itemEl.addClass("is-file");
+        if (isFolder) {
+            itemEl.addClass("is-folder");
+        } else {
+            itemEl.addClass("is-file");
+        }
 
         const selfEl = itemEl.createDiv({ cls: "abstract-folder-item-self" });
 
@@ -112,16 +128,19 @@ export class ColumnRenderer {
         }
 
         const parentCount = this.plugin.indexer.getGraph().childToParents.get(node.path)?.size || 0;
+        const childCount = node.children.length;
+        
+        // Only show folder indicator if it's truly a folder with children in our graph
+        if (node.isFolder && childCount > 0) {
+            const folderIndicator = selfEl.createDiv({ cls: "abstract-folder-folder-indicator" });
+            setIcon(folderIndicator, "chevron-right");
+        }
+
         if (parentCount > 1) {
             const multiParentIndicator = selfEl.createSpan({ cls: "abstract-folder-multi-parent-indicator" });
             setIcon(multiParentIndicator, "git-branch-plus");
             multiParentIndicator.ariaLabel = `${parentCount} parents`;
             multiParentIndicator.title = `${parentCount} parents`;
-        }
-
-        if (node.isFolder && node.children.length > 0) {
-            const folderIndicator = selfEl.createDiv({ cls: "abstract-folder-folder-indicator" });
-            setIcon(folderIndicator, "chevron-right");
         }
 
         selfEl.addEventListener("click", (e) => {

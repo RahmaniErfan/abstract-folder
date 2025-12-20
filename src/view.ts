@@ -76,7 +76,8 @@ export class AbstractFolderView extends ItemView {
       this.getDisplayName,
       (node, depth, event) => this.handleColumnNodeClick(node, depth, event),
       this.indexer,
-      this.dragManager
+      this.dragManager,
+      () => this.contentEl
     );
     this.contextMenuHandler = new ContextMenuHandler(this.app, this.settings, this.plugin, this.indexer);
     this.toolbar = new AbstractFolderViewToolbar(
@@ -348,59 +349,66 @@ export class AbstractFolderView extends ItemView {
            }
        }
    }
- 
-   private renderColumnView = () => {
-     // Note: CSS classes and basic cleanup are handled in renderView()
-     // to preserve stable virtual containers.
-  
-     let rootNodes = buildFolderTree(this.app, this.indexer.getGraph(), (a, b) => this.sortNodes(a, b));
 
+  private renderColumnView = () => {
+    // Note: CSS classes and basic cleanup are handled in renderView()
+    // to preserve stable virtual containers.
+
+    const rootNodes = buildFolderTree(this.app, this.indexer.getGraph(), (a, b) => this.sortNodes(a, b));
+    
+    // Sort: real folders (nodes with children) first, then files
+    rootNodes.sort((a, b) => {
+        const aHasChildren = a.children.length > 0;
+        const bHasChildren = b.children.length > 0;
+        if (aHasChildren && !bHasChildren) return -1;
+        if (!aHasChildren && bHasChildren) return 1;
+        return this.sortNodes(a, b);
+    });
+
+    let finalRootNodes = rootNodes;
     if (this.settings.activeGroupId) {
-        const activeGroup = this.settings.groups.find(group => group.id === this.settings.activeGroupId);
-        if (activeGroup) {
-            rootNodes = this.filterNodesByGroup(rootNodes, activeGroup);
-        }
+      const activeGroup = this.settings.groups.find(group => group.id === this.settings.activeGroupId);
+      if (activeGroup) {
+        finalRootNodes = this.filterNodesByGroup(rootNodes, activeGroup);
+      }
     }
- 
-     if (rootNodes.length === 0) {
-         this.contentEl.createEl("div", {
-             text: "No abstract folders found. Add parent property to your notes to create a structure.",
-             cls: "abstract-folder-empty-state"
-         });
-         return;
-     }
- 
-     // Optimization: Create disconnected element to prevent reflows during build
-     const columnsContainer = document.createElement("div");
-     columnsContainer.addClass("abstract-folder-columns-container");
- 
-     let currentNodes: FolderNode[] = rootNodes;
-     let renderedDepth = 0;
- 
-     this.columnRenderer.renderColumn(currentNodes, columnsContainer, renderedDepth);
- 
-     for (let i = 0; i < this.viewState.selectionPath.length; i++) {
-         const selectedPath = this.viewState.selectionPath[i];
-         
-         const selectedNode = currentNodes.find(node => node.path === selectedPath);
-         
-         if (!selectedNode) {
-             break;
-         }
- 
-         if (selectedNode && selectedNode.isFolder && selectedNode.children.length > 0) {
-             currentNodes = selectedNode.children;
-             renderedDepth++;
-             this.columnRenderer.renderColumn(currentNodes, columnsContainer, renderedDepth, selectedPath);
-         } else if (selectedNode && !selectedNode.isFolder) {
-             break;
-         } else {
-             break;
-         }
-     }
-     
-     this.contentEl.appendChild(columnsContainer);
-   }
+
+    if (finalRootNodes.length === 0) {
+      this.contentEl.createEl("div", {
+        text: "No abstract folders found. Add parent property to your notes to create a structure.",
+        cls: "abstract-folder-empty-state"
+      });
+      return;
+    }
+
+    // Optimization: Create disconnected element to prevent reflows during build
+    const columnsContainer = document.createElement("div");
+    columnsContainer.addClass("abstract-folder-columns-container");
+
+    let currentNodes: FolderNode[] = finalRootNodes;
+    let renderedDepth = 0;
+
+    this.columnRenderer.renderColumn(currentNodes, columnsContainer, renderedDepth);
+
+    for (let i = 0; i < this.viewState.selectionPath.length; i++) {
+      const selectedPath = this.viewState.selectionPath[i];
+      const selectedNode = currentNodes.find(node => node.path === selectedPath);
+
+      if (!selectedNode) {
+        break;
+      }
+
+      if (selectedNode && selectedNode.isFolder && selectedNode.children.length > 0) {
+        currentNodes = selectedNode.children;
+        renderedDepth++;
+        this.columnRenderer.renderColumn(currentNodes, columnsContainer, renderedDepth, selectedPath);
+      } else {
+        break;
+      }
+    }
+
+    this.contentEl.appendChild(columnsContainer);
+  };
 
   private sortNodes(a: FolderNode, b: FolderNode): number {
     let compareResult: number;
@@ -433,7 +441,7 @@ export class AbstractFolderView extends ItemView {
 
     return this.viewState.sortOrder === 'asc' ? compareResult : -compareResult;
   }
- 
+  
   private expandAll = () => {
     if (this.settings.viewStyle === 'tree') {
       this.contentEl.querySelectorAll(".abstract-folder-item.is-collapsed").forEach(el => {
