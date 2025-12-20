@@ -113,7 +113,7 @@ export class FolderIndexer {
         visited.add(currentPath);
         
         const parents = graph.childToParents.get(currentPath);
-        console.debug(`Indexer - getPathToRoot for ${currentPath}: parents:`, parents ? Array.from(parents) : 'none');
+        // console.debug(`Indexer - getPathToRoot for ${currentPath}: parents:`, parents ? Array.from(parents) : 'none');
         if (!parents || parents.size === 0) {
             break;
         }
@@ -129,13 +129,13 @@ export class FolderIndexer {
         }
 
         if (visited.has(nextParent)) {
-            console.debug(`Indexer - getPathToRoot: Cycle detected at ${nextParent}`);
+            // console.debug(`Indexer - getPathToRoot: Cycle detected at ${nextParent}`);
             break;
         }
         
         currentPath = nextParent;
     }
-    console.debug(`Indexer - getPathToRoot result for ${filePath}:`, pathSegments);
+    // console.debug(`Indexer - getPathToRoot result for ${filePath}:`, pathSegments);
     return pathSegments;
   }
 
@@ -344,7 +344,7 @@ export class FolderIndexer {
                         const resolvedParentPath = this.resolveLinkToPath(parentLink, file.path);
                         if (resolvedParentPath) {
                             if (resolvedParentPath !== file.path) {
-                                console.debug(`Indexer - ${file.path} defines parent: ${resolvedParentPath}`);
+                                // console.debug(`Indexer - ${file.path} defines parent: ${resolvedParentPath}`);
                                 potentialParents.add(resolvedParentPath);
                             } else {
                                 console.warn(`Indexer - ${file.path} attempted to define itself as its own parent. Skipping.`);
@@ -368,7 +368,7 @@ export class FolderIndexer {
                     const resolvedChildPath = this.resolveLinkToPath(childLink, file.path);
                     if (resolvedChildPath && resolvedChildPath.toLowerCase().trim() !== 'hidden') {
                          if (resolvedChildPath !== file.path) { // Prevent self-linking
-                             console.debug(`Indexer - ${file.path} defines child: ${resolvedChildPath}`);
+                             // console.debug(`Indexer - ${file.path} defines child: ${resolvedChildPath}`);
                              potentialChildren.add(resolvedChildPath);
                          }
                     }

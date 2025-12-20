@@ -61,11 +61,12 @@ export class ColumnRenderer {
     private renderColumnNode(node: FolderNode, parentEl: HTMLElement, depth: number, parentPath: string) {
         // TEMPORARY DEBUG: Trace why files are treated as folders
         const isFolder = node.isFolder && node.children.length > 0;
-        if (node.path.includes('file_') && isFolder) {
-            console.debug(`[ColumnRenderer] rendering ${node.path}: isFolder=${node.isFolder}, childrenCount=${node.children.length}, childrenNames=${node.children.map(c => c.path).join(', ')}`);
-        } else {
-            console.debug(`[ColumnRenderer] rendering ${node.path}: isFolder=${node.isFolder}, childrenCount=${node.children.length}`);
-        }
+        // Debug logging removed
+        // if (node.path.includes('file_') && isFolder) {
+        //     console.debug(`[ColumnRenderer] rendering ${node.path}: isFolder=${node.isFolder}, childrenCount=${node.children.length}, childrenNames=${node.children.map(c => c.path).join(', ')}`);
+        // } else {
+        //     console.debug(`[ColumnRenderer] rendering ${node.path}: isFolder=${node.isFolder}, childrenCount=${node.children.length}`);
+        // }
 
         const activeFile = this.app.workspace.getActiveFile();
         const itemEl = parentEl.createDiv({ 
