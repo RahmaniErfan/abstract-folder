@@ -42,6 +42,7 @@ export interface Group {
   id: string;
   name: string;
   parentFolders: string[]; // Paths of parent folders to display
+  sort?: SortConfig;
 }
 
 export interface NodeMetrics {
@@ -53,5 +54,10 @@ export interface NodeMetrics {
 }
 
 export type SortBy = 'name' | 'mtime' | 'thermal' | 'rot' | 'gravity';
+
+export interface SortConfig {
+  sortBy: SortBy;
+  sortOrder: 'asc' | 'desc';
+}
 
 export type Cycle = string[]; // Represents a cycle as an array of file paths

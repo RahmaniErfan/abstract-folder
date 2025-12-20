@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 1.6.0
+
+**Features:**
+*   **Default Sorting Management**: Introduced a new "Manage default sorting" modal accessible from the sort menu. This allows you to set a persistent default sort order for the main view and for each individual group.
+*   **Per-Group Sorting**: Groups can now have their own independent sort preferences, which are automatically applied when you switch to that group.
+
 ## Version 1.5.0
 
 **Features:**

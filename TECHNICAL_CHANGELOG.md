@@ -1,3 +1,20 @@
+# Technical Changelog - Abstract Folder Plugin v1.6.0
+
+## Features
+
+### Default Sorting Management
+
+*   **Data Structure Updates**:
+    *   Updated `AbstractFolderPluginSettings` to include `defaultSort: SortConfig`.
+    *   Updated `Group` interface to include optional `sort?: SortConfig`.
+    *   Defined `SortConfig` as `{ sortBy: SortBy, sortOrder: 'asc' | 'desc' }`.
+*   **UI Implementation**:
+    *   Created `ManageSortingModal` to allow users to configure default sorting for the main view and all defined groups.
+    *   Added entry point in `AbstractFolderViewToolbar`.
+*   **State Management**:
+    *   Updated `ViewState` to initialize `sortBy` and `sortOrder` from settings, respecting active group overrides.
+    *   Ensured group switching triggers a re-evaluation of the sort configuration.
+
 # Technical Changelog - Abstract Folder Plugin v1.5.0
 
 ## Features

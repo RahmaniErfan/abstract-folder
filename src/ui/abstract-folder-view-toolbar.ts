@@ -3,6 +3,7 @@ import { AbstractFolderPluginSettings } from "../settings";
 import AbstractFolderPlugin from "../../main";
 import { CreateAbstractChildModal, ChildFileType } from './modals';
 import { ManageGroupsModal } from './modals/manage-groups-modal';
+import { ManageSortingModal } from './modals/manage-sorting-modal';
 import { ViewState } from './view-state';
 import { createAbstractChildFile } from '../utils/file-operations';
 import { Group } from "../types";
@@ -89,6 +90,30 @@ export class AbstractFolderViewToolbar {
 
         menu.addItem((item) =>
             item
+                .setTitle("Manage default sorting")
+                .setIcon("gear")
+                .onClick(() => {
+                     new ManageSortingModal(this.app, this.settings, (updatedSettings) => {
+                        this.plugin.settings = updatedSettings;
+                        this.plugin.saveSettings().then(() => {
+                             // Determine which sort config to apply based on active group
+                            let sortConfig = this.plugin.settings.defaultSort;
+                            if (this.plugin.settings.activeGroupId) {
+                                const activeGroup = this.plugin.settings.groups.find(g => g.id === this.plugin.settings.activeGroupId);
+                                if (activeGroup && activeGroup.sort) {
+                                    sortConfig = activeGroup.sort;
+                                }
+                            }
+                            // Apply the sort config
+                            this.viewState.setSort(sortConfig.sortBy, sortConfig.sortOrder);
+                        }).catch(console.error);
+                     }).open();
+                })
+        );
+        menu.addSeparator();
+
+        menu.addItem((item) =>
+            item
                 .setTitle("Sort by name (ascending)")
                 .setIcon(this.viewState.sortBy === 'name' && this.viewState.sortOrder === 'asc' ? "check" : "sort-asc")
                 .onClick(() => this.viewState.setSort('name', 'asc'))
@@ -167,6 +192,12 @@ export class AbstractFolderViewToolbar {
                         .onClick(async () => {
                             this.settings.activeGroupId = group.id;
                             await this.plugin.saveSettings();
+
+                            // Apply group default sort if available
+                            if (group.sort) {
+                                this.viewState.setSort(group.sort.sortBy, group.sort.sortOrder);
+                            }
+
                             this.renderView(); // Trigger re-render of the view
                         })
                 );
@@ -194,6 +225,11 @@ export class AbstractFolderViewToolbar {
                 .onClick(async () => {
                     this.settings.activeGroupId = null;
                     await this.plugin.saveSettings();
+                    
+                    // Revert to default sort
+                    const defaultSort = this.plugin.settings.defaultSort;
+                    this.viewState.setSort(defaultSort.sortBy, defaultSort.sortOrder);
+
                     this.renderView(); // Trigger re-render of the view
                 })
         );

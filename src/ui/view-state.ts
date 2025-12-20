@@ -17,6 +17,21 @@ export class ViewState {
         this.sortBy = 'name';
         this.selectionPath = [];
         this.multiSelectedPaths = new Set();
+        
+        // Initialize sort from settings
+        this.initializeSort();
+    }
+    
+    initializeSort() {
+        let sortConfig = this.settings.defaultSort;
+        if (this.settings.activeGroupId) {
+             const activeGroup = this.settings.groups.find(g => g.id === this.settings.activeGroupId);
+             if (activeGroup && activeGroup.sort) {
+                 sortConfig = activeGroup.sort;
+             }
+        }
+        this.sortBy = sortConfig.sortBy;
+        this.sortOrder = sortConfig.sortOrder;
     }
 
     setSort(sortBy: 'name' | 'mtime' | 'thermal' | 'rot' | 'gravity', sortOrder: 'asc' | 'desc') {
