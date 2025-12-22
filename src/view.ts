@@ -234,14 +234,17 @@ export class AbstractFolderView extends ItemView {
   }
 
   private renderView = () => {
-    // Do NOT empty contentEl here. It destroys the scroll container.
-    // Instead, manage children visibility.
+    /**
+     * DOM Stability Optimization: Instead of nuking the entire contentEl with .empty(),
+     * selectively remove only dynamic view elements. This preserves the 
+     * stable virtual scroll containers and the header, preventing layout thrashing
+     * and maintaining scroll context during view style transitions.
+     */
     
-    // Remove old classes
     this.contentEl.removeClass("abstract-folder-columns-wrapper");
     this.contentEl.removeClass("abstract-folder-tree-wrapper");
 
-    // Clean up non-static elements (legacy / empty states / column view / loading state)
+    // Remove only view-specific dynamic elements (columns, empty states, loading indicators)
     const children = Array.from(this.contentEl.children);
     children.forEach(child => {
         if (!child.hasClass("abstract-folder-virtual-wrapper") &&
@@ -250,20 +253,17 @@ export class AbstractFolderView extends ItemView {
         }
     });
 
-    // Re-initialize virtual containers if they are missing (e.g. after a full clear)
     let virtualWrapper = this.contentEl.querySelector(".abstract-folder-virtual-wrapper") as HTMLElement;
     if (!virtualWrapper) {
         virtualWrapper = this.contentEl.createDiv({ cls: "abstract-folder-virtual-wrapper" });
         this.virtualSpacer = virtualWrapper.createDiv({ cls: "abstract-folder-virtual-spacer" });
         this.virtualContainer = virtualWrapper.createDiv({ cls: "abstract-folder-virtual-container" });
-        this.renderedItems.clear(); // Reset state
+        this.renderedItems.clear();
     } else {
-        // Ensure references are valid
         this.virtualSpacer = virtualWrapper.querySelector(".abstract-folder-virtual-spacer");
         this.virtualContainer = virtualWrapper.querySelector(".abstract-folder-virtual-container");
     }
 
-    // Ensure Header
     let headerEl = this.contentEl.querySelector(".abstract-folder-header-title");
     const activeGroup = this.settings.activeGroupId
         ? this.settings.groups.find(group => group.id === this.settings.activeGroupId)
@@ -276,7 +276,6 @@ export class AbstractFolderView extends ItemView {
                 text: headerText,
                 cls: "abstract-folder-header-title"
             });
-            // Ensure header is first
             this.contentEl.prepend(headerEl);
         } else {
              headerEl.textContent = headerText;
@@ -285,7 +284,9 @@ export class AbstractFolderView extends ItemView {
         headerEl.remove();
     }
 
-    if (this.isLoading) {
+    // Only show loading state if building and the graph is empty.
+    // Prevents "Loading..." flashes when updating populated views.
+    if (this.isLoading && this.indexer.getGraph().allFiles.size === 0) {
         if (this.virtualContainer) this.virtualContainer.toggleClass('abstract-folder-hidden', true);
         if (this.virtualSpacer) this.virtualSpacer.toggleClass('abstract-folder-hidden', true);
         

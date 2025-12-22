@@ -1,5 +1,12 @@
 # Changelog
 
+## Version 1.6.3
+
+**Performance Optimization:**
+*   **Lazy Column Rendering**: Dramatically improved view switching performance. Switching from Tree to Column view is now instantaneous even in massive vaults, thanks to a new asynchronous batch rendering strategy.
+*   **Faster Drag-and-Drop**: Optimized the circular dependency check in drag-and-drop operations using an iterative BFS algorithm, eliminating UI freezes when moving items in large, complex graphs.
+*   **Surgical DOM Updates**: Refined the view rendering logic to preserve stable containers and reduce layout thrashing, resulting in smoother transitions and more reliable loading states.
+
 ## Version 1.6.1
 
 **Features:**

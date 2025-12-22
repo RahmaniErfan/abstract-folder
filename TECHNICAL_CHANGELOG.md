@@ -1,3 +1,24 @@
+# Technical Changelog - Abstract Folder Plugin v1.6.3
+
+## Performance & Stability Optimizations
+
+### 1. Lazy Miller (Column) Rendering (`src/ui/column/column-renderer.ts`)
+*   **Problem**: Switching to Column View synchronously rendered all items in all columns, blocking the main thread for ~1s in large vaults.
+*   **Solution**: Implemented a deferred batch rendering strategy using `requestAnimationFrame`.
+    *   **Implementation**: Initial batch (100 items) is rendered immediately for instant feedback, with subsequent items rendered in chunks of 200 per frame.
+    *   **Optimization**: Hoisted loop-invariant lookups (e.g., `activeFile`, `graph`) outside the render loop to reduce per-item overhead.
+
+### 2. Surgical DOM Cleanup & Stability (`src/view.ts`)
+*   **Problem**: Inefficient DOM cleanup triggered full layout recalculations and destroyed stable UI components.
+*   **Solution**: Refactored `renderView` to target only dynamic elements during transitions.
+    *   **Implementation**: Preservation of `.abstract-folder-virtual-wrapper` and `.abstract-folder-header-title` during view switching to maintain scroll context and reduce thrashing.
+    *   **Robust Loading State**: Refined the `isLoading` check to verify if the graph is truly empty before showing the loading indicator, preventing "Loading..." flashes on fast updates.
+
+### 3. Non-Recursive Graph Traversal (`src/ui/dnd/drag-manager.ts`)
+*   **Problem**: The `isDescendant` check used recursion, causing stack pressure and UI freezes (detected via 'dragenter' handler warnings) in deep graphs.
+*   **Solution**: Replaced recursion with an Iterative Breadth-First Search (BFS).
+    *   **Benefit**: Guaranteed O(V+E) performance without the risk of stack overflow, ensuring smooth drag-and-drop feedback even in massive hierarchies.
+
 # Technical Changelog - Abstract Folder Plugin v1.6.0
 
 ## Features

@@ -1,5 +1,5 @@
 import { App, setIcon } from "obsidian";
-import { FolderNode, HIDDEN_FOLDER_ID } from "../../types";
+import { FolderNode, HIDDEN_FOLDER_ID, FileGraph } from "../../types";
 import { AbstractFolderPluginSettings } from "../../settings";
 import AbstractFolderPlugin from "../../../main";
 import { ContextMenuHandler } from "../context-menu";
@@ -10,7 +10,7 @@ export class ColumnRenderer {
     private app: App;
     private settings: AbstractFolderPluginSettings;
     private plugin: AbstractFolderPlugin;
-    public selectionPath: string[]; // Made public so it can be updated directly from view.ts
+    public selectionPath: string[];
     private multiSelectedPaths: Set<string>;
     private getDisplayName: (node: FolderNode) => string;
     private handleColumnNodeClick: (node: FolderNode, depth: number, event?: MouseEvent) => void;
@@ -42,7 +42,6 @@ export class ColumnRenderer {
         this.getContentEl = getContentEl;
     }
 
-    // New method to update the selection path
     public setSelectionPath(path: string[]) {
         this.selectionPath = path;
     }
@@ -53,22 +52,46 @@ export class ColumnRenderer {
             columnEl.dataset.parentPath = selectedParentPath;
         }
 
-        nodes.forEach(node => {
-            this.renderColumnNode(node, columnEl, depth, selectedParentPath || "");
-        });
+        // Performance Optimization: Hoist workspace lookups and graph access outside the 
+        // render loop to minimize per-item overhead during large column renders.
+        const activeFile = this.app.workspace.getActiveFile();
+        const activeFilePath = activeFile?.path;
+        const graph = this.plugin.indexer.getGraph();
+
+        // Lazy Rendering Strategy: Break the synchronous rendering task into smaller 
+        // batches using requestAnimationFrame. This prevents the main thread from 
+        // blocking (causing UI lag) while allowing the browser to remain responsive.
+        const INITIAL_BATCH_SIZE = 100; // Render first 100 items immediately for instant feedback
+        const DEFERRED_BATCH_SIZE = 200; // Render remaining items in chunks per frame
+
+        const renderBatch = (startIndex: number) => {
+            const isInitial = startIndex === 0;
+            const batchSize = isInitial ? INITIAL_BATCH_SIZE : DEFERRED_BATCH_SIZE;
+            const endIndex = Math.min(startIndex + batchSize, nodes.length);
+
+            for (let i = startIndex; i < endIndex; i++) {
+                this.renderColumnNode(nodes[i], columnEl, depth, selectedParentPath || "", activeFilePath, graph);
+            }
+
+            // If there are more items to render, schedule the next batch in the next animation frame.
+            if (endIndex < nodes.length) {
+                window.requestAnimationFrame(() => renderBatch(endIndex));
+            }
+        };
+
+        renderBatch(0);
     }
 
-    private renderColumnNode(node: FolderNode, parentEl: HTMLElement, depth: number, parentPath: string) {
-        // TEMPORARY DEBUG: Trace why files are treated as folders
+    private renderColumnNode(
+        node: FolderNode, 
+        parentEl: HTMLElement, 
+        depth: number, 
+        parentPath: string, 
+        activeFilePath?: string, 
+        graph?: FileGraph
+    ) {
         const isFolder = node.isFolder && node.children.length > 0;
-        // Debug logging removed
-        // if (node.path.includes('file_') && isFolder) {
-        //     console.debug(`[ColumnRenderer] rendering ${node.path}: isFolder=${node.isFolder}, childrenCount=${node.children.length}, childrenNames=${node.children.map(c => c.path).join(', ')}`);
-        // } else {
-        //     console.debug(`[ColumnRenderer] rendering ${node.path}: isFolder=${node.isFolder}, childrenCount=${node.children.length}`);
-        // }
 
-        const activeFile = this.app.workspace.getActiveFile();
         const itemEl = parentEl.createDiv({ 
             cls: "abstract-folder-item",
             attr: { 'data-path': node.path }
@@ -90,7 +113,7 @@ export class ColumnRenderer {
 
         const selfEl = itemEl.createDiv({ cls: "abstract-folder-item-self" });
 
-        if (activeFile && activeFile.path === node.path) {
+        if (activeFilePath && activeFilePath === node.path) {
             selfEl.addClass("is-active");
         }
 
@@ -128,7 +151,7 @@ export class ColumnRenderer {
           fileTypeTag.setText(node.file.extension.toUpperCase());
         }
 
-        const parentCount = this.plugin.indexer.getGraph().childToParents.get(node.path)?.size || 0;
+        const parentCount = graph?.childToParents.get(node.path)?.size || 0;
         const childCount = node.children.length;
         
         // Only show folder indicator if it's truly a folder with children in our graph

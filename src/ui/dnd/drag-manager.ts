@@ -8,14 +8,14 @@ import { AbstractFolderView } from "../../view"; // Import AbstractFolderView
 export interface DragData {
     sourcePaths: string[];
     sourceParentPath: string;
-    isCopy: boolean; // Add isCopy flag
+    isCopy: boolean;
 }
 
 export class DragManager {
     private app: App;
     private settings: AbstractFolderPluginSettings;
     private indexer: FolderIndexer;
-    private view: AbstractFolderView; // Add view instance
+    private view: AbstractFolderView;
     private dragData: DragData | null = null;
     private currentDragTarget: HTMLElement | null = null;
 
@@ -23,7 +23,7 @@ export class DragManager {
         this.app = app;
         this.settings = settings;
         this.indexer = indexer;
-        this.view = view; // Assign view instance
+        this.view = view;
     }
 
     public handleDragStart(event: DragEvent, node: FolderNode, parentPath: string, multiSelectedPaths: Set<string>) {
@@ -187,21 +187,25 @@ export class DragManager {
     }
 
     private isDescendant(potentialAncestorPath: string, potentialDescendantPath: string): boolean {
-        // Simple BFS to check if potentialDescendantPath is reachable from potentialAncestorPath
-        // using the graph in Indexer
-        
         if (potentialAncestorPath === potentialDescendantPath) return true;
 
         const graph = this.indexer.getGraph();
-        const children = graph.parentToChildren[potentialAncestorPath];
+        
+        // Iterative BFS to prevent stack overflow and improve performance in deep folder structures.
+        const queue: string[] = [potentialAncestorPath];
+        const visited = new Set<string>([potentialAncestorPath]);
 
-        if (!children) return false;
-
-        if (children.has(potentialDescendantPath)) return true;
-
-        for (const childPath of children) {
-            if (this.isDescendant(childPath, potentialDescendantPath)) {
-                return true;
+        while (queue.length > 0) {
+            const currentPath = queue.shift()!;
+            const children = graph.parentToChildren[currentPath];
+            if (children) {
+                if (children.has(potentialDescendantPath)) return true;
+                for (const childPath of children) {
+                    if (!visited.has(childPath)) {
+                        visited.add(childPath);
+                        queue.push(childPath);
+                    }
+                }
             }
         }
 
