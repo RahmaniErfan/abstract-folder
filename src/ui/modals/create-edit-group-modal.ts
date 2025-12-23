@@ -55,11 +55,11 @@ export class CreateEditGroupModal extends Modal {
   }
 
   renderParentFolders(containerEl: HTMLElement) {
-    containerEl.createEl("h3", { text: "Included parent folders" });
+    containerEl.createEl("h3", { text: "Included parent notes" });
     const folderListEl = containerEl.createDiv({ cls: "abstract-folder-group-folders" });
 
     if (this.parentFolders.length === 0) {
-      folderListEl.createEl("p", { text: "No parent folders added yet." });
+      folderListEl.createEl("p", { text: "No parent notes added yet." });
     } else {
       this.parentFolders.forEach((folder, index) => {
         new Setting(folderListEl)
@@ -69,7 +69,7 @@ export class CreateEditGroupModal extends Modal {
             .setDisabled(true))
           .addButton(button => button
             .setIcon("trash")
-            .setTooltip("Remove folder")
+            .setTooltip("Remove note")
             .onClick(() => {
               this.parentFolders.splice(index, 1);
               this.close(); this.open(); // Re-render the modal to update the list
@@ -78,12 +78,12 @@ export class CreateEditGroupModal extends Modal {
     }
 
     new Setting(containerEl)
-      .setName("Add parent folder")
-      .setDesc("Enter the full path of a folder to include (e.g., 'Projects/Work').")
+      .setName("Add parent note")
+      .setDesc("Enter the full path of a note (.md) to include as a root parent (e.g., 'Notes/Parent.md'). The view will show this note and its children.")
       .addText(text => {
         this.newParentFolderInput = text.inputEl;
         new PathInputSuggest(this.app, text.inputEl); // Use PathInputSuggest
-        text.setPlaceholder("Folder path")
+        text.setPlaceholder("Note path (e.g. folder/note.md)")
           .onChange(value => {
             // No direct update here, wait for add button or enter
           });
@@ -96,7 +96,7 @@ export class CreateEditGroupModal extends Modal {
       })
       .addButton(button => button
         .setIcon("plus")
-        .setTooltip("Add folder")
+        .setTooltip("Add note")
         .onClick(() => {
           if (this.newParentFolderInput) {
             this.addParentFolder(this.newParentFolderInput.value);
@@ -111,7 +111,7 @@ export class CreateEditGroupModal extends Modal {
       this.parentFolders.push(normalizedPath);
       this.close(); this.open(); // Re-render to show the new folder
     } else if (this.parentFolders.includes(normalizedPath)) {
-        new Notice("This folder is already in the list.");
+        new Notice("This note is already in the list.");
     }
   }
 

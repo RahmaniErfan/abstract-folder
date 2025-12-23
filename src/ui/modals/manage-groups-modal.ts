@@ -21,6 +21,7 @@ export class ManageGroupsModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.createEl("h2", { text: "Manage groups" });
+    contentEl.createEl("p", { text: "Click on a group to activate or deactivate it.", cls: "abstract-folder-setting-instruction" });
 
     this.renderGroupList(contentEl);
 
@@ -46,17 +47,31 @@ export class ManageGroupsModal extends Modal {
     }
 
     this.groups.forEach((group, index) => {
+      const isActive = this.activeGroupId === group.id;
       const groupSetting = new Setting(groupsContainer)
         .setName(group.name)
-        .setDesc(`Folders: ${group.parentFolders.join(", ")}`);
+        .setDesc(`Folders: ${group.parentFolders.join(", ")}`)
+        .setClass("abstract-folder-group-item");
 
-      groupSetting.addToggle(toggle => toggle
-        .setValue(this.activeGroupId === group.id)
-        .setTooltip("Set as active group")
-        .onChange(value => {
-          this.activeGroupId = value ? group.id : null;
-          this.saveAndRerender();
-        }));
+      if (isActive) {
+        groupSetting.settingEl.addClass("is-active");
+        
+        // Add indicator dot at the start of the name
+        const dot = document.createElement("span");
+        dot.addClass("abstract-folder-active-dot");
+        groupSetting.nameEl.prepend(dot);
+      }
+
+      // Make the whole row clickable
+      groupSetting.settingEl.addEventListener("click", (e) => {
+        // Only trigger if we didn't click a button
+        if (e.target instanceof HTMLElement && e.target.closest("button")) {
+          return;
+        }
+        
+        this.activeGroupId = isActive ? null : group.id;
+        this.saveAndRerender();
+      });
 
       groupSetting.addButton(button => button
         .setIcon("edit")

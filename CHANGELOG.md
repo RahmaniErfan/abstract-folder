@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 1.6.4
+
+**Improvements:**
+*   **Enhanced Group Management UI**: The active group is now significantly more visible with a primary-colored indicator dot, highlighted row, and semi-bold text.
+*   **Intuitive Activation**: Removed the activation/deactivation buttons in favor of making the entire group row clickable. Added instructions in the modal to guide users.
+*   **Clarity in Group Creation**: Updated the group creation/edit modal to explicitly state that "parent notes" (.md files) should be added to define roots, providing better guidance and path placeholders.
+*   **Visual Refinement**: Added consistent borders and hover effects to group items in the management modal for a more "button-like" feel.
+
 ## Version 1.6.3
 
 **Performance Optimization:**
