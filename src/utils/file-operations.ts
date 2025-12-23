@@ -1,8 +1,106 @@
 import { App, TFile, Notice, TFolder } from "obsidian";
 import { AbstractFolderPluginSettings } from "../settings";
 import { ChildFileType } from "../ui/modals";
-import { FolderIndexer } from "../indexer";
+import type { FolderIndexer } from "../indexer";
 import { AbstractFolderFrontmatter } from "../types";
+import type AbstractFolderPlugin from '../../main';
+import { HIDDEN_FOLDER_ID } from "../types";
+
+/**
+ * Updates the frontmatter links in related files when a file is renamed.
+ * @param app The Obsidian App instance.
+ * @param settings The plugin settings.
+ * @param indexer The FolderIndexer instance.
+ * @param file The renamed file.
+ * @param oldPath The old path of the file.
+ */
+export async function updateAbstractLinksOnRename(app: App, settings: AbstractFolderPluginSettings, indexer: FolderIndexer, file: TFile, oldPath: string) {
+    const oldName = oldPath.split('/').pop() || oldPath;
+    const oldBasename = oldName.endsWith('.md') ? oldName.slice(0, -3) : oldName;
+    
+    const graph = indexer.getGraph();
+    const parentsOfRenamed = graph.childToParents.get(oldPath);
+    const childrenOfRenamed = graph.parentToChildren[oldPath];
+
+    const filesToUpdate = new Set<string>();
+    if (parentsOfRenamed) {
+        for (const p of parentsOfRenamed) {
+            if (p !== HIDDEN_FOLDER_ID) filesToUpdate.add(p);
+        }
+    }
+    if (childrenOfRenamed) {
+        for (const c of childrenOfRenamed) {
+            filesToUpdate.add(c);
+        }
+    }
+
+    for (const filePath of filesToUpdate) {
+        const referencingFile = app.vault.getAbstractFileByPath(filePath);
+        if (referencingFile instanceof TFile && referencingFile.extension === 'md') {
+            await updateLinkInFrontmatter(app, settings, referencingFile, file, oldPath, oldBasename, oldName);
+        }
+    }
+}
+
+/**
+ * Helper to update a single file's frontmatter link.
+ */
+async function updateLinkInFrontmatter(app: App, settings: AbstractFolderPluginSettings, referencingFile: TFile, renamedFile: TFile, oldPath: string, oldBasename: string, oldName: string) {
+    await app.fileManager.processFrontMatter(referencingFile, (frontmatter: AbstractFolderFrontmatter) => {
+        const props = [settings.propertyName, settings.childrenPropertyName];
+
+        for (const prop of props) {
+            const val = frontmatter[prop];
+            if (!val) continue;
+
+            const updateValue = (v: string): string => {
+                let cleaned = v.replace(/^["']+|["']+$|^\s+|[\s]+$/g, '');
+                const isWiki = cleaned.startsWith('[[') && cleaned.endsWith(']]');
+                if (isWiki) cleaned = cleaned.slice(2, -2);
+                
+                const parts = cleaned.split('|');
+                const linkPart = parts[0].trim();
+                const aliasPart = parts.length > 1 ? parts[1].trim() : undefined;
+
+                if (linkPart === oldPath || linkPart === oldBasename || linkPart === oldName) {
+                    const newLink = app.fileManager.generateMarkdownLink(renamedFile, referencingFile.path, undefined, aliasPart);
+                    if (!isWiki && newLink.startsWith('[[') && newLink.endsWith(']]')) {
+                        const content = newLink.slice(2, -2);
+                        return content.split('|')[0];
+                    }
+                    return newLink;
+                }
+                return v;
+            };
+
+            if (typeof val === 'string') {
+                frontmatter[prop] = updateValue(val);
+            } else if (Array.isArray(val)) {
+                frontmatter[prop] = (val as unknown[]).map(v => typeof v === 'string' ? updateValue(v) : v);
+            }
+        }
+    });
+}
+
+/**
+ * Updates group filter paths when a file is renamed.
+ */
+export async function updateGroupsOnRename(app: App, plugin: AbstractFolderPlugin, oldPath: string, newPath: string) {
+    let settingsChanged = false;
+    for (const group of plugin.settings.groups) {
+        const index = group.parentFolders.indexOf(oldPath);
+        if (index !== -1) {
+            group.parentFolders[index] = newPath;
+            settingsChanged = true;
+        }
+    }
+
+    if (settingsChanged) {
+        await plugin.saveSettings();
+        // Notify the UI that the group settings have changed
+        app.workspace.trigger('abstract-folder:group-changed');
+    }
+}
 
 /**
  * Creates a new abstract child file (note, canvas, or base) with appropriate frontmatter and content.

@@ -3,6 +3,7 @@ import { AbstractFolderPluginSettings } from "./settings";
 import { FileGraph, ParentChildMap, HIDDEN_FOLDER_ID, Cycle, AbstractFolderFrontmatter } from "./types";
 import AbstractFolderPlugin from '../main';
 import { debounce, Debouncer } from 'obsidian';
+import { updateAbstractLinksOnRename, updateGroupsOnRename } from "./utils/file-operations";
 
 interface FileDefinedRelationships {
     definedParents: Set<string>;
@@ -113,12 +114,10 @@ export class FolderIndexer {
         visited.add(currentPath);
         
         const parents = graph.childToParents.get(currentPath);
-        // console.debug(`Indexer - getPathToRoot for ${currentPath}: parents:`, parents ? Array.from(parents) : 'none');
         if (!parents || parents.size === 0) {
             break;
         }
         
-        // Take the first parent found
         const nextParent = parents.values().next().value as string;
         
         if (nextParent === HIDDEN_FOLDER_ID) {
@@ -129,7 +128,6 @@ export class FolderIndexer {
         }
 
         if (visited.has(nextParent)) {
-            // console.debug(`Indexer - getPathToRoot: Cycle detected at ${nextParent}`);
             break;
         }
         
@@ -344,7 +342,6 @@ export class FolderIndexer {
                         const resolvedParentPath = this.resolveLinkToPath(parentLink, file.path);
                         if (resolvedParentPath) {
                             if (resolvedParentPath !== file.path) {
-                                // console.debug(`Indexer - ${file.path} defines parent: ${resolvedParentPath}`);
                                 potentialParents.add(resolvedParentPath);
                             } else {
                                 console.warn(`Indexer - ${file.path} attempted to define itself as its own parent. Skipping.`);
@@ -357,7 +354,6 @@ export class FolderIndexer {
         relationships.definedParents = potentialParents;
     }
 
-    // --- Process parent-defined children ---
     const potentialChildren = new Set<string>();
     for (const propName of this.CHILD_PROPERTIES_TO_CHECK_FOR_PARENT_DEFINED_CHILDREN) {
         const childrenProperty = metadata.frontmatter[propName] as unknown;
@@ -367,8 +363,7 @@ export class FolderIndexer {
                 if (typeof childLink === 'string') {
                     const resolvedChildPath = this.resolveLinkToPath(childLink, file.path);
                     if (resolvedChildPath && resolvedChildPath.toLowerCase().trim() !== 'hidden') {
-                         if (resolvedChildPath !== file.path) { // Prevent self-linking
-                             // console.debug(`Indexer - ${file.path} defines child: ${resolvedChildPath}`);
+                         if (resolvedChildPath !== file.path) {
                              potentialChildren.add(resolvedChildPath);
                          }
                     }
@@ -529,17 +524,10 @@ export class FolderIndexer {
   }
 
   private async deleteFileFromGraph(file: TAbstractFile) {
-    // For delete, we might still want to trigger a somewhat larger update or handle it incrementally
-    // But we need to remove references TO this file from OTHER files (which requires scanning or reverse lookup).
-    // The current incremental logic handles 'this file's' definitions.
-    // It DOES NOT automatically update 'other files' that point to 'this file'.
-    // However, removeFileFromParentFrontmatters DOES update the actual files, which triggers metadataCache.changed, which triggers updateFileIncremental.
-    // So we just need to wait for those updates?
-    // But removeFileFromParentFrontmatters is slow.
-    // Let's keep the existing logic for now, as delete is rare compared to edit.
-    
+    // removeFileFromParentFrontmatters triggers metadataCache.on('changed')
+    // for all affected files, which updates the graph incrementally.
     await this.removeFileFromParentFrontmatters(file.path);
-    // Remove the file itself from the graph
+    
     this.fileRelationships.delete(file.path);
     this.allFiles.delete(file.path);
     this.debouncedRebuildGraphAndTriggerUpdate();
@@ -599,12 +587,12 @@ export class FolderIndexer {
   }
 
   private async renameFileInGraph(file: TFile, oldPath: string) {
-    // Rename is complex.
-    // 1. Update this file's path in graph
-    // 2. Update files that point TO this file (handled by Obsidian link fix usually? No, frontmatter is text)
-    // Obsidian usually asks to update links. If user says yes, metadataCache changes.
-    // So we might rely on metadataCache updates.
-    
+    // Update relationships in other files' frontmatter
+    await updateAbstractLinksOnRename(this.app, this.settings, this, file, oldPath);
+
+    // Update group filters if they point to this file
+    await updateGroupsOnRename(this.app, this.plugin, oldPath, file.path);
+
     // Clean up old path in our maps
     this.fileRelationships.delete(oldPath);
     this.allFiles.delete(oldPath);
