@@ -44,7 +44,6 @@ export class ManageSortingModal extends Modal {
             group.sort = { sortBy: 'name', sortOrder: 'asc' };
         }
         
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         this.createSortSetting(groupsContainer, group.name, group.sort, (newSort) => {
              group.sort = newSort;
         });
