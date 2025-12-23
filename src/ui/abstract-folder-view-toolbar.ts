@@ -13,24 +13,23 @@ export class AbstractFolderViewToolbar {
     private settings: AbstractFolderPluginSettings;
     private plugin: AbstractFolderPlugin;
     private viewState: ViewState;
+    private containerEl: HTMLElement;
 
     private viewStyleToggleAction: HTMLElement | undefined;
     private expandAllAction: HTMLElement | undefined;
     private collapseAllAction: HTMLElement | undefined;
 
     // Callbacks provided by AbstractFolderView to interact with it
-    private addAction: (icon: string, title: string, onclick: (evt: MouseEvent) => void) => HTMLElement;
     private renderView: () => void;
-    private expandAllView: () => void; // New callback
-    private collapseAllView: () => void; // New callback
-
+    private expandAllView: () => void;
+    private collapseAllView: () => void;
 
     constructor(
         app: App,
         settings: AbstractFolderPluginSettings,
         plugin: AbstractFolderPlugin,
         viewState: ViewState,
-        addActionCallback: (icon: string, title: string, onclick: (evt: MouseEvent) => void) => HTMLElement,
+        containerEl: HTMLElement,
         renderViewCallback: () => void,
         expandAllViewCallback: () => void,
         collapseAllViewCallback: () => void,
@@ -39,28 +38,50 @@ export class AbstractFolderViewToolbar {
         this.settings = settings;
         this.plugin = plugin;
         this.viewState = viewState;
-        this.addAction = addActionCallback;
+        this.containerEl = containerEl;
         this.renderView = renderViewCallback;
         this.expandAllView = expandAllViewCallback;
         this.collapseAllView = collapseAllViewCallback;
     }
 
+    private addAction(icon: string, title: string, onclick: (evt: MouseEvent) => void): HTMLElement {
+        const actionEl = this.containerEl.createDiv({
+            cls: "abstract-folder-toolbar-action clickable-icon",
+            attr: {
+                "aria-label": title,
+                "title": title
+            }
+        });
+        setIcon(actionEl, icon);
+        actionEl.addEventListener("click", (evt: MouseEvent) => {
+            evt.preventDefault();
+            evt.stopPropagation();
+            onclick(evt);
+        });
+        return actionEl;
+    }
+
     public setupToolbarActions(): void {
+        this.containerEl.empty();
+        this.containerEl.addClass("abstract-folder-toolbar");
+
+        this.viewStyleToggleAction = this.addAction("list", "Switch view style", () => this.viewState.toggleViewStyle());
+        
+        this.addAction("lucide-folder-sync", "Convert folder structure", (evt: MouseEvent) => this.showConversionMenu(evt));
+
+        this.collapseAllAction = this.addAction("chevrons-down-up", "Collapse all folders", () => this.collapseAllView());
+        this.expandAllAction = this.addAction("chevrons-up-down", "Expand all folders", () => this.expandAllView());
+
+        this.addAction("arrow-up-down", "Sort order", (evt: MouseEvent) => this.showSortMenu(evt));
+
+        this.addAction("group", "Select group", (evt: MouseEvent) => this.showGroupMenu(evt));
+
         this.addAction("file-plus", "Create new root note", () => {
             new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
                 createAbstractChildFile(this.app, this.settings, childName, null, childType).catch(console.error);
             }, 'note').open();
         });
 
-        this.addAction("group", "Select group", (evt: MouseEvent) => this.showGroupMenu(evt));
-
-        this.addAction("arrow-up-down", "Sort order", (evt: MouseEvent) => this.showSortMenu(evt));
-        this.expandAllAction = this.addAction("chevrons-up-down", "Expand all folders", () => this.expandAllView());
-        this.collapseAllAction = this.addAction("chevrons-down-up", "Collapse all folders", () => this.collapseAllView());
-        
-        this.addAction("lucide-folder-sync", "Convert folder structure", (evt: MouseEvent) => this.showConversionMenu(evt));
-
-        this.viewStyleToggleAction = this.addAction("list", "Switch view style", () => this.viewState.toggleViewStyle());
         this.updateViewStyleToggleButton();
         this.updateButtonStates();
     }

@@ -52,41 +52,67 @@
 
 /* Force the view header to display for the abstract-folder-view type */
 .workspace-leaf-content[data-type="abstract-folder-view"] .view-header {
-    display: flex !important;
-    /* Add any other necessary default header styles if they are missing */
-    flex-direction: row !important;
-    align-items: center !important;
-    justify-content: center !important;
-    height: 40px !important; /* Standard header height */
-    padding: 0 10px !important; /* Reintroduce standard horizontal padding */
-    background-color: var(--background-secondary) !important;
-    border-bottom: 1px solid var(--background-modifier-border) !important; /* Main header separation line */
-}
-/* Ensure the actions container within the header is also displayed and styled */
-.workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-actions {
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important; /* Space between action buttons */
-}
-
-.workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-header-nav-buttons {
     display: none !important;
-    width: 0 !important;
-    height: 0 !important;
-    min-width: 0 !important;
-    overflow: hidden !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    border: none !important;
 }
 
+.workspace-leaf-content[data-type="abstract-folder-view"] {
+    padding-top: 0 !important;
+}
+
+.workspace-leaf-content[data-type="abstract-folder-view"] .view-content {
+    padding: 0 12px 12px 12px !important;
+}
+
+/* Custom Toolbar Styles */
+.abstract-folder-toolbar-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px; /* Reduced height to remove extra space */
+    padding: 0 10px;
+    background-color: var(--background-secondary);
+    border-bottom: 1px solid var(--background-modifier-border);
+    flex-shrink: 0;
+    gap: 8px;
+    margin-bottom: 4px; /* Small margin above title */
+}
+
+.abstract-folder-toolbar-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    color: var(--icon-color);
+    border-radius: var(--radius-s);
+    cursor: pointer;
+    transition: color 0.1s ease-in-out, background-color 0.1s ease-in-out;
+}
+
+.abstract-folder-toolbar-action:hover {
+    background-color: var(--background-modifier-hover);
+    color: var(--icon-color-hover);
+}
+
+.abstract-folder-toolbar-action.is-disabled {
+    color: var(--text-muted) !important;
+    cursor: default !important;
+    opacity: 0.5 !important;
+    pointer-events: none !important;
+}
+
+.abstract-folder-toolbar-action svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2px;
+}
 
 .abstract-folder-header-title {
     font-size: var(--font-ui-small); /* Smaller font size */
     font-weight: 400; /* Normal weight for subtlety */
     text-align: center;
-    padding: 3px 0 6px 0; /* Further reduced padding */
-    margin-bottom: 3px; /* Further reduced margin */
+    padding: 0 0 6px 0; /* Removed top padding */
+    margin-bottom: 12px; /* Increased margin below title */
     color: var(--text-muted); /* Make text subtle */
     position: relative; /* For the pseudo-element line */
 }
@@ -468,91 +494,8 @@
     height: 100%;
 }
 
-/* Styles for view header actions (sort, expand/collapse buttons) */
-/* Styles for view header actions (sort, expand/collapse buttons) */
-/* Increased specificity to ensure override */
-.workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-actions .view-action {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 28px !important;
-    height: 28px !important;
-    color: var(--icon-color) !important;
-    background-color: transparent !important;
-    border: none !important;
-    border-radius: var(--radius-s) !important;
-    cursor: pointer !important;
-    transition: color 0.1s ease-in-out, background-color 0.1s ease-in-out !important;
-    box-shadow: none !important;
-}
-
-/* Style for disabled buttons in the view header actions */
-.workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-actions .view-action.is-disabled {
-    color: var(--text-muted) !important; /* Grey out the icon */
-    cursor: default !important; /* Change cursor to default */
-    opacity: 0.5 !important; /* Reduce opacity */
-    pointer-events: none !important; /* Disable interaction */
-    background-color: transparent !important; /* Ensure background is transparent */
-}
-
-.workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-actions .view-action.is-disabled:hover {
-    background-color: transparent !important; /* No hover effect when disabled */
-    color: var(--text-muted) !important; /* Keep icon greyed out on hover when disabled */
-}
-
-.workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-actions .view-action:hover {
-    background-color: var(--background-modifier-hover) !important;
-    color: var(--icon-color-hover) !important;
-}
-
-.workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-actions .view-action svg {
-    width: 18px !important;
-    height: 18px !important;
-    stroke-width: 2px;
-}
-
-.workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-actions .view-action[aria-label="More options"] {
-    display: none !important;
-}
-
-/* Hide the bookmark button with extreme prejudice - moved for correct specificity */
-.workspace-leaf-content[data-type="abstract-folder-view"] .view-header .view-actions .mod-bookmark {
-    display: none !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
-    width: 0 !important;
-    height: 0 !important;
-    min-width: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    border: none !important;
-}
-
-
-/* Adjust indentation for "Abstract Folders" title */
-.workspace-leaf-content[data-type="abstract-folder-view"] .view-header-left {
-    /* Re-enable display of the left header section to allow the icon to show */
-    display: none !important; /* Completely hide view-header-left */
-    /* Remove other properties as display: none takes precedence */
-    /* Hide specific children if they are navigation buttons */
-    /* .view-header-nav-buttons will still be hidden by earlier rule if it applies */
-}
-
-.workspace-leaf-content[data-type="abstract-folder-view"] .view-header-title-container {
-    display: none !important; /* Completely hide the title container to ensure centering of action buttons */
-}
-
-.workspace-leaf-content[data-type="abstract-folder-view"] .view-header-title {
-    padding: 0 !important; /* Reset padding for the title text itself */
-    margin: 0 !important; /* Reset margin for the title text itself */
-    flex-grow: 0 !important; /* Prevent title from expanding */
-    text-align: left !important; /* Ensure text alignment is left */
-}
-
-/* Push view actions to the right when header is flex-start */
-
-/* Folder Indicator for Column View */
-.abstract-folder-folder-indicator {
+/* Indent guides */
+.abstract-folder-indent-guides {
     display: flex;
     align-items: center;
     justify-content: center;

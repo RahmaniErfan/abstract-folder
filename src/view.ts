@@ -88,16 +88,6 @@ export class AbstractFolderView extends ItemView {
       () => this.contentEl
     );
     this.contextMenuHandler = new ContextMenuHandler(this.app, this.settings, this.plugin, this.indexer);
-    this.toolbar = new AbstractFolderViewToolbar(
-       this.app,
-       this.settings,
-       this.plugin,
-       this.viewState,
-       (icon, title, onclick) => this.addAction(icon, title, onclick),
-       () => this.renderView(),
-       () => this.expandAll(),
-       () => this.collapseAll(),
-    );
   }
 
   getViewType(): string {
@@ -113,6 +103,19 @@ export class AbstractFolderView extends ItemView {
     this.contentEl.empty();
     this.contentEl.addClass("abstract-folder-view");
     
+    // Create toolbar container
+    const toolbarEl = this.contentEl.createDiv({ cls: "abstract-folder-toolbar-container" });
+    this.toolbar = new AbstractFolderViewToolbar(
+       this.app,
+       this.settings,
+       this.plugin,
+       this.viewState,
+       toolbarEl,
+       () => this.renderView(),
+       () => this.expandAll(),
+       () => this.collapseAll(),
+    );
+
     // Create stable containers for virtual scroll
     // Wrapper for all virtual content
     const virtualWrapper = this.contentEl.createDiv({ cls: "abstract-folder-virtual-wrapper" });
@@ -248,7 +251,8 @@ export class AbstractFolderView extends ItemView {
     const children = Array.from(this.contentEl.children);
     children.forEach(child => {
         if (!child.hasClass("abstract-folder-virtual-wrapper") &&
-            !child.hasClass("abstract-folder-header-title")) {
+            !child.hasClass("abstract-folder-header-title") &&
+            !child.hasClass("abstract-folder-toolbar-container")) {
             child.remove();
         }
     });
@@ -272,11 +276,17 @@ export class AbstractFolderView extends ItemView {
 
     if (headerText) {
         if (!headerEl) {
-            headerEl = this.contentEl.createEl("div", {
-                text: headerText,
-                cls: "abstract-folder-header-title"
-            });
-            this.contentEl.prepend(headerEl);
+            headerEl = document.createElement("div");
+            headerEl.textContent = headerText;
+            headerEl.addClass("abstract-folder-header-title");
+            
+            // Insert header after toolbar if toolbar exists
+            const toolbarContainer = this.contentEl.querySelector(".abstract-folder-toolbar-container");
+            if (toolbarContainer) {
+                toolbarContainer.after(headerEl);
+            } else {
+                this.contentEl.prepend(headerEl);
+            }
         } else {
              headerEl.textContent = headerText;
         }
@@ -332,7 +342,8 @@ export class AbstractFolderView extends ItemView {
         const children = Array.from(this.contentEl.children);
         children.forEach(child => {
             if (!child.hasClass("abstract-folder-virtual-wrapper") &&
-                !child.hasClass("abstract-folder-header-title")) {
+                !child.hasClass("abstract-folder-header-title") &&
+                !child.hasClass("abstract-folder-toolbar-container")) {
                 child.remove();
             }
         });

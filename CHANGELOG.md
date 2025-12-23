@@ -1,5 +1,15 @@
 # Changelog
 
+## Version 1.6.7
+
+**Fixes:**
+*   **Toolbar Isolation & UI Refinement**:
+    *   Moved the toolbar from the shared Obsidian header into the internal view content to prevent interference from other plugins (e.g., Commander).
+    *   Completely disabled the native view header for a cleaner, dedicated UI.
+    *   Refined the layout hierarchy: Toolbar is now at the absolute top, followed by the group title.
+    *   Improved spacing: Removed extra top padding and synchronized side/bottom padding (12px) for better visual balance.
+    *   Inverted toolbar button order for improved ergonomics (Switch View Style first, Create Root Note last).
+
 ## Version 1.6.4
 
 **Improvements:**

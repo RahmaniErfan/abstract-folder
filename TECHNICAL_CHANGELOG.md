@@ -1,3 +1,18 @@
+# Technical Changelog - Abstract Folder Plugin v1.6.7
+
+## UI Isolation & Header Refactoring
+
+### 1. Internal Toolbar Implementation (`src/ui/abstract-folder-view-toolbar.ts`, `src/view.ts`)
+*   **Problem**: Using `this.addAction` targeted the global Obsidian `.view-actions` container, making the plugin vulnerable to UI injection from third-party plugins (Commander, Folder Notes, etc.).
+*   **Solution**: Refactored the toolbar to be a custom DOM component rendered directly inside `contentEl`.
+*   **Implementation**:
+    *   `AbstractFolderViewToolbar` now accepts a parent `HTMLElement` and renders its own buttons using `setIcon` and custom CSS classes.
+    *   `AbstractFolderView` manages a stable `.abstract-folder-toolbar-container` to ensure it is not destroyed during dynamic content re-renders.
+
+### 2. View Layout & Padding Normalization (`styles.css`)
+*   **Blocking Injection**: Used `display: none !important` on `.view-header` specifically for the `abstract-folder-view` type. This completely isolates the view from external header modifications.
+*   **Padding Correction**: Obsidian applies default padding to `.workspace-leaf-content` and `.view-content`. These were overridden (`padding: 0 !important` and `padding: 0 12px 12px 12px !important`) to allow the custom toolbar to sit flush at the top while maintaining standard margins for the actual data.
+
 # Technical Changelog - Abstract Folder Plugin v1.6.3
 
 ## Performance & Stability Optimizations
