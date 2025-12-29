@@ -95,7 +95,7 @@ export class AbstractFolderView extends ItemView {
   }
 
   getDisplayText(): string {
-    return "";
+    return "Abstract folder";
   }
 
   public onOpen = async () => {

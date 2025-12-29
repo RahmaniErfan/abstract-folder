@@ -1,5 +1,10 @@
 # Changelog
 
+## Version 1.6.8
+
+*   **UI:**
+    *  Added plugin name as tab title
+
 ## Version 1.6.7
 
 **Fixes:**
@@ -55,7 +60,7 @@
 *   **Incremental Graph Updates**: Fixed a bug where removing a recursive parent link (a file being its own parent) did not correctly restore the file to the view. This was due to the incremental update logic using cached relationship data instead of the latest state during removal checks.
 *   **View Switching**: Fixed an issue where the Abstract Tree view would disappear after switching from Column View (Miller View). This was caused by the view container being incorrectly emptied, destroying stable DOM elements required for virtual scrolling.
 
-## Version 1.4.0
+## Version 1.4.090
 
 **Performance Optimization (Major):**
 *   **Incremental Graph Updates**: The plugin now intelligently updates only the parts of the abstract folder structure that have changed when you edit file frontmatter, rather than rebuilding the entire structure. This reduces processing time from ~500ms to ~2ms for large vaults (35k+ files), eliminating lag during editing.
