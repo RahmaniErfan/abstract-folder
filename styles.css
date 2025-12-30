@@ -240,9 +240,14 @@
     padding-left: 6px; /* Reset to base padding, effectively removing tree indentation */
 }
 
-/* Hide collapse icon in column view */
+/* Show collapse icon in column view, but fix rotation */
 .abstract-folder-columns-wrapper .abstract-folder-collapse-icon {
-    display: none;
+    display: flex; /* Changed from none to flex */
+}
+
+/* In column view, the arrow should always point right (0deg) */
+.abstract-folder-columns-wrapper .abstract-folder-collapse-icon svg {
+    transform: rotate(0deg) !important;
 }
 
 /* In column view, don't show children containers */

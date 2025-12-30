@@ -73,6 +73,7 @@ export class AbstractFolderView extends ItemView {
       this.viewState.multiSelectedPaths,
       this.getDisplayName,
       (node, depth, event) => this.handleColumnNodeClick(node, depth, event),
+      (node, depth) => this.handleColumnExpand(node, depth),
       this.indexer, this.dragManager,
       () => this.contentEl
     );
@@ -487,6 +488,16 @@ export class AbstractFolderView extends ItemView {
       if (fileExists) this.app.workspace.getLeaf(false).openFile(node.file).catch(console.error);
     }
 
+    if (node.isFolder || node.file) {
+      const currentColumnPath = this.viewState.selectionPath.slice(0, depth);
+      const newSelectionPath = [...currentColumnPath, node.path];
+      this.viewState.selectionPath = newSelectionPath;
+      this.columnRenderer.setSelectionPath(this.viewState.selectionPath);
+      this.renderView();
+    }
+  }
+
+  private handleColumnExpand = (node: FolderNode, depth: number) => {
     if (node.isFolder || node.file) {
       const currentColumnPath = this.viewState.selectionPath.slice(0, depth);
       const newSelectionPath = [...currentColumnPath, node.path];

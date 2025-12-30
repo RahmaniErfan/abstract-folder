@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 1.9.2
+
+**Features:**
+*   **Column View Expansion**: Added a left-side chevron icon to folder items in Column View, allowing you to expand folders without opening the associated note.
+*   **UI Refinement**: Removed the redundant right-side folder indicator in Column View for a cleaner, tree-consistent layout.
+
 ## Version 1.9.1
 
 **Fixes:**

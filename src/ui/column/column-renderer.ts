@@ -14,6 +14,7 @@ export class ColumnRenderer {
     private multiSelectedPaths: Set<string>;
     private getDisplayName: (node: FolderNode) => string;
     private handleColumnNodeClick: (node: FolderNode, depth: number, event?: MouseEvent) => void;
+    private handleColumnExpand: (node: FolderNode, depth: number) => void;
     private contextMenuHandler: ContextMenuHandler;
     private dragManager: DragManager;
     private getContentEl: () => HTMLElement;
@@ -26,6 +27,7 @@ export class ColumnRenderer {
         multiSelectedPaths: Set<string>,
         getDisplayName: (node: FolderNode) => string,
         handleColumnNodeClick: (node: FolderNode, depth: number, event?: MouseEvent) => void,
+        handleColumnExpand: (node: FolderNode, depth: number) => void,
         indexer: FolderIndexer,
         dragManager: DragManager,
         getContentEl: () => HTMLElement
@@ -37,6 +39,7 @@ export class ColumnRenderer {
         this.multiSelectedPaths = multiSelectedPaths;
         this.getDisplayName = getDisplayName;
         this.handleColumnNodeClick = handleColumnNodeClick;
+        this.handleColumnExpand = handleColumnExpand;
         this.contextMenuHandler = new ContextMenuHandler(app, settings, plugin, indexer);
         this.dragManager = dragManager;
         this.getContentEl = getContentEl;
@@ -130,6 +133,16 @@ export class ColumnRenderer {
             selfEl.addClass("is-multi-selected");
         }
 
+        if (node.isFolder) {
+            const iconEl = selfEl.createDiv({ cls: "abstract-folder-collapse-icon" });
+            setIcon(iconEl, "chevron-right");
+
+            iconEl.addEventListener("click", (e) => {
+                e.stopPropagation();
+                this.handleColumnExpand(node, depth);
+            });
+        }
+
         let iconToUse = node.icon;
         if (node.path === HIDDEN_FOLDER_ID && !iconToUse) {
           iconToUse = "eye-off";
@@ -152,14 +165,7 @@ export class ColumnRenderer {
         }
 
         const parentCount = graph?.childToParents.get(node.path)?.size || 0;
-        const childCount = node.children.length;
         
-        // Only show folder indicator if it's truly a folder with children in our graph
-        if (node.isFolder && childCount > 0) {
-            const folderIndicator = selfEl.createDiv({ cls: "abstract-folder-folder-indicator" });
-            setIcon(folderIndicator, "chevron-right");
-        }
-
         if (parentCount > 1) {
             const multiParentIndicator = selfEl.createSpan({ cls: "abstract-folder-multi-parent-indicator" });
             setIcon(multiParentIndicator, "git-branch-plus");
