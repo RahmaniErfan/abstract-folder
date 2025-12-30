@@ -363,7 +363,7 @@
 
 /* Rainbow Indents */
 .abstract-folder-children.rainbow-indent {
-    border-left-width: 2px; /* Make it a bit more prominent */
+    border-left-width: 2px;
 }
 
 /* Classic Palette */
@@ -494,8 +494,8 @@
     height: 100%;
 }
 
-/* Indent guides */
-.abstract-folder-indent-guides {
+/* Folder Indicator */
+.abstract-folder-folder-indicator {
     display: flex;
     align-items: center;
     justify-content: center;

@@ -29,6 +29,7 @@ export class AbstractFolderView extends ItemView {
   private toolbar: AbstractFolderViewToolbar;
   private fileRevealManager: FileRevealManager | undefined;
   private dragManager: DragManager;
+  private resizeObserver: ResizeObserver | undefined;
 
   private flatItems: FlatItem[] = [];
   private readonly ITEM_HEIGHT = 24;
@@ -224,19 +225,51 @@ export class AbstractFolderView extends ItemView {
             window.requestAnimationFrame(() => this.updateVirtualRender());
         }
     });
+
+    // Resize Listener to handle initial render and window resizing
+    this.resizeObserver = new ResizeObserver(() => {
+        if (this.settings.viewStyle === 'tree') {
+            window.requestAnimationFrame(() => this.updateVirtualRender());
+        }
+    });
+    this.resizeObserver.observe(this.contentEl);
+    
+    // Initial loading state check
+    // We only want to show loading if the indexer has NEVER completed a graph build.
+    // Otherwise we trust that we have data (or empty state) and let renderView handle it.
+    if (!this.indexer.hasBuiltFirstGraph() && this.indexer.isGraphBuilding()) {
+        this.isLoading = true;
+    } else {
+        // If we opened later and missed the initial events, make sure we are not stuck in loading
+        this.isLoading = false; 
+    }
+    
+    console.debug("[AbstractFolderView] onOpen completed");
   }
 
   public onClose = async () => {
-    // Cleanup is handled by registerEvent
+    if (this.resizeObserver) {
+        this.resizeObserver.disconnect();
+        this.resizeObserver = undefined;
+    }
   }
 
   private handleViewStyleChanged = () => {
+    console.debug("[AbstractFolderView] handleViewStyleChanged");
     this.toolbar.updateViewStyleToggleButton();
     this.toolbar.updateButtonStates();
     this.renderView();
   }
 
   private renderView = () => {
+    console.debug("[AbstractFolderView] renderView called", {
+        isLoading: this.isLoading,
+        graphFiles: this.indexer.getGraph().allFiles.size,
+        isConverting: this.isConverting,
+        viewStyle: this.settings.viewStyle,
+        clientHeight: this.contentEl.clientHeight
+    });
+
     /**
      * DOM Stability Optimization: Instead of nuking the entire contentEl with .empty(),
      * selectively remove only dynamic view elements. This preserves the 
@@ -302,7 +335,7 @@ export class AbstractFolderView extends ItemView {
         
         this.contentEl.createEl("div", {
             cls: "abstract-folder-loading-state",
-            text: "Loading abstract structure..."
+            text: "Loading abstract graph..."
         });
         return;
     }
@@ -420,7 +453,8 @@ export class AbstractFolderView extends ItemView {
        if (!this.virtualContainer) return;
 
        const scrollTop = this.contentEl.scrollTop;
-       const clientHeight = this.contentEl.clientHeight;
+       // Fallback to window height if container height is 0 (initial load)
+       const clientHeight = this.contentEl.clientHeight || window.innerHeight;
        
        // Account for header height if present
        const headerEl = this.contentEl.querySelector(".abstract-folder-header-title") as HTMLElement;

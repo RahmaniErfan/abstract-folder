@@ -30,6 +30,7 @@ export class FolderIndexer {
   private debouncedRebuildGraphAndTriggerUpdate: Debouncer<[], void>;
   private isBuilding = false;
   private pendingRebuild = false;
+  private hasBuiltGraph = false;
 
   constructor(app: App, settings: AbstractFolderPluginSettings, plugin: AbstractFolderPlugin) {
     this.app = app;
@@ -75,6 +76,7 @@ export class FolderIndexer {
             this.pendingRebuild = false;
             this.app.workspace.trigger('abstract-folder:graph-build-start');
             await this.buildGraph();
+            this.hasBuiltGraph = true;
             this.app.workspace.trigger('abstract-folder:graph-updated');
         } while (this.pendingRebuild);
     } finally {
@@ -95,6 +97,14 @@ export class FolderIndexer {
 
   getCycles(): Cycle[] {
     return this.cycles;
+  }
+
+  isGraphBuilding(): boolean {
+    return this.isBuilding;
+  }
+
+  hasBuiltFirstGraph(): boolean {
+    return this.hasBuiltGraph;
   }
 
   getRelevantParentPropertyNames(): string[] {
@@ -468,7 +478,9 @@ export class FolderIndexer {
       this.allFiles.add(file.path);
       this.updateRootStatus(file.path);
 
-      this.app.workspace.trigger('abstract-folder:graph-updated');
+      if (!this.isBuilding) {
+          this.app.workspace.trigger('abstract-folder:graph-updated');
+      }
   }
 
   private resolveLinkToPath(link: string, containingFilePath: string): string | null {
