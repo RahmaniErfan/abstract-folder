@@ -1,5 +1,20 @@
 # Changelog
 
+## Version 1.7.0
+
+**Features:**
+*   **File Type Filtering**: Introduced a new filtering system to hide specific file types (extensions) from the view.
+    *   **Toolbar Integration**: Added a filter button with quick presets for hiding/showing images and canvas files.
+    *   **Global & Per-Group Config**: Manage default exclusion lists or set specific filters for individual groups via the new "Manage default filtering" modal.
+    *   **Multi-View Support**: Filters are applied consistently across both Tree and Column view styles.
+
+**Code Quality & Architecture:**
+*   **Modularization**: Significantly refactored the core UI logic for better maintainability and performance.
+    *   Extracted virtual scroll and tree generation into `VirtualTreeManager`.
+    *   Moved view and toolbar components into dedicated `src/ui/view` and `src/ui/toolbar` directories.
+    *   Improved type safety across toolbar menus and event handlers.
+
+
 ## Version 1.6.8
 
 *   **UI:**
