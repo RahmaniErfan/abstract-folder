@@ -54,7 +54,7 @@ export interface NodeMetrics {
   complexity: number; // Direct or recursive child count used for rot
 }
 
-export type SortBy = 'name' | 'mtime' | 'thermal' | 'rot' | 'gravity';
+export type SortBy = 'name' | 'mtime' | 'ctime' | 'thermal' | 'rot' | 'gravity';
 
 export interface SortConfig {
   sortBy: SortBy;

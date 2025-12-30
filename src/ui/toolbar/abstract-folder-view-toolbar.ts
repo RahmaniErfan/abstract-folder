@@ -6,7 +6,7 @@ import { CreateAbstractChildModal } from "../modals";
 import { createAbstractChildFile } from "../../utils/file-operations";
 import { ManageSortingModal } from "../modals/manage-sorting-modal";
 import { ManageFilteringModal } from "../modals/manage-filtering-modal";
-import { Group } from "../../types";
+import { Group, SortBy } from "../../types";
 import { ManageGroupsModal } from "../modals/manage-groups-modal";
 
 export class AbstractFolderViewToolbar {
@@ -96,7 +96,7 @@ export class AbstractFolderViewToolbar {
             }).open();
         }));
         menu.addSeparator();
-        const addSortItem = (title: string, icon: string, sortBy: 'name' | 'mtime' | 'thermal' | 'rot' | 'gravity', sortOrder: 'asc' | 'desc') => {
+        const addSortItem = (title: string, icon: string, sortBy: SortBy, sortOrder: 'asc' | 'desc') => {
             menu.addItem(item => item.setTitle(title)
                 .setIcon(this.viewState.sortBy === sortBy && this.viewState.sortOrder === sortOrder ? "check" : icon)
                 .onClick(() => this.viewState.setSort(sortBy, sortOrder)));
@@ -106,6 +106,9 @@ export class AbstractFolderViewToolbar {
         menu.addSeparator();
         addSortItem("Sort by modified (old to new)", "sort-asc", 'mtime', 'asc');
         addSortItem("Sort by modified (new to old)", "sort-desc", 'mtime', 'desc');
+        menu.addSeparator();
+        addSortItem("Sort by created (old to new)", "sort-asc", 'ctime', 'asc');
+        addSortItem("Sort by created (new to old)", "sort-desc", 'ctime', 'desc');
         menu.addSeparator();
         addSortItem("Sort by thermal (most to least)", "flame", 'thermal', 'desc');
         addSortItem("Sort by thermal (least to most)", "flame", 'thermal', 'asc');

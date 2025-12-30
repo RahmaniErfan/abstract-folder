@@ -1,5 +1,18 @@
 # Changelog
 
+## Version 1.8.0
+
+**Features:**
+*   **Custom Date Properties for Sorting**: You can now specify custom frontmatter properties (comma-separated) for "Created time" and "Modified time".
+    *   **Manual Control**: Override unreliable file system timestamps with your own managed properties.
+    *   **Flexible Formats**: Supports Date objects, ISO strings, and Unix timestamps in frontmatter.
+    *   **Fallbacks**: Automatically falls back to system `ctime`/`mtime` if custom properties are missing or invalid.
+*   **New Sorting Option**: Added "Created time" as a sorting method in the toolbar and sorting modals.
+
+**Code Quality & Architecture:**
+*   **Modular Sorting**: Extracted sorting logic into a dedicated `src/utils/sorting.ts` utility for better maintainability.
+*   **Cleanup**: Removed redundant code and improved type safety for sorting operations.
+
 ## Version 1.7.0
 
 **Features:**

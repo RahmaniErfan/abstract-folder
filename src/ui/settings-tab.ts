@@ -73,6 +73,32 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 						this.plugin.indexer.updateSettings(this.plugin.settings); // Notify indexer of setting change
 					})
 			);
+
+		new Setting(containerEl)
+			.setName("Created date field names")
+			.setDesc("Set the field name in frontmatter to use for the created date (support multiple field names, separated by commas).")
+			.addText((text) =>
+				text
+					.setPlaceholder("Example: created, ctime")
+					.setValue(this.plugin.settings.customCreatedDateProperties)
+					.onChange(async (value) => {
+						this.plugin.settings.customCreatedDateProperties = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Modified date field names")
+			.setDesc("Set the field name in frontmatter to use for the modified date (support multiple field names, separated by commas).")
+			.addText((text) =>
+				text
+					.setPlaceholder("Example: modified, updated, mtime")
+					.setValue(this.plugin.settings.customModifiedDateProperties)
+					.onChange(async (value) => {
+						this.plugin.settings.customModifiedDateProperties = value;
+						await this.plugin.saveSettings();
+					})
+			);
 	
 		new Setting(containerEl)
 			.setName("Show aliases")

@@ -71,6 +71,7 @@ export class ManageSortingModal extends Modal {
         .addDropdown(dropdown => dropdown
             .addOption("name", "Name")
             .addOption("mtime", "Modified time")
+            .addOption("ctime", "Created time")
             .addOption("thermal", "Thermal")
             .addOption("rot", "Stale rot")
             .addOption("gravity", "Gravity")

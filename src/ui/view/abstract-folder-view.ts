@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, TFile } from "obsidian";
+import { ItemView, WorkspaceLeaf } from "obsidian";
 import { FolderIndexer } from "../../indexer";
 import { MetricsManager } from "../../metrics-manager";
 import { FolderNode, HIDDEN_FOLDER_ID, Group } from "../../types";
@@ -8,6 +8,7 @@ import { TreeRenderer } from '../tree/tree-renderer';
 import { ColumnRenderer } from '../column/column-renderer';
 import { ViewState } from '../view-state';
 import { buildFolderTree } from '../../utils/tree-utils';
+import { createSortComparator } from '../../utils/sorting';
 import { ContextMenuHandler } from "../context-menu";
 import { AbstractFolderViewToolbar } from "../toolbar/abstract-folder-view-toolbar";
 import { FileRevealManager } from "../../file-reveal-manager";
@@ -389,25 +390,15 @@ export class AbstractFolderView extends ItemView {
   };
 
   private sortNodes(a: FolderNode, b: FolderNode): number {
-    let compareResult: number;
-    if (this.viewState.sortBy === 'name') compareResult = a.path.localeCompare(b.path);
-    else if (this.viewState.sortBy === 'mtime') {
-      const fileA = a.file ? this.app.vault.getAbstractFileByPath(a.path) : null;
-      const fileB = b.file ? this.app.vault.getAbstractFileByPath(b.path) : null;
-      const mtimeA = (fileA instanceof TFile) ? fileA.stat.mtime : 0;
-      const mtimeB = (fileB instanceof TFile) ? fileB.stat.mtime : 0;
-      compareResult = mtimeA - mtimeB;
-    } else if (this.viewState.sortBy === 'thermal') {
-      compareResult = this.metricsManager.getMetrics(a.path).thermal - this.metricsManager.getMetrics(b.path).thermal;
-    } else if (this.viewState.sortBy === 'rot') {
-      compareResult = this.metricsManager.getMetrics(a.path).rot - this.metricsManager.getMetrics(b.path).rot;
-    } else if (this.viewState.sortBy === 'gravity') {
-      compareResult = this.metricsManager.getMetrics(a.path).gravity - this.metricsManager.getMetrics(b.path).gravity;
-    } else compareResult = a.path.localeCompare(b.path);
-
-    return this.viewState.sortOrder === 'asc' ? compareResult : -compareResult;
+    return createSortComparator(
+        this.app,
+        this.settings,
+        this.viewState.sortBy,
+        this.viewState.sortOrder,
+        this.metricsManager
+    )(a, b);
   }
-  
+
   private expandAll = () => {
     if (this.settings.viewStyle === 'tree') {
       this.contentEl.querySelectorAll(".abstract-folder-item.is-collapsed").forEach(el => el.removeClass("is-collapsed"));

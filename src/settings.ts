@@ -22,6 +22,8 @@ export interface AbstractFolderPluginSettings {
   metrics: Record<string, { thermal: number; lastInteraction: number }>; // Path -> Metrics (persisted)
   defaultSort: SortConfig; // Default sort configuration for the main view
   defaultFilter: FilterConfig; // Default filter configuration for the main view
+  customCreatedDateProperties: string; // Comma-separated frontmatter property names for created date
+  customModifiedDateProperties: string; // Comma-separated frontmatter property names for modified date
 }
 
 export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
@@ -46,4 +48,6 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   metrics: {},
   defaultSort: { sortBy: 'name', sortOrder: 'asc' },
   defaultFilter: { excludeExtensions: [] },
+  customCreatedDateProperties: '',
+  customModifiedDateProperties: '',
 };
