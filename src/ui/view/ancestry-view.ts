@@ -1,9 +1,10 @@
-import { ItemView, WorkspaceLeaf, TFile } from "obsidian";
+import { ItemView, WorkspaceLeaf, TFile, setIcon } from "obsidian";
 import * as cytoscape from "cytoscape";
 // @ts-ignore - cytoscape-dagre lacks proper type definitions
 import dagre from "cytoscape-dagre";
 import { AncestryEngine } from "../../utils/ancestry";
 import AbstractFolderPlugin from "../../../main";
+import { PathSuggest } from "../path-suggest";
 
 // Define missing types for cytoscape-dagre
 declare module "cytoscape" {
@@ -44,6 +45,7 @@ export class AncestryView extends ItemView {
 	private cy: cytoscape.Core | null = null;
 	private engine: AncestryEngine;
 	private targetFile: TFile | null = null;
+	private searchInput: HTMLInputElement;
 
 	constructor(leaf: WorkspaceLeaf, private plugin: AbstractFolderPlugin) {
 		super(leaf);
@@ -67,21 +69,32 @@ export class AncestryView extends ItemView {
 		container.empty();
 		container.addClass("abstract-folder-ancestry-container");
 
-		// Manually ensure basic container styling if CSS file didn't load
-		container.setCssStyles({
-			padding: "0",
-			margin: "0",
-			height: "100%",
-			width: "100%",
-			overflow: "hidden",
-			backgroundColor: "var(--background-primary)",
+		// Create Search Header
+		const headerEl = container.createDiv({ cls: "ancestry-header" });
+		const searchContainer = headerEl.createDiv({ cls: "ancestry-search-container" });
+		
+		const searchIconEl = searchContainer.createDiv({ cls: "ancestry-search-icon" });
+		setIcon(searchIconEl, "search");
+
+		this.searchInput = searchContainer.createEl("input", {
+			type: "text",
+			placeholder: "Search file to view ancestry...",
+			cls: "ancestry-search-input"
+		});
+
+		// Initialize Suggestion
+		new PathSuggest(this.app, this.searchInput);
+
+		// Handle Selection
+		this.searchInput.addEventListener("input", () => {
+			const path = this.searchInput.value;
+			const file = this.app.vault.getAbstractFileByPath(path);
+			if (file instanceof TFile) {
+				this.updateGraph(file);
+			}
 		});
 
 		const graphEl = container.createDiv({ cls: "ancestry-graph-canvas" });
-		graphEl.setCssStyles({
-			width: "100%",
-			height: "100%",
-		});
 
 		// cytoscape is both a namespace and a factory function
 		const cytoscapeFunc = (cytoscapeAny.default || cytoscapeAny) as unknown as (
@@ -112,6 +125,9 @@ export class AncestryView extends ItemView {
 			this.app.workspace.on("file-open", (file) => {
 				if (file instanceof TFile) {
 					this.updateGraph(file);
+					if (this.searchInput) {
+						this.searchInput.value = file.path;
+					}
 				}
 			})
 		);
@@ -144,6 +160,11 @@ export class AncestryView extends ItemView {
 	public updateGraph(file: TFile) {
 		if (!this.cy) return;
 		this.targetFile = file;
+
+		// Update search input if it's not already correct
+		if (this.searchInput && this.searchInput.value !== file.path) {
+			this.searchInput.value = file.path;
+		}
 
 		const data = this.engine.getAncestryGraphData(file.path);
 
@@ -234,9 +255,7 @@ export class AncestryView extends ItemView {
 					"target-arrow-color": edgeColor,
 					"target-arrow-shape": "triangle",
 					"arrow-scale": 1.2,
-					"curve-style": "unbundled-bezier",
-					"control-point-distances": [20, -20],
-					"control-point-weights": [0.25, 0.75],
+					"curve-style": "bezier",
 					"target-endpoint": "outside-to-node",
 					"line-style": "solid",
 					"opacity": 0.75

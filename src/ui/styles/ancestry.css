@@ -1,71 +1,61 @@
-t.ancestry-graph-container {
-    width: 100%;
-    height: 100%;
+.abstract-folder-ancestry-container {
     background-color: var(--background-primary);
-    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
     overflow: hidden;
 }
 
-/* Node Styling */
-.ancestry-node-label {
-    font-size: 12px;
-    color: var(--text-normal);
-    text-align: center;
-}
-
-/* Node Types */
-.ancestry-node-file {
-    background-color: var(--interactive-accent);
-    color: var(--text-on-accent);
-}
-
-.ancestry-node-folder {
-    background-color: var(--background-secondary-alt);
-    border: 1px solid var(--background-modifier-border);
-}
-
-.ancestry-node-virtual {
-    background-color: var(--background-primary-alt);
-    border: 1px dashed var(--text-muted);
-}
-
-/* Edge Styling */
-.ancestry-edge {
-    line-color: var(--text-muted);
-    target-arrow-color: var(--text-muted);
-    width: 1px;
-}
-
-/* Hover/Active states */
-.ancestry-node-hover {
-    box-shadow: 0 0 10px var(--interactive-accent);
-    cursor: pointer;
-}
-
-/* View Header */
-.ancestry-view-header {
-    padding: 10px;
+.ancestry-header {
+    background-color: var(--background-primary);
+    padding: 8px 12px;
     border-bottom: 1px solid var(--background-modifier-border);
+    flex-shrink: 0;
+}
+
+.ancestry-search-container {
     display: flex;
-    justify-content: space-between;
+    align-items: center;
+    background-color: var(--background-modifier-form-field);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 0 10px;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.ancestry-search-container:focus-within {
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+}
+
+.ancestry-search-icon {
+    color: var(--text-muted);
+    margin-right: 8px;
+    display: flex;
     align-items: center;
 }
 
-.ancestry-view-title {
-    font-weight: bold;
-    color: var(--text-accent);
+.ancestry-search-input {
+    flex-grow: 1;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--text-normal);
+    font-size: var(--font-ui-small);
+    height: 30px;
+    padding: 0;
 }
 
-/* Tooltip/Metadata Overlay */
-.ancestry-tooltip {
-    position: absolute;
-    background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 4px;
-    padding: 8px;
-    font-size: 11px;
-    pointer-events: none;
-    z-index: 100;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    max-width: 250px;
+.ancestry-search-input::placeholder {
+    color: var(--text-faint);
 }
+
+.ancestry-graph-canvas {
+    flex-grow: 1;
+    width: 100%;
+    position: relative;
+    background-color: var(--background-primary);
+}
+
+/* Node Styling in Cytoscape is handled via JS, but we can add UI overlays here if needed */
