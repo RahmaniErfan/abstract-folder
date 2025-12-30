@@ -12,8 +12,10 @@
 	"author": "Erfan Rahmani",
 	"license": "GPL-3.0",
 	"devDependencies": {
-		"@types/node": "^16.11.6",
 		"@eslint/js": "^9.39.1",
+		"@types/cytoscape": "^3.21.9",
+		"@types/dagre": "^0.7.53",
+		"@types/node": "^16.11.6",
 		"@typescript-eslint/eslint-plugin": "^8.48.1",
 		"@typescript-eslint/parser": "^8.48.1",
 		"builtin-modules": "3.3.0",
@@ -25,5 +27,10 @@
 		"tslib": "2.4.0",
 		"typescript": "^5.0.0",
 		"typescript-eslint": "^8.48.1"
+	},
+	"dependencies": {
+		"cytoscape": "^3.33.1",
+		"cytoscape-dagre": "^2.5.0",
+		"dagre": "^0.8.5"
 	}
 }

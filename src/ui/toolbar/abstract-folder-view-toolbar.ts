@@ -50,6 +50,12 @@ export class AbstractFolderViewToolbar {
         this.addAction("arrow-up-down", "Sort order", (evt) => this.showSortMenu(evt));
         this.addAction("filter", "Filter", (evt) => this.showFilterMenu(evt));
         this.addAction("group", "Select group", (evt) => this.showGroupMenu(evt));
+        this.addAction("info", "View ancestry", () => {
+            const activeFile = this.app.workspace.getActiveFile();
+            if (activeFile) {
+                void this.plugin.activateAncestryView(activeFile.path);
+            }
+        });
         this.addAction("file-plus", "Create new root note", () => {
             new CreateAbstractChildModal(this.app, this.settings, (name, type) => {
                 createAbstractChildFile(this.app, this.settings, name, null, type).catch(console.error);

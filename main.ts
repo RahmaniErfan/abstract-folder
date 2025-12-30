@@ -6,17 +6,17 @@
  * @copyright 2025 Erfan Rahmani
  */
 
-import { Plugin, WorkspaceLeaf, Notice } from 'obsidian';
+import { Plugin, WorkspaceLeaf, Notice, TFolder, TFile } from 'obsidian';
 import { AbstractFolderPluginSettings, DEFAULT_SETTINGS } from './src/settings';
 import { FolderIndexer } from './src/indexer';
 import { MetricsManager } from './src/metrics-manager';
 import { AbstractFolderView, VIEW_TYPE_ABSTRACT_FOLDER } from './src/view';
+import { AncestryView, VIEW_TYPE_ANCESTRY } from './src/ui/view/ancestry-view';
 import { CreateAbstractChildModal, ParentPickerModal, ChildFileType, FolderSelectionModal, ConversionOptionsModal, DestinationPickerModal, NewFolderNameModal, SimulationModal, ScopeSelectionModal } from './src/ui/modals';
 import { ManageGroupsModal } from './src/ui/modals/manage-groups-modal';
 import { AbstractFolderSettingTab } from './src/ui/settings-tab';
 import { createAbstractChildFile } from './src/utils/file-operations';
 import { convertFoldersToPluginFormat, generateFolderStructurePlan, executeFolderGeneration } from './src/utils/conversion';
-import { TFolder, TFile } from 'obsidian';
 import { Group } from './src/types';
 
 export default class AbstractFolderPlugin extends Plugin {
@@ -37,6 +37,11 @@ export default class AbstractFolderPlugin extends Plugin {
 			(leaf) => new AbstractFolderView(leaf, this.indexer, this.settings, this, this.metricsManager)
 		);
 
+		this.registerView(
+			VIEW_TYPE_ANCESTRY,
+			(leaf) => new AncestryView(leaf, this)
+		);
+
 		this.updateRibbonIconVisibility();
 
 		this.addCommand({
@@ -45,6 +50,21 @@ export default class AbstractFolderPlugin extends Plugin {
 			callback: () => {
 				this.activateView().catch(console.error);
 			},
+		});
+
+		this.addCommand({
+			id: 'view-ancestry',
+			name: 'View ancestry of active file',
+			checkCallback: (checking: boolean) => {
+				const activeFile = this.app.workspace.getActiveFile();
+				if (activeFile) {
+					if (!checking) {
+						this.activateAncestryView(activeFile.path).catch(console.error);
+					}
+					return true;
+				}
+				return false;
+			}
 		});
 
 		this.addCommand({
@@ -177,6 +197,36 @@ this.addCommand({
 			});
 			if (leaf instanceof WorkspaceLeaf) {
 				void this.app.workspace.revealLeaf(leaf);
+			}
+		}
+	}
+
+	async activateAncestryView(filePath?: string) {
+		const { workspace } = this.app;
+
+		let leaf: WorkspaceLeaf | null = null;
+		const leaves = workspace.getLeavesOfType(VIEW_TYPE_ANCESTRY);
+
+		if (leaves.length > 0) {
+			leaf = leaves[0];
+		} else {
+			// Open in a main leaf (tab)
+			leaf = workspace.getLeaf('tab');
+			await leaf.setViewState({
+				type: VIEW_TYPE_ANCESTRY,
+				active: true,
+			});
+		}
+
+		void workspace.revealLeaf(leaf);
+
+		if (filePath) {
+			const view = leaf.view;
+			if (view instanceof AncestryView) {
+				const file = this.app.vault.getAbstractFileByPath(filePath);
+				if (file instanceof TFile) {
+					view.updateGraph(file);
+				}
 			}
 		}
 	}

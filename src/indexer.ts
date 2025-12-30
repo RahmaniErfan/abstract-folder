@@ -107,6 +107,10 @@ export class FolderIndexer {
     return this.hasBuiltGraph;
   }
 
+  getAllFileRelationships(): Map<string, FileDefinedRelationships> {
+    return this.fileRelationships;
+  }
+
   getRelevantParentPropertyNames(): string[] {
     // Return a combined list of properties that can define a parent relationship, for settings display or other uses.
     // This currently combines child-defined parent properties.

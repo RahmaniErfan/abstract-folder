@@ -1,4 +1,4 @@
-import { App, Menu, TFile } from "obsidian";
+import { App, Menu, TFile, TAbstractFile } from "obsidian";
 import { FolderNode } from "../types";
 import { AbstractFolderPluginSettings } from "../settings";
 import AbstractFolderPlugin from "../../main";
@@ -6,6 +6,22 @@ import { BatchDeleteConfirmModal, CreateAbstractChildModal, ChildFileType, Delet
 import { IconModal } from './icon-modal';
 import { updateFileIcon, toggleHiddenStatus, createAbstractChildFile, deleteAbstractFile } from '../utils/file-operations';
 import { FolderIndexer } from "../indexer";
+
+export function registerContextMenu(plugin: AbstractFolderPlugin) {
+    plugin.registerEvent(
+        plugin.app.workspace.on("file-menu", (menu: Menu, file: TAbstractFile) => {
+            if (file instanceof TFile) {
+                menu.addItem((item) => {
+                    item.setTitle("View ancestry")
+                        .setIcon("info")
+                        .onClick(() => {
+                            void plugin.activateAncestryView(file.path);
+                        });
+                });
+            }
+        })
+    );
+}
 
 export class ContextMenuHandler {
     constructor(
@@ -128,6 +144,15 @@ export class ContextMenuHandler {
     }
 
     private addFileSpecificActions(menu: Menu, file: TFile) {
+        menu.addItem((item) =>
+            item
+            .setTitle("View ancestry")
+            .setIcon("info")
+            .onClick(() => {
+                void this.plugin.activateAncestryView(file.path);
+            })
+        );
+
         menu.addItem((item) =>
             item
             .setTitle("Open in new tab")
