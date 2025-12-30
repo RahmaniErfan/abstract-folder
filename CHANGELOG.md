@@ -1,5 +1,10 @@
 # Changelog
 
+## Version 1.9.1
+
+**Fixes:**
+*   **Collapse/Expand Buttons**: Fixed an issue where the "Collapse all" and "Expand all" buttons in the toolbar were not working correctly. They now properly update the internal state and re-render the view to reflect the changes.
+
 ## Version 1.9.0
 
 **Features:**

@@ -91,7 +91,7 @@ export class AbstractFolderView extends ItemView {
     const toolbarEl = this.contentEl.createDiv({ cls: "abstract-folder-toolbar-container" });
     this.toolbar = new AbstractFolderViewToolbar(
        this.app, this.settings, this.plugin, this.viewState, toolbarEl,
-       () => this.renderView(), () => this.expandAll(), () => this.collapseAll(),
+       () => { this.renderView(); }, () => { void this.expandAll(); }, () => { void this.collapseAll(); },
     );
 
     const virtualWrapper = this.contentEl.createDiv({ cls: "abstract-folder-virtual-wrapper" });
@@ -399,15 +399,21 @@ export class AbstractFolderView extends ItemView {
     )(a, b);
   }
 
-  private expandAll = () => {
+  private expandAll = async () => {
     if (this.settings.viewStyle === 'tree') {
-      this.contentEl.querySelectorAll(".abstract-folder-item.is-collapsed").forEach(el => el.removeClass("is-collapsed"));
+      const graph = this.indexer.getGraph();
+      const allPaths = Object.keys(graph.parentToChildren);
+      this.settings.expandedFolders = Array.from(allPaths);
+      if (this.settings.rememberExpanded) await this.plugin.saveSettings();
+      this.renderView();
     }
   }
 
-  private collapseAll = () => {
+  private collapseAll = async () => {
     if (this.settings.viewStyle === 'tree') {
-      this.contentEl.querySelectorAll(".abstract-folder-item.is-folder:not(.is-collapsed)").forEach(el => el.addClass("is-collapsed"));
+      this.settings.expandedFolders = [];
+      if (this.settings.rememberExpanded) await this.plugin.saveSettings();
+      this.renderView();
     }
   }
 
