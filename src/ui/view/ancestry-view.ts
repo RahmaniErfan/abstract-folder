@@ -153,6 +153,9 @@ export class AncestryView extends ItemView {
 			...(data.edges as unknown as cytoscape.ElementDefinition[]),
 		]);
 
+		// Update styling with theme-aware colors
+		this.cy.style(this.getGraphStyle() as cytoscape.StylesheetStyle[]);
+
 		const layout = this.cy.layout({
 			name: "dagre",
 			rankDir: "TB",
@@ -167,14 +170,15 @@ export class AncestryView extends ItemView {
 	}
 
 	private getGraphStyle(): unknown {
-		// Get colors from CSS variables to match theme
 		const isDark = document.body.classList.contains("theme-dark");
-		const textColor = isDark ? "#dcddde" : "#2e3338";
-		const edgeColor = isDark ? "#444" : "#ccc";
-
-		// CSS Variables cannot be used directly in Cytoscape's internal style engine
-		// We must resolve them or use hardcoded equivalents that match the theme.
-		const accentColor = isDark ? "#7551ec" : "#483699"; // Fallback colors similar to Obsidian defaults
+		
+		// Use computed styles to get real theme colors
+		const bodyStyle = getComputedStyle(document.body);
+		const textColor = bodyStyle.getPropertyValue("--text-normal").trim() || (isDark ? "#dcddde" : "#2e3338");
+		const edgeColor = bodyStyle.getPropertyValue("--text-muted").trim() || (isDark ? "#888" : "#666"); // Darker than border color
+		const accentColor = bodyStyle.getPropertyValue("--interactive-accent").trim() || (isDark ? "#7551ec" : "#483699");
+		const bgColor = bodyStyle.getPropertyValue("--background-secondary-alt").trim() || (isDark ? "#202020" : "#ffffff");
+		const nodeBorderColor = bodyStyle.getPropertyValue("--background-modifier-border-hover").trim() || edgeColor;
 
 		return [
 			{
@@ -183,49 +187,77 @@ export class AncestryView extends ItemView {
 					label: "data(label)",
 					"text-valign": "center",
 					"text-halign": "center",
-					"font-size": "12px",
+					"font-size": "11px",
 					color: textColor,
-					"background-color": isDark ? "#202020" : "#ffffff",
-					"border-width": "1px",
-					"border-color": edgeColor,
-					width: "60px",
-					height: "30px",
-					padding: "10px",
+					"background-color": bgColor,
+					"border-width": "1.5px",
+					"border-color": nodeBorderColor,
+					width: "110px",
+					height: "38px",
 					shape: "round-rectangle",
+					"text-wrap": "ellipsis",
+					"text-max-width": "100px",
+					"corner-radius": "6px"
 				},
 			},
 			{
 				selector: 'node[type="target"]',
 				style: {
 					"background-color": accentColor,
-					color: "#ffffff",
+					color: "var(--text-on-accent)",
 					"border-width": "0px",
+					"font-weight": "bold",
+					"font-size": "12px",
+					"width": "120px",
+					"height": "42px"
 				},
 			},
 			{
 				selector: 'node[type="root"]',
 				style: {
-					"border-width": "2px",
+					"border-width": "2.5px",
 					"border-color": accentColor,
 				},
 			},
 			{
 				selector: 'node[type="sibling"]',
 				style: {
-					opacity: 0.6,
+					opacity: 0.7,
 					"font-style": "italic",
 				},
 			},
 			{
 				selector: "edge",
 				style: {
-					width: 2,
+					width: 2.5,
 					"line-color": edgeColor,
 					"target-arrow-color": edgeColor,
 					"target-arrow-shape": "triangle",
-					"curve-style": "bezier",
+					"arrow-scale": 1.2,
+					"curve-style": "unbundled-bezier",
+					"control-point-distances": [20, -20],
+					"control-point-weights": [0.25, 0.75],
+					"target-endpoint": "outside-to-node",
+					"line-style": "solid",
+					"opacity": 0.75
 				},
 			},
+			{
+				selector: 'edge[type="sibling"]',
+				style: {
+					"line-style": "dashed",
+					"opacity": 0.3,
+					"width": 2
+				}
+			},
+			{
+				selector: "node:active",
+				style: {
+					"overlay-color": accentColor,
+					"overlay-opacity": 0.2,
+					"background-color": "var(--background-modifier-hover)"
+				}
+			}
 		];
 	}
 }

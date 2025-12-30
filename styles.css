@@ -850,3 +850,6 @@ l .abstract-folder-virtual-spacer {
 .abstract-folder-indent-guide.neon-palette.rainbow-indent-9 {
 	border-left-color: #4b0082 !important;
 }
+
+@import "./src/ui/styles/conversion-progress.css";
+@import "./src/ui/styles/ancestry.css";
