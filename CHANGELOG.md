@@ -1,5 +1,14 @@
 # Changelog
 
+## Version 1.9.0
+
+**Features:**
+*   **Custom Display Name Priority**: You can now define a prioritized list of properties to use for the display name in the abstract view.
+    *   **Flexible Fallbacks**: Set the order of priority, e.g., `title, aliases, basename`.
+    *   **Custom Properties**: Use any frontmatter property (like `title` or `dogbutt`) as a display name.
+    *   **Special Keywords**: Use `aliases` for the first alias and `basename` for the original filename.
+*   **Organized Settings**: Reorganized the settings tab into clearer sections (Properties, Display Name, Behavior, Startup & Layout).
+
 ## Version 1.8.0
 
 **Features:**

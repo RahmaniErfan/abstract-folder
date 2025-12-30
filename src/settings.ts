@@ -24,6 +24,7 @@ export interface AbstractFolderPluginSettings {
   defaultFilter: FilterConfig; // Default filter configuration for the main view
   customCreatedDateProperties: string; // Comma-separated frontmatter property names for created date
   customModifiedDateProperties: string; // Comma-separated frontmatter property names for modified date
+  displayNameOrder: string[]; // Ordered list of properties to check for display name
 }
 
 export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
@@ -50,4 +51,5 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   defaultFilter: { excludeExtensions: [] },
   customCreatedDateProperties: '',
   customModifiedDateProperties: '',
+  displayNameOrder: ['title', 'aliases', 'basename'],
 };

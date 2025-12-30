@@ -434,13 +434,32 @@ export class AbstractFolderView extends ItemView {
   private getDisplayName = (node: FolderNode): string => {
     if (node.path === HIDDEN_FOLDER_ID) return "Hidden";
     if (node.file) {
-      if (this.settings.showAliases && node.file.extension === 'md') {
-        const cache = this.app.metadataCache.getFileCache(node.file);
-        const aliases = cache?.frontmatter?.aliases as string | string[] | undefined;
-        if (Array.isArray(aliases) && aliases.length > 0) return String(aliases[0]);
-        else if (typeof aliases === 'string') return aliases;
+      const cache = this.app.metadataCache.getFileCache(node.file);
+      const frontmatter = cache?.frontmatter;
+
+      for (const priority of this.settings.displayNameOrder) {
+        if (priority === 'basename') {
+          return node.file.basename;
+        }
+
+        if (priority === 'aliases') {
+          if (!this.settings.showAliases) continue;
+          const aliases = frontmatter?.aliases as string | string[] | undefined;
+          if (Array.isArray(aliases) && aliases.length > 0) return String(aliases[0]);
+          else if (typeof aliases === 'string') return aliases;
+          continue;
+        }
+
+        // Custom property check (e.g., 'title')
+        if (frontmatter && frontmatter[priority]) {
+          const value = frontmatter[priority] as unknown;
+          if (typeof value === 'string' && value.trim().length > 0) {
+            return value;
+          }
+        }
       }
-      return node.file.basename;
+
+      return node.file.basename; // Final fallback
     }
     return node.path.split('/').pop() || node.path;
   }
