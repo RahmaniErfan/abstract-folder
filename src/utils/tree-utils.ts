@@ -94,7 +94,8 @@ export function resolveGroupRoots(app: App, graph: FileGraph, group: Group): str
 export function buildFolderTree(
     app: App,
     graph: FileGraph,
-    sortComparator: (a: FolderNode, b: FolderNode) => number
+    sortComparator: (a: FolderNode, b: FolderNode) => number,
+    excludeExtensions: string[] = []
 ): FolderNode[] {
     const allFilePaths = graph.allFiles;
     const parentToChildren = graph.parentToChildren;
@@ -106,6 +107,10 @@ export function buildFolderTree(
     allFilePaths.forEach(path => {
         const node = createFolderNode(app, path, graph);
         if (node) {
+            // Apply filtering: exclude files with specified extensions
+            if (node.file && excludeExtensions.includes(node.file.extension.toLowerCase())) {
+                return;
+            }
             nodesMap.set(path, node);
         }
     });

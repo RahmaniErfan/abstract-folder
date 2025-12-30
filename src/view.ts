@@ -66,6 +66,7 @@ export class AbstractFolderView extends ItemView {
 
     this.dragManager = new DragManager(this.app, this.settings, this.indexer, this);
     this.viewState = new ViewState(this.settings, this.plugin);
+    this.viewState.initializeSortAndFilter(); // Ensure initialization
     this.treeRenderer = new TreeRenderer(
       this.app,
       this.settings,
@@ -424,7 +425,8 @@ export class AbstractFolderView extends ItemView {
         this.indexer.getGraph(),
         expandedSet,
         (a, b) => this.sortNodes(a, b),
-        activeGroup
+        activeGroup,
+        this.viewState.excludeExtensions
     );
 
     if (this.flatItems.length === 0) {
@@ -507,7 +509,7 @@ export class AbstractFolderView extends ItemView {
     // Note: CSS classes and basic cleanup are handled in renderView()
     // to preserve stable virtual containers.
 
-    const rootNodes = buildFolderTree(this.app, this.indexer.getGraph(), (a, b) => this.sortNodes(a, b));
+    const rootNodes = buildFolderTree(this.app, this.indexer.getGraph(), (a, b) => this.sortNodes(a, b), this.viewState.excludeExtensions);
     
     // Sort: real folders (nodes with children) first, then files
     rootNodes.sort((a, b) => {

@@ -1,4 +1,4 @@
-import { Group, SortConfig } from "./types";
+import { Group, SortConfig, FilterConfig } from "./types";
 
 export interface AbstractFolderPluginSettings {
   propertyName: string; // The frontmatter property key used to define parent notes (child-defined parent)
@@ -21,6 +21,7 @@ export interface AbstractFolderPluginSettings {
   expandTargetFolderOnDrop: boolean; // Whether to expand the target folder after a drag-and-drop operation
   metrics: Record<string, { thermal: number; lastInteraction: number }>; // Path -> Metrics (persisted)
   defaultSort: SortConfig; // Default sort configuration for the main view
+  defaultFilter: FilterConfig; // Default filter configuration for the main view
 }
 
 export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
@@ -44,4 +45,5 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   expandTargetFolderOnDrop: true, // Default to true for now
   metrics: {},
   defaultSort: { sortBy: 'name', sortOrder: 'asc' },
+  defaultFilter: { excludeExtensions: [] },
 };

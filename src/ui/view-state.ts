@@ -7,6 +7,7 @@ export class ViewState {
 
     public sortOrder: 'asc' | 'desc';
     public sortBy: 'name' | 'mtime' | 'thermal' | 'rot' | 'gravity';
+    public excludeExtensions: string[];
     public selectionPath: string[];
     public multiSelectedPaths: Set<string>;
 
@@ -15,28 +16,41 @@ export class ViewState {
         this.plugin = plugin;
         this.sortOrder = 'asc';
         this.sortBy = 'name';
+        this.excludeExtensions = [];
         this.selectionPath = [];
         this.multiSelectedPaths = new Set();
         
-        // Initialize sort from settings
-        this.initializeSort();
+        // Initialize sort and filter from settings
+        this.initializeSortAndFilter();
     }
     
-    initializeSort() {
+    initializeSortAndFilter() {
         let sortConfig = this.settings.defaultSort;
+        let filterConfig = this.settings.defaultFilter;
         if (this.settings.activeGroupId) {
              const activeGroup = this.settings.groups.find(g => g.id === this.settings.activeGroupId);
-             if (activeGroup && activeGroup.sort) {
-                 sortConfig = activeGroup.sort;
+             if (activeGroup) {
+                 if (activeGroup.sort) {
+                     sortConfig = activeGroup.sort;
+                 }
+                 if (activeGroup.filter) {
+                     filterConfig = activeGroup.filter;
+                 }
              }
         }
         this.sortBy = sortConfig.sortBy;
         this.sortOrder = sortConfig.sortOrder;
+        this.excludeExtensions = filterConfig.excludeExtensions;
     }
 
     setSort(sortBy: 'name' | 'mtime' | 'thermal' | 'rot' | 'gravity', sortOrder: 'asc' | 'desc') {
         this.sortBy = sortBy;
         this.sortOrder = sortOrder;
+        this.plugin.app.workspace.trigger('abstract-folder:graph-updated'); // Trigger re-render
+    }
+
+    setFilter(excludeExtensions: string[]) {
+        this.excludeExtensions = excludeExtensions;
         this.plugin.app.workspace.trigger('abstract-folder:graph-updated'); // Trigger re-render
     }
 

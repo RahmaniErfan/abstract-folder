@@ -4,6 +4,7 @@ import AbstractFolderPlugin from "../../main";
 import { CreateAbstractChildModal, ChildFileType } from './modals';
 import { ManageGroupsModal } from './modals/manage-groups-modal';
 import { ManageSortingModal } from './modals/manage-sorting-modal';
+import { ManageFilteringModal } from './modals/manage-filtering-modal';
 import { ViewState } from './view-state';
 import { createAbstractChildFile } from '../utils/file-operations';
 import { Group } from "../types";
@@ -73,6 +74,8 @@ export class AbstractFolderViewToolbar {
         this.expandAllAction = this.addAction("chevrons-up-down", "Expand all folders", () => this.expandAllView());
 
         this.addAction("arrow-up-down", "Sort order", (evt: MouseEvent) => this.showSortMenu(evt));
+
+        this.addAction("filter", "Filter", (evt: MouseEvent) => this.showFilterMenu(evt));
 
         this.addAction("group", "Select group", (evt: MouseEvent) => this.showGroupMenu(evt));
 
@@ -200,6 +203,67 @@ export class AbstractFolderViewToolbar {
         menu.showAtMouseEvent(event);
     }
 
+    private showFilterMenu(event: MouseEvent): void {
+        const menu = new Menu();
+
+        menu.addItem((item) =>
+            item
+                .setTitle("Manage default filtering")
+                .setIcon("gear")
+                .onClick(() => {
+                     new ManageFilteringModal(this.app, this.settings, (updatedSettings) => {
+                        this.plugin.settings = updatedSettings;
+                        this.plugin.saveSettings().then(() => {
+                            let filterConfig = this.plugin.settings.defaultFilter;
+                            if (this.plugin.settings.activeGroupId) {
+                                const activeGroup = this.plugin.settings.groups.find(g => g.id === this.plugin.settings.activeGroupId);
+                                if (activeGroup && activeGroup.filter) {
+                                    filterConfig = activeGroup.filter;
+                                }
+                            }
+                            this.viewState.setFilter(filterConfig.excludeExtensions);
+                        }).catch(console.error);
+                     }).open();
+                })
+        );
+        menu.addSeparator();
+
+        const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'];
+        const isHidingImages = imageExtensions.every(ext => this.viewState.excludeExtensions.includes(ext));
+        menu.addItem((item) =>
+            item
+                .setTitle(isHidingImages ? "Show image files" : "Hide image files")
+                .setIcon(isHidingImages ? "check" : "image")
+                .onClick(() => {
+                    const current = new Set(this.viewState.excludeExtensions);
+                    if (isHidingImages) {
+                        imageExtensions.forEach(ext => current.delete(ext));
+                    } else {
+                        imageExtensions.forEach(ext => current.add(ext));
+                    }
+                    this.viewState.setFilter(Array.from(current));
+                })
+        );
+
+        const isHidingCanvas = this.viewState.excludeExtensions.includes('canvas');
+        menu.addItem((item) =>
+            item
+                .setTitle(isHidingCanvas ? "Show canvas files" : "Hide canvas files")
+                .setIcon(isHidingCanvas ? "check" : "layout-dashboard")
+                .onClick(() => {
+                    const current = new Set(this.viewState.excludeExtensions);
+                    if (isHidingCanvas) {
+                        current.delete('canvas');
+                    } else {
+                        current.add('canvas');
+                    }
+                    this.viewState.setFilter(Array.from(current));
+                })
+        );
+
+        menu.showAtMouseEvent(event);
+    }
+
     private showGroupMenu(event: MouseEvent): void {
         const menu = new Menu();
 
@@ -214,9 +278,14 @@ export class AbstractFolderViewToolbar {
                             this.settings.activeGroupId = group.id;
                             await this.plugin.saveSettings();
 
-                            // Apply group default sort if available
+                            // Apply group default sort and filter if available
                             if (group.sort) {
                                 this.viewState.setSort(group.sort.sortBy, group.sort.sortOrder);
+                            }
+                            if (group.filter) {
+                                this.viewState.setFilter(group.filter.excludeExtensions);
+                            } else {
+                                this.viewState.setFilter(this.settings.defaultFilter.excludeExtensions);
                             }
 
                             this.renderView(); // Trigger re-render of the view
@@ -247,9 +316,10 @@ export class AbstractFolderViewToolbar {
                     this.settings.activeGroupId = null;
                     await this.plugin.saveSettings();
                     
-                    // Revert to default sort
+                    // Revert to default sort and filter
                     const defaultSort = this.plugin.settings.defaultSort;
                     this.viewState.setSort(defaultSort.sortBy, defaultSort.sortOrder);
+                    this.viewState.setFilter(this.plugin.settings.defaultFilter.excludeExtensions);
 
                     this.renderView(); // Trigger re-render of the view
                 })

@@ -29,7 +29,8 @@ export function generateFlatItemsFromGraph(
     graph: FileGraph,
     expandedFolders: Set<string>,
     sortComparator: (a: FolderNode, b: FolderNode) => number,
-    activeGroup?: Group
+    activeGroup?: Group,
+    excludeExtensions: string[] = []
 ): FlatItem[] {
     const flatItems: FlatItem[] = [];
     const parentToChildren = graph.parentToChildren;
@@ -55,7 +56,12 @@ export function generateFlatItemsFromGraph(
     const rootNodes: FolderNode[] = [];
     for (const path of rootPaths) {
         const node = createFolderNode(app, path, graph);
-        if (node) rootNodes.push(node);
+        if (node) {
+            if (node.file && excludeExtensions.includes(node.file.extension.toLowerCase())) {
+                continue;
+            }
+            rootNodes.push(node);
+        }
     }
     rootNodes.sort(sortComparator);
     
@@ -74,7 +80,12 @@ export function generateFlatItemsFromGraph(
                 const childNodes: FolderNode[] = [];
                 for (const childPath of childrenPaths) {
                      const childNode = createFolderNode(app, childPath, graph);
-                     if (childNode) childNodes.push(childNode);
+                     if (childNode) {
+                        if (childNode.file && excludeExtensions.includes(childNode.file.extension.toLowerCase())) {
+                            continue;
+                        }
+                        childNodes.push(childNode);
+                     }
                 }
                 childNodes.sort(sortComparator);
                 
