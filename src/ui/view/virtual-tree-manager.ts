@@ -50,6 +50,15 @@ export class VirtualTreeManager {
 
         if (allowedPaths) {
             this.flatItems = this.flatItems.filter(item => allowedPaths.has(item.node.path));
+
+            if (this.flatItems.length > 0) {
+                const minDepth = Math.min(...this.flatItems.map(i => i.depth));
+                if (minDepth > 0) {
+                    this.flatItems.forEach(item => {
+                        item.depth -= minDepth;
+                    });
+                }
+            }
         }
 
         if (this.virtualSpacer) {

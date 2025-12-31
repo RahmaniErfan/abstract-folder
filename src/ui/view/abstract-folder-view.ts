@@ -322,9 +322,62 @@ export class AbstractFolderView extends ItemView {
             cls: "ancestry-search-input"
         });
 
-        new PathSuggest(this.app, this.searchInputEl);
+        const showParentsBtn = searchContainer.createDiv({
+            cls: "clickable-icon ancestry-search-toggle",
+            attr: { "aria-label": "Show parents in search", "title": "Show parents in search" }
+        });
+        setIcon(showParentsBtn, "arrow-up-left");
+        if (this.settings.searchShowParents) showParentsBtn.addClass("is-active");
+
+        showParentsBtn.addEventListener("click", () => {
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
+            (async () => {
+                this.settings.searchShowParents = !this.settings.searchShowParents;
+                showParentsBtn.toggleClass("is-active", this.settings.searchShowParents);
+                await this.plugin.saveSettings();
+                
+                // Only re-trigger render of the view, NOT the input event which triggers suggestions
+                if (this.searchInputEl && this.searchInputEl.value.trim().length > 0) {
+                     this.renderView();
+                }
+            })();
+        });
+
+        const showChildrenBtn = searchContainer.createDiv({
+            cls: "clickable-icon ancestry-search-toggle",
+            attr: { "aria-label": "Show children in search", "title": "Show children in search" }
+        });
+        setIcon(showChildrenBtn, "arrow-down-right");
+        if (this.settings.searchShowChildren) showChildrenBtn.addClass("is-active");
+
+        showChildrenBtn.addEventListener("click", () => {
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
+            (async () => {
+                this.settings.searchShowChildren = !this.settings.searchShowChildren;
+                showChildrenBtn.toggleClass("is-active", this.settings.searchShowChildren);
+                await this.plugin.saveSettings();
+
+                // Only re-trigger render of the view, NOT the input event which triggers suggestions
+                if (this.searchInputEl && this.searchInputEl.value.trim().length > 0) {
+                     this.renderView();
+                }
+            })();
+        });
+
+        const clearIconEl = searchContainer.createDiv({ cls: "ancestry-search-clear-icon is-visible" });
+        setIcon(clearIconEl, "x");
+        clearIconEl.addEventListener("click", () => {
+             if (this.searchInputEl) {
+                 this.searchInputEl.value = "";
+                 this.searchInputEl.trigger("input");
+                 this.searchInputEl.focus();
+             }
+        });
+
+        new PathSuggest(this.app, this.searchInputEl, this.indexer, this.settings);
 
         this.searchInputEl.addEventListener("input", () => {
+            // clearIconEl is always visible now
             this.renderView();
             // @ts-ignore
             this.searchInputEl?.focus();
@@ -419,20 +472,37 @@ export class AbstractFolderView extends ItemView {
         const query = this.searchInputEl.value.trim();
         const file = this.app.vault.getAbstractFileByPath(query);
         if (file instanceof TFile) {
-            const allowedPaths = new AncestryEngine(this.indexer).getAncestryNodePaths(file.path);
+            // Start with just the file itself if we aren't showing parents
+            let allowedPaths = new Set<string>();
             
-            const originalExpanded = [...this.settings.expandedFolders];
-            allowedPaths.forEach(p => {
+            if (this.settings.searchShowParents) {
+                // If showing parents, get the full ancestry
+                allowedPaths = new AncestryEngine(this.indexer).getAncestryNodePaths(file.path);
+            } else {
+                // Otherwise, just the file
+                allowedPaths.add(file.path);
+            }
+            
+             // Include children if the toggle is enabled
+             if (this.settings.searchShowChildren) {
+                 const children = this.indexer.getGraph().parentToChildren[file.path];
+                 if (children) {
+                     children.forEach(childPath => allowedPaths.add(childPath));
+                 }
+             }
+            
+             allowedPaths.forEach(p => {
                 if (!this.settings.expandedFolders.includes(p)) {
-                    this.settings.expandedFolders.push(p);
+                    const node = this.indexer.getGraph().parentToChildren[p];
+                    if (node) {
+                         this.settings.expandedFolders.push(p);
+                    }
                 }
             });
             
             this.virtualTreeManager.generateItems(allowedPaths);
-            
-            this.settings.expandedFolders = originalExpanded;
         } else {
-            this.virtualTreeManager.generateItems();
+             this.virtualTreeManager.generateItems();
         }
     } else {
         this.virtualTreeManager.generateItems();

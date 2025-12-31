@@ -25,6 +25,8 @@ export interface AbstractFolderPluginSettings {
   customCreatedDateProperties: string; // Comma-separated frontmatter property names for created date
   customModifiedDateProperties: string; // Comma-separated frontmatter property names for modified date
   displayNameOrder: string[]; // Ordered list of properties to check for display name
+  searchShowChildren: boolean; // Whether to show children in search results
+  searchShowParents: boolean; // Whether to show parents in search results
 }
 
 export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
@@ -52,4 +54,6 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   customCreatedDateProperties: '',
   customModifiedDateProperties: '',
   displayNameOrder: ['title', 'aliases', 'basename'],
+  searchShowChildren: false,
+  searchShowParents: false,
 };
