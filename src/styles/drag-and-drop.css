@@ -1,0 +1,27 @@
+/* Drag and Drop Visual Feedback */
+.abstract-folder-drag-over {
+	background-color: var(--background-modifier-hover) !important;
+	outline: 1px dashed var(--text-muted);
+	outline-offset: -2px;
+	border-radius: var(--radius-s);
+}
+
+.abstract-folder-drag-invalid {
+	background-color: rgba(var(--color-red-rgb), 0.15) !important;
+	outline: 1px dashed var(--text-muted) !important;
+	outline-offset: -2px;
+	border-radius: var(--radius-s);
+	cursor: no-drop !important;
+}
+
+.abstract-folder-ghost-drag-image {
+	position: absolute;
+	top: -1000px;
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	padding: 4px 8px;
+	border-radius: 4px;
+	color: var(--text-normal);
+	font-size: 12px;
+	z-index: -1;
+}

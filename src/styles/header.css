@@ -1,0 +1,199 @@
+.abstract-folder-toolbar-container {
+	position: sticky;
+	top: 0;
+	background-color: var(--background-secondary);
+	z-index: 10;
+	border-bottom: 1px solid var(--background-modifier-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    padding: 0 10px;
+    flex-shrink: 0;
+    gap: 8px;
+    margin-bottom: 4px; /* Small margin above title */
+}
+
+.abstract-folder-toolbar-action {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	color: var(--icon-color);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+	transition: color 0.1s ease-in-out, background-color 0.1s ease-in-out;
+}
+
+.abstract-folder-toolbar-action:hover {
+	background-color: var(--background-modifier-hover);
+	color: var(--icon-color-hover);
+}
+
+.abstract-folder-toolbar-action.is-disabled {
+	color: var(--text-muted) !important;
+	cursor: default !important;
+	opacity: 0.5 !important;
+	pointer-events: none !important;
+}
+
+.abstract-folder-toolbar-action svg {
+	width: 18px;
+	height: 18px;
+	stroke-width: 2px;
+}
+
+.abstract-folder-header-title {
+	position: sticky;
+	top: 32px; /* Height of toolbar */
+	background-color: var(--background-secondary);
+	z-index: 9;
+	padding: 8px 16px;
+	margin: 0;
+	border-bottom: 1px solid var(--divider-color);
+    font-size: var(--font-ui-small); /* Smaller font size */
+	font-weight: 400; /* Normal weight for subtlety */
+	text-align: center;
+	color: var(--text-muted); /* Make text subtle */
+    display: none; /* Hide by default if empty */
+    /* Other properties merged */
+	padding: 0 0 6px 0; /* Removed top padding */
+	margin-bottom: 12px; /* Increased margin below title */
+	position: relative; /* For the pseudo-element line */
+}
+
+.abstract-folder-header-title::after {
+	content: "";
+	position: absolute;
+	left: 25%; /* Smaller line length */
+	right: 25%;
+	bottom: 0;
+	height: 1px; /* Line thickness */
+	background-color: var(
+		--background-modifier-border-hover
+	); /* Slightly lighter border for subtlety */
+	opacity: 0.5; /* Even more subtle line */
+}
+
+.abstract-folder-header-title:not(:empty) {
+    display: block; /* Show only if it has content */
+}
+
+.abstract-folder-search-header {
+	position: sticky;
+	top: 32px; /* Adjusted to stack directly after toolbar if title is hidden */
+	background-color: var(--background-secondary);
+	z-index: 8;
+	padding: 8px;
+	border-bottom: 1px solid var(--divider-color);
+}
+
+/* If title is present, push search header down */
+.abstract-folder-header-title:not(:empty) ~ .abstract-folder-search-header {
+    top: 64px; /* Toolbar + Title height */
+}
+
+.ancestry-search-container {
+	display: flex;
+	align-items: center;
+	background-color: var(--background-modifier-form-field);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	padding: 0 8px;
+	width: 100%;
+}
+
+.ancestry-search-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
+	margin-right: 8px;
+}
+
+.ancestry-search-icon svg {
+	width: 16px;
+	height: 16px;
+}
+
+.ancestry-search-input {
+	background: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
+	color: var(--text-normal);
+	flex-grow: 1;
+	font-size: var(--font-ui-small);
+	padding: 4px 0 !important;
+	width: 100%;
+}
+
+.ancestry-search-clear-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
+	margin-left: 8px;
+	cursor: pointer;
+    visibility: visible; /* Always visible per user request */
+    opacity: 0.5;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.ancestry-search-clear-icon:hover {
+    opacity: 1;
+    color: var(--text-normal);
+}
+
+.ancestry-search-clear-icon.is-visible {
+	visibility: visible;
+}
+
+.ancestry-search-clear-icon svg {
+	width: 16px;
+	height: 16px;
+}
+
+/* Suggestion Container Customization */
+.suggestion-container.abstract-folder-suggestion-container {
+    margin-top: 8px !important; /* Visual offset from the search bar */
+    margin-left: -30px !important;  /* Offset to account for the search icon */
+    border: 1px solid var(--background-modifier-border) !important;
+    border-radius: 4px !important;
+    box-shadow: var(--shadow-s) !important;
+}
+
+/* Suggestion Item */
+.abstract-folder-suggestion-item {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 10px;
+}
+
+.abstract-folder-suggestion-item .suggestion-content {
+    font-size: var(--font-ui-medium);
+    color: var(--text-normal);
+}
+
+.abstract-folder-suggestion-item .suggestion-aux {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 2px;
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+}
+
+.abstract-folder-suggestion-item .suggestion-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 12px;
+    height: 12px;
+    opacity: 0.7;
+}
+
+.abstract-folder-suggestion-item .suggestion-icon svg {
+    width: 100%;
+    height: 100%;
+}

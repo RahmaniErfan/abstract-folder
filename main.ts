@@ -18,7 +18,7 @@ import { createAbstractChildFile } from './src/utils/file-operations';
 import { convertFoldersToPluginFormat, generateFolderStructurePlan, executeFolderGeneration } from './src/utils/conversion';
 import { TFolder, TFile } from 'obsidian';
 import { Group } from './src/types';
-import './styles.css';
+import './src/styles/index.css';
 
 export default class AbstractFolderPlugin extends Plugin {
 	settings: AbstractFolderPluginSettings;

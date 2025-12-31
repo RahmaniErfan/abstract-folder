@@ -1,0 +1,124 @@
+/* Column View Specific Styles (Vertical Miller View) */
+
+/* When in column mode, the root view should not scroll vertically */
+.abstract-folder-view.abstract-folder-columns-wrapper {
+	overflow-y: hidden !important;
+	padding: 12px !important; /* Set consistent outer padding */
+}
+
+.abstract-folder-view.abstract-folder-columns-wrapper
+	.abstract-folder-header-title {
+	flex-shrink: 0;
+}
+
+.abstract-folder-columns-wrapper {
+	display: flex !important;
+	flex-direction: column !important;
+	height: 100% !important;
+	overflow: hidden !important;
+    padding: 8px !important; /* Consistent outer padding */
+    padding: 0 !important; /* Reset padding to match tree view */
+}
+
+.abstract-folder-columns-container {
+	display: flex !important;
+	flex-direction: column !important; /* Stacks columns vertically */
+	flex-grow: 1 !important;
+	overflow: hidden !important; /* Changed from overflow-y: auto to allow children to scroll */
+	overflow-x: hidden !important;
+	height: 100% !important;
+	padding: 0 !important; /* Resetting inner container padding since we applied it to the wrapper */
+	gap: 12px !important; /* Maintain gap between columns */
+    gap: 0 !important; /* Remove gap - overriding previous rule */
+}
+
+.abstract-folder-column {
+	display: flex !important;
+	flex-direction: column !important;
+	flex: 1 1 0% !important; /* Allow columns to share height evenly */
+	min-height: 0 !important; /* Important for flex children to be scrollable */
+	width: 100% !important;
+	background-color: transparent !important; /* Made transparent to match tree view */
+	overflow-y: auto !important; /* Individual column scrolling */
+	border: 1px solid var(--background-modifier-border) !important;
+	border-radius: var(--radius-m) !important;
+	padding: 2px 0 !important;
+	margin-bottom: 8px !important; /* Added gap between columns */
+	transition: background-color 0.2s ease;
+}
+
+.abstract-folder-column:hover {
+	background-color: var(--background-secondary) !important;
+}
+
+/* Add a subtle header for each column if it has a title */
+.abstract-folder-column .abstract-folder-header-title {
+	margin-top: 2px;
+	margin-bottom: 6px;
+	border-bottom: none;
+}
+
+.abstract-folder-column .abstract-folder-header-title::after {
+	display: none; /* Hide the line in column view for cleaner look */
+}
+
+.abstract-folder-column:last-child {
+	/* No longer need to remove border-bottom since we have border all around */
+}
+
+.abstract-folder-column[data-depth="0"] {
+	/* Optional: style for root column */
+}
+
+/* Item self for column view, remove any tree-view specific indentation */
+.abstract-folder-columns-wrapper .abstract-folder-item-self {
+	padding-left: 6px; /* Reset to base padding, effectively removing tree indentation */
+}
+
+/* Show collapse icon in column view, but fix rotation */
+.abstract-folder-columns-wrapper .abstract-folder-collapse-icon {
+	display: flex; /* Changed from none to flex */
+}
+
+/* In column view, the arrow should always point right (0deg) */
+.abstract-folder-columns-wrapper .abstract-folder-collapse-icon svg {
+	transform: rotate(0deg) !important;
+}
+
+/* In column view, don't show children containers */
+.abstract-folder-columns-wrapper .abstract-folder-children {
+	display: none;
+}
+
+/* Style for selected item in column view */
+.abstract-folder-item-self.is-selected-in-column {
+	background-color: var(--nav-item-background-active);
+	color: var(--nav-item-text-color-active);
+	font-weight: var(--font-medium);
+}
+
+/* Ensure selected icon color matches */
+.abstract-folder-item-self.is-selected-in-column
+	.abstract-folder-item-icon
+	svg {
+	color: var(--nav-item-text-color-active);
+}
+
+/* Style for ancestor items in column view */
+.abstract-folder-item-self.is-ancestor-of-selected {
+	background-color: var(--background-modifier-hover); /* A subtle highlight */
+	color: var(--text-normal); /* Keep normal text color */
+}
+
+/* High specificity override to ensure column selection is always visible even with other states */
+.abstract-folder-view .abstract-folder-item-self.is-selected-in-column {
+	background-color: var(--nav-item-background-active) !important;
+	color: var(--nav-item-text-color-active) !important;
+}
+
+.abstract-folder-view
+	.abstract-folder-item-self.is-selected-in-column
+	.abstract-folder-item-icon
+	svg {
+	color: var(--nav-item-text-color-active) !important;
+}

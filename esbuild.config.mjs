@@ -1,6 +1,7 @@
 import esbuild from "esbuild";
 import process from "process";
 import builtins from "builtin-modules";
+import fs from "fs";
 
 const banner =
 `/*
@@ -39,6 +40,16 @@ const context = await esbuild.context({
 	treeShaking: true,
 	outfile: "main.js",
 	minify: prod,
+	plugins: [{
+		name: 'css-rename',
+		setup(build) {
+			build.onEnd(() => {
+				if (fs.existsSync('main.css')) {
+					fs.renameSync('main.css', 'styles.css');
+				}
+			});
+		},
+	}],
 });
 
 if (prod) {

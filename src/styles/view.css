@@ -1,0 +1,80 @@
+/* Abstract Folder View Container */
+.abstract-folder-view {
+	padding: 0;
+	margin: 0;
+	height: 100%;
+	overflow: hidden; /* Changed from overflow-y: auto to allow sub-scrolling */
+	position: relative; /* For virtual items */
+	display: flex;
+	flex-direction: column;
+}
+
+.abstract-folder-virtual-spacer {
+	width: 1px;
+	/* Position static to ensure parent wrapper takes up height */
+	position: static;
+	z-index: -10;
+	pointer-events: none;
+	visibility: hidden;
+}
+
+.abstract-folder-virtual-wrapper {
+	position: relative;
+	width: 100%;
+	flex-grow: 1;
+	overflow-y: auto;
+}
+
+.abstract-folder-virtual-container {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+}
+
+.abstract-folder-virtual-container > .abstract-folder-virtual-item {
+	pointer-events: auto;
+}
+
+.abstract-folder-virtual-item {
+	position: absolute;
+	width: 100%;
+	left: 0;
+	/* Ensure height is consistent for virtual scrolling calculations */
+	height: 24px;
+}
+
+.abstract-folder-hidden {
+	display: none !important;
+}
+
+/* Empty State */
+.abstract-folder-empty-state {
+	padding: 20px;
+	text-align: center;
+	color: var(--text-muted);
+}
+
+/* Loading State */
+.abstract-folder-loading-state {
+	padding: 20px;
+	text-align: center;
+	color: var(--text-muted);
+	font-style: italic;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+}
+
+/* Loop detection warning */
+.abstract-folder-loop {
+	padding: 4px 8px;
+	background-color: var(--background-modifier-error-hover);
+	color: var(--text-error);
+	font-size: var(--font-ui-smaller);
+	margin-left: 20px;
+	border-radius: 4px;
+}

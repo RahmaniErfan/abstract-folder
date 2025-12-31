@@ -1,0 +1,236 @@
+.abstract-folder-tree {
+	padding-bottom: 8px; /* Reduced from 20px for consistency */
+}
+
+/* Children Container */
+.abstract-folder-children {
+	padding-left: 18px; /* Standard indentation */
+	border-left: 1px solid var(--nav-indentation-guide-color);
+	margin-left: 8px; /* Align guide line with icon center roughly */
+}
+
+/* Hide children when collapsed */
+.abstract-folder-item.is-collapsed > .abstract-folder-children {
+	display: none;
+}
+
+/* File items in tree view don't have collapse icons, add padding to align */
+.abstract-folder-tree-wrapper
+	.abstract-folder-item.is-file
+	.abstract-folder-item-self {
+	padding-left: 24px; /* 6px padding + 16px icon width + 2px margin */
+}
+
+/* Rainbow Indents */
+.abstract-folder-children.rainbow-indent {
+	border-left-width: 2px;
+}
+
+/* Classic Palette */
+.abstract-folder-children.classic-palette.rainbow-indent-0 {
+	border-left-color: #61afef;
+} /* Blue */
+.abstract-folder-children.classic-palette.rainbow-indent-1 {
+	border-left-color: #c678dd;
+} /* Purple */
+.abstract-folder-children.classic-palette.rainbow-indent-2 {
+	border-left-color: #98c379;
+} /* Green */
+.abstract-folder-children.classic-palette.rainbow-indent-3 {
+	border-left-color: #e6c07b;
+} /* Yellow */
+.abstract-folder-children.classic-palette.rainbow-indent-4 {
+	border-left-color: #e06c75;
+} /* Red */
+.abstract-folder-children.classic-palette.rainbow-indent-5 {
+	border-left-color: #56b6c2;
+} /* Cyan */
+.abstract-folder-children.classic-palette.rainbow-indent-6 {
+	border-left-color: #6a9955;
+} /* Dark Green */
+.abstract-folder-children.classic-palette.rainbow-indent-7 {
+	border-left-color: #d1976a;
+} /* Orange */
+.abstract-folder-children.classic-palette.rainbow-indent-8 {
+	border-left-color: #9f7e69;
+} /* Brown */
+.abstract-folder-children.classic-palette.rainbow-indent-9 {
+	border-left-color: #008080;
+} /* Teal */
+
+/* Pastel Palette */
+.abstract-folder-children.pastel-palette.rainbow-indent-0 {
+	border-left-color: #a7bed3;
+} /* Light Blue */
+.abstract-folder-children.pastel-palette.rainbow-indent-1 {
+	border-left-color: #d1c4e9;
+} /* Lavender */
+.abstract-folder-children.pastel-palette.rainbow-indent-2 {
+	border-left-color: #c8e6c9;
+} /* Mint Green */
+.abstract-folder-children.pastel-palette.rainbow-indent-3 {
+	border-left-color: #ffe0b2;
+} /* Peach */
+.abstract-folder-children.pastel-palette.rainbow-indent-4 {
+	border-left-color: #ffccbc;
+} /* Coral */
+.abstract-folder-children.pastel-palette.rainbow-indent-5 {
+	border-left-color: #bbdefb;
+} /* Sky Blue */
+.abstract-folder-children.pastel-palette.rainbow-indent-6 {
+	border-left-color: #c5e1a5;
+} /* Light Green */
+.abstract-folder-children.pastel-palette.rainbow-indent-7 {
+	border-left-color: #b39ddb;
+} /* Light Purple */
+.abstract-folder-children.pastel-palette.rainbow-indent-8 {
+	border-left-color: #ffb74d;
+} /* Light Orange */
+.abstract-folder-children.pastel-palette.rainbow-indent-9 {
+	border-left-color: #9fa8da;
+} /* Grey-Blue */
+
+/* Neon Palette */
+.abstract-folder-children.neon-palette.rainbow-indent-0 {
+	border-left-color: #00ffff;
+} /* Aqua */
+.abstract-folder-children.neon-palette.rainbow-indent-1 {
+	border-left-color: #ff00ff;
+} /* Magenta */
+.abstract-folder-children.neon-palette.rainbow-indent-2 {
+	border-left-color: #00ff00;
+} /* Lime */
+.abstract-folder-children.neon-palette.rainbow-indent-3 {
+	border-left-color: #ffff00;
+} /* Bright Yellow */
+.abstract-folder-children.neon-palette.rainbow-indent-4 {
+	border-left-color: #ff0000;
+} /* Red */
+.abstract-folder-children.neon-palette.rainbow-indent-5 {
+	border-left-color: #0000ff;
+} /* Blue */
+.abstract-folder-children.neon-palette.rainbow-indent-6 {
+	border-left-color: #a020f0;
+} /* Electric Purple */
+.abstract-folder-children.neon-palette.rainbow-indent-7 {
+	border-left-color: #ff69b4;
+} /* Hot Pink */
+.abstract-folder-children.neon-palette.rainbow-indent-8 {
+	border-left-color: #ffd700;
+} /* Gold */
+.abstract-folder-children.neon-palette.rainbow-indent-9 {
+	border-left-color: #4b0082;
+} /* Indigo */
+
+/* Virtual Indent Guides */
+.abstract-folder-indent-guides {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	pointer-events: none;
+}
+
+.abstract-folder-indent-guide {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 0;
+	box-sizing: content-box !important;
+	border-left: 2px solid transparent !important;
+	pointer-events: none;
+}
+
+/* Palette colors for virtual indent guides */
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-0 {
+	border-left-color: #61afef !important;
+}
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-1 {
+	border-left-color: #c678dd !important;
+}
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-2 {
+	border-left-color: #98c379 !important;
+}
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-3 {
+	border-left-color: #e6c07b !important;
+}
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-4 {
+	border-left-color: #e06c75 !important;
+}
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-5 {
+	border-left-color: #56b6c2 !important;
+}
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-6 {
+	border-left-color: #6a9955 !important;
+}
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-7 {
+	border-left-color: #d1976a !important;
+}
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-8 {
+	border-left-color: #9f7e69 !important;
+}
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-9 {
+	border-left-color: #008080 !important;
+}
+
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-0 {
+	border-left-color: #a7bed3 !important;
+}
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-1 {
+	border-left-color: #d1c4e9 !important;
+}
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-2 {
+	border-left-color: #c8e6c9 !important;
+}
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-3 {
+	border-left-color: #ffe0b2 !important;
+}
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-4 {
+	border-left-color: #ffccbc !important;
+}
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-5 {
+	border-left-color: #bbdefb !important;
+}
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-6 {
+	border-left-color: #c5e1a5 !important;
+}
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-7 {
+	border-left-color: #b39ddb !important;
+}
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-8 {
+	border-left-color: #ffb74d !important;
+}
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-9 {
+	border-left-color: #9fa8da !important;
+}
+
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-0 {
+	border-left-color: #00ffff !important;
+}
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-1 {
+	border-left-color: #ff00ff !important;
+}
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-2 {
+	border-left-color: #00ff00 !important;
+}
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-3 {
+	border-left-color: #ffff00 !important;
+}
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-4 {
+	border-left-color: #ff0000 !important;
+}
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-5 {
+	border-left-color: #0000ff !important;
+}
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-6 {
+	border-left-color: #a020f0 !important;
+}
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-7 {
+	border-left-color: #ff69b4 !important;
+}
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-8 {
+	border-left-color: #ffd700 !important;
+}
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-9 {
+	border-left-color: #4b0082 !important;
+}

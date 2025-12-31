@@ -13,7 +13,6 @@ export class AbstractFolderViewToolbar {
     private viewStyleToggleAction: HTMLElement | undefined;
     private expandAllAction: HTMLElement | undefined;
     private collapseAllAction: HTMLElement | undefined;
-    private searchAction: HTMLElement | undefined;
 
     constructor(
         private app: App,
@@ -52,10 +51,6 @@ export class AbstractFolderViewToolbar {
         this.addAction("arrow-up-down", "Sort order", (evt) => this.showSortMenu(evt));
         this.addAction("filter", "Filter", (evt) => this.showFilterMenu(evt));
         this.addAction("group", "Select group", (evt) => this.showGroupMenu(evt));
-        this.searchAction = this.addAction("search", "Focus search", () => {
-             const searchInput = this.containerEl.parentElement?.querySelector('.ancestry-search-input') as HTMLInputElement;
-             if (searchInput) searchInput.focus();
-        });
         this.addAction("file-plus", "Create new root note", () => {
             new CreateAbstractChildModal(this.app, this.settings, (name, type) => {
                 createAbstractChildFile(this.app, this.settings, name, null, type).catch(console.error);
@@ -75,10 +70,6 @@ export class AbstractFolderViewToolbar {
         if (this.collapseAllAction) {
             this.collapseAllAction.ariaDisabled = String(!isTreeView);
             this.collapseAllAction.toggleClass('is-disabled', !isTreeView);
-        }
-        if (this.searchAction) {
-            this.searchAction.ariaDisabled = String(!isTreeView);
-            this.searchAction.toggleClass('is-disabled', !isTreeView);
         }
     }
 

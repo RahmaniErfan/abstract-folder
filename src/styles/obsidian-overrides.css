@@ -1,0 +1,12 @@
+/* Force the view header to display for the abstract-folder-view type */
+.workspace-leaf-content[data-type="abstract-folder-view"] .view-header {
+	display: none !important;
+}
+
+.workspace-leaf-content[data-type="abstract-folder-view"] {
+	padding-top: 0 !important;
+}
+
+.workspace-leaf-content[data-type="abstract-folder-view"] .view-content {
+	padding: 0 12px 12px 12px !important;
+}
