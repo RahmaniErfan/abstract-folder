@@ -32,12 +32,15 @@ export class VirtualTreeManager {
         if (this.virtualContainer) this.virtualContainer.empty();
     }
 
-    public generateItems(allowedPaths?: Set<string>): void {
+    public generateItems(allowedPaths?: Set<string>, forceExpand?: Set<string>): void {
         const activeGroup = this.settings.activeGroupId
             ? this.settings.groups.find(group => group.id === this.settings.activeGroupId)
             : undefined;
 
         const expandedSet = new Set(this.settings.expandedFolders);
+        if (forceExpand) {
+            forceExpand.forEach(path => expandedSet.add(path));
+        }
 
         this.flatItems = generateFlatItemsFromGraph(
             this.app,

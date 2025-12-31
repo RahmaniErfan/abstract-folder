@@ -371,6 +371,7 @@ export class AbstractFolderView extends ItemView {
                  this.searchInputEl.value = "";
                  this.searchInputEl.trigger("input");
                  this.searchInputEl.focus();
+                 this.renderView(); // Trigger view update immediately
              }
         });
 
@@ -474,10 +475,16 @@ export class AbstractFolderView extends ItemView {
         if (file instanceof TFile) {
             // Start with just the file itself if we aren't showing parents
             let allowedPaths = new Set<string>();
+            const forceExpand = new Set<string>();
+
+            // Always calculate ancestry to ensure we can force expand parents
+            // This fixes the bug where searching for a file in a collapsed folder showed nothing
+            const allAncestors = new AncestryEngine(this.indexer).getAncestryNodePaths(file.path);
+            allAncestors.forEach(p => forceExpand.add(p));
             
             if (this.settings.searchShowParents) {
-                // If showing parents, get the full ancestry
-                allowedPaths = new AncestryEngine(this.indexer).getAncestryNodePaths(file.path);
+                // If showing parents, use the full ancestry for visibility
+                allowedPaths = allAncestors;
             } else {
                 // Otherwise, just the file
                 allowedPaths.add(file.path);
@@ -491,16 +498,8 @@ export class AbstractFolderView extends ItemView {
                  }
              }
             
-             allowedPaths.forEach(p => {
-                if (!this.settings.expandedFolders.includes(p)) {
-                    const node = this.indexer.getGraph().parentToChildren[p];
-                    if (node) {
-                         this.settings.expandedFolders.push(p);
-                    }
-                }
-            });
-            
-            this.virtualTreeManager.generateItems(allowedPaths);
+            // We pass forceExpand to generateItems so it can generate items even if they are currently collapsed
+            this.virtualTreeManager.generateItems(allowedPaths, forceExpand);
         } else {
              this.virtualTreeManager.generateItems();
         }

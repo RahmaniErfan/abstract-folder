@@ -26,6 +26,10 @@ export class PathSuggest extends AbstractInputSuggest<string> {
     }
 
     getSuggestions(inputStr: string): string[] {
+        if (!inputStr || inputStr.trim().length === 0) {
+            return [];
+        }
+        
         // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
         const suggestEl = (this as any).suggestEl as HTMLElement;
         
