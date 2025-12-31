@@ -1,9 +1,10 @@
-import { App, AbstractInputSuggest, setIcon } from "obsidian";
+import { App, AbstractInputSuggest, setIcon, prepareFuzzySearch, SearchResult } from "obsidian";
 import { FolderIndexer } from "../indexer";
 import { AbstractFolderPluginSettings } from "../settings";
 
 export class PathSuggest extends AbstractInputSuggest<string> {
     private suggestionMetadata: Map<string, string> = new Map();
+    private searchScores: Map<string, number> = new Map();
 
     constructor(
         app: App, 
@@ -44,24 +45,38 @@ export class PathSuggest extends AbstractInputSuggest<string> {
 
         const abstractFolderPaths: Set<string> = new Set();
         this.suggestionMetadata.clear();
+        this.searchScores.clear();
         
         const files = this.app.vault.getAllLoadedFiles();
-        const lowerCaseInputStr = inputStr.toLowerCase();
+        const searchFn = prepareFuzzySearch(inputStr);
 
-        // 1. Base Matches
-        const matches: string[] = [];
+        // 1. Fuzzy Search Matches
+        const scoredMatches: { path: string, result: SearchResult }[] = [];
+        
         for (const file of files) {
-            if (file.path.toLowerCase().includes(lowerCaseInputStr)) {
-                matches.push(file.path);
-                abstractFolderPaths.add(file.path);
-                if (matches.length >= 20) break; // Soft limit for initial matches
+            const result = searchFn(file.path);
+            if (result) {
+                scoredMatches.push({ path: file.path, result });
             }
         }
+
+        // Sort by score (descending) to get best matches
+        scoredMatches.sort((a, b) => b.result.score - a.result.score);
+
+        // Limit to top 50 matches for performance and relevance
+        const topMatches = scoredMatches.slice(0, 50);
+
+        for (const match of topMatches) {
+            abstractFolderPaths.add(match.path);
+            this.searchScores.set(match.path, match.result.score);
+        }
+
+        const topPaths = topMatches.map(m => m.path);
 
         // 2. Add Context (Parents)
         if (this.settings.searchShowParents) {
             const graph = this.indexer.getGraph();
-            for (const matchPath of matches) {
+            for (const matchPath of topPaths) {
                 const parents = graph.childToParents.get(matchPath);
                 if (parents) {
                     parents.forEach(p => {
@@ -79,7 +94,7 @@ export class PathSuggest extends AbstractInputSuggest<string> {
              const graph = this.indexer.getGraph();
              const parentToChildren = graph.parentToChildren;
              
-             for (const matchPath of matches) {
+             for (const matchPath of topPaths) {
                  // Check if the match is a key in parentToChildren (i.e. it is a parent)
                  const children = parentToChildren[matchPath];
                  if (children && children.size > 0) {
@@ -93,18 +108,13 @@ export class PathSuggest extends AbstractInputSuggest<string> {
              }
         }
 
-        // 92 | Return the final list as an array
+        // Return the final list as an array
         // Sorting: 
-        // 1. Exact matches first
-        // 2. Starts with query
-        // 3. Includes query
-        // 4. Parents/Children (Context)
+        // 1. Context items vs Direct matches (Context lower)
+        // 2. Fuzzy Score (Higher better)
+        // 3. Alphabetical fallback
         
         return Array.from(abstractFolderPaths).sort((a, b) => {
-            const aLower = a.toLowerCase();
-            const bLower = b.toLowerCase();
-            const query = lowerCaseInputStr;
-
             // Check if items are context items (in metadata)
             const aIsContext = this.suggestionMetadata.has(a);
             const bIsContext = this.suggestionMetadata.has(b);
@@ -113,22 +123,18 @@ export class PathSuggest extends AbstractInputSuggest<string> {
             if (aIsContext && !bIsContext) return 1;
             if (!aIsContext && bIsContext) return -1;
 
-            // If both are direct matches (or both context), apply standard ranking
-            
-            // 1. Exact match
-            if (aLower === query && bLower !== query) return -1;
-            if (bLower === query && aLower !== query) return 1;
+            // If both are direct matches, use fuzzy scores
+            if (!aIsContext && !bIsContext) {
+                const scoreA = this.searchScores.get(a);
+                const scoreB = this.searchScores.get(b);
+                
+                // Higher score first (descending)
+                if (scoreA !== undefined && scoreB !== undefined) {
+                    return scoreB - scoreA;
+                }
+            }
 
-            // 2. Starts with query
-            const aStarts = aLower.startsWith(query);
-            const bStarts = bLower.startsWith(query);
-            if (aStarts && !bStarts) return -1;
-            if (!aStarts && bStarts) return 1;
-
-            // 3. Shortest path (usually more relevant)
-            if (a.length !== b.length) return a.length - b.length;
-
-            // 4. Alphabetical
+            // Fallback to alphabetical
             return a.localeCompare(b);
         });
     }
