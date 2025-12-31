@@ -1,703 +1,924 @@
 /* Abstract Folder View Container */
 .abstract-folder-view {
-    padding: 0;
-    margin: 0;
-    height: 100%;
-    overflow-y: auto;
-    position: relative; /* For virtual items */
-    display: flex;
-    flex-direction: column;
+	padding: 0;
+	margin: 0;
+	height: 100%;
+	overflow: hidden; /* Changed from overflow-y: auto to allow sub-scrolling */
+	position: relative; /* For virtual items */
+	display: flex;
+	flex-direction: column;
 }
 
 /* When in column mode, the root view should not scroll vertically */
 .abstract-folder-view.abstract-folder-columns-wrapper {
-    overflow-y: hidden !important;
-    padding: 12px !important; /* Set consistent outer padding */
+	overflow-y: hidden !important;
+	padding: 12px !important; /* Set consistent outer padding */
 }
 
-.abstract-folder-view.abstract-folder-columns-wrapper .abstract-folder-header-title {
-    flex-shrink: 0;
+.abstract-folder-view.abstract-folder-columns-wrapper
+	.abstract-folder-header-title {
+	flex-shrink: 0;
 }
 
 .abstract-folder-virtual-spacer {
-    width: 1px;
-    /* Position static to ensure parent wrapper takes up height */
-    position: static;
-    z-index: -10;
-    pointer-events: none;
-    visibility: hidden;
+	width: 1px;
+	/* Position static to ensure parent wrapper takes up height */
+	position: static;
+	z-index: -10;
+	pointer-events: none;
+	visibility: hidden;
 }
 
 .abstract-folder-virtual-wrapper {
-    position: relative;
-    width: 100%;
+	position: relative;
+	width: 100%;
+	flex-grow: 1;
+	overflow-y: auto;
 }
 
 .abstract-folder-virtual-container {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
 }
 
 .abstract-folder-virtual-container > .abstract-folder-virtual-item {
-    pointer-events: auto;
+	pointer-events: auto;
 }
 
 .abstract-folder-hidden {
-    display: none !important;
+	display: none !important;
 }
 
-/* Force the view header to display for the abstract-folder-view type */
-.workspace-leaf-content[data-type="abstract-folder-view"] .view-header {
-    display: none !important;
-}
-
-.workspace-leaf-content[data-type="abstract-folder-view"] {
-    padding-top: 0 !important;
-}
-
-.workspace-leaf-content[data-type="abstract-folder-view"] .view-content {
-    padding: 0 12px 12px 12px !important;
-}
-
-/* Custom Toolbar Styles */
 .abstract-folder-toolbar-container {
+	position: sticky;
+	top: 0;
+	background-color: var(--background-secondary);
+	z-index: 10;
+	border-bottom: 1px solid var(--background-modifier-border);
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 32px; /* Reduced height to remove extra space */
+    height: 32px;
     padding: 0 10px;
-    background-color: var(--background-secondary);
-    border-bottom: 1px solid var(--background-modifier-border);
     flex-shrink: 0;
     gap: 8px;
     margin-bottom: 4px; /* Small margin above title */
 }
 
+.abstract-folder-header-title {
+	position: sticky;
+	top: 32px; /* Height of toolbar */
+	background-color: var(--background-secondary);
+	z-index: 9;
+	padding: 8px 16px;
+	margin: 0;
+	border-bottom: 1px solid var(--divider-color);
+    font-size: var(--font-ui-small); /* Smaller font size */
+	font-weight: 400; /* Normal weight for subtlety */
+	text-align: center;
+	color: var(--text-muted); /* Make text subtle */
+    display: none; /* Hide by default if empty */
+}
+
+.abstract-folder-header-title:not(:empty) {
+    display: block; /* Show only if it has content */
+}
+
+.abstract-folder-search-header {
+	position: sticky;
+	top: 32px; /* Adjusted to stack directly after toolbar if title is hidden */
+	background-color: var(--background-secondary);
+	z-index: 8;
+	padding: 8px;
+	border-bottom: 1px solid var(--divider-color);
+}
+
+/* If title is present, push search header down */
+.abstract-folder-header-title:not(:empty) ~ .abstract-folder-search-header {
+    top: 64px; /* Toolbar + Title height */
+}
+
+.ancestry-search-container {
+	display: flex;
+	align-items: center;
+	background-color: var(--background-modifier-form-field);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	padding: 0 8px;
+	width: 100%;
+}
+
+.ancestry-search-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
+	margin-right: 8px;
+}
+
+.ancestry-search-icon svg {
+	width: 16px;
+	height: 16px;
+}
+
+.ancestry-search-input {
+	background: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
+	color: var(--text-normal);
+	flex-grow: 1;
+	font-size: var(--font-ui-small);
+	padding: 4px 0 !important;
+	width: 100%;
+}
+
+.ancestry-search-input:focus {
+	outline: none !important;
+}
+
+/* Force the view header to display for the abstract-folder-view type */
+.workspace-leaf-content[data-type="abstract-folder-view"] .view-header {
+	display: none !important;
+}
+
+.workspace-leaf-content[data-type="abstract-folder-view"] {
+	padding-top: 0 !important;
+}
+
+.workspace-leaf-content[data-type="abstract-folder-view"] .view-content {
+	padding: 0 12px 12px 12px !important;
+}
+
+/* Custom Toolbar Styles */
+/* Removed duplicate declaration */
+
 .abstract-folder-toolbar-action {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    color: var(--icon-color);
-    border-radius: var(--radius-s);
-    cursor: pointer;
-    transition: color 0.1s ease-in-out, background-color 0.1s ease-in-out;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	color: var(--icon-color);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+	transition: color 0.1s ease-in-out, background-color 0.1s ease-in-out;
 }
 
 .abstract-folder-toolbar-action:hover {
-    background-color: var(--background-modifier-hover);
-    color: var(--icon-color-hover);
+	background-color: var(--background-modifier-hover);
+	color: var(--icon-color-hover);
 }
 
 .abstract-folder-toolbar-action.is-disabled {
-    color: var(--text-muted) !important;
-    cursor: default !important;
-    opacity: 0.5 !important;
-    pointer-events: none !important;
+	color: var(--text-muted) !important;
+	cursor: default !important;
+	opacity: 0.5 !important;
+	pointer-events: none !important;
 }
 
 .abstract-folder-toolbar-action svg {
-    width: 18px;
-    height: 18px;
-    stroke-width: 2px;
+	width: 18px;
+	height: 18px;
+	stroke-width: 2px;
 }
 
 .abstract-folder-header-title {
-    font-size: var(--font-ui-small); /* Smaller font size */
-    font-weight: 400; /* Normal weight for subtlety */
-    text-align: center;
-    padding: 0 0 6px 0; /* Removed top padding */
-    margin-bottom: 12px; /* Increased margin below title */
-    color: var(--text-muted); /* Make text subtle */
-    position: relative; /* For the pseudo-element line */
+	font-size: var(--font-ui-small); /* Smaller font size */
+	font-weight: 400; /* Normal weight for subtlety */
+	text-align: center;
+	padding: 0 0 6px 0; /* Removed top padding */
+	margin-bottom: 12px; /* Increased margin below title */
+	color: var(--text-muted); /* Make text subtle */
+	position: relative; /* For the pseudo-element line */
 }
 
 .abstract-folder-header-title::after {
-    content: '';
-    position: absolute;
-    left: 25%; /* Smaller line length */
-    right: 25%;
-    bottom: 0;
-    height: 1px; /* Line thickness */
-    background-color: var(--background-modifier-border-hover); /* Slightly lighter border for subtlety */
-    opacity: 0.5; /* Even more subtle line */
+	content: "";
+	position: absolute;
+	left: 25%; /* Smaller line length */
+	right: 25%;
+	bottom: 0;
+	height: 1px; /* Line thickness */
+	background-color: var(
+		--background-modifier-border-hover
+	); /* Slightly lighter border for subtlety */
+	opacity: 0.5; /* Even more subtle line */
 }
 
-
-
 .abstract-folder-tree {
-    padding-bottom: 8px; /* Reduced from 20px for consistency */
+	padding-bottom: 8px; /* Reduced from 20px for consistency */
 }
 
 /* Empty State */
 .abstract-folder-empty-state {
-    padding: 20px;
-    text-align: center;
-    color: var(--text-muted);
+	padding: 20px;
+	text-align: center;
+	color: var(--text-muted);
 }
 
 /* Loading State */
 .abstract-folder-loading-state {
-    padding: 20px;
-    text-align: center;
-    color: var(--text-muted);
-    font-style: italic;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
+	padding: 20px;
+	text-align: center;
+	color: var(--text-muted);
+	font-style: italic;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
 }
 
 /* Tree Item Structure */
 .abstract-folder-item {
-    /* For tree view: each item is a vertical stack of self + children */
-    display: flex;
-    flex-direction: column;
+	/* For tree view: each item is a vertical stack of self + children */
+	display: flex;
+	flex-direction: column;
 }
 
 /* Column View Specific Styles (Vertical Miller View) */
 .abstract-folder-columns-wrapper {
-    display: flex !important;
-    flex-direction: column !important;
-    height: 100% !important;
-    overflow: hidden !important;
+	display: flex !important;
+	flex-direction: column !important;
+	height: 100% !important;
+	overflow: hidden !important;
 }
 
 .abstract-folder-columns-container {
-    display: flex !important;
-    flex-direction: column !important; /* Stacks columns vertically */
-    flex-grow: 1 !important;
-    overflow: hidden !important; /* Changed from overflow-y: auto to allow children to scroll */
-    overflow-x: hidden !important;
-    height: 100% !important;
-    padding: 0 !important; /* Resetting inner container padding since we applied it to the wrapper */
-    gap: 12px !important; /* Maintain gap between columns */
+	display: flex !important;
+	flex-direction: column !important; /* Stacks columns vertically */
+	flex-grow: 1 !important;
+	overflow: hidden !important; /* Changed from overflow-y: auto to allow children to scroll */
+	overflow-x: hidden !important;
+	height: 100% !important;
+	padding: 0 !important; /* Resetting inner container padding since we applied it to the wrapper */
+	gap: 12px !important; /* Maintain gap between columns */
 }
 
 .abstract-folder-column {
-    display: flex !important;
-    flex-direction: column !important;
-    flex: 1 1 0% !important; /* Allow columns to share height evenly */
-    min-height: 0 !important; /* Important for flex children to be scrollable */
-    width: 100% !important;
-    background-color: transparent !important; /* Made transparent to match tree view */
-    overflow-y: auto !important; /* Individual column scrolling */
-    border: 1px solid var(--background-modifier-border) !important;
-    border-radius: var(--radius-m) !important;
-    padding: 2px 0 !important;
-    margin-bottom: 8px !important; /* Added gap between columns */
-    transition: background-color 0.2s ease;
+	display: flex !important;
+	flex-direction: column !important;
+	flex: 1 1 0% !important; /* Allow columns to share height evenly */
+	min-height: 0 !important; /* Important for flex children to be scrollable */
+	width: 100% !important;
+	background-color: transparent !important; /* Made transparent to match tree view */
+	overflow-y: auto !important; /* Individual column scrolling */
+	border: 1px solid var(--background-modifier-border) !important;
+	border-radius: var(--radius-m) !important;
+	padding: 2px 0 !important;
+	margin-bottom: 8px !important; /* Added gap between columns */
+	transition: background-color 0.2s ease;
 }
 
 .abstract-folder-column:hover {
-    background-color: var(--background-secondary) !important;
+	background-color: var(--background-secondary) !important;
 }
 
 .abstract-folder-columns-wrapper {
-    padding: 8px !important; /* Consistent outer padding */
+	padding: 8px !important; /* Consistent outer padding */
 }
 
 .abstract-folder-columns-container {
-    gap: 0 !important;
+	gap: 0 !important;
 }
 
 .abstract-folder-columns-wrapper {
-    padding: 0 !important; /* Reset padding to match tree view */
+	padding: 0 !important; /* Reset padding to match tree view */
 }
 
 .abstract-folder-columns-container {
-    gap: 0 !important; /* Remove gap */
+	gap: 0 !important; /* Remove gap */
 }
 
 /* Add a subtle header for each column if it has a title */
 .abstract-folder-column .abstract-folder-header-title {
-    margin-top: 2px;
-    margin-bottom: 6px;
-    border-bottom: none;
+	margin-top: 2px;
+	margin-bottom: 6px;
+	border-bottom: none;
 }
 
 .abstract-folder-column .abstract-folder-header-title::after {
-    display: none; /* Hide the line in column view for cleaner look */
+	display: none; /* Hide the line in column view for cleaner look */
 }
 
 .abstract-folder-column:last-child {
-    /* No longer need to remove border-bottom since we have border all around */
+	/* No longer need to remove border-bottom since we have border all around */
 }
 
 .abstract-folder-column[data-depth="0"] {
-    /* Optional: style for root column */
+	/* Optional: style for root column */
 }
-
-
 
 /* Item self for column view, remove any tree-view specific indentation */
 .abstract-folder-columns-wrapper .abstract-folder-item-self {
-    padding-left: 6px; /* Reset to base padding, effectively removing tree indentation */
+	padding-left: 6px; /* Reset to base padding, effectively removing tree indentation */
 }
 
 /* Show collapse icon in column view, but fix rotation */
 .abstract-folder-columns-wrapper .abstract-folder-collapse-icon {
-    display: flex; /* Changed from none to flex */
+	display: flex; /* Changed from none to flex */
 }
 
 /* In column view, the arrow should always point right (0deg) */
 .abstract-folder-columns-wrapper .abstract-folder-collapse-icon svg {
-    transform: rotate(0deg) !important;
+	transform: rotate(0deg) !important;
 }
 
 /* In column view, don't show children containers */
 .abstract-folder-columns-wrapper .abstract-folder-children {
-    display: none;
+	display: none;
 }
 
 /* Style for selected item in column view */
 .abstract-folder-item-self.is-selected-in-column {
-    background-color: var(--nav-item-background-active);
-    color: var(--nav-item-text-color-active);
-    font-weight: var(--font-medium);
+	background-color: var(--nav-item-background-active);
+	color: var(--nav-item-text-color-active);
+	font-weight: var(--font-medium);
 }
 
 /* Ensure selected icon color matches */
-.abstract-folder-item-self.is-selected-in-column .abstract-folder-item-icon svg {
-    color: var(--nav-item-text-color-active);
+.abstract-folder-item-self.is-selected-in-column
+	.abstract-folder-item-icon
+	svg {
+	color: var(--nav-item-text-color-active);
 }
-
 
 /* Style for ancestor items in column view */
 .abstract-folder-item-self.is-ancestor-of-selected {
-    background-color: var(--background-modifier-hover); /* A subtle highlight */
-    color: var(--text-normal); /* Keep normal text color */
+	background-color: var(--background-modifier-hover); /* A subtle highlight */
+	color: var(--text-normal); /* Keep normal text color */
 }
 
 /* Multi-Parent Indicator */
 .abstract-folder-multi-parent-indicator {
-    /* Removed margin-left: auto as it's now a direct child of a flex container */
-    color: var(--text-muted);
-    opacity: 0.7;
-    font-size: var(--font-ui-smaller);
-    display: flex; /* For icon sizing */
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    margin-left: 4px; /* Add some spacing between the text and the icon */
-    flex-shrink: 0; /* Prevent from shrinking */
+	/* Removed margin-left: auto as it's now a direct child of a flex container */
+	color: var(--text-muted);
+	opacity: 0.7;
+	font-size: var(--font-ui-smaller);
+	display: flex; /* For icon sizing */
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	margin-left: 4px; /* Add some spacing between the text and the icon */
+	flex-shrink: 0; /* Prevent from shrinking */
 }
 
 .abstract-folder-multi-parent-indicator svg {
-    width: 12px;
-    height: 12px;
+	width: 12px;
+	height: 12px;
 }
 
 /* The clickable row */
 .abstract-folder-item-self {
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    padding: 2px 6px 4px 6px; /* Increased bottom padding to replace margin */
-    margin-bottom: 0; /* Removed margin to fix broken indent lines */
-    border-radius: var(--radius-s);
-    color: var(--text-normal);
-    transition: background-color 0.1s ease-in-out;
-    /* Ensure there's space for the icon */
-    justify-content: flex-start;
-    gap: 4px; /* Space between flex items in this container */
+	display: flex;
+	align-items: center;
+	cursor: pointer;
+	padding: 2px 6px 4px 6px; /* Increased bottom padding to replace margin */
+	margin-bottom: 0; /* Removed margin to fix broken indent lines */
+	border-radius: var(--radius-s);
+	color: var(--text-normal);
+	transition: background-color 0.1s ease-in-out;
+	/* Ensure there's space for the icon */
+	justify-content: flex-start;
+	gap: 4px; /* Space between flex items in this container */
 }
 
 .abstract-folder-item-self:hover {
-    background-color: var(--nav-item-background-hover);
-    color: var(--nav-item-text-color-hover);
+	background-color: var(--nav-item-background-hover);
+	color: var(--nav-item-text-color-hover);
 }
 
 .abstract-folder-item-self.is-active {
-    background-color: var(--nav-item-background-active);
-    color: var(--nav-item-text-color-active);
-    font-weight: var(--font-medium);
+	background-color: var(--nav-item-background-active);
+	color: var(--nav-item-text-color-active);
+	font-weight: var(--font-medium);
 }
 
 /* Collapse Icon */
 .abstract-folder-collapse-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    margin-right: 2px;
-    color: var(--collapse-icon-color);
-    transition: transform 0.1s ease-in-out;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	margin-right: 2px;
+	color: var(--collapse-icon-color);
+	transition: transform 0.1s ease-in-out;
 }
 .abstract-folder-collapse-icon svg {
-    transform: rotate(90deg); /* Default (expanded): chevron-right rotated to point down */
-    transition: transform 0.1s ease-in-out;
+	transform: rotate(
+		90deg
+	); /* Default (expanded): chevron-right rotated to point down */
+	transition: transform 0.1s ease-in-out;
 }
 
-.abstract-folder-item.is-collapsed > .abstract-folder-item-self > .abstract-folder-collapse-icon svg {
-    transform: rotate(0deg); /* Collapsed: chevron-right points right */
+.abstract-folder-item.is-collapsed
+	> .abstract-folder-item-self
+	> .abstract-folder-collapse-icon
+	svg {
+	transform: rotate(0deg); /* Collapsed: chevron-right points right */
 }
 
 .abstract-folder-collapse-icon:hover {
-    color: var(--collapse-icon-color-hover);
+	color: var(--collapse-icon-color-hover);
 }
 
 /* Inner Text */
 .abstract-folder-item-inner {
-    flex-grow: 1; /* Match native explorer behavior */
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 13px; /* Explicitly set to match native */
-    font-weight: 400; /* Normal weight to match native */
-    line-height: 16.9px; /* Match native */
-    color: var(--text-normal); /* Ensure normal text color */
-    /* Removed margin-left: auto; which was causing the issue before */
-    display: flex; /* Make it a flex container to align its content if needed */
-    align-items: center; /* Vertically align content */
+	flex-grow: 1; /* Match native explorer behavior */
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 13px; /* Explicitly set to match native */
+	font-weight: 400; /* Normal weight to match native */
+	line-height: 16.9px; /* Match native */
+	color: var(--text-normal); /* Ensure normal text color */
+	/* Removed margin-left: auto; which was causing the issue before */
+	display: flex; /* Make it a flex container to align its content if needed */
+	align-items: center; /* Vertically align content */
 }
 
 /* Children Container */
 .abstract-folder-children {
-    padding-left: 18px; /* Standard indentation */
-    border-left: 1px solid var(--nav-indentation-guide-color);
-    margin-left: 8px; /* Align guide line with icon center roughly */
+	padding-left: 18px; /* Standard indentation */
+	border-left: 1px solid var(--nav-indentation-guide-color);
+	margin-left: 8px; /* Align guide line with icon center roughly */
 }
 
 /* Rainbow Indents */
 .abstract-folder-children.rainbow-indent {
-    border-left-width: 2px;
+	border-left-width: 2px;
 }
 
 /* Classic Palette */
-.abstract-folder-children.classic-palette.rainbow-indent-0 { border-left-color: #61afef; } /* Blue */
-.abstract-folder-children.classic-palette.rainbow-indent-1 { border-left-color: #c678dd; } /* Purple */
-.abstract-folder-children.classic-palette.rainbow-indent-2 { border-left-color: #98c379; } /* Green */
-.abstract-folder-children.classic-palette.rainbow-indent-3 { border-left-color: #e6c07b; } /* Yellow */
-.abstract-folder-children.classic-palette.rainbow-indent-4 { border-left-color: #e06c75; } /* Red */
-.abstract-folder-children.classic-palette.rainbow-indent-5 { border-left-color: #56b6c2; } /* Cyan */
-.abstract-folder-children.classic-palette.rainbow-indent-6 { border-left-color: #6a9955; } /* Dark Green */
-.abstract-folder-children.classic-palette.rainbow-indent-7 { border-left-color: #d1976a; } /* Orange */
-.abstract-folder-children.classic-palette.rainbow-indent-8 { border-left-color: #9f7e69; } /* Brown */
-.abstract-folder-children.classic-palette.rainbow-indent-9 { border-left-color: #008080; } /* Teal */
+.abstract-folder-children.classic-palette.rainbow-indent-0 {
+	border-left-color: #61afef;
+} /* Blue */
+.abstract-folder-children.classic-palette.rainbow-indent-1 {
+	border-left-color: #c678dd;
+} /* Purple */
+.abstract-folder-children.classic-palette.rainbow-indent-2 {
+	border-left-color: #98c379;
+} /* Green */
+.abstract-folder-children.classic-palette.rainbow-indent-3 {
+	border-left-color: #e6c07b;
+} /* Yellow */
+.abstract-folder-children.classic-palette.rainbow-indent-4 {
+	border-left-color: #e06c75;
+} /* Red */
+.abstract-folder-children.classic-palette.rainbow-indent-5 {
+	border-left-color: #56b6c2;
+} /* Cyan */
+.abstract-folder-children.classic-palette.rainbow-indent-6 {
+	border-left-color: #6a9955;
+} /* Dark Green */
+.abstract-folder-children.classic-palette.rainbow-indent-7 {
+	border-left-color: #d1976a;
+} /* Orange */
+.abstract-folder-children.classic-palette.rainbow-indent-8 {
+	border-left-color: #9f7e69;
+} /* Brown */
+.abstract-folder-children.classic-palette.rainbow-indent-9 {
+	border-left-color: #008080;
+} /* Teal */
 
 /* Pastel Palette */
-.abstract-folder-children.pastel-palette.rainbow-indent-0 { border-left-color: #a7bed3; } /* Light Blue */
-.abstract-folder-children.pastel-palette.rainbow-indent-1 { border-left-color: #d1c4e9; } /* Lavender */
-.abstract-folder-children.pastel-palette.rainbow-indent-2 { border-left-color: #c8e6c9; } /* Mint Green */
-.abstract-folder-children.pastel-palette.rainbow-indent-3 { border-left-color: #ffe0b2; } /* Peach */
-.abstract-folder-children.pastel-palette.rainbow-indent-4 { border-left-color: #ffccbc; } /* Coral */
-.abstract-folder-children.pastel-palette.rainbow-indent-5 { border-left-color: #bbdefb; } /* Sky Blue */
-.abstract-folder-children.pastel-palette.rainbow-indent-6 { border-left-color: #c5e1a5; } /* Light Green */
-.abstract-folder-children.pastel-palette.rainbow-indent-7 { border-left-color: #b39ddb; } /* Light Purple */
-.abstract-folder-children.pastel-palette.rainbow-indent-8 { border-left-color: #ffb74d; } /* Light Orange */
-.abstract-folder-children.pastel-palette.rainbow-indent-9 { border-left-color: #9fa8da; } /* Grey-Blue */
+.abstract-folder-children.pastel-palette.rainbow-indent-0 {
+	border-left-color: #a7bed3;
+} /* Light Blue */
+.abstract-folder-children.pastel-palette.rainbow-indent-1 {
+	border-left-color: #d1c4e9;
+} /* Lavender */
+.abstract-folder-children.pastel-palette.rainbow-indent-2 {
+	border-left-color: #c8e6c9;
+} /* Mint Green */
+.abstract-folder-children.pastel-palette.rainbow-indent-3 {
+	border-left-color: #ffe0b2;
+} /* Peach */
+.abstract-folder-children.pastel-palette.rainbow-indent-4 {
+	border-left-color: #ffccbc;
+} /* Coral */
+.abstract-folder-children.pastel-palette.rainbow-indent-5 {
+	border-left-color: #bbdefb;
+} /* Sky Blue */
+.abstract-folder-children.pastel-palette.rainbow-indent-6 {
+	border-left-color: #c5e1a5;
+} /* Light Green */
+.abstract-folder-children.pastel-palette.rainbow-indent-7 {
+	border-left-color: #b39ddb;
+} /* Light Purple */
+.abstract-folder-children.pastel-palette.rainbow-indent-8 {
+	border-left-color: #ffb74d;
+} /* Light Orange */
+.abstract-folder-children.pastel-palette.rainbow-indent-9 {
+	border-left-color: #9fa8da;
+} /* Grey-Blue */
 
 /* Neon Palette */
-.abstract-folder-children.neon-palette.rainbow-indent-0 { border-left-color: #00ffff; } /* Aqua */
-.abstract-folder-children.neon-palette.rainbow-indent-1 { border-left-color: #ff00ff; } /* Magenta */
-.abstract-folder-children.neon-palette.rainbow-indent-2 { border-left-color: #00ff00; } /* Lime */
-.abstract-folder-children.neon-palette.rainbow-indent-3 { border-left-color: #ffff00; } /* Bright Yellow */
-.abstract-folder-children.neon-palette.rainbow-indent-4 { border-left-color: #ff0000; } /* Red */
-.abstract-folder-children.neon-palette.rainbow-indent-5 { border-left-color: #0000ff; } /* Blue */
-.abstract-folder-children.neon-palette.rainbow-indent-6 { border-left-color: #a020f0; } /* Electric Purple */
-.abstract-folder-children.neon-palette.rainbow-indent-7 { border-left-color: #ff69b4; } /* Hot Pink */
-.abstract-folder-children.neon-palette.rainbow-indent-8 { border-left-color: #ffd700; } /* Gold */
-.abstract-folder-children.neon-palette.rainbow-indent-9 { border-left-color: #4b0082; } /* Indigo */
-
+.abstract-folder-children.neon-palette.rainbow-indent-0 {
+	border-left-color: #00ffff;
+} /* Aqua */
+.abstract-folder-children.neon-palette.rainbow-indent-1 {
+	border-left-color: #ff00ff;
+} /* Magenta */
+.abstract-folder-children.neon-palette.rainbow-indent-2 {
+	border-left-color: #00ff00;
+} /* Lime */
+.abstract-folder-children.neon-palette.rainbow-indent-3 {
+	border-left-color: #ffff00;
+} /* Bright Yellow */
+.abstract-folder-children.neon-palette.rainbow-indent-4 {
+	border-left-color: #ff0000;
+} /* Red */
+.abstract-folder-children.neon-palette.rainbow-indent-5 {
+	border-left-color: #0000ff;
+} /* Blue */
+.abstract-folder-children.neon-palette.rainbow-indent-6 {
+	border-left-color: #a020f0;
+} /* Electric Purple */
+.abstract-folder-children.neon-palette.rainbow-indent-7 {
+	border-left-color: #ff69b4;
+} /* Hot Pink */
+.abstract-folder-children.neon-palette.rainbow-indent-8 {
+	border-left-color: #ffd700;
+} /* Gold */
+.abstract-folder-children.neon-palette.rainbow-indent-9 {
+	border-left-color: #4b0082;
+} /* Indigo */
 
 /* Hide children when collapsed */
 .abstract-folder-item.is-collapsed > .abstract-folder-children {
-    display: none;
+	display: none;
 }
 
 /* File items in tree view don't have collapse icons, add padding to align */
-.abstract-folder-tree-wrapper .abstract-folder-item.is-file .abstract-folder-item-self {
-    padding-left: 24px; /* 6px padding + 16px icon width + 2px margin */
+.abstract-folder-tree-wrapper
+	.abstract-folder-item.is-file
+	.abstract-folder-item-self {
+	padding-left: 24px; /* 6px padding + 16px icon width + 2px margin */
 }
 
 /* Loop detection warning */
 .abstract-folder-loop {
-    padding: 4px 8px;
-    background-color: var(--background-modifier-error-hover);
-    color: var(--text-error);
-    font-size: var(--font-ui-smaller);
-    margin-left: 20px;
-    border-radius: 4px;
+	padding: 4px 8px;
+	background-color: var(--background-modifier-error-hover);
+	color: var(--text-error);
+	font-size: var(--font-ui-smaller);
+	margin-left: 20px;
+	border-radius: 4px;
 }
 
 /* Icon Modal Specific Styles */
 .abstract-folder-icon-modal .modal-content {
-    max-width: 600px; /* Adjust modal width for better icon grid display */
+	max-width: 600px; /* Adjust modal width for better icon grid display */
 }
 
 .abstract-folder-icon-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); /* Responsive grid */
-    gap: 8px;
-    padding: 16px; /* Increased padding */
-    max-height: 300px; /* Limit height and make scrollable */
-    overflow-y: auto;
-    border: 1px solid var(--background-modifier-border);
-    border-radius: var(--radius-s);
-    margin-top: 10px;
+	display: grid;
+	grid-template-columns: repeat(
+		auto-fill,
+		minmax(40px, 1fr)
+	); /* Responsive grid */
+	gap: 8px;
+	padding: 16px; /* Increased padding */
+	max-height: 300px; /* Limit height and make scrollable */
+	overflow-y: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	margin-top: 10px;
+}
+
+/* Suggestion Container Customization */
+.suggestion-container.abstract-folder-suggestion-container {
+    margin-top: 8px !important; /* Visual offset from the search bar */
+    margin-left: -30px !important;  /* Offset to account for the search icon */
+    border: 1px solid var(--background-modifier-border) !important;
+    border-radius: 4px !important;
+    box-shadow: var(--shadow-s) !important;
 }
 
 .abstract-folder-grid-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 12px; /* Increased padding for individual items */
-    border-radius: var(--radius-s);
-    cursor: pointer;
-    background-color: var(--background-secondary);
-    transition: background-color 0.1s ease-in-out, border-color 0.1s ease-in-out;
-    position: relative;
-    --icon-size: 24px; /* Slightly larger icon size in picker */
-    border: 1px solid transparent;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 12px; /* Increased padding for individual items */
+	border-radius: var(--radius-s);
+	cursor: pointer;
+	background-color: var(--background-secondary);
+	transition: background-color 0.1s ease-in-out, border-color 0.1s ease-in-out;
+	position: relative;
+	--icon-size: 24px; /* Slightly larger icon size in picker */
+	border: 1px solid transparent;
 }
 
 .abstract-folder-grid-item:hover {
-    background-color: var(--background-modifier-hover);
-    border-color: var(--interactive-hover);
+	background-color: var(--background-modifier-hover);
+	border-color: var(--interactive-hover);
 }
 
 .abstract-folder-grid-item.is-active {
-    background-color: var(--interactive-accent);
-    color: var(--text-on-accent);
-    border-color: var(--interactive-accent);
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
 }
 
 .abstract-folder-grid-item.is-active svg {
-    color: var(--text-on-accent);
+	color: var(--text-on-accent);
 }
 
 .abstract-folder-no-icons {
-    grid-column: 1 / -1; /* Span all columns */
-    text-align: center;
-    padding: 20px;
-    color: var(--text-muted);
-    width: 100%; /* Ensure full width usage */
+	grid-column: 1 / -1; /* Span all columns */
+	text-align: center;
+	padding: 20px;
+	color: var(--text-muted);
+	width: 100%; /* Ensure full width usage */
 }
 
 .abstract-folder-item-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px; /* Standard icon size */
-    height: 16px;
-    margin-right: 4px; /* Space between icon and text */
-    flex-shrink: 0; /* Prevent icon from shrinking */
-    font-size: 14px; /* For emojis */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px; /* Standard icon size */
+	height: 16px;
+	margin-right: 4px; /* Space between icon and text */
+	flex-shrink: 0; /* Prevent icon from shrinking */
+	font-size: 14px; /* For emojis */
 }
 
 .abstract-folder-item-icon svg {
-    width: 100%;
-    height: 100%;
+	width: 100%;
+	height: 100%;
 }
 
 /* Folder Indicator */
 .abstract-folder-folder-indicator {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    margin-left: auto; /* Push to the right */
-    color: var(--text-muted);
-    opacity: 0.7;
-    flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	margin-left: auto; /* Push to the right */
+	color: var(--text-muted);
+	opacity: 0.7;
+	flex-shrink: 0;
 }
 
 .abstract-folder-folder-indicator svg {
-    width: 12px;
-    height: 12px;
+	width: 12px;
+	height: 12px;
 }
 
 /* Style for multi-selected item - Moved here to override hover/active states if needed */
 .abstract-folder-item-self.is-multi-selected {
-    background-color: var(--nav-item-background-active); /* Make it look like an active item */
-    color: var(--nav-item-text-color-active);
-    font-weight: var(--font-medium);
+	background-color: var(
+		--nav-item-background-active
+	); /* Make it look like an active item */
+	color: var(--nav-item-text-color-active);
+	font-weight: var(--font-medium);
 }
 
 .abstract-folder-item-self.is-multi-selected .abstract-folder-item-icon svg {
-    color: var(--nav-item-text-color-active);
+	color: var(--nav-item-text-color-active);
 }
 
 /* High specificity override to ensure column selection is always visible even with other states */
 .abstract-folder-view .abstract-folder-item-self.is-selected-in-column {
-    background-color: var(--nav-item-background-active) !important;
-    color: var(--nav-item-text-color-active) !important;
+	background-color: var(--nav-item-background-active) !important;
+	color: var(--nav-item-text-color-active) !important;
 }
 
 /* Style for file type tag */
 .abstract-folder-file-tag {
-    align-self: center;
-    background-color: rgba(0, 0, 0, 0); /* Transparent background */
-    border-radius: 4px;
-    color: var(--text-muted); /* Muted text color */
-    font-size: 9px; /* Specific font size from example */
-    font-weight: 600; /* Specific font weight from example */
-    letter-spacing: 0.45px; /* Specific letter spacing from example */
-    line-height: 13.5px; /* Specific line height from example */
-    padding: 0 4px; /* Specific padding from example */
-    text-transform: uppercase; /* Capitalize text */
-    flex-shrink: 0; /* Prevent from shrinking */
-    margin-inline-start: 8px; /* Space between the file name and the tag */
-    display: block; /* Ensure it behaves like a block for full style adherence */
+	align-self: center;
+	background-color: rgba(0, 0, 0, 0); /* Transparent background */
+	border-radius: 4px;
+	color: var(--text-muted); /* Muted text color */
+	font-size: 9px; /* Specific font size from example */
+	font-weight: 600; /* Specific font weight from example */
+	letter-spacing: 0.45px; /* Specific letter spacing from example */
+	line-height: 13.5px; /* Specific line height from example */
+	padding: 0 4px; /* Specific padding from example */
+	text-transform: uppercase; /* Capitalize text */
+	flex-shrink: 0; /* Prevent from shrinking */
+	margin-inline-start: 8px; /* Space between the file name and the tag */
+	display: block; /* Ensure it behaves like a block for full style adherence */
 }
 
-.abstract-folder-view .abstract-folder-item-self.is-selected-in-column .abstract-folder-item-icon svg {
-    color: var(--nav-item-text-color-active) !important;
+.abstract-folder-view
+	.abstract-folder-item-self.is-selected-in-column
+	.abstract-folder-item-icon
+	svg {
+	color: var(--nav-item-text-color-active) !important;
 }
 
 /* Styles for Conflict Resolution Modal */
 .abstract-folder-conflict-container {
-    max-height: 200px;
-    overflow-y: auto;
-    margin-bottom: 20px;
-    max-height: 400px; /* Moved from inline style in modals.ts */
+	max-height: 200px;
+	overflow-y: auto;
+	margin-bottom: 20px;
+	max-height: 400px; /* Moved from inline style in modals.ts */
 }
 
 .abstract-folder-conflict-item {
-    border-bottom: 1px solid var(--background-modifier-border);
-    padding: 10px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+	padding: 10px 0;
 }
 
 /* Manage Groups Modal Styles */
 .abstract-folder-setting-instruction {
-    color: var(--text-muted);
-    font-size: var(--font-ui-small);
-    margin-bottom: 16px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	margin-bottom: 16px;
 }
 
 .abstract-folder-group-item {
-    padding: 8px 12px !important;
-    margin-bottom: 8px !important;
-    border: 1px solid var(--background-modifier-border) !important;
-    border-radius: var(--radius-m) !important;
-    transition: all 0.2s ease-in-out !important;
-    cursor: pointer !important;
+	padding: 8px 12px !important;
+	margin-bottom: 8px !important;
+	border: 1px solid var(--background-modifier-border) !important;
+	border-radius: var(--radius-m) !important;
+	transition: all 0.2s ease-in-out !important;
+	cursor: pointer !important;
 }
 
 .abstract-folder-group-item:hover {
-    background-color: var(--background-modifier-hover) !important;
-    border-color: var(--background-modifier-border-hover) !important;
+	background-color: var(--background-modifier-hover) !important;
+	border-color: var(--background-modifier-border-hover) !important;
 }
 
 .abstract-folder-group-item.is-active {
-    background-color: var(--background-primary-alt) !important;
-    border: 1px solid var(--interactive-accent) !important;
-    box-shadow: 0 0 0 1px var(--interactive-accent-hover) inset;
+	background-color: var(--background-primary-alt) !important;
+	border: 1px solid var(--interactive-accent) !important;
+	box-shadow: 0 0 0 1px var(--interactive-accent-hover) inset;
 }
 
 .abstract-folder-group-item.is-active .setting-item-name {
-    color: var(--interactive-accent);
-    font-weight: var(--font-semibold);
-    display: flex;
-    align-items: center;
-    gap: 8px;
+	color: var(--interactive-accent);
+	font-weight: var(--font-semibold);
+	display: flex;
+	align-items: center;
+	gap: 8px;
 }
 
 .abstract-folder-active-dot {
-    width: 10px;
-    height: 10px;
-    background-color: var(--interactive-accent);
-    border-radius: 50%;
-    display: inline-block;
-    flex-shrink: 0;
-    margin-right: 8px;
-    box-shadow: 0 0 2px var(--interactive-accent);
+	width: 10px;
+	height: 10px;
+	background-color: var(--interactive-accent);
+	border-radius: 50%;
+	display: inline-block;
+	flex-shrink: 0;
+	margin-right: 8px;
+	box-shadow: 0 0 2px var(--interactive-accent);
 }
 
 /* Drag and Drop Visual Feedback */
 .abstract-folder-drag-over {
-    background-color: var(--background-modifier-hover) !important;
-    outline: 1px dashed var(--text-muted);
-    outline-offset: -2px;
-    border-radius: var(--radius-s);
+	background-color: var(--background-modifier-hover) !important;
+	outline: 1px dashed var(--text-muted);
+	outline-offset: -2px;
+	border-radius: var(--radius-s);
 }
 
 .abstract-folder-drag-invalid {
-    background-color: rgba(var(--color-red-rgb), 0.15) !important;
-    outline: 1px dashed var(--text-muted) !important;
-    outline-offset: -2px;
-    border-radius: var(--radius-s);
-    cursor: no-drop !important;
+	background-color: rgba(var(--color-red-rgb), 0.15) !important;
+	outline: 1px dashed var(--text-muted) !important;
+	outline-offset: -2px;
+	border-radius: var(--radius-s);
+	cursor: no-drop !important;
 }
 
 .abstract-folder-ghost-drag-image {
-    position: absolute;
-    top: -1000px;
-    background-color: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-    padding: 4px 8px;
-    border-radius: 4px;
-    color: var(--text-normal);
-    font-size: 12px;
-    z-index: -1;
+	position: absolute;
+	top: -1000px;
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	padding: 4px 8px;
+	border-radius: 4px;
+	color: var(--text-normal);
+	font-size: 12px;
+	z-index: -1;
 }
 
 .abstract-folder-virtual-item {
-    position: absolute;
-    width: 100%;
-    left: 0;
-    /* Ensure height is consistent for virtual scrolling calculations */
-    height: 24px;
+	position: absolute;
+	width: 100%;
+	left: 0;
+	/* Ensure height is consistent for virtual scrolling calculations */
+	height: 24px;
 }
 
 .abstract-folder-indent-guides {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    pointer-events: none;
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	pointer-events: none;
 }
 
 .abstract-folder-indent-guide {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 0;
-    box-sizing: content-box !important;
-    border-left: 2px solid transparent !important;
-    pointer-events: none;
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 0;
+	box-sizing: content-box !important;
+	border-left: 2px solid transparent !important;
+	pointer-events: none;
 }
 
 /* Palette colors for indent guides */
-.abstract-folder-indent-guide.classic-palette.rainbow-indent-0 { border-left-color: #61afef !important; }
-.abstract-folder-indent-guide.classic-palette.rainbow-indent-1 { border-left-color: #c678dd !important; }
-.abstract-folder-indent-guide.classic-palette.rainbow-indent-2 { border-left-color: #98c379 !important; }
-.abstract-folder-indent-guide.classic-palette.rainbow-indent-3 { border-left-color: #e6c07b !important; }
-.abstract-folder-indent-guide.classic-palette.rainbow-indent-4 { border-left-color: #e06c75 !important; }
-.abstract-folder-indent-guide.classic-palette.rainbow-indent-5 { border-left-color: #56b6c2 !important; }
-.abstract-folder-indent-guide.classic-palette.rainbow-indent-6 { border-left-color: #6a9955 !important; }
-.abstract-folder-indent-guide.classic-palette.rainbow-indent-7 { border-left-color: #d1976a !important; }
-.abstract-folder-indent-guide.classic-palette.rainbow-indent-8 { border-left-color: #9f7e69 !important; }
-.abstract-folder-indent-guide.classic-palette.rainbow-indent-9 { border-left-color: #008080 !important; }
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-0 {
+	border-left-color: #61afef !important;
+}
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-1 {
+	border-left-color: #c678dd !important;
+}
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-2 {
+	border-left-color: #98c379 !important;
+}
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-3 {
+	border-left-color: #e6c07b !important;
+}
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-4 {
+	border-left-color: #e06c75 !important;
+}
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-5 {
+	border-left-color: #56b6c2 !important;
+}
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-6 {
+	border-left-color: #6a9955 !important;
+}
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-7 {
+	border-left-color: #d1976a !important;
+}
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-8 {
+	border-left-color: #9f7e69 !important;
+}
+.abstract-folder-indent-guide.classic-palette.rainbow-indent-9 {
+	border-left-color: #008080 !important;
+}
 
-.abstract-folder-indent-guide.pastel-palette.rainbow-indent-0 { border-left-color: #a7bed3 !important; }
-.abstract-folder-indent-guide.pastel-palette.rainbow-indent-1 { border-left-color: #d1c4e9 !important; }
-.abstract-folder-indent-guide.pastel-palette.rainbow-indent-2 { border-left-color: #c8e6c9 !important; }
-.abstract-folder-indent-guide.pastel-palette.rainbow-indent-3 { border-left-color: #ffe0b2 !important; }
-.abstract-folder-indent-guide.pastel-palette.rainbow-indent-4 { border-left-color: #ffccbc !important; }
-.abstract-folder-indent-guide.pastel-palette.rainbow-indent-5 { border-left-color: #bbdefb !important; }
-.abstract-folder-indent-guide.pastel-palette.rainbow-indent-6 { border-left-color: #c5e1a5 !important; }
-.abstract-folder-indent-guide.pastel-palette.rainbow-indent-7 { border-left-color: #b39ddb !important; }
-.abstract-folder-indent-guide.pastel-palette.rainbow-indent-8 { border-left-color: #ffb74d !important; }
-.abstract-folder-indent-guide.pastel-palette.rainbow-indent-9 { border-left-color: #9fa8da !important; }
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-0 {
+	border-left-color: #a7bed3 !important;
+}
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-1 {
+	border-left-color: #d1c4e9 !important;
+}
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-2 {
+	border-left-color: #c8e6c9 !important;
+}
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-3 {
+	border-left-color: #ffe0b2 !important;
+}
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-4 {
+	border-left-color: #ffccbc !important;
+}
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-5 {
+	border-left-color: #bbdefb !important;
+}
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-6 {
+	border-left-color: #c5e1a5 !important;
+}
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-7 {
+	border-left-color: #b39ddb !important;
+}
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-8 {
+	border-left-color: #ffb74d !important;
+}
+.abstract-folder-indent-guide.pastel-palette.rainbow-indent-9 {
+	border-left-color: #9fa8da !important;
+}
 
-.abstract-folder-indent-guide.neon-palette.rainbow-indent-0 { border-left-color: #00ffff !important; }
-.abstract-folder-indent-guide.neon-palette.rainbow-indent-1 { border-left-color: #ff00ff !important; }
-.abstract-folder-indent-guide.neon-palette.rainbow-indent-2 { border-left-color: #00ff00 !important; }
-.abstract-folder-indent-guide.neon-palette.rainbow-indent-3 { border-left-color: #ffff00 !important; }
-.abstract-folder-indent-guide.neon-palette.rainbow-indent-4 { border-left-color: #ff0000 !important; }
-.abstract-folder-indent-guide.neon-palette.rainbow-indent-5 { border-left-color: #0000ff !important; }
-.abstract-folder-indent-guide.neon-palette.rainbow-indent-6 { border-left-color: #a020f0 !important; }
-.abstract-folder-indent-guide.neon-palette.rainbow-indent-7 { border-left-color: #ff69b4 !important; }
-.abstract-folder-indent-guide.neon-palette.rainbow-indent-8 { border-left-color: #ffd700 !important; }
-.abstract-folder-indent-guide.neon-palette.rainbow-indent-9 { border-left-color: #4b0082 !important; }
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-0 {
+	border-left-color: #00ffff !important;
+}
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-1 {
+	border-left-color: #ff00ff !important;
+}
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-2 {
+	border-left-color: #00ff00 !important;
+}
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-3 {
+	border-left-color: #ffff00 !important;
+}
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-4 {
+	border-left-color: #ff0000 !important;
+}
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-5 {
+	border-left-color: #0000ff !important;
+}
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-6 {
+	border-left-color: #a020f0 !important;
+}
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-7 {
+	border-left-color: #ff69b4 !important;
+}
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-8 {
+	border-left-color: #ffd700 !important;
+}
+.abstract-folder-indent-guide.neon-palette.rainbow-indent-9 {
+	border-left-color: #4b0082 !important;
+}

@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { ItemView, WorkspaceLeaf, setIcon, TFile } from "obsidian";
 import { FolderIndexer } from "../../indexer";
 import { MetricsManager } from "../../metrics-manager";
 import { FolderNode, HIDDEN_FOLDER_ID, Group } from "../../types";
@@ -14,6 +14,8 @@ import { AbstractFolderViewToolbar } from "../toolbar/abstract-folder-view-toolb
 import { FileRevealManager } from "../../file-reveal-manager";
 import { DragManager } from "../dnd/drag-manager";
 import { VirtualTreeManager } from "./virtual-tree-manager";
+import { AncestryEngine } from "../../utils/ancestry";
+import { PathSuggest } from "../path-suggest";
 
 export const VIEW_TYPE_ABSTRACT_FOLDER = "abstract-folder-view";
 
@@ -39,6 +41,10 @@ export class AbstractFolderView extends ItemView {
 
   private virtualContainer: HTMLElement | null = null;
   private virtualSpacer: HTMLElement | null = null;
+  
+  private searchHeaderEl: HTMLElement | null = null;
+  private searchInputEl: HTMLInputElement | null = null;
+  private isSearchVisible = true;
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -93,6 +99,7 @@ export class AbstractFolderView extends ItemView {
     this.toolbar = new AbstractFolderViewToolbar(
        this.app, this.settings, this.plugin, this.viewState, toolbarEl,
        () => { this.renderView(); }, () => { void this.expandAll(); }, () => { void this.collapseAll(); },
+       () => {} // Callback for search toggle (deprecated but kept for compat)
     );
 
     const virtualWrapper = this.contentEl.createDiv({ cls: "abstract-folder-virtual-wrapper" });
@@ -189,6 +196,7 @@ export class AbstractFolderView extends ItemView {
         this.dragManager.handleDrop(e, null).catch(console.error);
     });
 
+    // Content scroll event is now secondary to virtual wrapper scroll
     this.contentEl.addEventListener("scroll", () => {
         if (this.settings.viewStyle === 'tree') {
             window.requestAnimationFrame(() => this.virtualTreeManager.updateRender());
@@ -201,6 +209,16 @@ export class AbstractFolderView extends ItemView {
         }
     });
     this.resizeObserver.observe(this.contentEl);
+
+    // Watch for scroll events on the virtual wrapper
+    const virtualWrapper = this.contentEl.querySelector(".abstract-folder-virtual-wrapper");
+    if (virtualWrapper) {
+        virtualWrapper.addEventListener("scroll", () => {
+            if (this.settings.viewStyle === 'tree') {
+                window.requestAnimationFrame(() => this.virtualTreeManager.updateRender());
+            }
+        });
+    }
   }
 
   public onClose = async () => {
@@ -224,6 +242,8 @@ export class AbstractFolderView extends ItemView {
     children.forEach(child => {
         if (!child.hasClass("abstract-folder-virtual-wrapper") &&
             !child.hasClass("abstract-folder-header-title") &&
+            !child.hasClass("abstract-folder-search-header") &&
+            !child.hasClass("abstract-folder-header-wrapper") &&
             !child.hasClass("abstract-folder-toolbar-container")) {
             child.remove();
         }
@@ -231,6 +251,7 @@ export class AbstractFolderView extends ItemView {
 
     this.ensureVirtualContainers();
     this.renderHeader();
+    this.renderSearchHeader();
 
     if (this.isLoading && this.indexer.getGraph().allFiles.size === 0) {
         this.hideVirtualContainers();
@@ -269,8 +290,74 @@ export class AbstractFolderView extends ItemView {
     }
   }
 
+  private renderSearchHeader() {
+    let searchHeader = this.contentEl.querySelector(".abstract-folder-search-header") as HTMLElement;
+    
+    if (this.settings.viewStyle !== 'tree') {
+        if (searchHeader) searchHeader.remove();
+        this.searchHeaderEl = null;
+        this.searchInputEl = null;
+        return;
+    }
+
+    if (!searchHeader) {
+        searchHeader = document.createElement("div");
+        searchHeader.addClass("abstract-folder-search-header");
+        
+        // Ensure proper order for sticky positioning: Toolbar -> Group Title -> Search
+        const toolbarContainer = this.contentEl.querySelector(".abstract-folder-toolbar-container");
+        const headerTitle = this.contentEl.querySelector(".abstract-folder-header-title");
+        
+        if (headerTitle) headerTitle.after(searchHeader);
+        else if (toolbarContainer) toolbarContainer.after(searchHeader);
+        else this.contentEl.prepend(searchHeader);
+
+        const searchContainer = searchHeader.createDiv({ cls: "ancestry-search-container" });
+        const searchIconEl = searchContainer.createDiv({ cls: "ancestry-search-icon" });
+        setIcon(searchIconEl, "search");
+
+        this.searchInputEl = searchContainer.createEl("input", {
+            type: "text",
+            placeholder: "Search file context...",
+            cls: "ancestry-search-input"
+        });
+
+        new PathSuggest(this.app, this.searchInputEl);
+
+        this.searchInputEl.addEventListener("input", () => {
+            this.renderView();
+            // @ts-ignore
+            this.searchInputEl?.focus();
+        });
+        
+        // Add specific class for targeting the suggestion container
+        if (this.searchInputEl) {
+             // We can't access the suggest container directly from here easily as it's created by AbstractInputSuggest
+             // internally and appended to document.body.
+             // However, PathSuggest can be modified to add a specific class to its container or we rely on CSS
+             // that targets the suggestion container relative to the focused input if possible, 
+             // but Obsidian's suggestion container is usually absolutely positioned at body level.
+             
+             // The workaround is that PathSuggest implementation now exposes a way to add class or we handle it in PathSuggest itself.
+             // Since we modified PathSuggest to add 'abstract-folder-suggestion-container', we can now style it in global styles.
+        }
+        
+        this.searchHeaderEl = searchHeader;
+    } else {
+        this.searchHeaderEl = searchHeader;
+        this.searchInputEl = searchHeader.querySelector(".ancestry-search-input") as HTMLInputElement;
+        
+        // Re-inject PathSuggest if it's not active (though PathSuggest usually stays)
+        // But importantly, ensure it's after any existing title
+        const headerTitle = this.contentEl.querySelector(".abstract-folder-header-title");
+        if (headerTitle && headerTitle.nextSibling !== searchHeader) {
+            headerTitle.after(searchHeader);
+        }
+    }
+  }
+
   private renderHeader() {
-    let headerEl = this.contentEl.querySelector(".abstract-folder-header-title");
+    let headerEl = this.contentEl.querySelector(".abstract-folder-header-title") as HTMLElement;
     const activeGroup = this.settings.activeGroupId
         ? this.settings.groups.find(group => group.id === this.settings.activeGroupId)
         : null;
@@ -328,7 +415,28 @@ export class AbstractFolderView extends ItemView {
   }
 
   private renderVirtualTreeView = () => {
-    this.virtualTreeManager.generateItems();
+    if (this.settings.viewStyle === 'tree' && this.searchInputEl && this.searchInputEl.value.trim().length > 0) {
+        const query = this.searchInputEl.value.trim();
+        const file = this.app.vault.getAbstractFileByPath(query);
+        if (file instanceof TFile) {
+            const allowedPaths = new AncestryEngine(this.indexer).getAncestryNodePaths(file.path);
+            
+            const originalExpanded = [...this.settings.expandedFolders];
+            allowedPaths.forEach(p => {
+                if (!this.settings.expandedFolders.includes(p)) {
+                    this.settings.expandedFolders.push(p);
+                }
+            });
+            
+            this.virtualTreeManager.generateItems(allowedPaths);
+            
+            this.settings.expandedFolders = originalExpanded;
+        } else {
+            this.virtualTreeManager.generateItems();
+        }
+    } else {
+        this.virtualTreeManager.generateItems();
+    }
 
     if (this.virtualTreeManager.getFlatItems().length === 0) {
         this.hideVirtualContainers();
@@ -436,6 +544,17 @@ export class AbstractFolderView extends ItemView {
     
     if (this.settings.rememberExpanded) await this.plugin.saveSettings();
     this.renderView();
+  }
+
+  private toggleSearch() {
+    this.isSearchVisible = !this.isSearchVisible;
+    if (!this.isSearchVisible && this.searchInputEl) {
+        this.searchInputEl.value = "";
+    }
+    this.renderView();
+    if (this.isSearchVisible && this.searchInputEl) {
+        this.searchInputEl.focus();
+    }
   }
 
   private getDisplayName = (node: FolderNode): string => {

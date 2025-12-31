@@ -32,7 +32,7 @@ export class VirtualTreeManager {
         if (this.virtualContainer) this.virtualContainer.empty();
     }
 
-    public generateItems(): void {
+    public generateItems(allowedPaths?: Set<string>): void {
         const activeGroup = this.settings.activeGroupId
             ? this.settings.groups.find(group => group.id === this.settings.activeGroupId)
             : undefined;
@@ -48,6 +48,10 @@ export class VirtualTreeManager {
             this.viewState.excludeExtensions
         );
 
+        if (allowedPaths) {
+            this.flatItems = this.flatItems.filter(item => allowedPaths.has(item.node.path));
+        }
+
         if (this.virtualSpacer) {
             this.virtualSpacer.style.setProperty('height', `${this.flatItems.length * this.ITEM_HEIGHT}px`);
         }
@@ -56,17 +60,19 @@ export class VirtualTreeManager {
     public updateRender(): void {
         if (!this.virtualContainer || !this.containerEl) return;
 
-        const scrollTop = this.containerEl.scrollTop;
-        const clientHeight = this.containerEl.clientHeight || window.innerHeight;
-        
-        const headerEl = this.containerEl.querySelector(".abstract-folder-header-title") as HTMLElement;
-        const headerHeight = headerEl ? headerEl.offsetHeight + (parseInt(getComputedStyle(headerEl).marginTop) || 0) + (parseInt(getComputedStyle(headerEl).marginBottom) || 0) : 0;
+        // Use the virtual wrapper (scroll container) for calculations, not the main contentEl which is now flexible
+        const scrollContainer = this.containerEl.querySelector('.abstract-folder-virtual-wrapper') as HTMLElement;
+        if (!scrollContainer) return;
 
-        const effectiveScrollTop = Math.max(0, scrollTop - headerHeight);
+        const scrollTop = scrollContainer.scrollTop;
+        const clientHeight = scrollContainer.clientHeight;
+        
+        // Header height calculation is no longer relevant for the virtual scrolling offset since headers are outside the scroll container
+        // But we keep the logic simple: index * ITEM_HEIGHT maps directly to scroll position within the wrapper
         
         const bufferItems = 5;
-        const startIndex = Math.max(0, Math.floor(effectiveScrollTop / this.ITEM_HEIGHT) - bufferItems);
-        const endIndex = Math.min(this.flatItems.length, Math.ceil((effectiveScrollTop + clientHeight) / this.ITEM_HEIGHT) + bufferItems);
+        const startIndex = Math.max(0, Math.floor(scrollTop / this.ITEM_HEIGHT) - bufferItems);
+        const endIndex = Math.min(this.flatItems.length, Math.ceil((scrollTop + clientHeight) / this.ITEM_HEIGHT) + bufferItems);
 
         const keysToRemove: number[] = [];
         for (const index of this.renderedItems.keys()) {
