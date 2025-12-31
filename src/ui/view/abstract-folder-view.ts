@@ -405,11 +405,11 @@ export class AbstractFolderView extends ItemView {
         searchHeader = document.createElement("div");
         searchHeader.addClass("abstract-folder-search-header");
         
-        // Ensure proper order for sticky positioning: Toolbar -> Group Title -> Search
+        // Ensure proper order for sticky positioning: Toolbar -> Search -> Group Title
         const toolbarContainer = this.contentEl.querySelector(".abstract-folder-toolbar-container");
         const headerTitle = this.contentEl.querySelector(".abstract-folder-header-title");
         
-        if (headerTitle) headerTitle.after(searchHeader);
+        if (headerTitle) headerTitle.before(searchHeader);
         else if (toolbarContainer) toolbarContainer.after(searchHeader);
         else this.contentEl.prepend(searchHeader);
 
@@ -503,10 +503,10 @@ export class AbstractFolderView extends ItemView {
         this.searchInputEl = searchHeader.querySelector(".ancestry-search-input") as HTMLInputElement;
         
         // Re-inject PathSuggest if it's not active (though PathSuggest usually stays)
-        // But importantly, ensure it's after any existing title
+        // But importantly, ensure it's before any existing title
         const headerTitle = this.contentEl.querySelector(".abstract-folder-header-title");
-        if (headerTitle && headerTitle.nextSibling !== searchHeader) {
-            headerTitle.after(searchHeader);
+        if (headerTitle && headerTitle.previousSibling !== searchHeader) {
+            headerTitle.before(searchHeader);
         }
     }
   }
@@ -523,8 +523,11 @@ export class AbstractFolderView extends ItemView {
             headerEl = document.createElement("div");
             headerEl.textContent = headerText;
             headerEl.addClass("abstract-folder-header-title");
+            const searchHeader = this.contentEl.querySelector(".abstract-folder-search-header");
             const toolbarContainer = this.contentEl.querySelector(".abstract-folder-toolbar-container");
-            if (toolbarContainer) toolbarContainer.after(headerEl);
+            
+            if (searchHeader) searchHeader.after(headerEl);
+            else if (toolbarContainer) toolbarContainer.after(headerEl);
             else this.contentEl.prepend(headerEl);
         } else {
              headerEl.textContent = headerText;

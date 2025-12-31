@@ -45,10 +45,10 @@
 }
 
 .abstract-folder-header-title {
-	position: sticky;
-	top: 32px; /* Height of toolbar */
+	/* position: sticky; */ /* Removed sticky to flow normally in document */
+	/* top: 32px; */ /* Removed top */
 	background-color: var(--background-secondary);
-	z-index: 9;
+	/* z-index: 9; */
 	padding: 8px 16px;
 	margin: 0;
 	border-bottom: 1px solid var(--divider-color);
@@ -59,7 +59,7 @@
     display: none; /* Hide by default if empty */
     /* Other properties merged */
 	padding: 0 0 6px 0; /* Removed top padding */
-	margin-bottom: 12px; /* Increased margin below title */
+	margin-bottom: 8px; /* Reduced margin below title */
 	position: relative; /* For the pseudo-element line */
 }
 
@@ -90,9 +90,6 @@
 }
 
 /* If title is present, push search header down */
-.abstract-folder-header-title:not(:empty) ~ .abstract-folder-search-header {
-    top: 64px; /* Toolbar + Title height */
-}
 
 .ancestry-search-container {
 	display: flex;

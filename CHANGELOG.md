@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 1.10.3
+
+**Fixes:**
+*   **UI Layout**: Fixed an issue where the group title would appear above the search bar, obscuring the view. The layout is now correctly ordered (Search -> Group Title) and the title flows naturally in the document.
+*   **Code Cleanup**: Removed unused variables in file operation utilities.
+
 ## Version 1.10.2
 
 - **Refactor**: Relationship resolution now uses Obsidian's native `frontmatterLinks` API.

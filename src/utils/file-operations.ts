@@ -17,7 +17,6 @@ import { HIDDEN_FOLDER_ID } from "../types";
 export async function updateAbstractLinksOnRename(app: App, settings: AbstractFolderPluginSettings, indexer: FolderIndexer, file: TFile, oldPath: string) {
     const oldName = oldPath.split('/').pop() || oldPath;
     const oldBasename = oldName.endsWith('.md') ? oldName.slice(0, -3) : oldName;
-    const oldPathNoExt = oldPath.endsWith('.md') ? oldPath.slice(0, -3) : oldPath;
     
     const graph = indexer.getGraph();
     const parentsOfRenamed = graph.childToParents.get(oldPath);
