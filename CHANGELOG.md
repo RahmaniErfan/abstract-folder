@@ -1,5 +1,23 @@
 # Changelog
 
+## Version 1.10.0
+
+**Features:**
+*   **Fuzzy Search**: Implemented fuzzy search functionality with typo tolerance using Obsidian's native `prepareFuzzySearch`.
+    *   **Relevance Scoring**: Search results are now ranked by relevance score, prioritizing better matches.
+    *   **Parent Resolution**: Added a fallback mechanism to correctly identify and display parent context for non-markdown files (e.g., images, PDFs) that are declared as children in parent notes but cannot define their own parents via frontmatter.
+
+**Fixes:**
+*   **Search**: Fixed an issue where search results within collapsed folders were hidden. The view now temporarily expands the necessary ancestry to reveal matches.
+*   **Search UI**:
+    *   Prevented search suggestions from appearing when the input field is empty.
+    *   Ensured the "clear" button correctly resets the view state.
+    *   Added context toggles (parents/children) to the search bar for better control over results.
+    *   Prioritized exact matches in search results.
+
+**Code Quality & Architecture:**
+*   **CSS Modules**: Refactored the monolithic `styles.css` into modular files within `src/styles/*.css` for improved maintainability. The build pipeline now automatically bundles these into a single `styles.css` artifact.
+
 ## Version 1.9.2
 
 **Features:**
