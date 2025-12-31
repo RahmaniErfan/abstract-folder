@@ -25,7 +25,11 @@ export class PathSuggest extends AbstractInputSuggest<string> {
 
     selectSuggestion(value: string, evt: MouseEvent | KeyboardEvent): void {
         this.inputEl.value = value;
-        this.inputEl.trigger("input");
+        // Trigger both standard and obsidian-specific input events
+        this.inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+        this.inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+        // @ts-ignore
+        if (this.inputEl.trigger) this.inputEl.trigger("input");
         this.close();
     }
 }

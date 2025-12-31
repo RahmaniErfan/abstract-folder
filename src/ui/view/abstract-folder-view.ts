@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { ItemView, WorkspaceLeaf, setIcon, TFile } from "obsidian";
 import { FolderIndexer } from "../../indexer";
 import { MetricsManager } from "../../metrics-manager";
 import { FolderNode, HIDDEN_FOLDER_ID, Group } from "../../types";
@@ -14,6 +14,8 @@ import { AbstractFolderViewToolbar } from "../toolbar/abstract-folder-view-toolb
 import { FileRevealManager } from "../../file-reveal-manager";
 import { DragManager } from "../dnd/drag-manager";
 import { VirtualTreeManager } from "./virtual-tree-manager";
+import { AncestryEngine } from "../../utils/ancestry";
+import { PathSuggest } from "../path-suggest";
 
 export const VIEW_TYPE_ABSTRACT_FOLDER = "abstract-folder-view";
 
@@ -39,6 +41,10 @@ export class AbstractFolderView extends ItemView {
 
   private virtualContainer: HTMLElement | null = null;
   private virtualSpacer: HTMLElement | null = null;
+  
+  private searchHeaderEl: HTMLElement | null = null;
+  private searchInputEl: HTMLInputElement | null = null;
+  private isSearchVisible = false;
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -93,6 +99,7 @@ export class AbstractFolderView extends ItemView {
     this.toolbar = new AbstractFolderViewToolbar(
        this.app, this.settings, this.plugin, this.viewState, toolbarEl,
        () => { this.renderView(); }, () => { void this.expandAll(); }, () => { void this.collapseAll(); },
+       () => this.toggleSearch()
     );
 
     const virtualWrapper = this.contentEl.createDiv({ cls: "abstract-folder-virtual-wrapper" });
@@ -224,6 +231,7 @@ export class AbstractFolderView extends ItemView {
     children.forEach(child => {
         if (!child.hasClass("abstract-folder-virtual-wrapper") &&
             !child.hasClass("abstract-folder-header-title") &&
+            !child.hasClass("abstract-folder-search-header") &&
             !child.hasClass("abstract-folder-toolbar-container")) {
             child.remove();
         }
@@ -231,6 +239,7 @@ export class AbstractFolderView extends ItemView {
 
     this.ensureVirtualContainers();
     this.renderHeader();
+    this.renderSearchHeader();
 
     if (this.isLoading && this.indexer.getGraph().allFiles.size === 0) {
         this.hideVirtualContainers();
@@ -266,6 +275,52 @@ export class AbstractFolderView extends ItemView {
     } else {
         this.virtualSpacer = virtualWrapper.querySelector(".abstract-folder-virtual-spacer");
         this.virtualContainer = virtualWrapper.querySelector(".abstract-folder-virtual-container");
+    }
+  }
+
+  private renderSearchHeader() {
+    let searchHeader = this.contentEl.querySelector(".abstract-folder-search-header") as HTMLElement;
+    
+    if (!this.isSearchVisible) {
+        if (searchHeader) searchHeader.remove();
+        this.searchHeaderEl = null;
+        this.searchInputEl = null;
+        return;
+    }
+
+    if (!searchHeader) {
+        searchHeader = document.createElement("div");
+        searchHeader.addClass("abstract-folder-search-header");
+        
+        const toolbarContainer = this.contentEl.querySelector(".abstract-folder-toolbar-container");
+        if (toolbarContainer) toolbarContainer.after(searchHeader);
+        else this.contentEl.prepend(searchHeader);
+
+        const searchContainer = searchHeader.createDiv({ cls: "ancestry-search-container" });
+        const searchIconEl = searchContainer.createDiv({ cls: "ancestry-search-icon" });
+        setIcon(searchIconEl, "search");
+
+        this.searchInputEl = searchContainer.createEl("input", {
+            type: "text",
+            placeholder: "Search file context...",
+            cls: "ancestry-search-input"
+        });
+
+        new PathSuggest(this.app, this.searchInputEl);
+
+        this.searchInputEl.addEventListener("input", () => {
+            this.renderView();
+            
+            // Re-focus the input because renderView might cause a loss of focus 
+            // even if we didn't remove the element, due to parent DOM manipulation 
+            // or other Obsidian UI side effects.
+            this.searchInputEl?.focus();
+        });
+        
+        this.searchHeaderEl = searchHeader;
+    } else {
+        this.searchHeaderEl = searchHeader;
+        this.searchInputEl = searchHeader.querySelector(".ancestry-search-input") as HTMLInputElement;
     }
   }
 
@@ -328,7 +383,64 @@ export class AbstractFolderView extends ItemView {
   }
 
   private renderVirtualTreeView = () => {
-    this.virtualTreeManager.generateItems();
+    if (this.isSearchVisible && this.searchInputEl && this.searchInputEl.value.trim().length > 0) {
+        const query = this.searchInputEl.value.trim();
+        const file = this.app.vault.getAbstractFileByPath(query);
+
+        if (file instanceof TFile) {
+            // Get ancestry paths
+            const allowedPaths = new Set<string>();
+            const engine = new AncestryEngine(this.indexer);
+            const data = engine.getAncestryGraphData(file.path);
+            
+            // @ts-ignore
+            data.nodes.forEach((n) => {
+                const fullPath = n.data.fullPath;
+                if (fullPath) allowedPaths.add(fullPath);
+            });
+
+            // IMPORTANT: If we are in tree view and searching, we must ensure ancestors are expanded 
+            // otherwise virtual flat list won't show them correctly if generateFlatItemsFromGraph 
+            // checks expansion state. 
+            // However, for "Ancestry Filter" UX, we want to show the full paths regardless of manual expansion
+            const originalExpanded = new Set(this.settings.expandedFolders);
+            allowedPaths.forEach(p => this.settings.expandedFolders.push(p));
+            
+            this.virtualTreeManager.generateItems(allowedPaths);
+            
+            // Restore
+            this.settings.expandedFolders = Array.from(originalExpanded);
+        } else {
+            // Fallback to simple substring search if not a direct path match
+            const allowedPaths = new Set<string>();
+            const lowerQuery = query.toLowerCase();
+            const graph = this.indexer.getGraph();
+            
+            // Find all files matching the name
+            const matchingFiles = Array.from(graph.allFiles).filter(f => f.toLowerCase().includes(lowerQuery));
+            
+            if (matchingFiles.length > 0) {
+                const engine = new AncestryEngine(this.indexer);
+                for (const match of matchingFiles) {
+                    const data = engine.getAncestryGraphData(match);
+                    // @ts-ignore
+                    data.nodes.forEach((n) => {
+                        const fullPath = n.data.fullPath;
+                        if (fullPath) allowedPaths.add(fullPath);
+                    });
+                }
+                
+                const originalExpanded = new Set(this.settings.expandedFolders);
+                allowedPaths.forEach(p => this.settings.expandedFolders.push(p));
+                this.virtualTreeManager.generateItems(allowedPaths);
+                this.settings.expandedFolders = Array.from(originalExpanded);
+            } else {
+                this.virtualTreeManager.generateItems(new Set()); // Empty result
+            }
+        }
+    } else {
+        this.virtualTreeManager.generateItems();
+    }
 
     if (this.virtualTreeManager.getFlatItems().length === 0) {
         this.hideVirtualContainers();
@@ -436,6 +548,17 @@ export class AbstractFolderView extends ItemView {
     
     if (this.settings.rememberExpanded) await this.plugin.saveSettings();
     this.renderView();
+  }
+
+  private toggleSearch() {
+    this.isSearchVisible = !this.isSearchVisible;
+    if (!this.isSearchVisible && this.searchInputEl) {
+        this.searchInputEl.value = "";
+    }
+    this.renderView();
+    if (this.isSearchVisible && this.searchInputEl) {
+        this.searchInputEl.focus();
+    }
   }
 
   private getDisplayName = (node: FolderNode): string => {

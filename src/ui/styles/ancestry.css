@@ -14,6 +14,13 @@
     flex-shrink: 0;
 }
 
+.abstract-folder-search-header {
+    background-color: var(--background-primary);
+    padding: 4px 12px 8px 12px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    flex-shrink: 0;
+}
+
 .ancestry-search-container {
     display: flex;
     align-items: center;

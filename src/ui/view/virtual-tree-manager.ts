@@ -32,7 +32,7 @@ export class VirtualTreeManager {
         if (this.virtualContainer) this.virtualContainer.empty();
     }
 
-    public generateItems(): void {
+    public generateItems(allowedPaths?: Set<string>): void {
         const activeGroup = this.settings.activeGroupId
             ? this.settings.groups.find(group => group.id === this.settings.activeGroupId)
             : undefined;
@@ -47,6 +47,11 @@ export class VirtualTreeManager {
             activeGroup,
             this.viewState.excludeExtensions
         );
+
+        // Apply Filter if provided
+        if (allowedPaths) {
+            this.flatItems = this.flatItems.filter(item => allowedPaths.has(item.node.path));
+        }
 
         if (this.virtualSpacer) {
             this.virtualSpacer.style.setProperty('height', `${this.flatItems.length * this.ITEM_HEIGHT}px`);
