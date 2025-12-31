@@ -45,6 +45,27 @@ export class TreeRenderer {
         this.dragManager = dragManager;
     }
 
+    public setHighlightedPath(path: string | null) {
+        // Find existing highlighted elements and remove the class
+        const existing = this.plugin.app.workspace.containerEl.querySelectorAll('.abstract-folder-item-self.is-search-match');
+        existing.forEach(el => el.removeClass('is-search-match'));
+
+        if (path) {
+            // In non-virtual mode, we might need to find the element in the DOM
+            // This is a bit tricky since we don't have a direct map of path -> element here easily available globally
+            // But we can query for it if we added data-path to the item
+            const itemEl = this.plugin.app.workspace.containerEl.querySelector(`.abstract-folder-item[data-path="${path}"] .abstract-folder-item-self`);
+            if (itemEl) {
+                itemEl.addClass('is-search-match');
+                
+                // Auto-remove the highlight after a timeout (e.g., 2 seconds)
+                setTimeout(() => {
+                    itemEl.removeClass('is-search-match');
+                }, 2000);
+            }
+        }
+    }
+
     renderTreeNode(node: FolderNode, parentEl: HTMLElement, ancestors: Set<string>, depth: number, parentPath: string | null) {
         const activeFile = this.app.workspace.getActiveFile();
         // Only prevent rendering for folder loops, not for files that can appear in multiple abstract folders.

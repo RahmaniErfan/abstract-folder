@@ -71,6 +71,7 @@ export function generateFlatItemsFromGraph(
     }
     
     function traverse(node: FolderNode, depth: number, parentPath: string | null) {
+        // console.log("Traversing node:", node.path, "Depth:", depth, "Parent:", parentPath);
         flatItems.push({ node, depth, parentPath });
         
         // Lazy Recursion: Only if expanded
@@ -79,6 +80,9 @@ export function generateFlatItemsFromGraph(
             if (childrenPaths && childrenPaths.size > 0) {
                 const childNodes: FolderNode[] = [];
                 for (const childPath of childrenPaths) {
+                     // Check to avoid cycles if needed, though graph should handle it
+                     if (childPath === node.path) continue; // Basic cycle prevention
+
                      const childNode = createFolderNode(app, childPath, graph);
                      if (childNode) {
                         if (childNode.file && excludeExtensions.includes(childNode.file.extension.toLowerCase())) {

@@ -573,10 +573,18 @@ export class AbstractFolderView extends ItemView {
     if (statsEl) statsEl.textContent = `${this.conversionStatus.processed} / ${this.conversionStatus.total} operations`;
   }
 
-  private renderVirtualTreeView = () => {
+    private renderVirtualTreeView = () => {
     if (this.settings.viewStyle === 'tree' && this.searchInputEl && this.searchInputEl.value.trim().length > 0) {
         const query = this.searchInputEl.value.trim();
         const file = this.app.vault.getAbstractFileByPath(query);
+        
+        // Add searching class to container
+        this.contentEl.addClass("abstract-folder-is-searching");
+
+        // Clear any previous highlighting first
+        this.virtualTreeManager.setHighlightedPath(null);
+        this.treeRenderer.setHighlightedPath(null);
+
         if (file instanceof TFile) {
             // Start with just the file itself if we aren't showing parents
             let allowedPaths = new Set<string>();
@@ -603,12 +611,20 @@ export class AbstractFolderView extends ItemView {
                  }
              }
             
+            // Set the highlighted path for the result
+            this.virtualTreeManager.setHighlightedPath(file.path);
+            this.treeRenderer.setHighlightedPath(file.path);
+
             // We pass forceExpand to generateItems so it can generate items even if they are currently collapsed
             this.virtualTreeManager.generateItems(allowedPaths, forceExpand);
         } else {
              this.virtualTreeManager.generateItems();
         }
     } else {
+        // Normal render
+        this.contentEl.removeClass("abstract-folder-is-searching");
+        this.virtualTreeManager.setHighlightedPath(null);
+        this.treeRenderer.setHighlightedPath(null);
         this.virtualTreeManager.generateItems();
     }
 

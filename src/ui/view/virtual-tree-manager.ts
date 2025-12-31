@@ -10,6 +10,7 @@ export class VirtualTreeManager {
     private flatItems: FlatItem[] = [];
     private renderedItems: Map<number, HTMLElement> = new Map();
     private readonly ITEM_HEIGHT = 24;
+    private highlightedPath: string | null = null;
 
     constructor(
         private app: App,
@@ -22,6 +23,24 @@ export class VirtualTreeManager {
         private virtualContainer: HTMLElement | null,
         private sortNodes: (a: FolderNode, b: FolderNode) => number
     ) {}
+
+    public setHighlightedPath(path: string | null): void {
+        this.highlightedPath = path;
+        
+        if (path) {
+            // Force an update to render the highlight immediately
+            this.updateActiveFileHighlight();
+            
+            // Auto-remove the highlight state in manager after a timeout too, 
+            // so if re-rendered it doesn't re-appear
+            setTimeout(() => {
+                if (this.highlightedPath === path) {
+                    this.highlightedPath = null;
+                    this.updateActiveFileHighlight();
+                }
+            }, 2000);
+        }
+    }
 
     public getFlatItems(): FlatItem[] {
         return this.flatItems;
@@ -63,7 +82,7 @@ export class VirtualTreeManager {
                 }
             }
         }
-
+        
         if (this.virtualSpacer) {
             this.virtualSpacer.style.setProperty('height', `${this.flatItems.length * this.ITEM_HEIGHT}px`);
         }
@@ -89,6 +108,12 @@ export class VirtualTreeManager {
                     selfEl.addClass('is-multi-selected');
                 } else {
                     selfEl.removeClass('is-multi-selected');
+                }
+
+                if (this.highlightedPath && item.node.path === this.highlightedPath) {
+                    selfEl.addClass('is-search-match');
+                } else {
+                    selfEl.removeClass('is-search-match');
                 }
             }
         });
@@ -146,9 +171,21 @@ export class VirtualTreeManager {
                     this.renderedItems.set(i, el);
                 }
             } else {
-                // Update existing element state
+                // Update existing element position
                 el.style.setProperty('top', `${i * this.ITEM_HEIGHT}px`);
                 
+                 // Update Collapsed State
+                if (item.node.isFolder) {
+                    if (this.settings.expandedFolders.includes(item.node.path)) {
+                        el.removeClass("is-collapsed");
+                    } else {
+                        el.addClass("is-collapsed");
+                    }
+                }
+            }
+            
+            // Update dynamic state for ALL elements (new and existing)
+            if (el) {
                 const selfEl = el.querySelector('.abstract-folder-item-self');
                 if (selfEl) {
                     // Update Active State
@@ -164,17 +201,15 @@ export class VirtualTreeManager {
                     } else {
                         selfEl.removeClass('is-multi-selected');
                     }
-                }
 
-                // Update Collapsed State
-                if (item.node.isFolder) {
-                    if (this.settings.expandedFolders.includes(item.node.path)) {
-                        el.removeClass("is-collapsed");
+                    // Update Search Highlight State
+                    if (this.highlightedPath && item.node.path === this.highlightedPath) {
+                        selfEl.addClass('is-search-match');
                     } else {
-                        el.addClass("is-collapsed");
+                        selfEl.removeClass('is-search-match');
                     }
                 }
             }
         }
+        }
     }
-}

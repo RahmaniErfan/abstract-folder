@@ -78,3 +78,39 @@
 	margin-left: 20px;
 	border-radius: 4px;
 }
+
+/* Highlighted search result using pseudo-element for independent animation */
+@keyframes abstract-folder-highlight-fade {
+    0% { opacity: 0; }
+    10% { opacity: 0.4; }
+    70% { opacity: 0.4; }
+    100% { opacity: 0; }
+}
+
+.abstract-folder-item-self {
+    position: relative;
+}
+
+.abstract-folder-item-self.is-search-match::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    background-color: var(--text-highlight-bg);
+    animation: abstract-folder-highlight-fade 2s ease-out forwards;
+    border-radius: var(--radius-s);
+}
+
+.theme-dark .abstract-folder-item-self.is-search-match::after {
+    background-color: var(--text-highlight-bg, rgba(139, 69, 19, 1));
+}
+
+.theme-light .abstract-folder-item-self.is-search-match::after {
+    background-color: var(--text-highlight-bg, rgba(210, 180, 140, 1));
+}
+
+/* Disable collapse/expand arrow when searching */
+.abstract-folder-is-searching .abstract-folder-collapse-icon {
+    pointer-events: none;
+    opacity: 0.3;
+}

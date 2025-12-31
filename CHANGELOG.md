@@ -1,5 +1,14 @@
 # Changelog
 
+## Version 1.10.5
+
+**Features:**
+*   **Search Result Highlighting**: Search results are now temporarily highlighted to make them easier to spot. The highlight fades out smoothly after a few seconds.
+
+**Fixes:**
+*   **Search Interactions**: Disabled folder collapse/expand interactions during search to prevent view instability.
+*   **Visual Polish**: Fixed minor visual issues with indent guides and duplicate entries in search mode.
+
 ## Version 1.10.4
 
 **Fixes:**
