@@ -4,6 +4,8 @@ import { ViewState } from "./ui/view-state";
 import { ColumnRenderer } from "./ui/column/column-renderer";
 import { FolderIndexer } from "./indexer";
 import AbstractFolderPlugin from "../main";
+import { VirtualTreeManager } from "./ui/view/virtual-tree-manager";
+import { AncestryEngine } from "./utils/ancestry";
 
 export class FileRevealManager {
     private app: App;
@@ -14,6 +16,7 @@ export class FileRevealManager {
     private columnRenderer: ColumnRenderer;
     private renderView: () => void;
     private plugin: AbstractFolderPlugin;
+    private virtualTreeManager: VirtualTreeManager;
 
     constructor(
         app: App,
@@ -23,7 +26,8 @@ export class FileRevealManager {
         indexer: FolderIndexer,
         columnRenderer: ColumnRenderer,
         renderViewCallback: () => void,
-        plugin: AbstractFolderPlugin
+        plugin: AbstractFolderPlugin,
+        virtualTreeManager: VirtualTreeManager
     ) {
         this.app = app;
         this.settings = settings;
@@ -33,6 +37,7 @@ export class FileRevealManager {
         this.columnRenderer = columnRenderer;
         this.renderView = renderViewCallback;
         this.plugin = plugin;
+        this.virtualTreeManager = virtualTreeManager;
     }
 
     public onFileOpen = (file: TFile | null) => {
@@ -42,58 +47,70 @@ export class FileRevealManager {
 
     public revealFile(filePath: string, expandParents: boolean = true) {
         if (this.settings.viewStyle === 'tree') {
-            const fileNodeEls = this.contentEl.querySelectorAll(`.abstract-folder-item[data-path="${filePath}"]`);
-            
-            let hasExpandedOneParentChain = false; // Flag to ensure parent expansion happens only once across all paths
+            const expandedSet = new Set(this.settings.expandedFolders);
+            let changed = false;
 
-            fileNodeEls.forEach(itemEl => {
-                if (expandParents && this.settings.autoExpandParents && !hasExpandedOneParentChain) {
-                    let currentEl = itemEl.parentElement;
-                    while (currentEl) {
-                        if (currentEl.classList.contains("abstract-folder-children")) {
-                            const parentItem = currentEl.parentElement;
-                            if (parentItem) {
-                                if (parentItem.hasClass("is-collapsed")) {
-                                    parentItem.removeClass("is-collapsed");
-                                    if (this.settings.rememberExpanded) {
-                                        const parentPath = parentItem.dataset.path;
-                                        if (parentPath && !this.settings.expandedFolders.includes(parentPath)) {
-                                            this.settings.expandedFolders.push(parentPath);
-                                            this.plugin.saveSettings().catch(console.error);
-                                        }
-                                    }
-                                }
-                                currentEl = parentItem.parentElement;
-                            } else {
-                                break;
-                            }
-                        } else if (currentEl.classList.contains("abstract-folder-tree")) {
-                            break;
-                        } else {
-                            currentEl = currentEl.parentElement;
-                        }
-                    }
-                    hasExpandedOneParentChain = true;
-                }
-
-                itemEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
-
-                // First, remove 'is-active' from any elements that are currently active but do not match the filePath
-                this.contentEl.querySelectorAll(".abstract-folder-item-self.is-active").forEach(el => {
-                    const parentItem = el.closest(".abstract-folder-item");
-                    if (parentItem instanceof HTMLElement && parentItem.dataset.path !== filePath) {
-                        el.removeClass("is-active");
+            if (expandParents && this.settings.autoExpandParents) {
+                const ancestry = new AncestryEngine(this.indexer);
+                const ancestors = ancestry.getAncestryNodePaths(filePath);
+                ancestors.forEach(path => {
+                    // Expand all ancestors, but not necessarily the file itself unless it's a folder we want to open
+                    if (path !== filePath && !expandedSet.has(path)) {
+                        expandedSet.add(path);
+                        changed = true;
                     }
                 });
+            }
 
-                // Then, ensure all instances of the *current* active file (filePath) are highlighted
-                const selfElToHighlight = itemEl.querySelector(".abstract-folder-item-self");
-                if (selfElToHighlight) {
-                  selfElToHighlight.addClass("is-active");
+            if (this.settings.autoExpandChildren) {
+                const graph = this.indexer.getGraph();
+                // Check if the file acts as a parent (has children)
+                if (graph.parentToChildren[filePath] && graph.parentToChildren[filePath].size > 0) {
+                    if (!expandedSet.has(filePath)) {
+                        expandedSet.add(filePath);
+                        changed = true;
+                    }
                 }
-            });
+            }
+
+            if (changed) {
+                this.settings.expandedFolders = Array.from(expandedSet);
+                if (this.settings.rememberExpanded) {
+                    this.plugin.saveSettings().catch(console.error);
+                }
+                this.renderView();
+            } else {
+                // Optimization: Just update highlight without full re-render/re-calculation of flat items
+                this.virtualTreeManager.updateActiveFileHighlight();
+            }
+
+            // Scroll to the item in the virtual list
+            if (this.settings.autoScrollToActiveFile) {
+                requestAnimationFrame(() => {
+                    const items = this.virtualTreeManager.getFlatItems();
+                    const index = items.findIndex(item => item.node.path === filePath);
+                    
+                    if (index !== -1) {
+                        const scrollContainer = this.contentEl.querySelector('.abstract-folder-virtual-wrapper');
+                        if (scrollContainer) {
+                            const itemHeight = 24; // Fixed height from VirtualTreeManager
+                            const top = index * itemHeight;
+                            
+                            const containerHeight = scrollContainer.clientHeight;
+                            const scrollTop = scrollContainer.scrollTop;
+                            
+                            // Scroll "nearest" behavior
+                            if (top < scrollTop) {
+                                scrollContainer.scrollTo({ top: top, behavior: 'smooth' });
+                            } else if (top + itemHeight > scrollTop + containerHeight) {
+                                scrollContainer.scrollTo({ top: top - containerHeight + itemHeight, behavior: 'smooth' });
+                            }
+                        }
+                    }
+                });
+            }
+
         } else if (this.settings.viewStyle === 'column') {
-            // Column view always needs to 'expand' to the active file's path
             const isPathAlreadySelected = this.viewState.selectionPath.includes(filePath);
 
             if (!isPathAlreadySelected) {
@@ -102,7 +119,9 @@ export class FileRevealManager {
             }
             this.columnRenderer.setSelectionPath(this.viewState.selectionPath);
             this.renderView();
-            this.contentEl.querySelector(".abstract-folder-column:last-child")?.scrollIntoView({ block: "end", behavior: "smooth" });
+            setTimeout(() => {
+                this.contentEl.querySelector(".abstract-folder-column:last-child")?.scrollIntoView({ block: "end", behavior: "smooth" });
+            }, 0);
         }
     }
 }

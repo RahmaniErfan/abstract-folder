@@ -117,7 +117,8 @@ export class AbstractFolderView extends ItemView {
     await Promise.resolve();
     this.fileRevealManager = new FileRevealManager(
         this.app, this.settings, this.contentEl, this.viewState, this.indexer,
-        this.columnRenderer, () => this.renderView(), this.plugin
+        this.columnRenderer, () => this.renderView(), this.plugin,
+        this.virtualTreeManager
     );
 
     this.toolbar.setupToolbarActions();

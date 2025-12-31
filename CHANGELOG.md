@@ -1,5 +1,15 @@
 # Changelog
 
+## Version 1.10.4
+
+**Fixes:**
+*   **Active File Highlighting**: Fixed a critical issue where the currently active file was not being highlighted in the tree view if the folder structure was already expanded.
+*   **Virtual Scroll Positioning**: Implemented precise scrolling to the active file's location within the virtual list, replacing unreliable DOM-based scrolling.
+*   **Performance**: Optimized the file reveal process to avoid unnecessary full re-renders when navigating between files that are already visible.
+
+**Features:**
+*   **Scroll to Active File Setting**: Added a new setting to toggle automatic scrolling to the active file when it is opened.
+
 ## Version 1.10.3
 
 **Fixes:**

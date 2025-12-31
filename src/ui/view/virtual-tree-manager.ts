@@ -69,18 +69,40 @@ export class VirtualTreeManager {
         }
     }
 
+    public updateActiveFileHighlight(): void {
+        const activeFile = this.app.workspace.getActiveFile();
+        const activePath = activeFile ? activeFile.path : null;
+
+        this.renderedItems.forEach((el, index) => {
+            const item = this.flatItems[index];
+            if (!item || !el) return;
+
+            const selfEl = el.querySelector('.abstract-folder-item-self');
+            if (selfEl) {
+                if (activePath && item.node.path === activePath) {
+                    selfEl.addClass('is-active');
+                } else {
+                    selfEl.removeClass('is-active');
+                }
+
+                if (this.viewState.multiSelectedPaths.has(item.node.path)) {
+                    selfEl.addClass('is-multi-selected');
+                } else {
+                    selfEl.removeClass('is-multi-selected');
+                }
+            }
+        });
+    }
+
     public updateRender(): void {
         if (!this.virtualContainer || !this.containerEl) return;
 
-        // Use the virtual wrapper (scroll container) for calculations, not the main contentEl which is now flexible
+        // Use the virtual wrapper (scroll container) for calculations
         const scrollContainer = this.containerEl.querySelector('.abstract-folder-virtual-wrapper') as HTMLElement;
         if (!scrollContainer) return;
 
         const scrollTop = scrollContainer.scrollTop;
         const clientHeight = scrollContainer.clientHeight;
-        
-        // Header height calculation is no longer relevant for the virtual scrolling offset since headers are outside the scroll container
-        // But we keep the logic simple: index * ITEM_HEIGHT maps directly to scroll position within the wrapper
         
         const bufferItems = 5;
         const startIndex = Math.max(0, Math.floor(scrollTop / this.ITEM_HEIGHT) - bufferItems);
@@ -99,16 +121,57 @@ export class VirtualTreeManager {
             this.renderedItems.delete(index);
         }
 
+        const activeFile = this.app.workspace.getActiveFile();
+        const activePath = activeFile ? activeFile.path : null;
+
         for (let i = startIndex; i < endIndex; i++) {
-            if (!this.renderedItems.has(i)) {
-                const item = this.flatItems[i];
-                if (item) {
-                    const tempContainer = document.createElement("div");
-                    this.treeRenderer.renderFlatItem(item, tempContainer, i * this.ITEM_HEIGHT);
-                    const el = tempContainer.firstElementChild as HTMLElement;
-                    if (el) {
-                        this.virtualContainer.appendChild(el);
-                        this.renderedItems.set(i, el);
+            const item = this.flatItems[i];
+            if (!item) continue;
+
+            let el = this.renderedItems.get(i);
+
+            // Check if the item at this index has changed (recycled index)
+            if (el && el.dataset.path !== item.node.path) {
+                el.remove();
+                el = undefined;
+                this.renderedItems.delete(i);
+            }
+
+            if (!el) {
+                const tempContainer = document.createElement("div");
+                this.treeRenderer.renderFlatItem(item, tempContainer, i * this.ITEM_HEIGHT);
+                el = tempContainer.firstElementChild as HTMLElement;
+                if (el) {
+                    this.virtualContainer.appendChild(el);
+                    this.renderedItems.set(i, el);
+                }
+            } else {
+                // Update existing element state
+                el.style.setProperty('top', `${i * this.ITEM_HEIGHT}px`);
+                
+                const selfEl = el.querySelector('.abstract-folder-item-self');
+                if (selfEl) {
+                    // Update Active State
+                    if (activePath && item.node.path === activePath) {
+                        selfEl.addClass('is-active');
+                    } else {
+                        selfEl.removeClass('is-active');
+                    }
+
+                    // Update Multi-select State
+                    if (this.viewState.multiSelectedPaths.has(item.node.path)) {
+                        selfEl.addClass('is-multi-selected');
+                    } else {
+                        selfEl.removeClass('is-multi-selected');
+                    }
+                }
+
+                // Update Collapsed State
+                if (item.node.isFolder) {
+                    if (this.settings.expandedFolders.includes(item.node.path)) {
+                        el.removeClass("is-collapsed");
+                    } else {
+                        el.addClass("is-collapsed");
                     }
                 }
             }

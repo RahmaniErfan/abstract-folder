@@ -178,6 +178,20 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName("Scroll to active file")
+			.setDesc(
+				"When opening a file, scroll the tree view to ensure the file is visible."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.autoScrollToActiveFile)
+					.onChange(async (value) => {
+						this.plugin.settings.autoScrollToActiveFile = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
 			.setName("Expand children when opening a file")
 			.setDesc(
 				"If enabled, when you open a file, its direct children folders will be expanded in the tree view."
