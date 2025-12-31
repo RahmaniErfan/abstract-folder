@@ -126,6 +126,7 @@ export class AbstractFolderView extends ItemView {
     this.registerViewEvents();
     this.registerConversionEvents();
     this.registerDomEvents();
+    this.registerScopeHotkeys();
     
     if (!this.indexer.hasBuiltFirstGraph() && this.indexer.isGraphBuilding()) {
         this.isLoading = true;
@@ -219,6 +220,106 @@ export class AbstractFolderView extends ItemView {
             }
         });
     }
+
+    // Previous manual DOM event listeners for keyboard navigation have been removed 
+    // in favor of the registerScopeHotkeys method which uses Obsidian's key scope system.
+  }
+
+  private registerScopeHotkeys() {
+    if (!this.scope) return;
+
+    // Navigation Up
+    this.scope.register([], "ArrowUp", (event) => {
+        event.preventDefault();
+        this.handleArrowNavigation(-1);
+        return false;
+    });
+
+    // Navigation Down
+    this.scope.register([], "ArrowDown", (event) => {
+        event.preventDefault();
+        this.handleArrowNavigation(1);
+        return false;
+    });
+
+    // Open in current tab
+    this.scope.register([], "Enter", (event) => {
+        event.preventDefault();
+        this.handleEnterKey(false);
+        return false;
+    });
+  }
+
+  public handleEnterKey(newTab: boolean) {
+      const selectedEl = this.contentEl.querySelector(".is-active");
+      if (!selectedEl) return;
+      
+      const itemEl = selectedEl.closest(".abstract-folder-item") as HTMLElement;
+      const path = itemEl?.getAttribute("data-path");
+
+      if (path) {
+          const file = this.app.vault.getAbstractFileByPath(path);
+          if (file instanceof TFile) {
+              if (newTab) {
+                  // Open in new tab (true = split leaf)
+                  this.app.workspace.getLeaf('tab').openFile(file).catch(console.error);
+              } else {
+                  // Open in current tab
+                  this.app.workspace.getLeaf(false).openFile(file).catch(console.error);
+              }
+          } else if (!newTab) {
+              // Enter on folder -> Toggle collapse
+               const folderNode = this.indexer.getGraph().parentToChildren[path];
+               if (folderNode || this.indexer.getGraph().allFiles.has(path)) {
+                   this.toggleCollapse(null as unknown as HTMLElement, path).catch(console.error);
+               }
+          }
+      }
+  }
+
+  public handleArrowNavigation(direction: number) {
+      if (this.settings.viewStyle !== 'tree') return; // Only for tree view for now
+
+      const allItems = Array.from(this.contentEl.querySelectorAll('.abstract-folder-item-self'));
+      if (allItems.length === 0) return;
+
+      const currentIndex = allItems.findIndex(el => el.hasClass('is-active'));
+      let nextIndex = currentIndex + direction;
+
+      // Wrap around? Or stop at edges? Standard is stop at edges.
+      if (nextIndex < 0) nextIndex = 0;
+      if (nextIndex >= allItems.length) nextIndex = allItems.length - 1;
+
+      if (nextIndex !== currentIndex) {
+          // Remove active class from all
+          allItems.forEach(el => el.removeClass('is-active'));
+          
+          // Add to new
+          const nextEl = allItems[nextIndex] as HTMLElement;
+          nextEl.addClass('is-active');
+
+          // Scroll into view if needed
+          nextEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+
+          // Update selection path for metrics/state if needed
+          // But purely visual navigation is often enough for keyboard until selection
+          
+          // Optional: Trigger click or selection update?
+          // Usually in file explorers, arrow keys change selection but don't "open" the file
+          // We need to sync with "is-active" logic used elsewhere.
+          const itemEl = nextEl.closest(".abstract-folder-item") as HTMLElement;
+          const path = itemEl?.getAttribute("data-path");
+          if (path) {
+             // We manually update "is-active" visuals, but we should also reflect this as the "active" file in Obsidian?
+             // Obsidian's file explorer does "preview" on selection if enabled. 
+             // For now, let's just keep it as the highlighted item for keyboard operations.
+          }
+      } else if (currentIndex === -1 && allItems.length > 0) {
+          // Select first item if none selected
+           const firstEl = allItems[0] as HTMLElement;
+           firstEl.addClass('is-active');
+           firstEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      }
   }
 
   public onClose = async () => {

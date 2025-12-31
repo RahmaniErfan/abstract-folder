@@ -1,5 +1,10 @@
 # Changelog
 
+## Version 1.10.1
+
+**Features:**
+*   **Open in New Tab**: Added support for opening files in a new tab using middle-click.
+
 ## Version 1.10.0
 
 **Features:**

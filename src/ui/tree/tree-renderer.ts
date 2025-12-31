@@ -127,6 +127,13 @@ if (activeFile && activeFile.path === node.path) {
             this.handleNodeClick(node, e).catch(console.error);
         });
 
+        selfEl.addEventListener("auxclick", (e) => {
+            if (e.button === 1) { // Middle click
+                e.stopPropagation();
+                this.handleNodeMiddleClick(node, e).catch(console.error);
+            }
+        });
+
         if (node.file) {
           selfEl.addEventListener("contextmenu", (e) => {
             e.stopPropagation();
@@ -287,12 +294,29 @@ if (activeFile && activeFile.path === node.path) {
             this.handleNodeClick(node, e).catch(console.error);
         });
 
+        selfEl.addEventListener("auxclick", (e) => {
+            if (e.button === 1) { // Middle click
+                e.stopPropagation();
+                this.handleNodeMiddleClick(node, e).catch(console.error);
+            }
+        });
+
         if (node.file) {
           selfEl.addEventListener("contextmenu", (e) => {
             e.stopPropagation();
             e.preventDefault();
             this.contextMenuHandler.showContextMenu(e, node, this.multiSelectedPaths);
           });
+        }
+    }
+
+    private async handleNodeMiddleClick(node: FolderNode, e: MouseEvent) {
+        if (node.file) {
+            const fileExists = this.app.vault.getAbstractFileByPath(node.file.path);
+            if (fileExists) {
+                // Open in new tab (true = split leaf)
+                this.app.workspace.getLeaf('tab').openFile(node.file).catch(console.error);
+            }
         }
     }
 
