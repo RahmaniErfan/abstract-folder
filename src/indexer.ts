@@ -29,6 +29,7 @@ export class FolderIndexer {
   private lastCycleSignature: string = '';
   private debouncedRebuildGraphAndTriggerUpdate: Debouncer<[], void>;
   private isBuilding = false;
+  private isBatchUpdating = false; // Flag to suppress immediate UI updates during batch operations
   private pendingRebuild = false;
   private hasBuiltGraph = false;
 
@@ -324,13 +325,13 @@ export class FolderIndexer {
 
     let isHidden = false;
 
-    // --- Process child-defined parents ---
+    // 1. Check for "hidden" status in parent properties (Manual check required as it's not a link)
     for (const propName of this.PARENT_PROPERTIES_TO_CHECK_FOR_CHILD_DEFINED_PARENTS) {
         const parentProperty = metadata.frontmatter[propName] as unknown;
         if (parentProperty) {
-            const parentLinks = Array.isArray(parentProperty) ? parentProperty as unknown[] : [parentProperty];
-            for (const parentLink of parentLinks) {
-                if (typeof parentLink === 'string' && parentLink.toLowerCase().trim() === 'hidden') {
+            const values = Array.isArray(parentProperty) ? parentProperty as unknown[] : [parentProperty];
+            for (const val of values) {
+                if (typeof val === 'string' && val.toLowerCase().trim() === 'hidden') {
                     isHidden = true;
                     break;
                 }
@@ -341,47 +342,36 @@ export class FolderIndexer {
 
     if (isHidden) {
         relationships.definedParents.add(HIDDEN_FOLDER_ID);
-    } else {
-        const potentialParents = new Set<string>();
-        for (const propName of this.PARENT_PROPERTIES_TO_CHECK_FOR_CHILD_DEFINED_PARENTS) {
-            const parentProperty = metadata.frontmatter[propName] as unknown;
-            if (parentProperty) {
-                const parentLinks = Array.isArray(parentProperty) ? parentProperty as unknown[] : [parentProperty];
-                for (const parentLink of parentLinks) {
-                    if (typeof parentLink === 'string' && parentLink.toLowerCase().trim() !== 'hidden') {
-                        const resolvedParentPath = this.resolveLinkToPath(parentLink, file.path);
-                        if (resolvedParentPath) {
-                            if (resolvedParentPath !== file.path) {
-                                potentialParents.add(resolvedParentPath);
-                            } else {
-                                console.warn(`Indexer - ${file.path} attempted to define itself as its own parent. Skipping.`);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        relationships.definedParents = potentialParents;
     }
 
-    const potentialChildren = new Set<string>();
-    for (const propName of this.CHILD_PROPERTIES_TO_CHECK_FOR_PARENT_DEFINED_CHILDREN) {
-        const childrenProperty = metadata.frontmatter[propName] as unknown;
-        if (childrenProperty) {
-            const childLinks = Array.isArray(childrenProperty) ? childrenProperty as unknown[] : [childrenProperty];
-            for (const childLink of childLinks) {
-                if (typeof childLink === 'string') {
-                    const resolvedChildPath = this.resolveLinkToPath(childLink, file.path);
-                    if (resolvedChildPath && resolvedChildPath.toLowerCase().trim() !== 'hidden') {
-                         if (resolvedChildPath !== file.path) {
-                             potentialChildren.add(resolvedChildPath);
-                         }
+    // 2. Process Native Links (frontmatterLinks)
+    // This leverages Obsidian's caching to robustly handle WikiLinks and Markdown links
+    if (metadata.frontmatterLinks) {
+        for (const link of metadata.frontmatterLinks) {
+            const resolvedFile = this.app.metadataCache.getFirstLinkpathDest(link.link, file.path);
+            
+            // Handle array keys (e.g. "Parent.0", "Parent.1") by stripping the index
+            const baseKey = link.key.split('.')[0];
+            
+            if (resolvedFile) {
+                // Parent Definitions
+                if (!isHidden && this.PARENT_PROPERTIES_TO_CHECK_FOR_CHILD_DEFINED_PARENTS.includes(baseKey)) {
+                    if (resolvedFile.path !== file.path) {
+                        relationships.definedParents.add(resolvedFile.path);
+                    } else {
+                         console.warn(`Indexer - ${file.path} attempted to define itself as its own parent. Skipping.`);
+                    }
+                }
+
+                // Child Definitions
+                if (this.CHILD_PROPERTIES_TO_CHECK_FOR_PARENT_DEFINED_CHILDREN.includes(baseKey)) {
+                     if (resolvedFile.path !== file.path) {
+                        relationships.definedChildren.add(resolvedFile.path);
                     }
                 }
             }
         }
     }
-    relationships.definedChildren = potentialChildren;
 
     return relationships;
   }
@@ -442,7 +432,7 @@ export class FolderIndexer {
       }
   }
 
-  private updateFileIncremental(file: TFile, cache: CachedMetadata) {
+  private updateFileIncremental(file: TFile, cache: CachedMetadata, suppressTrigger: boolean = false) {
       if (this.isExcluded(file.path)) return;
       
       const oldRelationships = this.fileRelationships.get(file.path) || { definedParents: new Set(), definedChildren: new Set() };
@@ -478,7 +468,7 @@ export class FolderIndexer {
       this.allFiles.add(file.path);
       this.updateRootStatus(file.path);
 
-      if (!this.isBuilding) {
+      if (!this.isBuilding && !this.isBatchUpdating && !suppressTrigger) {
           this.app.workspace.trigger('abstract-folder:graph-updated');
       }
   }
@@ -487,11 +477,22 @@ export class FolderIndexer {
     // 1. Remove outer quotes (YAML string behavior)
     let cleaned = link.replace(/^["']+|["']+$|^\s+|[\s]+$/g, '');
 
-    // 2. Remove wiki-link brackets
-    cleaned = cleaned.replace(/\[\[|\]\]/g, '');
+    // Check for Markdown link [Alias](Path)
+    const mdLinkMatch = cleaned.match(/^\[([^\]]*)\]\(([^)]*)\)$/);
+    if (mdLinkMatch) {
+        // Decode URI component because Markdown links might be encoded (e.g. %20 for spaces)
+        try {
+            cleaned = decodeURI(mdLinkMatch[2]);
+        } catch {
+            cleaned = mdLinkMatch[2];
+        }
+    } else {
+        // 2. Remove wiki-link brackets
+        cleaned = cleaned.replace(/\[\[|\]\]/g, '');
 
-    // 3. Handle Pipe aliases [[Link|Alias]] -> Link
-    cleaned = cleaned.split('|')[0];
+        // 3. Handle Pipe aliases [[Link|Alias]] -> Link
+        cleaned = cleaned.split('|')[0];
+    }
 
     // 4. Trim again
     const cleanedTrimmed = cleaned.trim();
@@ -599,20 +600,59 @@ export class FolderIndexer {
   }
 
   private async renameFileInGraph(file: TFile, oldPath: string) {
-    // Update relationships in other files' frontmatter
-    await updateAbstractLinksOnRename(this.app, this.settings, this, file, oldPath);
+    this.isBatchUpdating = true;
+    try {
+        // Update relationships in other files' frontmatter
+        await updateAbstractLinksOnRename(this.app, this.settings, this, file, oldPath);
 
-    // Update group filters if they point to this file
-    await updateGroupsOnRename(this.app, this.plugin, oldPath, file.path);
+        // Update group filters if they point to this file
+        await updateGroupsOnRename(this.app, this.plugin, oldPath, file.path);
 
-    // Clean up old path in our maps
-    this.fileRelationships.delete(oldPath);
-    this.allFiles.delete(oldPath);
-    
-    // Re-process file with new path
-    this.updateFileIncremental(file, this.app.metadataCache.getFileCache(file) || {});
-    
-    // Wait for the next tick to satisfy "has no await expression" if the await calls above are somehow not counted by the specific linter version
-    await Promise.resolve();
+        // Clean up old path in our maps
+        this.fileRelationships.delete(oldPath);
+        this.allFiles.delete(oldPath);
+
+        // Eagerly clean up graph for OldPath to prevent ghost nodes
+        // We strictly remove OldPath from all graph structures because it no longer exists.
+        // This handles the race condition where referencing files (children/parents) haven't updated via metadataCache yet.
+        
+        // 1. Remove OldPath as a parent
+        if (this.parentToChildren[oldPath]) {
+            for (const child of this.parentToChildren[oldPath]) {
+                if (this.childToParents.has(child)) {
+                    this.childToParents.get(child)!.delete(oldPath);
+                    // If child has no other parents, it might become a root, or just orphaned from OldPath
+                    this.updateRootStatus(child); 
+                }
+            }
+            delete this.parentToChildren[oldPath];
+        }
+
+        // 2. Remove OldPath as a child
+        if (this.childToParents.has(oldPath)) {
+            for (const parent of this.childToParents.get(oldPath)!) {
+                if (this.parentToChildren[parent]) {
+                    this.parentToChildren[parent].delete(oldPath);
+                    if (this.parentToChildren[parent].size === 0) {
+                        delete this.parentToChildren[parent];
+                    }
+                }
+                this.updateRootStatus(parent);
+            }
+            this.childToParents.delete(oldPath);
+        }
+        
+        // 3. Remove from roots
+        this.graph.roots.delete(oldPath);
+        
+        // Re-process file with new path, but suppress the immediate trigger to avoid UI flicker
+        this.updateFileIncremental(file, this.app.metadataCache.getFileCache(file) || {}, true);
+        
+        // Wait for the next tick to satisfy "has no await expression" if the await calls above are somehow not counted by the specific linter version
+        await Promise.resolve();
+    } finally {
+        this.isBatchUpdating = false;
+        this.app.workspace.trigger('abstract-folder:graph-updated');
+    }
   }
 }

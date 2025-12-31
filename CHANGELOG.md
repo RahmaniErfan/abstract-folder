@@ -1,5 +1,12 @@
 # Changelog
 
+## Version 1.10.2
+
+- **Refactor**: Relationship resolution now uses Obsidian's native `frontmatterLinks` API.
+  - Improves compatibility with all standard Obsidian link formats (WikiLinks `[[...]]`, Markdown links `[...](...)`, relative/absolute/shortest paths).
+  - Removes support for undocumented/non-standard "bare paths" (plain text paths without brackets) in frontmatter properties.
+  - Fixes an issue where list properties (e.g., `Parent: - [[Link]]`) were sometimes ignored.
+
 ## Version 1.10.1
 
 **Features:**

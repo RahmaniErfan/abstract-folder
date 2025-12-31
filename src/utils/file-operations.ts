@@ -17,6 +17,7 @@ import { HIDDEN_FOLDER_ID } from "../types";
 export async function updateAbstractLinksOnRename(app: App, settings: AbstractFolderPluginSettings, indexer: FolderIndexer, file: TFile, oldPath: string) {
     const oldName = oldPath.split('/').pop() || oldPath;
     const oldBasename = oldName.endsWith('.md') ? oldName.slice(0, -3) : oldName;
+    const oldPathNoExt = oldPath.endsWith('.md') ? oldPath.slice(0, -3) : oldPath;
     
     const graph = indexer.getGraph();
     const parentsOfRenamed = graph.childToParents.get(oldPath);
@@ -46,6 +47,8 @@ export async function updateAbstractLinksOnRename(app: App, settings: AbstractFo
  * Helper to update a single file's frontmatter link.
  */
 async function updateLinkInFrontmatter(app: App, settings: AbstractFolderPluginSettings, referencingFile: TFile, renamedFile: TFile, oldPath: string, oldBasename: string, oldName: string) {
+    const oldPathNoExt = oldPath.endsWith('.md') ? oldPath.slice(0, -3) : oldPath;
+    
     await app.fileManager.processFrontMatter(referencingFile, (frontmatter: AbstractFolderFrontmatter) => {
         const props = [settings.propertyName, settings.childrenPropertyName];
 
@@ -55,18 +58,45 @@ async function updateLinkInFrontmatter(app: App, settings: AbstractFolderPluginS
 
             const updateValue = (v: string): string => {
                 let cleaned = v.replace(/^["']+|["']+$|^\s+|[\s]+$/g, '');
-                const isWiki = cleaned.startsWith('[[') && cleaned.endsWith(']]');
-                if (isWiki) cleaned = cleaned.slice(2, -2);
-                
-                const parts = cleaned.split('|');
-                const linkPart = parts[0].trim();
-                const aliasPart = parts.length > 1 ? parts[1].trim() : undefined;
 
-                if (linkPart === oldPath || linkPart === oldBasename || linkPart === oldName) {
+                const mdLinkMatch = cleaned.match(/^\[([^\]]*)\]\(([^)]*)\)$/);
+                let isWiki = false;
+                let isMd = false;
+
+                if (mdLinkMatch) {
+                    isMd = true;
+                    try {
+                        cleaned = decodeURI(mdLinkMatch[2]);
+                    } catch {
+                        cleaned = mdLinkMatch[2];
+                    }
+                } else {
+                    isWiki = cleaned.startsWith('[[') && cleaned.endsWith(']]');
+                    if (isWiki) cleaned = cleaned.slice(2, -2);
+                    
+                    const parts = cleaned.split('|');
+                    cleaned = parts[0].trim();
+                }
+                
+                const linkPart = cleaned;
+                const aliasPart = isMd ? mdLinkMatch![1] : (v.includes('|') ? v.split('|')[1].replace(']]', '').trim() : undefined);
+
+                // Match against full path, basename (shortest), or name (with ext)
+                // Also match against path without extension if it's a markdown file being renamed
+                if (linkPart === oldPath || linkPart === oldBasename || linkPart === oldName || linkPart === oldPathNoExt) {
                     const newLink = app.fileManager.generateMarkdownLink(renamedFile, referencingFile.path, undefined, aliasPart);
-                    if (!isWiki && newLink.startsWith('[[') && newLink.endsWith(']]')) {
-                        const content = newLink.slice(2, -2);
-                        return content.split('|')[0];
+                    
+                    // Maintain the original format if it was a raw string (not a link)
+                    if (!isWiki && !isMd) {
+                         // If generateMarkdownLink returned a WikiLink, strip brackets to keep it raw
+                         if (newLink.startsWith('[[')) {
+                             return newLink.slice(2, -2).split('|')[0];
+                         }
+                         // If it returned a Markdown link, parse it to extract the raw path
+                         const match = newLink.match(/^\[([^\]]*)\]\(([^)]*)\)$/);
+                         if (match) {
+                             try { return decodeURI(match[2]); } catch { return match[2]; }
+                         }
                     }
                     return newLink;
                 }
