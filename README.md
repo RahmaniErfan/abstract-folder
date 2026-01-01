@@ -201,16 +201,25 @@ Customize the plugin behavior in **Settings → Abstract Folder**.
 
 ## Installation
 
-This plugin is not yet available in the official Obsidian Community Plugins list. You must install it manually.
+### Method 1: BRAT (Recommended for Beta Testing)
+The easiest way to install and stay up-to-date with the latest features is using the **Beta Reviewers Auto-update Tool (BRAT)**.
 
-1.  Go to the [GitHub Repository](https://github.com/RahmaniErfan/abstract-folder) and find the latest **Release** on the right sidebar.
-2.  Download these three files: `main.js`, `manifest.json`, and `styles.css`.
-3.  Navigate to your Obsidian Vault folder on your computer.
-4.  Open the hidden `.obsidian` folder, then open the `plugins` folder inside it.
+1. Install the **BRAT** plugin from the Obsidian Community Plugins store.
+2. Open **Settings → BRAT**.
+3. Click **Add Beta plugin**.
+4. Enter the repository URL: `https://github.com/RahmaniErfan/abstract-folder`
+5. Click **Add Plugin**.
+6. Enable **Abstract Folder** in **Settings → Community plugins**.
+
+### Method 2: Manual Installation
+1. Go to the [GitHub Repository](https://github.com/RahmaniErfan/abstract-folder) and find the latest **Release** on the right sidebar.
+2. Download these three files: `main.js`, `manifest.json`, and `styles.css`.
+3. Navigate to your Obsidian Vault folder on your computer.
+4. Open the hidden `.obsidian` folder, then open the `plugins` folder inside it.
       * *(Note: On macOS, press `Cmd + Shift + .` to toggle hidden files. On Windows, go to View -> Show -> Hidden items).*
-5.  Create a new folder named `abstract-folder`.
-6.  Paste the three downloaded files (`main.js`, `manifest.json`, `styles.css`) into this new folder.
-7.  Restart Obsidian, go to **Settings → Community Plugins**, and enable **Abstract Folder**.
+5. Create a new folder named `abstract-folder`.
+6. Paste the three downloaded files (`main.js`, `manifest.json`, `styles.css`) into this new folder.
+7. Refresh plugins and enable `abstract folder`.
 
 -----
 
