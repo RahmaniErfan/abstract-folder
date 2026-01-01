@@ -21,14 +21,11 @@ export class PathSuggest extends AbstractInputSuggest<string> {
 		super(app, inputEl);
 	}
 
-	// @ts-ignore
+	// @ts-ignore - suggestContainerEl exists at runtime but not in base types
 	public get suggestContainerEl(): HTMLElement {
-		// @ts-ignore
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-		const el = super.suggestContainerEl;
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+		// @ts-ignore - accessing protected/private property
+		const el = super.suggestContainerEl as HTMLElement;
 		el.addClass("abstract-folder-suggestion-container");
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-return
 		return el;
 	}
 
@@ -37,12 +34,10 @@ export class PathSuggest extends AbstractInputSuggest<string> {
 			return [];
 		}
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-		const suggestEl = (this as any).suggestEl as HTMLElement;
+		const suggestEl = (this as unknown as { suggestEl: HTMLElement }).suggestEl;
 
 		if (suggestEl) {
 			let container = suggestEl;
-			// The actual positioned element is usually .suggestion-container which wraps .suggestion
 			if (
 				!container.hasClass("suggestion-container") &&
 				container.parentElement?.hasClass("suggestion-container")
@@ -69,10 +64,8 @@ export class PathSuggest extends AbstractInputSuggest<string> {
 			}
 		}
 
-		// Sort by score (descending) to get best matches
 		scoredMatches.sort((a, b) => b.result.score - a.result.score);
 
-		// Limit to top 50 matches for performance and relevance
 		const topMatches = scoredMatches.slice(0, 50);
 
 		for (const match of topMatches) {
@@ -98,8 +91,7 @@ export class PathSuggest extends AbstractInputSuggest<string> {
 						}
 					});
 				} else {
-					// Fallback: Check if this file is explicitly listed as a child in any parent's children list
-					// This covers cases where the reverse mapping might be missing or for robustness with non-md files
+					// Fallback for non-md files or missing reverse mappings
 					for (const [parentPath, children] of Object.entries(graph.parentToChildren)) {
 						if (children.has(matchPath)) {
 							if (!abstractFolderPaths.has(parentPath)) {
@@ -118,7 +110,6 @@ export class PathSuggest extends AbstractInputSuggest<string> {
 			const parentToChildren = graph.parentToChildren;
 
 			for (const matchPath of topPaths) {
-				// Check if the match is a key in parentToChildren (i.e. it is a parent)
 				const children = parentToChildren[matchPath];
 				if (children && children.size > 0) {
 					children.forEach((c) => {
@@ -134,33 +125,23 @@ export class PathSuggest extends AbstractInputSuggest<string> {
 			}
 		}
 
-		// Return the final list as an array
-		// Sorting:
-		// 1. Context items vs Direct matches (Context lower)
-		// 2. Fuzzy Score (Higher better)
-		// 3. Alphabetical fallback
-
+		// Sort: Direct matches first, then by fuzzy score, then alphabetical
 		return Array.from(abstractFolderPaths).sort((a, b) => {
-			// Check if items are context items (in metadata)
 			const aIsContext = this.suggestionMetadata.has(a);
 			const bIsContext = this.suggestionMetadata.has(b);
 
-			// Prioritize direct matches over context items
 			if (aIsContext && !bIsContext) return 1;
 			if (!aIsContext && bIsContext) return -1;
 
-			// If both are direct matches, use fuzzy scores
 			if (!aIsContext && !bIsContext) {
 				const scoreA = this.searchScores.get(a);
 				const scoreB = this.searchScores.get(b);
 
-				// Higher score first (descending)
 				if (scoreA !== undefined && scoreB !== undefined) {
 					return scoreB - scoreA;
 				}
 			}
 
-			// Fallback to alphabetical
 			return a.localeCompare(b);
 		});
 	}

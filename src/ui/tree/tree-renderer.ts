@@ -46,19 +46,14 @@ export class TreeRenderer {
     }
 
     public setHighlightedPath(path: string | null) {
-        // Find existing highlighted elements and remove the class
         const existing = this.plugin.app.workspace.containerEl.querySelectorAll('.abstract-folder-item-self.is-search-match');
         existing.forEach(el => el.removeClass('is-search-match'));
 
         if (path) {
-            // In non-virtual mode, we might need to find the element in the DOM
-            // This is a bit tricky since we don't have a direct map of path -> element here easily available globally
-            // But we can query for it if we added data-path to the item
             const itemEl = this.plugin.app.workspace.containerEl.querySelector(`.abstract-folder-item[data-path="${path}"] .abstract-folder-item-self`);
             if (itemEl) {
                 itemEl.addClass('is-search-match');
                 
-                // Auto-remove the highlight after a timeout (e.g., 2 seconds)
                 setTimeout(() => {
                     itemEl.removeClass('is-search-match');
                 }, 2000);
@@ -66,6 +61,7 @@ export class TreeRenderer {
         }
     }
 
+    // Recursive method to render standard tree view
     renderTreeNode(node: FolderNode, parentEl: HTMLElement, ancestors: Set<string>, depth: number, parentPath: string | null) {
         const activeFile = this.app.workspace.getActiveFile();
         // Only prevent rendering for folder loops, not for files that can appear in multiple abstract folders.
@@ -77,9 +73,9 @@ const currentDepth = depth + 1;
 const itemEl = parentEl.createDiv({ cls: "abstract-folder-item" });
 itemEl.dataset.path = node.path;
 itemEl.dataset.depth = String(depth);
-// @ts-ignore
+// @ts-ignore - Storing node data on element for easy access in event handlers
 itemEl._folderNode = node;
-// @ts-ignore
+// @ts-ignore - Storing ancestors data on element for recursive rendering
 itemEl._ancestors = ancestors;
 
 itemEl.draggable = true;
@@ -151,7 +147,7 @@ if (activeFile && activeFile.path === node.path) {
         selfEl.addEventListener("auxclick", (e) => {
             if (e.button === 1) { // Middle click
                 e.stopPropagation();
-                this.handleNodeMiddleClick(node, e).catch(console.error);
+                this.handleNodeMiddleClick(node, e);
             }
         });
 
@@ -190,9 +186,9 @@ if (activeFile && activeFile.path === node.path) {
     }
 
     public renderChildren(itemEl: HTMLElement) {
-        // @ts-ignore
+        // @ts-ignore - Accessing custom property stored on element
         const node = itemEl._folderNode as FolderNode;
-        // @ts-ignore
+        // @ts-ignore - Accessing custom property stored on element
         const ancestors = itemEl._ancestors as Set<string>;
         const depth = parseInt(itemEl.dataset.depth || "0");
         
@@ -210,6 +206,7 @@ if (activeFile && activeFile.path === node.path) {
         node.children.forEach(child => this.renderTreeNode(child, childrenEl, newAncestors, currentDepth, node.path));
     }
 
+    // Virtualized rendering for high-performance tree view
     public renderFlatItem(item: FlatItem, container: HTMLElement | DocumentFragment, top: number) {
         const node = item.node;
         const depth = item.depth;
@@ -218,20 +215,16 @@ if (activeFile && activeFile.path === node.path) {
         const itemEl = container.createDiv({ cls: "abstract-folder-item abstract-folder-virtual-item" });
         itemEl.style.setProperty('top', `${top}px`);
 
-        // Render Indent Guides
         if (this.settings.enableRainbowIndents && depth > 0) {
             const guidesContainer = itemEl.createDiv({ cls: "abstract-folder-indent-guides" });
-            // Static styles moved to CSS class .abstract-folder-indent-guides
 
             for (let i = 0; i < depth; i++) {
                 const guide = guidesContainer.createDiv({ cls: "abstract-folder-indent-guide" });
-                // Dynamic style for indentation position
                 guide.style.setProperty('left', `${6 + (i * 20)}px`);
                 
                 guide.addClass("rainbow-indent");
                 guide.addClass(`${this.settings.rainbowPalette}-palette`);
                 
-                // Color Logic (Depth based)
                 const colorIndex = i % 10;
                 guide.addClass(`rainbow-indent-${colorIndex}`);
             }
@@ -239,7 +232,7 @@ if (activeFile && activeFile.path === node.path) {
         
         itemEl.dataset.path = node.path;
         itemEl.dataset.depth = String(depth);
-        // @ts-ignore
+        // @ts-ignore - Storing node data on element for easy access in event handlers
         itemEl._folderNode = node;
 
         itemEl.draggable = true;
@@ -253,9 +246,7 @@ if (activeFile && activeFile.path === node.path) {
 
         if (node.isFolder) {
             itemEl.addClass("is-folder");
-            if (this.settings.expandedFolders.includes(node.path)) {
-                // Expanded
-            } else {
+            if (!this.settings.expandedFolders.includes(node.path)) {
                 itemEl.addClass("is-collapsed");
             }
         } else {
@@ -263,8 +254,7 @@ if (activeFile && activeFile.path === node.path) {
         }
 
         const selfEl = itemEl.createDiv({ cls: "abstract-folder-item-self" });
-        // Virtual Indentation
-        selfEl.style.setProperty('padding-left', `${6 + (depth * 20)}px`); // 6px base + 20px per level
+        selfEl.style.setProperty('padding-left', `${6 + (depth * 20)}px`);
 
         if (activeFile && activeFile.path === node.path) {
             selfEl.addClass("is-active");
@@ -280,11 +270,6 @@ if (activeFile && activeFile.path === node.path) {
 
             iconEl.addEventListener("click", (e) => {
                 e.stopPropagation();
-                // In virtual view, toggleCollapse should just update state and trigger re-render
-                // We pass itemEl, but view needs to know to handle it differently?
-                // Actually, toggleCollapse in view.ts now calls renderChildren.
-                // We need to override that behavior for virtual view.
-                // Or simply: the view handles the click event?
                 this.toggleCollapse(itemEl, node.path).catch(console.error);
             });
         }
@@ -318,7 +303,7 @@ if (activeFile && activeFile.path === node.path) {
         selfEl.addEventListener("auxclick", (e) => {
             if (e.button === 1) { // Middle click
                 e.stopPropagation();
-                this.handleNodeMiddleClick(node, e).catch(console.error);
+                this.handleNodeMiddleClick(node, e);
             }
         });
 
@@ -331,7 +316,7 @@ if (activeFile && activeFile.path === node.path) {
         }
     }
 
-    private async handleNodeMiddleClick(node: FolderNode, e: MouseEvent) {
+    private handleNodeMiddleClick(node: FolderNode, e: MouseEvent) {
         if (node.file) {
             const fileExists = this.app.vault.getAbstractFileByPath(node.file.path);
             if (fileExists) {

@@ -1,5 +1,12 @@
 # Changelog
 
+## Version 1.10.6
+
+**Maintenance:**
+*   **Linter Compliance**: Resolved all issues reported by the automated plugin scan, including fixing floating promises, adding required descriptions to `@ts-ignore` comments, and ensuring UI text follows sentence case guidelines.
+*   **Code Refactoring**: Improved type safety in the path suggestion system and converted several async methods without `await` expressions to synchronous versions for better performance and compliance.
+*   **Cleanup**: Removed redundant and non-instructive comments across the codebase to improve maintainability while keeping essential architectural documentation.
+
 ## Version 1.10.5
 
 **Features:**

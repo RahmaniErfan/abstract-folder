@@ -20,7 +20,7 @@ export class ManageFilteringModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.createEl("h2", { text: "Manage default filtering" });
-    contentEl.createEl("p", { text: "Set the default filtering options for the main view and for each group. Enter extensions separated by commas (e.g., png, jpg, canvas)." });
+    contentEl.createEl("p", { text: "Set the default filtering options for the main view and for each group. Enter extensions separated by commas." });
 
     // Main Default View Filtering
     contentEl.createEl("h3", { text: "Default view" });
@@ -68,7 +68,7 @@ export class ManageFilteringModal extends Modal {
         .setName(name)
         .setDesc("Exclude extensions")
         .addText(text => text
-            .setPlaceholder("Png, jpg, canvas")
+            .setPlaceholder("PNG, JPG, etc")
             .setValue(currentFilter.excludeExtensions.join(", "))
             .onChange((value) => {
                 currentFilter.excludeExtensions = value.split(",")

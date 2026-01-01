@@ -137,25 +137,25 @@ export class AbstractFolderView extends ItemView {
   }
 
   private registerViewEvents() {
-    // @ts-ignore
+    // @ts-ignore - Custom event not in Obsidian types
     this.registerEvent(this.app.workspace.on("abstract-folder:graph-updated", () => {
         if (this.isConverting) return;
         this.isLoading = false;
         this.metricsManager.calculateGraphMetrics();
         this.renderView();
     }));
-    // @ts-ignore
+    // @ts-ignore - Custom event not in Obsidian types
     this.registerEvent(this.app.workspace.on("abstract-folder:graph-build-start", () => {
         this.isLoading = true;
         this.renderView();
     }));
-    // @ts-ignore
+    // @ts-ignore - Custom event not in Obsidian types
     this.registerEvent(this.app.workspace.on("abstract-folder:view-style-changed", this.handleViewStyleChanged, this));
-    // @ts-ignore
+    // @ts-ignore - Custom event not in Obsidian types
     this.registerEvent(this.app.workspace.on("abstract-folder:group-changed", this.renderView, this));
-    // @ts-ignore
+    // @ts-ignore - Custom event not in Obsidian types
     this.registerEvent(this.app.workspace.on("abstract-folder:expand-all", () => this.expandAll(), this));
-    // @ts-ignore
+    // @ts-ignore - Custom event not in Obsidian types
     this.registerEvent(this.app.workspace.on("abstract-folder:collapse-all", () => this.collapseAll(), this));
     this.registerEvent(this.app.workspace.on("file-open", (file) => {
         if (file) this.metricsManager.onInteraction(file.path);
@@ -164,21 +164,21 @@ export class AbstractFolderView extends ItemView {
   }
 
   private registerConversionEvents() {
-    // @ts-ignore
+    // @ts-ignore - Custom event not in Obsidian types
     this.registerEvent(this.app.workspace.on("abstract-folder:conversion-start", (data: { total: number, message: string }) => {
         this.isConverting = true;
         this.conversionStatus = { processed: 0, total: data.total || 0, message: data.message || "Starting conversion..." };
         this.contentEl.empty();
         this.renderConversionProgress(); 
     }));
-    // @ts-ignore
+    // @ts-ignore - Custom event not in Obsidian types
     this.registerEvent(this.app.workspace.on("abstract-folder:conversion-progress", (data: { processed: number, total: number, message: string }) => {
         if (this.isConverting) {
             this.conversionStatus = { processed: data.processed, total: data.total, message: data.message };
             this.renderConversionProgress();
         }
     }));
-    // @ts-ignore
+    // @ts-ignore - Custom event not in Obsidian types
     this.registerEvent(this.app.workspace.on("abstract-folder:conversion-complete", () => {
         this.isConverting = false;
         this.renderView();
@@ -251,8 +251,9 @@ export class AbstractFolderView extends ItemView {
     });
   }
 
-  public handleEnterKey(newTab: boolean) {
-      const selectedEl = this.contentEl.querySelector(".is-active");
+    // Handles Enter key to open files or toggle folders
+    public handleEnterKey(newTab: boolean) {
+        const selectedEl = this.contentEl.querySelector(".is-active");
       if (!selectedEl) return;
       
       const itemEl = selectedEl.closest(".abstract-folder-item") as HTMLElement;
@@ -262,10 +263,8 @@ export class AbstractFolderView extends ItemView {
           const file = this.app.vault.getAbstractFileByPath(path);
           if (file instanceof TFile) {
               if (newTab) {
-                  // Open in new tab (true = split leaf)
                   this.app.workspace.getLeaf('tab').openFile(file).catch(console.error);
               } else {
-                  // Open in current tab
                   this.app.workspace.getLeaf(false).openFile(file).catch(console.error);
               }
           } else if (!newTab) {
@@ -278,8 +277,9 @@ export class AbstractFolderView extends ItemView {
       }
   }
 
-  public handleArrowNavigation(direction: number) {
-      if (this.settings.viewStyle !== 'tree') return; // Only for tree view for now
+    // Handles visual-only keyboard selection in the tree view
+    public handleArrowNavigation(direction: number) {
+        if (this.settings.viewStyle !== 'tree') return; // Only for tree view for now
 
       const allItems = Array.from(this.contentEl.querySelectorAll('.abstract-folder-item-self'));
       if (allItems.length === 0) return;
@@ -292,29 +292,12 @@ export class AbstractFolderView extends ItemView {
       if (nextIndex >= allItems.length) nextIndex = allItems.length - 1;
 
       if (nextIndex !== currentIndex) {
-          // Remove active class from all
           allItems.forEach(el => el.removeClass('is-active'));
           
-          // Add to new
           const nextEl = allItems[nextIndex] as HTMLElement;
           nextEl.addClass('is-active');
 
-          // Scroll into view if needed
           nextEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-
-          // Update selection path for metrics/state if needed
-          // But purely visual navigation is often enough for keyboard until selection
-          
-          // Optional: Trigger click or selection update?
-          // Usually in file explorers, arrow keys change selection but don't "open" the file
-          // We need to sync with "is-active" logic used elsewhere.
-          const itemEl = nextEl.closest(".abstract-folder-item") as HTMLElement;
-          const path = itemEl?.getAttribute("data-path");
-          if (path) {
-             // We manually update "is-active" visuals, but we should also reflect this as the "active" file in Obsidian?
-             // Obsidian's file explorer does "preview" on selection if enabled. 
-             // For now, let's just keep it as the highlighted item for keyboard operations.
-          }
       } else if (currentIndex === -1 && allItems.length > 0) {
           // Select first item if none selected
            const firstEl = allItems[0] as HTMLElement;
@@ -323,11 +306,12 @@ export class AbstractFolderView extends ItemView {
       }
   }
 
-  public onClose = async () => {
+  public onClose = () => {
     if (this.resizeObserver) {
         this.resizeObserver.disconnect();
         this.resizeObserver = undefined;
     }
+    return Promise.resolve();
   }
 
   private handleViewStyleChanged = () => {
@@ -432,8 +416,7 @@ export class AbstractFolderView extends ItemView {
         if (this.settings.searchShowParents) showParentsBtn.addClass("is-active");
 
         showParentsBtn.addEventListener("click", () => {
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            (async () => {
+            void (async () => {
                 this.settings.searchShowParents = !this.settings.searchShowParents;
                 showParentsBtn.toggleClass("is-active", this.settings.searchShowParents);
                 await this.plugin.saveSettings();
@@ -453,8 +436,7 @@ export class AbstractFolderView extends ItemView {
         if (this.settings.searchShowChildren) showChildrenBtn.addClass("is-active");
 
         showChildrenBtn.addEventListener("click", () => {
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            (async () => {
+            void (async () => {
                 this.settings.searchShowChildren = !this.settings.searchShowChildren;
                 showChildrenBtn.toggleClass("is-active", this.settings.searchShowChildren);
                 await this.plugin.saveSettings();
@@ -482,7 +464,6 @@ export class AbstractFolderView extends ItemView {
         this.searchInputEl.addEventListener("input", () => {
             // clearIconEl is always visible now
             this.renderView();
-            // @ts-ignore
             this.searchInputEl?.focus();
         });
         
