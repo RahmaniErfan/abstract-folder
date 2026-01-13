@@ -109,8 +109,23 @@
     background-color: var(--text-highlight-bg, rgba(210, 180, 140, 1));
 }
 
-/* Disable collapse/expand arrow when searching */
+/* Enable collapse/expand arrow when searching */
 .abstract-folder-is-searching .abstract-folder-collapse-icon {
-    pointer-events: none;
-    opacity: 0.3;
+    pointer-events: auto;
+    opacity: 1;
+}
+
+/* Suggestion styling */
+.abstract-folder-suggestion-container .suggestion-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.abstract-folder-suggestion-container .suggestion-title {
+    font-weight: 500;
+}
+
+.abstract-folder-suggestion-container .suggestion-note {
+    font-size: 0.85em;
+    color: var(--text-muted);
 }

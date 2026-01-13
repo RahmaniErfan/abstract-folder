@@ -51,7 +51,7 @@ export class VirtualTreeManager {
         if (this.virtualContainer) this.virtualContainer.empty();
     }
 
-    public generateItems(allowedPaths?: Set<string>, forceExpand?: Set<string>): void {
+    public generateItems(allowedPaths?: Set<string>, forceExpand?: Set<string>, isSearching: boolean = false): void {
         const activeGroup = this.settings.activeGroupId
             ? this.settings.groups.find(group => group.id === this.settings.activeGroupId)
             : undefined;
@@ -67,7 +67,8 @@ export class VirtualTreeManager {
             expandedSet,
             (a, b) => this.sortNodes(a, b),
             activeGroup,
-            this.viewState.excludeExtensions
+            this.viewState.excludeExtensions,
+            isSearching
         );
 
         if (allowedPaths) {

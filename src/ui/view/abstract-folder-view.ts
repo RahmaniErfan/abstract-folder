@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, setIcon, TFile, Notice } from "obsidian";
+import { ItemView, WorkspaceLeaf, setIcon, TFile, Notice, prepareSimpleSearch } from "obsidian";
 import { FolderIndexer } from "../../indexer";
 import { MetricsManager } from "../../metrics-manager";
 import { FolderNode, HIDDEN_FOLDER_ID, Group } from "../../types";
@@ -561,7 +561,7 @@ export class AbstractFolderView extends ItemView {
     private renderVirtualTreeView = () => {
     if (this.settings.viewStyle === 'tree' && this.searchInputEl && this.searchInputEl.value.trim().length > 0) {
         const query = this.searchInputEl.value.trim();
-        const file = this.app.vault.getAbstractFileByPath(query);
+        const searchFn = prepareSimpleSearch(query);
         
         // Add searching class to container
         this.contentEl.addClass("abstract-folder-is-searching");
@@ -570,40 +570,97 @@ export class AbstractFolderView extends ItemView {
         this.virtualTreeManager.setHighlightedPath(null);
         this.treeRenderer.setHighlightedPath(null);
 
-        if (file instanceof TFile) {
-            // Start with just the file itself if we aren't showing parents
-            let allowedPaths = new Set<string>();
-            const forceExpand = new Set<string>();
+        const graph = this.indexer.getGraph();
+        const allowedPaths = new Set<string>();
+        const forceExpand = new Set<string>();
+        const matchedPaths: string[] = [];
 
-            // Always calculate ancestry to ensure we can force expand parents
-            // This fixes the bug where searching for a file in a collapsed folder showed nothing
-            const allAncestors = new AncestryEngine(this.indexer).getAncestryNodePaths(file.path);
-            allAncestors.forEach(p => forceExpand.add(p));
+        // 1. Find matches using Obsidian's simple search
+        const allFiles = this.app.vault.getFiles();
+        for (const file of allFiles) {
+            const filePath = file.path;
             
-            if (this.settings.searchShowParents) {
-                // If showing parents, use the full ancestry for visibility
-                allowedPaths = allAncestors;
-            } else {
-                // Otherwise, just the file
-                allowedPaths.add(file.path);
+            let matches = !!searchFn(filePath);
+            
+            if (!matches) {
+                const cache = this.app.metadataCache.getFileCache(file);
+                // 1. Check aliases from frontmatter
+                const aliases = cache?.frontmatter?.aliases as unknown;
+                if (Array.isArray(aliases)) {
+                    matches = aliases.some(alias => !!searchFn(String(alias)));
+                } else if (typeof aliases === 'string') {
+                    matches = !!searchFn(aliases);
+                }
+
+                // 2. Check title (from frontmatter if exists)
+                const title = cache?.frontmatter?.title as unknown;
+                if (!matches && typeof title === 'string') {
+                    matches = !!searchFn(title);
+                }
+
+                // 3. Fallback: check all metadata keys for potential match (properties)
+                if (!matches && cache?.frontmatter) {
+                    for (const key in cache.frontmatter) {
+                        if (key === 'position') continue;
+                        const val = cache.frontmatter[key] as unknown;
+                        if (typeof val === 'string' && !!searchFn(val)) {
+                            matches = true;
+                            break;
+                        }
+                    }
+                }
             }
-            
-             // Include children if the toggle is enabled
-             if (this.settings.searchShowChildren) {
-                 const children = this.indexer.getGraph().parentToChildren[file.path];
-                 if (children) {
-                     children.forEach(childPath => allowedPaths.add(childPath));
-                 }
-             }
-            
-            // Set the highlighted path for the result
-            this.virtualTreeManager.setHighlightedPath(file.path);
-            this.treeRenderer.setHighlightedPath(file.path);
 
-            // We pass forceExpand to generateItems so it can generate items even if they are currently collapsed
-            this.virtualTreeManager.generateItems(allowedPaths, forceExpand);
+            if (matches) {
+                matchedPaths.push(filePath);
+                allowedPaths.add(filePath);
+            }
+        }
+
+        if (matchedPaths.length > 0) {
+            const ancestryEngine = new AncestryEngine(this.indexer);
+            
+            // 2. Process parents and children for matches
+            for (const matchedPath of matchedPaths) {
+                // Always calculate ancestry to ensure we can force expand parents
+                const allAncestors = ancestryEngine.getAncestryNodePaths(matchedPath);
+                allAncestors.forEach(p => forceExpand.add(p));
+                
+                if (this.settings.searchShowParents) {
+                    allAncestors.forEach(p => allowedPaths.add(p));
+                }
+
+                // Include children if enabled
+                if (this.settings.searchShowChildren) {
+                    const stack = [matchedPath];
+                    const visited = new Set<string>();
+                    while (stack.length > 0) {
+                        const current = stack.pop()!;
+                        if (visited.has(current)) continue;
+                        visited.add(current);
+                        
+                        allowedPaths.add(current);
+                        forceExpand.add(current);
+                        
+                        const children = graph.parentToChildren[current];
+                        if (children) {
+                            children.forEach(childPath => stack.push(childPath));
+                        }
+                    }
+                }
+            }
+
+            // Highlight the first direct match if query matches perfectly or just first match
+            const exactMatch = matchedPaths.find(p => p.toLowerCase().includes(query));
+            if (exactMatch) {
+                this.virtualTreeManager.setHighlightedPath(exactMatch);
+                this.treeRenderer.setHighlightedPath(exactMatch);
+            }
+
+            this.virtualTreeManager.generateItems(allowedPaths, forceExpand, true);
         } else {
-             this.virtualTreeManager.generateItems();
+            // No matches found
+            this.virtualTreeManager.generateItems(new Set(), new Set(), true);
         }
     } else {
         // Normal render

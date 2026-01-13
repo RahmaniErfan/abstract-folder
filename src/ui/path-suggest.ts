@@ -4,12 +4,15 @@ import {
 	setIcon,
 	prepareFuzzySearch,
 	SearchResult,
+	prepareSimpleSearch,
+	TFile,
 } from "obsidian";
 import { FolderIndexer } from "../indexer";
 import { AbstractFolderPluginSettings } from "../settings";
 
 export class PathSuggest extends AbstractInputSuggest<string> {
 	private suggestionMetadata: Map<string, string> = new Map();
+	private matchedAlias: Map<string, string> = new Map();
 	private searchScores: Map<string, number> = new Map();
 
 	constructor(
@@ -49,16 +52,47 @@ export class PathSuggest extends AbstractInputSuggest<string> {
 
 		const abstractFolderPaths: Set<string> = new Set();
 		this.suggestionMetadata.clear();
+		this.matchedAlias.clear();
 		this.searchScores.clear();
 
 		const files = this.app.vault.getAllLoadedFiles();
 		const searchFn = prepareFuzzySearch(inputStr);
+		const simpleSearchFn = prepareSimpleSearch(inputStr);
 
 		// 1. Fuzzy Search Matches
 		const scoredMatches: { path: string; result: SearchResult }[] = [];
 
 		for (const file of files) {
-			const result = searchFn(file.path);
+			if (!(file instanceof TFile)) continue;
+
+			let result = searchFn(file.path);
+			
+			if (!result) {
+				const cache = this.app.metadataCache.getFileCache(file);
+				// Check aliases
+				const aliases = cache?.frontmatter?.aliases as unknown;
+				if (Array.isArray(aliases)) {
+					for (const alias of aliases) {
+						if (simpleSearchFn(String(alias))) {
+							result = { score: 0, matches: [] };
+							this.matchedAlias.set(file.path, String(alias));
+							break;
+						}
+					}
+				} else if (typeof aliases === 'string') {
+					if (simpleSearchFn(aliases)) {
+						result = { score: 0, matches: [] };
+						this.matchedAlias.set(file.path, aliases);
+					}
+				}
+
+				// Check title
+				const title = cache?.frontmatter?.title as unknown;
+				if (!result && typeof title === 'string' && simpleSearchFn(title)) {
+					result = { score: 0, matches: [] };
+				}
+			}
+
 			if (result) {
 				scoredMatches.push({ path: file.path, result });
 			}
@@ -153,7 +187,14 @@ export class PathSuggest extends AbstractInputSuggest<string> {
 		});
 
 		const mainText = suggestionEl.createDiv({ cls: "suggestion-content" });
-		mainText.setText(text);
+		
+		const alias = this.matchedAlias.get(value);
+		if (alias) {
+			mainText.createDiv({ cls: "suggestion-title", text: alias });
+			mainText.createDiv({ cls: "suggestion-note", text: value });
+		} else {
+			mainText.setText(text);
+		}
 
 		const metadata = this.suggestionMetadata.get(value);
 		if (metadata) {

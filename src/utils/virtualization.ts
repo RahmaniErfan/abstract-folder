@@ -30,14 +30,15 @@ export function generateFlatItemsFromGraph(
     expandedFolders: Set<string>,
     sortComparator: (a: FolderNode, b: FolderNode) => number,
     activeGroup?: Group,
-    excludeExtensions: string[] = []
+    excludeExtensions: string[] = [],
+    isSearching: boolean = false
 ): FlatItem[] {
     const flatItems: FlatItem[] = [];
     const parentToChildren = graph.parentToChildren;
     
     // 1. Identify Roots
     let rootPaths: string[] = [];
-    if (activeGroup) {
+    if (activeGroup && !isSearching) {
         // Use shared logic for group roots
         rootPaths = resolveGroupRoots(app, graph, activeGroup);
     } else {
@@ -75,6 +76,8 @@ export function generateFlatItemsFromGraph(
         flatItems.push({ node, depth, parentPath });
         
         // Lazy Recursion: Only if expanded
+        // During search, we might want to show children even if not explicitly in expandedFolders
+        // but typically expandedFolders will contain what we want to show.
         if (node.isFolder && expandedFolders.has(node.path)) {
             const childrenPaths = parentToChildren[node.path];
             if (childrenPaths && childrenPaths.size > 0) {
