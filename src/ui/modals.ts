@@ -536,3 +536,5 @@ export class SimulationModal extends Modal {
         this.contentEl.empty();
     }
 }
+
+export { CreateEditGroupModal } from "./modals/create-edit-group-modal";

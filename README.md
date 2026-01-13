@@ -80,6 +80,7 @@ Using groups to filter and manage a subset of your abstract folders.
   * **Migration Tools:** One-click tools to convert your physical folder structure to Abstract Folders (and vice-versa).
   * **Advanced Sorting:** Organize your view using smart metrics like "Thermal," "Stale Rot," and "Gravity."
   * **Hotness (Thermal):** Surface notes you are actively working on using exponential decay logic.
+  * **Focus & Isolate:** Instantly focus on a file's ancestry or use the search bar to isolate project branches.
 
 ## Usage
 
@@ -159,6 +160,14 @@ Access these via the Command Palette (`Ctrl/Cmd + P`):
 
   * **Abstract Folder: Open Abstract Folder View**
     Opens the virtual tree view in your sidebar.
+  * **Abstract Folder: Focus Search Bar**
+    Activates the view and focuses the search input.
+  * **Abstract Folder: Clear Active Group**
+    Removes the current group filter to show all abstract folders.
+  * **Abstract Folder: Focus Active File**
+    Highlights and centers the current file in the abstract tree, switching to tree view if necessary.
+  * **Abstract Folder: Create Group with Active File**
+    Opens the group creation modal with the current file pre-filled as a root parent.
   * **Abstract Folder: Create Abstract Child**
     Creates a new file and automatically links it as a child of the currently selected abstract folder.
   * **Abstract Folder: Manage Groups**

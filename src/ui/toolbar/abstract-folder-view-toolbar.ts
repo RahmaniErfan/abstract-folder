@@ -24,6 +24,7 @@ export class AbstractFolderViewToolbar {
         private expandAllView: () => void,
         private collapseAllView: () => void,
         private toggleSearch: () => void,
+        private focusSearch: () => void,
         private focusActiveFile: () => void,
     ) {}
 
@@ -46,7 +47,8 @@ export class AbstractFolderViewToolbar {
         this.containerEl.addClass("abstract-folder-toolbar");
 
         this.viewStyleToggleAction = this.addAction("list", "Switch view style", () => this.viewState.toggleViewStyle());
-        this.addAction("target", "Focus active file", () => this.focusActiveFile());
+        this.addAction("target", "Focus active file", () => this.focusActiveFile?.());
+        this.addAction("search", "Search", () => this.focusSearch?.());
         this.addAction("lucide-folder-sync", "Convert folder structure", (evt) => this.showConversionMenu(evt));
         this.collapseAllAction = this.addAction("chevrons-down-up", "Collapse all folders", () => this.collapseAllView());
         this.expandAllAction = this.addAction("chevrons-up-down", "Expand all folders", () => this.expandAllView());

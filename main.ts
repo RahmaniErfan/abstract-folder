@@ -11,7 +11,7 @@ import { AbstractFolderPluginSettings, DEFAULT_SETTINGS } from './src/settings';
 import { FolderIndexer } from './src/indexer';
 import { MetricsManager } from './src/metrics-manager';
 import { AbstractFolderView, VIEW_TYPE_ABSTRACT_FOLDER } from './src/view';
-import { CreateAbstractChildModal, ParentPickerModal, ChildFileType, FolderSelectionModal, ConversionOptionsModal, DestinationPickerModal, NewFolderNameModal, SimulationModal, ScopeSelectionModal } from './src/ui/modals';
+import { CreateAbstractChildModal, ParentPickerModal, ChildFileType, FolderSelectionModal, ConversionOptionsModal, DestinationPickerModal, NewFolderNameModal, SimulationModal, ScopeSelectionModal, CreateEditGroupModal } from './src/ui/modals';
 import { ManageGroupsModal } from './src/ui/modals/manage-groups-modal';
 import { AbstractFolderSettingTab } from './src/ui/settings-tab';
 import { createAbstractChildFile } from './src/utils/file-operations';
@@ -69,6 +69,20 @@ export default class AbstractFolderPlugin extends Plugin {
 		});
 
 		this.addCommand({
+			id: "focus-search",
+			name: "Focus search bar",
+			callback: () => {
+				this.activateView().then(() => {
+					const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_ABSTRACT_FOLDER);
+					if (leaves.length > 0) {
+						const view = leaves[0].view as AbstractFolderView;
+						view.focusSearch();
+					}
+				}).catch(console.error);
+			}
+		});
+
+		this.addCommand({
 			id: "create-child",
 			name: "Create abstract child",
 			callback: () => {
@@ -95,11 +109,42 @@ this.addCommand({
 	},
 });
 
+		this.addCommand({
+			id: "create-group-with-active-file",
+			name: "Create group with active file",
+			callback: () => {
+				const activeFile = this.app.workspace.getActiveFile();
+				if (!activeFile) {
+					new Notice("No active file to create a group from.");
+					return;
+				}
+
+				const prefilledGroup: Group = {
+					id: Math.random().toString(36).substring(2, 15),
+					name: activeFile.basename,
+					parentFolders: [activeFile.path],
+				};
+
+				new CreateEditGroupModal(this.app, this.settings, prefilledGroup, (updatedGroup: Group) => {
+					this.settings.groups.push(updatedGroup);
+					this.settings.activeGroupId = updatedGroup.id;
+					this.saveSettings().then(() => {
+						this.app.workspace.trigger('abstract-folder:group-changed');
+						this.activateView().catch(console.error);
+					}).catch(console.error);
+				}).open();
+			}
+		});
+
 this.addCommand({
 	id: "clear-active-group",
 	name: "Clear active group",
 	callback: () => {
-		if (this.settings.activeGroupId) {
+		const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_ABSTRACT_FOLDER);
+		if (leaves.length > 0) {
+			const view = leaves[0].view as AbstractFolderView;
+			view.clearActiveGroup();
+		} else if (this.settings.activeGroupId) {
 			this.settings.activeGroupId = null;
 			this.saveSettings().then(() => {
 				new Notice("Active group cleared.");

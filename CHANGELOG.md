@@ -1,5 +1,15 @@
 # Changelog
 
+## Version 1.12.0
+
+**Features:**
+*   **Jump to Search Bar**: Added a command and toolbar action to quickly focus the search bar.
+*   **Clear Active Group**: New command to instantly clear the active group filter.
+*   **Create Group with Active File**: New command to instantly create a virtual group using the currently active file as the root parent. It opens the group creation modal with the active file pre-filled as a root parent, allowing you to customize the name before saving.
+    *   **Global Command**: Added "Focus search bar in abstract tree" to the command palette.
+    *   **Toolbar Integration**: Added a search icon (🔍) to the toolbar for mouse-driven access.
+    *   **Automatic View Switching**: Automatically switches from Column mode to Tree mode when searching, as search is optimized for the hierarchical tree layout.
+
 ## Version 1.11.0
 
 **Features:**

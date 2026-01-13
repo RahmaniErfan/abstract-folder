@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, setIcon, TFile } from "obsidian";
+import { ItemView, WorkspaceLeaf, setIcon, TFile, Notice } from "obsidian";
 import { FolderIndexer } from "../../indexer";
 import { MetricsManager } from "../../metrics-manager";
 import { FolderNode, HIDDEN_FOLDER_ID, Group } from "../../types";
@@ -101,6 +101,7 @@ export class AbstractFolderView extends ItemView {
        this.app, this.settings, this.plugin, this.viewState, toolbarEl,
        () => { this.renderView(); }, () => { void this.expandAll(); }, () => { void this.collapseAll(); },
        () => {}, // Callback for search toggle (deprecated but kept for compat)
+       () => this.focusSearch(),
        () => this.focusActiveFile()
     );
 
@@ -251,6 +252,7 @@ export class AbstractFolderView extends ItemView {
         this.handleEnterKey(false);
         return false;
     });
+
   }
 
     // Handles Enter key to open files or toggle folders
@@ -730,6 +732,22 @@ export class AbstractFolderView extends ItemView {
     }
   }
 
+  public focusSearch() {
+    if (this.settings.viewStyle !== 'tree') {
+      this.viewState.toggleViewStyle();
+    }
+    
+    // Ensure search input exists (it's created during render if in tree view)
+    if (!this.searchInputEl) {
+        this.renderView();
+    }
+
+    if (this.searchInputEl) {
+        this.searchInputEl.focus();
+        this.searchInputEl.select();
+    }
+  }
+
   public focusFile(path: string) {
     if (this.settings.viewStyle !== 'tree') {
       this.viewState.toggleViewStyle();
@@ -754,6 +772,18 @@ export class AbstractFolderView extends ItemView {
     const activeFile = this.app.workspace.getActiveFile();
     if (activeFile) {
       this.focusFile(activeFile.path);
+    }
+  }
+
+  public clearActiveGroup() {
+    if (this.settings.activeGroupId) {
+        this.settings.activeGroupId = null;
+        this.plugin.saveSettings().then(() => {
+            new Notice("Active group cleared.");
+            this.app.workspace.trigger('abstract-folder:group-changed');
+        }).catch(console.error);
+    } else {
+        new Notice("No active group to clear.");
     }
   }
 

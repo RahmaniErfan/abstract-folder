@@ -134,7 +134,7 @@ export class ContextMenuHandler {
                 .setTitle("Focus this file")
                 .setIcon("target")
                 .onClick(() => {
-                    this.focusFile(file.path);
+                    this.focusFile?.(file.path);
                 })
         );
 
