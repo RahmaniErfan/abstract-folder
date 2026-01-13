@@ -28,6 +28,17 @@ export interface AbstractFolderPluginSettings {
   displayNameOrder: string[]; // Ordered list of properties to check for display name
   searchShowChildren: boolean; // Whether to show children in search results
   searchShowParents: boolean; // Whether to show parents in search results
+  showViewStyleToggle: boolean; // Whether to show the view style toggle button
+  showFocusActiveFileButton: boolean; // Whether to show the focus active file button
+  showSearchButton: boolean; // Whether to show the search button in toolbar
+  showConversionButton: boolean; // Whether to show the conversion button
+  showCollapseAllButton: boolean; // Whether to show the collapse all button
+  showExpandAllButton: boolean; // Whether to show the expand all button
+  showSortButton: boolean; // Whether to show the sort button
+  showFilterButton: boolean; // Whether to show the filter button
+  showGroupButton: boolean; // Whether to show the group button
+  showCreateNoteButton: boolean; // Whether to show the create note button
+  showSearchHeader: boolean; // Whether to show the search bar header
 }
 
 export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
@@ -58,4 +69,15 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   displayNameOrder: ['title', 'aliases', 'basename'],
   searchShowChildren: false,
   searchShowParents: false,
+  showViewStyleToggle: true,
+  showFocusActiveFileButton: true,
+  showSearchButton: true,
+  showConversionButton: true,
+  showCollapseAllButton: true,
+  showExpandAllButton: true,
+  showSortButton: true,
+  showFilterButton: true,
+  showGroupButton: true,
+  showCreateNoteButton: true,
+  showSearchHeader: true,
 };

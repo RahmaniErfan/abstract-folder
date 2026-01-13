@@ -349,6 +349,7 @@ export class AbstractFolderView extends ItemView {
     });
 
     this.ensureVirtualContainers();
+    this.toolbar?.setupToolbarActions();
     this.renderHeader();
     this.renderSearchHeader();
 
@@ -392,7 +393,7 @@ export class AbstractFolderView extends ItemView {
   private renderSearchHeader() {
     let searchHeader = this.contentEl.querySelector(".abstract-folder-search-header") as HTMLElement;
     
-    if (this.settings.viewStyle !== 'tree') {
+    if (this.settings.viewStyle !== 'tree' || !this.settings.showSearchHeader) {
         if (searchHeader) searchHeader.remove();
         this.searchHeaderEl = null;
         this.searchInputEl = null;

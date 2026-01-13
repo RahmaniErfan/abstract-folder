@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 1.13.2
+
+**UI Customization:**
+*   **Toolbar Button Toggling**: Added settings to individually show/hide any of the 10 toolbar buttons (View Style, Focus Active File, Search, Conversion, Collapse All, Expand All, Sort, Filter, Group, and Create Note).
+*   **Search Bar Toggling**: Added a setting to hide the search bar at the top of the tree view.
+*   **Reactive UI**: All visual toggles apply immediately to the view without requiring a plugin reload.
+*   **Minimalist Layout**: The toolbar separator (bottom border) now automatically hides when all toolbar buttons are turned off.
+
 ## Version 1.13.1
 
 **UI Improvements:**

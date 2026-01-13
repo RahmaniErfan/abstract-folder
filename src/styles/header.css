@@ -14,6 +14,10 @@
     margin-bottom: 4px; /* Small margin above title */
 }
 
+.abstract-folder-toolbar-container:empty {
+	display: none;
+}
+
 .abstract-folder-toolbar-action {
 	display: flex;
 	align-items: center;

@@ -45,21 +45,46 @@ export class AbstractFolderViewToolbar {
     public setupToolbarActions(): void {
         this.containerEl.empty();
         this.containerEl.addClass("abstract-folder-toolbar");
+        
+        // Clear references before rebuilding
+        this.viewStyleToggleAction = undefined;
+        this.expandAllAction = undefined;
+        this.collapseAllAction = undefined;
 
-        this.viewStyleToggleAction = this.addAction("list", "Switch view style", () => this.viewState.toggleViewStyle());
-        this.addAction("target", "Focus active file", () => this.focusActiveFile?.());
-        this.addAction("search", "Search", () => this.focusSearch?.());
-        this.addAction("lucide-folder-sync", "Convert folder structure", (evt) => this.showConversionMenu(evt));
-        this.collapseAllAction = this.addAction("chevrons-down-up", "Collapse all folders", () => this.collapseAllView());
-        this.expandAllAction = this.addAction("chevrons-up-down", "Expand all folders", () => this.expandAllView());
-        this.addAction("arrow-up-down", "Sort order", (evt) => this.showSortMenu(evt));
-        this.addAction("filter", "Filter", (evt) => this.showFilterMenu(evt));
-        this.addAction("group", "Select group", (evt) => this.showGroupMenu(evt));
-        this.addAction("file-plus", "Create new root note", () => {
-            new CreateAbstractChildModal(this.app, this.settings, (name, type) => {
-                createAbstractChildFile(this.app, this.settings, name, null, type).catch(console.error);
-            }, 'note').open();
-        });
+        if (this.settings.showViewStyleToggle) {
+            this.viewStyleToggleAction = this.addAction("list", "Switch view style", () => this.viewState.toggleViewStyle());
+        }
+        if (this.settings.showFocusActiveFileButton) {
+            this.addAction("target", "Focus active file", () => this.focusActiveFile?.());
+        }
+        if (this.settings.showSearchButton) {
+            this.addAction("search", "Search", () => this.focusSearch?.());
+        }
+        if (this.settings.showConversionButton) {
+            this.addAction("lucide-folder-sync", "Convert folder structure", (evt) => this.showConversionMenu(evt));
+        }
+        if (this.settings.showCollapseAllButton) {
+            this.collapseAllAction = this.addAction("chevrons-down-up", "Collapse all folders", () => this.collapseAllView());
+        }
+        if (this.settings.showExpandAllButton) {
+            this.expandAllAction = this.addAction("chevrons-up-down", "Expand all folders", () => this.expandAllView());
+        }
+        if (this.settings.showSortButton) {
+            this.addAction("arrow-up-down", "Sort order", (evt) => this.showSortMenu(evt));
+        }
+        if (this.settings.showFilterButton) {
+            this.addAction("filter", "Filter", (evt) => this.showFilterMenu(evt));
+        }
+        if (this.settings.showGroupButton) {
+            this.addAction("group", "Select group", (evt) => this.showGroupMenu(evt));
+        }
+        if (this.settings.showCreateNoteButton) {
+            this.addAction("file-plus", "Create new root note", () => {
+                new CreateAbstractChildModal(this.app, this.settings, (name, type) => {
+                    createAbstractChildFile(this.app, this.settings, name, null, type).catch(console.error);
+                }, 'note').open();
+            });
+        }
 
         this.updateViewStyleToggleButton();
         this.updateButtonStates();

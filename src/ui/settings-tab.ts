@@ -337,6 +337,151 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 						);
 					})
 			);
+
+		new Setting(containerEl).setName("Toolbar & search").setHeading();
+
+		new Setting(containerEl)
+			.setName("Show search bar")
+			.setDesc("Toggle the visibility of the search bar at the top of the tree view.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showSearchHeader)
+					.onChange(async (value) => {
+						this.plugin.settings.showSearchHeader = value;
+						await this.plugin.saveSettings();
+						this.app.workspace.trigger("abstract-folder:graph-updated");
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Show view style toggle")
+			.setDesc("Toggle the visibility of the tree/column view switch button.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showViewStyleToggle)
+					.onChange(async (value) => {
+						this.plugin.settings.showViewStyleToggle = value;
+						await this.plugin.saveSettings();
+						this.app.workspace.trigger("abstract-folder:graph-updated");
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Show focus active file button")
+			.setDesc("Toggle the visibility of the button that focuses the active file.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showFocusActiveFileButton)
+					.onChange(async (value) => {
+						this.plugin.settings.showFocusActiveFileButton = value;
+						await this.plugin.saveSettings();
+						this.app.workspace.trigger("abstract-folder:graph-updated");
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Show search button")
+			.setDesc("Toggle the visibility of the search button in the toolbar.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showSearchButton)
+					.onChange(async (value) => {
+						this.plugin.settings.showSearchButton = value;
+						await this.plugin.saveSettings();
+						this.app.workspace.trigger("abstract-folder:graph-updated");
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Show conversion button")
+			.setDesc("Toggle the visibility of the folder conversion button.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showConversionButton)
+					.onChange(async (value) => {
+						this.plugin.settings.showConversionButton = value;
+						await this.plugin.saveSettings();
+						this.app.workspace.trigger("abstract-folder:graph-updated");
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Show collapse all button")
+			.setDesc("Toggle the visibility of the collapse all folders button.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showCollapseAllButton)
+					.onChange(async (value) => {
+						this.plugin.settings.showCollapseAllButton = value;
+						await this.plugin.saveSettings();
+						this.app.workspace.trigger("abstract-folder:graph-updated");
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Show expand all button")
+			.setDesc("Toggle the visibility of the expand all folders button.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showExpandAllButton)
+					.onChange(async (value) => {
+						this.plugin.settings.showExpandAllButton = value;
+						await this.plugin.saveSettings();
+						this.app.workspace.trigger("abstract-folder:graph-updated");
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Show sort button")
+			.setDesc("Toggle the visibility of the sorting options button.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showSortButton)
+					.onChange(async (value) => {
+						this.plugin.settings.showSortButton = value;
+						await this.plugin.saveSettings();
+						this.app.workspace.trigger("abstract-folder:graph-updated");
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Show filter button")
+			.setDesc("Toggle the visibility of the filtering options button.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showFilterButton)
+					.onChange(async (value) => {
+						this.plugin.settings.showFilterButton = value;
+						await this.plugin.saveSettings();
+						this.app.workspace.trigger("abstract-folder:graph-updated");
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Show group button")
+			.setDesc("Toggle the visibility of the group selection button.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showGroupButton)
+					.onChange(async (value) => {
+						this.plugin.settings.showGroupButton = value;
+						await this.plugin.saveSettings();
+						this.app.workspace.trigger("abstract-folder:graph-updated");
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Show create note button")
+			.setDesc("Toggle the visibility of the create new root note button.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showCreateNoteButton)
+					.onChange(async (value) => {
+						this.plugin.settings.showCreateNoteButton = value;
+						await this.plugin.saveSettings();
+						this.app.workspace.trigger("abstract-folder:graph-updated");
+					})
+			);
 	}
 
 	private renderExcludedPaths(containerEl: HTMLElement): void {
