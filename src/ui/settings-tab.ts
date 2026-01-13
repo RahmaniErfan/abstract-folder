@@ -50,6 +50,8 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
+		this.renderExcludedPaths(containerEl);
+
 		new Setting(containerEl).setName("Properties").setHeading();
 
 		new Setting(containerEl)
@@ -482,12 +484,13 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 						this.app.workspace.trigger("abstract-folder:graph-updated");
 					})
 			);
+
 	}
 
 	private renderExcludedPaths(containerEl: HTMLElement): void {
 		new Setting(containerEl)
 			.setName("Excluded paths")
-			.setDesc("Paths to exclude from the abstract folders view.")
+			.setDesc("The plugin will ignore these folders and their contents.")
 			.setHeading();
 
 		const excludedPathsContainer = containerEl.createDiv({
@@ -523,10 +526,10 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 				);
 		});
 
-		new Setting(containerEl).addButton((button) =>
+		new Setting(containerEl).addExtraButton((button) =>
 			button
-				.setButtonText("Add new excluded path")
-				.setCta()
+				.setIcon("plus")
+				.setTooltip("Add new excluded path")
 				.onClick(async () => {
 					this.plugin.settings.excludedPaths.push(normalizePath("")); // Add an empty path for the new input, normalized
 					await this.plugin.saveSettings();

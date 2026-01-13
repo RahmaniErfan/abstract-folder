@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 1.13.3
+
+**Fixes:**
+*   **Restored excluded paths**: Re-implemented the "Excluded paths" section in settings. It's now located at the top of the settings page for better visibility.
+*   **Improved styling**: Replaced the "Add new excluded path" button with a space-saving plus icon.
+
 ## Version 1.13.2
 
 **UI Customization:**
