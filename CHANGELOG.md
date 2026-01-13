@@ -1,5 +1,14 @@
 # Changelog
 
+## Version 1.11.0
+
+**Features:**
+*   **Focus Active File**: Introduced a new feature to focus on a specific file in the tree view. Focusing filters the view to show only the selected file's ancestry and/or children, integrated with existing search settings.
+    *   **Toolbar Integration**: Added a "Target" icon (🎯) to the toolbar for quick toggling of focus on the active file.
+    *   **Context Menu**: Added "Focus this file" option to the right-click menu for any item in the tree.
+    *   **Global Command**: Added "Toggle focus on active file in abstract tree" command for keyboard accessibility.
+    *   **Intelligent Switching**: Automatically switches the view from Column mode to Tree mode when focusing to ensure the focused hierarchy is clearly visible.
+
 ## Version 1.10.6
 
 **Maintenance:**

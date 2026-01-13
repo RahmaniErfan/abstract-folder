@@ -49,6 +49,26 @@ export default class AbstractFolderPlugin extends Plugin {
 		});
 
 		this.addCommand({
+			id: "focus-active-file",
+			name: "Toggle focus on active file in abstract tree",
+			callback: () => {
+				const activeFile = this.app.workspace.getActiveFile();
+				if (!activeFile) {
+					new Notice("No active file to focus.");
+					return;
+				}
+
+				this.activateView().then(() => {
+					const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_ABSTRACT_FOLDER);
+					if (leaves.length > 0) {
+						const view = leaves[0].view as AbstractFolderView;
+						view.focusFile(activeFile.path);
+					}
+				}).catch(console.error);
+			}
+		});
+
+		this.addCommand({
 			id: "create-child",
 			name: "Create abstract child",
 			callback: () => {

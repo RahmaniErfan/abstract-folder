@@ -70,7 +70,8 @@ export class AbstractFolderView extends ItemView {
       this.viewState.multiSelectedPaths,
       this.getDisplayName,
       (itemEl, path) => this.toggleCollapse(itemEl, path),
-      this.indexer, this.dragManager
+      this.indexer, this.dragManager,
+      (path) => this.focusFile(path)
     );
 
     this.columnRenderer = new ColumnRenderer(
@@ -84,7 +85,7 @@ export class AbstractFolderView extends ItemView {
       () => this.contentEl
     );
 
-    this.contextMenuHandler = new ContextMenuHandler(this.app, this.settings, this.plugin, this.indexer);
+    this.contextMenuHandler = new ContextMenuHandler(this.app, this.settings, this.plugin, this.indexer, (path: string) => this.focusFile(path));
   }
 
   getViewType(): string { return VIEW_TYPE_ABSTRACT_FOLDER; }
@@ -99,7 +100,8 @@ export class AbstractFolderView extends ItemView {
     this.toolbar = new AbstractFolderViewToolbar(
        this.app, this.settings, this.plugin, this.viewState, toolbarEl,
        () => { this.renderView(); }, () => { void this.expandAll(); }, () => { void this.collapseAll(); },
-       () => {} // Callback for search toggle (deprecated but kept for compat)
+       () => {}, // Callback for search toggle (deprecated but kept for compat)
+       () => this.focusActiveFile()
     );
 
     const virtualWrapper = this.contentEl.createDiv({ cls: "abstract-folder-virtual-wrapper" });
@@ -725,6 +727,33 @@ export class AbstractFolderView extends ItemView {
     this.renderView();
     if (this.isSearchVisible && this.searchInputEl) {
         this.searchInputEl.focus();
+    }
+  }
+
+  public focusFile(path: string) {
+    if (this.settings.viewStyle !== 'tree') {
+      this.viewState.toggleViewStyle();
+    }
+
+    if (this.searchInputEl) {
+      if (this.searchInputEl.value === path) {
+        // Toggle off if already focused
+        this.searchInputEl.value = "";
+        this.renderView();
+      } else {
+        // Focus new file
+        this.searchInputEl.value = path;
+        this.renderView();
+        // Ensure it's scrolled into view and highlighted
+        this.fileRevealManager?.revealFile(path);
+      }
+    }
+  }
+
+  public focusActiveFile() {
+    const activeFile = this.app.workspace.getActiveFile();
+    if (activeFile) {
+      this.focusFile(activeFile.path);
     }
   }
 

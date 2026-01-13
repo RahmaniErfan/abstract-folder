@@ -12,7 +12,8 @@ export class ContextMenuHandler {
         private app: App,
         private settings: AbstractFolderPluginSettings,
         private plugin: AbstractFolderPlugin,
-        private indexer: FolderIndexer
+        private indexer: FolderIndexer,
+        private focusFile: (path: string) => void
     ) {}
 
     showContextMenu(event: MouseEvent, node: FolderNode, multiSelectedPaths: Set<string>) {
@@ -128,6 +129,17 @@ export class ContextMenuHandler {
     }
 
     private addFileSpecificActions(menu: Menu, file: TFile) {
+        menu.addItem((item) =>
+            item
+                .setTitle("Focus this file")
+                .setIcon("target")
+                .onClick(() => {
+                    this.focusFile(file.path);
+                })
+        );
+
+        menu.addSeparator();
+
         menu.addItem((item) =>
             item
             .setTitle("Open in new tab")

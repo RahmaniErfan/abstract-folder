@@ -7,6 +7,8 @@ import { FolderIndexer } from "../../indexer";
 import { DragManager } from "../dnd/drag-manager";
 import { FlatItem } from "../../utils/virtualization";
 
+export type FocusFileCallback = (path: string) => void;
+
 function stringToNumberHash(str: string): number {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
@@ -33,7 +35,8 @@ export class TreeRenderer {
         getDisplayName: (node: FolderNode) => string,
         toggleCollapse: (itemEl: HTMLElement, path: string) => Promise<void>,
         indexer: FolderIndexer, // Add indexer here
-        dragManager: DragManager
+        dragManager: DragManager,
+        focusFile: FocusFileCallback
     ) {
         this.app = app;
         this.settings = settings;
@@ -41,7 +44,7 @@ export class TreeRenderer {
         this.multiSelectedPaths = multiSelectedPaths;
         this.getDisplayName = getDisplayName;
         this.toggleCollapse = toggleCollapse;
-        this.contextMenuHandler = new ContextMenuHandler(app, settings, plugin, indexer);
+        this.contextMenuHandler = new ContextMenuHandler(app, settings, plugin, indexer, focusFile);
         this.dragManager = dragManager;
     }
 
