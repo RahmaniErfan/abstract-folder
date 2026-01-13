@@ -1,5 +1,14 @@
 # Changelog
 
+## Version 1.13.1
+
+**UI Improvements:**
+*   **Context Menu Reorganization**: Plugin-specific actions (Focus, Hide/Unhide, Set Icon, Creation, and Delete) are now grouped together and positioned at the very top of the right-click menu.
+*   **Improved Clarity**: Refined the titles of abstract child creation items to explicitly mention the parent context (e.g., "Create child note in [Parent]").
+*   **Visual Consistency**: Ensured the custom DOM-based context menu is used to preserve command icons and follow Obsidian's native look and feel.
+*   **Exclusive View States**: Implemented strict mutual exclusion between Search and Groups. Activating one now automatically clears the other, ensuring search results are never filtered by a group and that group titles never appear during a search.
+*   **Predictable Resets**: Clearing a search now also cleanses any group state activated during that search, returning the view to a consistent, full-vault state.
+
 ## Version 1.12.0
 
 **Features:**

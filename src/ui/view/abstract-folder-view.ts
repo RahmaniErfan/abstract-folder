@@ -155,7 +155,16 @@ export class AbstractFolderView extends ItemView {
     // @ts-ignore - Custom event not in Obsidian types
     this.registerEvent(this.app.workspace.on("abstract-folder:view-style-changed", this.handleViewStyleChanged, this));
     // @ts-ignore - Custom event not in Obsidian types
-    this.registerEvent(this.app.workspace.on("abstract-folder:group-changed", this.renderView, this));
+    this.registerEvent(this.app.workspace.on("abstract-folder:group-changed", () => {
+        // When a group is changed (activated), we MUST clear the search to prevent mixed state
+        // This ensures the view switches from "Search results" to "Group view" cleanly
+        if (this.settings.activeGroupId && this.searchInputEl && this.searchInputEl.value.trim().length > 0) {
+            this.searchInputEl.value = "";
+            // We MUST trigger input to notify any listeners (like PathSuggest or internal state)
+            this.searchInputEl.dispatchEvent(new Event('input'));
+        }
+        this.renderView();
+    }, this));
     // @ts-ignore - Custom event not in Obsidian types
     this.registerEvent(this.app.workspace.on("abstract-folder:expand-all", () => this.expandAll(), this));
     // @ts-ignore - Custom event not in Obsidian types
@@ -457,6 +466,11 @@ export class AbstractFolderView extends ItemView {
         clearIconEl.addEventListener("click", () => {
              if (this.searchInputEl) {
                  this.searchInputEl.value = "";
+                 // When search is cleared, if a group was activated while searching,
+                 // we should also clear that group to avoid it popping up unexpectedly.
+                 if (this.settings.activeGroupId) {
+                     this.clearActiveGroup(false);
+                 }
                  this.searchInputEl.trigger("input");
                  this.searchInputEl.focus();
                  this.renderView(); // Trigger view update immediately
@@ -466,6 +480,14 @@ export class AbstractFolderView extends ItemView {
         new PathSuggest(this.app, this.searchInputEl, this.indexer, this.settings);
 
         this.searchInputEl.addEventListener("input", () => {
+            // If user starts typing, we MUST clear active group to prevent "illegal" state
+            // where search results are mixed with group constraints or group title is shown incorrectly
+            if (this.searchInputEl && this.searchInputEl.value.trim().length > 0 && this.settings.activeGroupId) {
+                // We set to null directly to avoid triggering group-changed event which would clear search again
+                this.settings.activeGroupId = null;
+                void this.plugin.saveSettings();
+                // We don't trigger event because we are about to renderView anyway
+            }
             // clearIconEl is always visible now
             this.renderView();
             this.searchInputEl?.focus();
@@ -499,6 +521,7 @@ export class AbstractFolderView extends ItemView {
 
   private renderHeader() {
     let headerEl = this.contentEl.querySelector(".abstract-folder-header-title") as HTMLElement;
+    
     const activeGroup = this.settings.activeGroupId
         ? this.settings.groups.find(group => group.id === this.settings.activeGroupId)
         : null;
@@ -684,6 +707,9 @@ export class AbstractFolderView extends ItemView {
    }
 
   private renderColumnView = () => {
+    // If we are in column view and a group is active, we should ensure search is empty
+    // (though search is currently only visible in tree view, this is good for consistency)
+    
     const rootNodes = buildFolderTree(this.app, this.indexer.getGraph(), (a, b) => this.sortNodes(a, b), this.viewState.excludeExtensions);
     
     rootNodes.sort((a, b) => {
@@ -832,14 +858,14 @@ export class AbstractFolderView extends ItemView {
     }
   }
 
-  public clearActiveGroup() {
+  public clearActiveGroup(showNotice: boolean = true) {
     if (this.settings.activeGroupId) {
         this.settings.activeGroupId = null;
         this.plugin.saveSettings().then(() => {
-            new Notice("Active group cleared.");
+            if (showNotice) new Notice("Active group cleared.");
             this.app.workspace.trigger('abstract-folder:group-changed');
         }).catch(console.error);
-    } else {
+    } else if (showNotice) {
         new Notice("No active group to clear.");
     }
   }

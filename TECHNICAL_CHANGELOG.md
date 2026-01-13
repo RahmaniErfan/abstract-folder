@@ -1,3 +1,29 @@
+# Technical Changelog - Abstract Folder Plugin v1.13.1
+
+## Context Menu Architecture Refinement
+
+### 1. Custom Section Grouping (`src/ui/context-menu.ts`)
+*   **Strategy**: Implemented a dedicated `abstract-folder` section ID for all plugin-specific `MenuItem` instances.
+*   **Benefit**: This ensures Obsidian's menu manager clusters our actions (Focus, Icon, Hidden, Creation, Delete) together at the top, preventing third-party or core items from interleaving within our feature block.
+
+### 2. Forced DOM Menu Rendering (`src/ui/context-menu.ts`)
+*   **Implementation**: Explicitly called `menu.setUseNativeMenu(false)`.
+*   **Rationale**: Preserves the command icons (target, eye, image, etc.) and enables the high-quality styled DOM menu that matches Obsidian's primary tree UI, whereas native OS menus often strip icons and custom styling.
+
+### 3. Execution Order Control
+*   **Logic**: Added plugin-specific items *before* triggering the `file-menu` workspace event.
+*   **Effect**: Guarantees our "Abstract Folder" actions occupy the primary `action` real estate at the top of the menu before other plugins can register their own items.
+
+## Group and Search Interaction Logic (`src/ui/view/abstract-folder-view.ts`)
+
+### 1. Exclusive State Management
+*   **Rule**: The plugin now enforces an exclusive relationship between "Active Group" and "Search Query" to prevent UI overlapping and filter confusion.
+*   **Search Input Trigger**: When a user begins typing in the search bar, `clearActiveGroup(false)` is invoked. This silently clears the active group without a redundant notification, immediately removing the group title and clearing the way for search results.
+*   **Group Activation Trigger**: When `abstract-folder:group-changed` is captured (via toolbar or command palette), the search input is cleared before re-rendering the view.
+*   **Consistency**: This ensures that search results are always vault-wide (or ancestry/children-wide based on settings) and never constrained by a pre-existing virtual group, maintaining a clear mental model for the user.
+*   **Event-Driven Synchronization**: The toolbar and other group-activating components now trigger the `abstract-folder:group-changed` event. This event centralizes the clearing of search inputs and dispatches DOM `input` events to ensure all suggest components and internal state managers are synchronized.
+*   **Search Reset Logic**: Explicitly resetting the search query (via the clear icon) now also cleanses any group state that was activated during the search, preventing unexpected group "pop-ups" when exiting the search mode.
+
 # Technical Changelog - Abstract Folder Plugin v1.6.7
 
 ## UI Isolation & Header Refactoring

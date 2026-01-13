@@ -181,7 +181,7 @@ export class AbstractFolderViewToolbar {
                         if (group.sort) this.viewState.setSort(group.sort.sortBy, group.sort.sortOrder);
                         if (group.filter) this.viewState.setFilter(group.filter.excludeExtensions);
                         else this.viewState.setFilter(this.settings.defaultFilter.excludeExtensions);
-                        this.renderView();
+                        this.app.workspace.trigger('abstract-folder:group-changed');
                     }));
             });
             menu.addSeparator();
@@ -203,7 +203,7 @@ export class AbstractFolderViewToolbar {
             const defaultSort = this.plugin.settings.defaultSort;
             this.viewState.setSort(defaultSort.sortBy, defaultSort.sortOrder);
             this.viewState.setFilter(this.plugin.settings.defaultFilter.excludeExtensions);
-            this.renderView();
+            this.app.workspace.trigger('abstract-folder:group-changed');
         }));
 
         menu.showAtMouseEvent(event);
