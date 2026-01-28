@@ -248,7 +248,7 @@ async function addChildToParentNoteFrontmatter(
     parentNote: TFile
 ) {
     await app.fileManager.processFrontMatter(parentNote, (frontmatter: AbstractFolderFrontmatter) => {
-        const childrenPropertyName = settings.childrenPropertyName || "children";
+        const childrenPropertyName = settings.childrenPropertyNames[0] || settings.childrenPropertyName || "children";
         const rawChildren = frontmatter[childrenPropertyName];
         let currentChildren: string[] = [];
 
@@ -283,7 +283,7 @@ async function linkChildToParent(
 ) {
     // 1. Update CHILD to point to PARENT (propertyName)
     await app.fileManager.processFrontMatter(child, (frontmatter: AbstractFolderFrontmatter) => {
-        const parentPropertyName = settings.propertyName || "parent";
+        const parentPropertyName = settings.parentPropertyNames[0] || settings.propertyName || "parent";
         const rawParents = frontmatter[parentPropertyName];
         let currentParents: string[] = [];
 

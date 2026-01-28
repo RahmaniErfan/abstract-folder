@@ -49,7 +49,7 @@ async function updateLinkInFrontmatter(app: App, settings: AbstractFolderPluginS
     const oldPathNoExt = oldPath.endsWith('.md') ? oldPath.slice(0, -3) : oldPath;
     
     await app.fileManager.processFrontMatter(referencingFile, (frontmatter: AbstractFolderFrontmatter) => {
-        const props = [settings.propertyName, settings.childrenPropertyName];
+        const props = [...settings.parentPropertyNames, ...settings.childrenPropertyNames];
 
         for (const prop of props) {
             const val = frontmatter[prop];
@@ -150,8 +150,9 @@ export async function createAbstractChildFile(app: App, settings: AbstractFolder
             if (parentFile) {
                 const parentBaseName = parentFile.basename;
                 const cleanParentName = parentBaseName.replace(/"/g, '');
+                const primaryParentProp = settings.parentPropertyNames[0] || settings.propertyName;
                 initialContent = `---
-${settings.propertyName}: "[[${cleanParentName}]]"
+${primaryParentProp}: "[[${cleanParentName}]]"
 aliases:
   - "${childName}"
 ---
@@ -194,7 +195,7 @@ aliases:
 
         if (fileExtension !== '.md' && parentFile && parentFile.extension === 'md') {
             await app.fileManager.processFrontMatter(parentFile, (frontmatter: AbstractFolderFrontmatter) => {
-                const childrenPropertyName = settings.childrenPropertyName;
+                const childrenPropertyName = settings.childrenPropertyNames[0] || settings.childrenPropertyName;
                 const rawChildren = frontmatter[childrenPropertyName];
                 let childrenArray: string[] = [];
 
@@ -403,32 +404,45 @@ export async function updateFileIcon(app: App, file: TFile, iconName: string) {
  */
 export async function toggleHiddenStatus(app: App, file: TFile, settings: AbstractFolderPluginSettings) {
     await app.fileManager.processFrontMatter(file, (frontmatter: AbstractFolderFrontmatter) => {
-      const primaryPropertyName = settings.propertyName;
-      const rawParents = frontmatter[primaryPropertyName];
-      let parentLinks: string[] = [];
+      // For toggling hidden, we only operate on the primary property name for consistency,
+      // but we should check all configured parent properties to see if it's already hidden.
+      const primaryPropertyName = settings.parentPropertyNames[0] || settings.propertyName;
+      
+      let isCurrentlyHidden = false;
+      let targetProp = primaryPropertyName;
 
-      if (typeof rawParents === 'string') {
-        parentLinks = [rawParents];
-      } else if (Array.isArray(rawParents)) {
-        parentLinks = rawParents as string[];
+      for (const prop of settings.parentPropertyNames) {
+          const val = frontmatter[prop];
+          let links: string[] = [];
+          if (typeof val === 'string') links = [val];
+          else if (Array.isArray(val)) links = val as string[];
+
+          if (links.some((p: string) => p.toLowerCase().trim() === 'hidden')) {
+              isCurrentlyHidden = true;
+              targetProp = prop;
+              break;
+          }
       }
 
-      const isCurrentlyHidden = parentLinks.some((p: string) => p.toLowerCase().trim() === 'hidden');
+      const rawParents = frontmatter[targetProp];
+      let parentLinks: string[] = [];
+      if (typeof rawParents === 'string') parentLinks = [rawParents];
+      else if (Array.isArray(rawParents)) parentLinks = rawParents as string[];
 
       if (isCurrentlyHidden) {
         const newParents = parentLinks.filter((p: string) => p.toLowerCase().trim() !== 'hidden');
         
         if (newParents.length > 0) {
-          frontmatter[primaryPropertyName] = newParents.length === 1 ? newParents[0] : newParents;
+          frontmatter[targetProp] = newParents.length === 1 ? newParents[0] : newParents;
         } else {
-          delete frontmatter[primaryPropertyName];
+          delete frontmatter[targetProp];
         }
         new Notice(`Unhid: ${file.basename}`);
       } else {
         if (!parentLinks.some((p: string) => p.toLowerCase().trim() === 'hidden')) {
           parentLinks.push('hidden');
         }
-        frontmatter[primaryPropertyName] = parentLinks.length === 1 ? parentLinks[0] : parentLinks;
+        frontmatter[targetProp] = parentLinks.length === 1 ? parentLinks[0] : parentLinks;
         new Notice(`Hid: ${file.basename}`);
       }
     });
@@ -477,42 +491,66 @@ export async function moveFiles(
 
     for (const file of mdFiles) {
         await app.fileManager.processFrontMatter(file, (frontmatter: AbstractFolderFrontmatter) => {
-            const parentPropertyName = settings.propertyName;
-            const rawParents = frontmatter[parentPropertyName];
-            let parentLinks: string[] = [];
+            // When moving, we prioritize the first defined parent property name
+            const parentPropertyName = settings.parentPropertyNames[0] || settings.propertyName;
+            
+            // However, we should also check other properties if they exist and remove the old parent from them too.
+            const allParentProps = settings.parentPropertyNames;
+            
+            for (const propName of allParentProps) {
+                const rawParents = frontmatter[propName];
+                if (!rawParents) continue;
 
-            if (typeof rawParents === 'string') {
-                parentLinks = [rawParents];
-            } else if (Array.isArray(rawParents)) {
-                parentLinks = rawParents as string[];
-            }
+                let parentLinks: string[] = [];
+                if (typeof rawParents === 'string') {
+                    parentLinks = [rawParents];
+                } else if (Array.isArray(rawParents)) {
+                    parentLinks = rawParents as string[];
+                }
 
-            if (sourceParentPath && !isCopy) {
-                const sourceParentFile = app.vault.getAbstractFileByPath(sourceParentPath);
-                if (sourceParentFile) {
-                    parentLinks = parentLinks.filter(link => {
-                        let cleanLink = link.replace(/^["']+|["']+$|^\s+|[\s]+$/g, '');
-                        cleanLink = cleanLink.replace(/\[\[|\]\]/g, '');
-                        cleanLink = cleanLink.split('|')[0];
-                        cleanLink = cleanLink.trim();
+                if (sourceParentPath && !isCopy) {
+                    const sourceParentFile = app.vault.getAbstractFileByPath(sourceParentPath);
+                    if (sourceParentFile) {
+                        parentLinks = parentLinks.filter(link => {
+                            let cleanLink = link.replace(/^["']+|["']+$|^\s+|[\s]+$/g, '');
+                            cleanLink = cleanLink.replace(/\[\[|\]\]/g, '');
+                            cleanLink = cleanLink.split('|')[0];
+                            cleanLink = cleanLink.trim();
 
-                        const linkTargetFile = app.metadataCache.getFirstLinkpathDest(cleanLink, file.path);
-                        
-                        let isMatch = false;
-                        if (linkTargetFile) {
-                             isMatch = linkTargetFile.path === sourceParentFile.path;
-                        } else {
-                            const sourceName = sourceParentFile.name;
-                            const sourceBasename = (sourceParentFile instanceof TFile) ? sourceParentFile.basename : sourceParentFile.name;
-                            isMatch = cleanLink === sourceName || cleanLink === sourceBasename;
-                        }
-                        
-                        return !isMatch;
-                    });
+                            const linkTargetFile = app.metadataCache.getFirstLinkpathDest(cleanLink, file.path);
+                            
+                            let isMatch = false;
+                            if (linkTargetFile) {
+                                 isMatch = linkTargetFile.path === sourceParentFile.path;
+                            } else {
+                                const sourceName = sourceParentFile.name;
+                                const sourceBasename = (sourceParentFile instanceof TFile) ? sourceParentFile.basename : sourceParentFile.name;
+                                isMatch = cleanLink === sourceName || cleanLink === sourceBasename;
+                            }
+                            
+                            return !isMatch;
+                        });
+                    }
+                }
+
+                // If this is NOT the primary property, just save the filtered list back
+                if (propName !== parentPropertyName) {
+                    if (parentLinks.length === 0) {
+                        delete frontmatter[propName];
+                    } else if (parentLinks.length === 1) {
+                        frontmatter[propName] = parentLinks[0];
+                    } else {
+                        frontmatter[propName] = parentLinks;
+                    }
                 }
             }
 
-            // Add the new target parent link
+            // After clearing old parents from all props, add the new target parent to the primary property
+            const rawParents = frontmatter[parentPropertyName];
+            let parentLinks: string[] = [];
+            if (typeof rawParents === 'string') parentLinks = [rawParents];
+            else if (Array.isArray(rawParents)) parentLinks = rawParents as string[];
+
             if (targetParentFile) {
                 const targetName = (targetParentFile instanceof TFile) ? targetParentFile.basename : targetParentFile.name;
                 const newLink = `[[${targetName}]]`;
@@ -521,7 +559,7 @@ export async function moveFiles(
                 }
             }
 
-            // Save back
+            // Save back to primary property
             if (parentLinks.length === 0) {
                 delete frontmatter[parentPropertyName];
             } else if (parentLinks.length === 1) {
@@ -536,32 +574,34 @@ export async function moveFiles(
         const sourceParentFile = app.vault.getAbstractFileByPath(sourceParentPath);
         if (sourceParentFile instanceof TFile && sourceParentFile.extension === 'md') {
             await app.fileManager.processFrontMatter(sourceParentFile, (frontmatter: AbstractFolderFrontmatter) => {
-                const childrenProp = settings.childrenPropertyName;
-                const rawChildren = frontmatter[childrenProp];
-                if (!rawChildren) return;
-                
-                let childrenList: string[] = [];
-                if (Array.isArray(rawChildren)) {
-                    childrenList = rawChildren as string[];
-                } else if (typeof rawChildren === 'string') {
-                    childrenList = [rawChildren];
-                }
-                
-                childrenList = childrenList.filter(link => {
-                    return !nonMdFiles.some(movedFile =>
-                        link.includes(movedFile.name)
-                    );
-                });
+                // Check all children properties when removing
+                for (const childrenProp of settings.childrenPropertyNames) {
+                    const rawChildren = frontmatter[childrenProp];
+                    if (!rawChildren) continue;
+                    
+                    let childrenList: string[] = [];
+                    if (Array.isArray(rawChildren)) {
+                        childrenList = rawChildren as string[];
+                    } else if (typeof rawChildren === 'string') {
+                        childrenList = [rawChildren];
+                    }
+                    
+                    childrenList = childrenList.filter(link => {
+                        return !nonMdFiles.some(movedFile =>
+                            link.includes(movedFile.name)
+                        );
+                    });
 
-                if (childrenList.length === 0) delete frontmatter[childrenProp];
-                else frontmatter[childrenProp] = childrenList.length === 1 ? childrenList[0] : childrenList;
+                    if (childrenList.length === 0) delete frontmatter[childrenProp];
+                    else frontmatter[childrenProp] = childrenList.length === 1 ? childrenList[0] : childrenList;
+                }
             });
         }
     }
 
     if (targetParentFile instanceof TFile && targetParentFile.extension === 'md' && nonMdFiles.length > 0) {
          await app.fileManager.processFrontMatter(targetParentFile, (frontmatter: AbstractFolderFrontmatter) => {
-            const childrenProp = settings.childrenPropertyName;
+            const childrenProp = settings.childrenPropertyNames[0] || settings.childrenPropertyName;
             const rawChildren = frontmatter[childrenProp] || [];
             let childrenList: string[] = [];
             if (Array.isArray(rawChildren)) {

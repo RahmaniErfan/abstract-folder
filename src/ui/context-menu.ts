@@ -161,11 +161,17 @@ export class ContextMenuHandler {
         );
 
         const fileCache = this.app.metadataCache.getFileCache(file);
-        const parentProperty = fileCache?.frontmatter?.[this.settings.propertyName] as string | string[] | undefined;
+        
         let isCurrentlyHidden = false;
-        if (parentProperty) {
-            const parentLinks = Array.isArray(parentProperty) ? parentProperty : [parentProperty];
-            isCurrentlyHidden = parentLinks.some((p: string) => p.toLowerCase().trim() === 'hidden');
+        for (const prop of this.settings.parentPropertyNames) {
+            const val = fileCache?.frontmatter?.[prop] as string | string[] | undefined;
+            if (val) {
+                const parentLinks = Array.isArray(val) ? val : [val];
+                if (parentLinks.some((p: string) => typeof p === 'string' && p.toLowerCase().trim() === 'hidden')) {
+                    isCurrentlyHidden = true;
+                    break;
+                }
+            }
         }
 
         if (isCurrentlyHidden) {

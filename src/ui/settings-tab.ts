@@ -61,16 +61,20 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 		new Setting(containerEl).setName("Properties").setHeading();
 
 		new Setting(containerEl)
-			.setName("Parent property name")
+			.setName("Parent property names")
 			.setDesc(
-				"The frontmatter property key used to define parent notes (e.g., 'parent' or 'folder'). This setting is case-sensitive, so ensure your frontmatter property name matches the casing exactly.",
+				"The frontmatter property key(s) used to define parent notes (e.g., 'parent' or 'folder'). Support multiple names, separated by commas. These are case-sensitive.",
 			)
 			.addText((text) =>
 				text
-					.setPlaceholder("Example: parent")
-					.setValue(this.plugin.settings.propertyName)
+					.setPlaceholder("Example: parent, up")
+					.setValue(this.plugin.settings.parentPropertyNames.join(", "))
 					.onChange(async (value) => {
-						this.plugin.settings.propertyName = value;
+						const propertyNames = value.split(",").map(v => v.trim()).filter(v => v.length > 0);
+						this.plugin.settings.parentPropertyNames = propertyNames;
+						if (propertyNames.length > 0) {
+							this.plugin.settings.propertyName = propertyNames[0];
+						}
 						await this.plugin.saveSettings();
 						this.plugin.indexer.updateSettings(
 							this.plugin.settings,
@@ -79,16 +83,20 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Children property name")
+			.setName("Children property names")
 			.setDesc(
-				"The frontmatter property key used by a parent to define its children (e.g., 'children' or 'sub_notes'). This setting is case-sensitive, so ensure your frontmatter property name matches the casing exactly.",
+				"The frontmatter property key(s) used by a parent to define its children (e.g., 'children' or 'sub_notes'). Support multiple names, separated by commas. These are case-sensitive.",
 			)
 			.addText((text) =>
 				text
-					.setPlaceholder("Example: children")
-					.setValue(this.plugin.settings.childrenPropertyName)
+					.setPlaceholder("Example: children, members")
+					.setValue(this.plugin.settings.childrenPropertyNames.join(", "))
 					.onChange(async (value) => {
-						this.plugin.settings.childrenPropertyName = value;
+						const propertyNames = value.split(",").map(v => v.trim()).filter(v => v.length > 0);
+						this.plugin.settings.childrenPropertyNames = propertyNames;
+						if (propertyNames.length > 0) {
+							this.plugin.settings.childrenPropertyName = propertyNames[0];
+						}
 						await this.plugin.saveSettings();
 						this.plugin.indexer.updateSettings(
 							this.plugin.settings,

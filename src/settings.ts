@@ -2,7 +2,9 @@ import { Group, SortConfig, FilterConfig } from "./types";
 
 export interface AbstractFolderPluginSettings {
   propertyName: string; // The frontmatter property key used to define parent notes (child-defined parent)
+  parentPropertyNames: string[]; // Support for multiple parent property names
   childrenPropertyName: string; // The frontmatter property key used by a parent to define its children (parent-defined children)
+  childrenPropertyNames: string[]; // Support for multiple children property names
   showAliases: boolean; // Whether to show aliases instead of file names in the view
   autoExpandParents: boolean; // Whether to expand parent folders when revealing the active file
   autoScrollToActiveFile: boolean; // Whether to scroll to the active file when opening it
@@ -49,7 +51,9 @@ export interface AbstractFolderPluginSettings {
 
 export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   propertyName: 'parent',
+  parentPropertyNames: ['parent'],
   childrenPropertyName: 'children', // Default to 'children'
+  childrenPropertyNames: ['children'],
   showAliases: true,
   autoExpandParents: true,
   autoScrollToActiveFile: true,

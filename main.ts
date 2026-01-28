@@ -249,6 +249,14 @@ this.addCommand({
 
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, (await this.loadData()) as AbstractFolderPluginSettings);
+
+		// Migration: Ensure multiple property name arrays are initialized from legacy settings
+		if (this.settings.propertyName && (!this.settings.parentPropertyNames || this.settings.parentPropertyNames.length === 0)) {
+			this.settings.parentPropertyNames = [this.settings.propertyName];
+		}
+		if (this.settings.childrenPropertyName && (!this.settings.childrenPropertyNames || this.settings.childrenPropertyNames.length === 0)) {
+			this.settings.childrenPropertyNames = [this.settings.childrenPropertyName];
+		}
 	}
 
 	async saveSettings() {

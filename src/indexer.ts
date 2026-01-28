@@ -295,8 +295,15 @@ export class FolderIndexer {
   }
 
   private initializePropertyNames() {
-    this.CHILD_PROPERTIES_TO_CHECK_FOR_PARENT_DEFINED_CHILDREN = [this.settings.childrenPropertyName];
-    this.PARENT_PROPERTIES_TO_CHECK_FOR_CHILD_DEFINED_PARENTS = [this.settings.propertyName];
+    // Collect all unique property names, prioritizing the ones in the arrays but including legacy ones if not present
+    const parentProps = new Set(this.settings.parentPropertyNames || []);
+    if (this.settings.propertyName) parentProps.add(this.settings.propertyName);
+
+    const childProps = new Set(this.settings.childrenPropertyNames || []);
+    if (this.settings.childrenPropertyName) childProps.add(this.settings.childrenPropertyName);
+
+    this.CHILD_PROPERTIES_TO_CHECK_FOR_PARENT_DEFINED_CHILDREN = Array.from(childProps);
+    this.PARENT_PROPERTIES_TO_CHECK_FOR_CHILD_DEFINED_PARENTS = Array.from(parentProps);
   }
 
   private isExcluded(path: string): boolean {
@@ -357,6 +364,7 @@ export class FolderIndexer {
                 // Parent Definitions
                 if (!isHidden && this.PARENT_PROPERTIES_TO_CHECK_FOR_CHILD_DEFINED_PARENTS.includes(baseKey)) {
                     if (resolvedFile.path !== file.path) {
+                        // console.debug(`Abstract Folder Indexer - Found PARENT for ${file.path} via key ${baseKey} -> ${resolvedFile.path}`);
                         relationships.definedParents.add(resolvedFile.path);
                     } else {
                          console.warn(`Indexer - ${file.path} attempted to define itself as its own parent. Skipping.`);
@@ -366,6 +374,7 @@ export class FolderIndexer {
                 // Child Definitions
                 if (this.CHILD_PROPERTIES_TO_CHECK_FOR_PARENT_DEFINED_CHILDREN.includes(baseKey)) {
                      if (resolvedFile.path !== file.path) {
+                        // console.debug(`Abstract Folder Indexer - Found CHILD for ${file.path} via key ${baseKey} -> ${resolvedFile.path}`);
                         relationships.definedChildren.add(resolvedFile.path);
                     }
                 }
@@ -548,7 +557,7 @@ export class FolderIndexer {
 
   private async removeFileFromParentFrontmatters(deletedFilePath: string) {
     const allFiles = this.app.vault.getFiles();
-    const childrenPropertyName = this.settings.childrenPropertyName;
+    const childrenPropertyNames = this.settings.childrenPropertyNames;
 
     const lastSlashIndex = deletedFilePath.lastIndexOf('/');
     const fileNameWithExtension = lastSlashIndex === -1 ? deletedFilePath : deletedFilePath.substring(lastSlashIndex + 1);
@@ -558,9 +567,10 @@ export class FolderIndexer {
       if (file.path === deletedFilePath) continue;
 
       await this.app.fileManager.processFrontMatter(file, (frontmatter: AbstractFolderFrontmatter) => {
-        const rawChildren = frontmatter[childrenPropertyName];
+        for (const childrenPropertyName of childrenPropertyNames) {
+            const rawChildren = frontmatter[childrenPropertyName];
 
-        if (!rawChildren) return;
+            if (!rawChildren) continue;
 
         let childrenArray: string[] = [];
         if (typeof rawChildren === 'string') {
@@ -594,6 +604,7 @@ export class FolderIndexer {
           } else {
             frontmatter[childrenPropertyName] = updatedChildren;
           }
+            }
         }
       });
     }

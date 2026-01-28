@@ -3,6 +3,7 @@
 ## Unreleased
 
 **Features:**
+*   **Multiple Parent/Child Properties**: Added support for defining multiple frontmatter property names for parent and child relationships. This allows users to use different vocabularies (e.g., `parent`, `folder`, `up`) simultaneously to build the same abstract hierarchy.
 *   **Default note creation path**: Added a setting to specify a default directory for new root-level notes, allowing users to keep their vault root clean.
 *   **Naming conflict resolution**: Added a customizable system to resolve file name collisions in the flat structure by automatically prefixing or suffixing the parent's or highest ancestor's name.
 *   **Hierarchical naming logic**: Users can now choose between using the immediate 'parent' name or the highest 'ancestor' name to distinguish conflicting notes.
