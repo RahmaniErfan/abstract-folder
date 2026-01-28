@@ -81,7 +81,7 @@ export class AbstractFolderViewToolbar {
         if (this.settings.showCreateNoteButton) {
             this.addAction("file-plus", "Create new root note", () => {
                 new CreateAbstractChildModal(this.app, this.settings, (name, type) => {
-                    createAbstractChildFile(this.app, this.settings, name, null, type).catch(console.error);
+                    createAbstractChildFile(this.app, this.settings, name, null, type, this.plugin.indexer).catch(console.error);
                 }, 'note').open();
             });
         }

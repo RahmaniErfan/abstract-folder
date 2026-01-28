@@ -41,6 +41,9 @@ export interface AbstractFolderPluginSettings {
   showCreateNoteButton: boolean; // Whether to show the create note button
   showSearchHeader: boolean; // Whether to show the search bar header
   maxMenuNameLength: number; // Maximum length of file names shown in menus/dropdowns
+  namingConflictStrategy: 'parent' | 'ancestor' | 'none'; // Strategy to resolve name conflicts in flat structure
+  namingConflictSeparator: '-' | 'brackets'; // Separator to use for naming conflicts
+  namingConflictOrder: 'parent-first' | 'name-first'; // Order of parent and name
 }
 
 export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
@@ -84,4 +87,7 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   showCreateNoteButton: true,
   showSearchHeader: true,
   maxMenuNameLength: 10,
+  namingConflictStrategy: 'parent',
+  namingConflictSeparator: '-',
+  namingConflictOrder: 'parent-first',
 };

@@ -115,7 +115,7 @@ export class ContextMenuHandler {
             .setSection('abstract-folder')
             .onClick(() => {
                 new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
-                    createAbstractChildFile(this.app, this.settings, childName, parentFile, childType)
+                    createAbstractChildFile(this.app, this.settings, childName, parentFile, childType, this.indexer)
                         .catch(console.error);
                 }, 'note').open();
             })
@@ -128,7 +128,7 @@ export class ContextMenuHandler {
             .setSection('abstract-folder')
             .onClick(() => {
                 new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
-                    createAbstractChildFile(this.app, this.settings, childName, parentFile, childType)
+                    createAbstractChildFile(this.app, this.settings, childName, parentFile, childType, this.indexer)
                         .catch(console.error);
                 }, 'canvas').open();
             })
@@ -141,7 +141,7 @@ export class ContextMenuHandler {
             .setSection('abstract-folder')
             .onClick(() => {
                 new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
-                    createAbstractChildFile(this.app, this.settings, childName, parentFile, childType)
+                    createAbstractChildFile(this.app, this.settings, childName, parentFile, childType, this.indexer)
                         .catch(console.error);
                 }, 'base').open();
             })

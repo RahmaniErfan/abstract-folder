@@ -1,5 +1,6 @@
 import { App, setIcon } from "obsidian";
 import { FolderNode, HIDDEN_FOLDER_ID, FileGraph } from "../../types";
+import { VIEW_TYPE_ABSTRACT_FOLDER, AbstractFolderView } from "../view/abstract-folder-view";
 import { AbstractFolderPluginSettings } from "../../settings";
 import AbstractFolderPlugin from "../../../main";
 import { ContextMenuHandler } from "../context-menu";
@@ -40,7 +41,15 @@ export class ColumnRenderer {
         this.getDisplayName = getDisplayName;
         this.handleColumnNodeClick = handleColumnNodeClick;
         this.handleColumnExpand = handleColumnExpand;
-        this.contextMenuHandler = new ContextMenuHandler(app, settings, plugin, indexer);
+        this.contextMenuHandler = new ContextMenuHandler(app, settings, plugin, indexer, (path) => {
+           const leaves = app.workspace.getLeavesOfType(VIEW_TYPE_ABSTRACT_FOLDER);
+           if (leaves.length > 0) {
+               const view = leaves[0].view;
+               if (view instanceof AbstractFolderView) {
+                   view.focusFile(path);
+               }
+           }
+        });
         this.dragManager = dragManager;
         this.getContentEl = getContentEl;
     }

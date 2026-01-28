@@ -138,8 +138,9 @@ export async function updateGroupsOnRename(app: App, plugin: AbstractFolderPlugi
  * @param childName The name of the new child file.
  * @param parentFile The parent TFile, if creating a child for an existing parent.
  * @param childType The type of child file to create ('note', 'canvas', 'base').
+ * @param indexer The FolderIndexer instance.
  */
-export async function createAbstractChildFile(app: App, settings: AbstractFolderPluginSettings, childName: string, parentFile: TFile | null, childType: ChildFileType) {
+export async function createAbstractChildFile(app: App, settings: AbstractFolderPluginSettings, childName: string, parentFile: TFile | null, childType: ChildFileType, indexer: FolderIndexer) {
     let fileExtension: string;
     let initialContent: string;
 
@@ -179,13 +180,7 @@ aliases:
             return;
     }
     
-    const safeChildName = childName.replace(/[\\/:*?"<>|]/g, "");
-    let fileName = `${safeChildName}${fileExtension}`;
-    let counter = 0;
-    while (app.vault.getAbstractFileByPath(fileName)) {
-        counter++;
-        fileName = `${safeChildName} ${counter}${fileExtension}`;
-    }
+    const fileName = getConflictFreeName(app, settings, indexer, childName, fileExtension, parentFile);
 
     try {
         const file = await app.vault.create(fileName, initialContent);
@@ -218,6 +213,93 @@ aliases:
         new Notice(`Failed to create file: ${error}`);
         console.error(error);
     }
+}
+
+/**
+ * Generates a conflict-free name based on the hierarchy and user settings.
+ */
+export function getConflictFreeName(
+    app: App,
+    settings: AbstractFolderPluginSettings,
+    indexer: FolderIndexer,
+    baseName: string,
+    extension: string,
+    parentFile: TFile | null
+): string {
+    const strategy = settings.namingConflictStrategy;
+    const separator = settings.namingConflictSeparator;
+    const order = settings.namingConflictOrder;
+    const safeBaseName = baseName.replace(/[\\/:*?"<>|]/g, "");
+    
+    let candidateName = `${safeBaseName}${extension}`;
+    
+    if (!app.vault.getAbstractFileByPath(candidateName)) {
+        return candidateName;
+    }
+
+    if (strategy === 'none') {
+        let counter = 0;
+        while (app.vault.getAbstractFileByPath(candidateName)) {
+            counter++;
+            candidateName = `${safeBaseName} ${counter}${extension}`;
+        }
+        return candidateName;
+    }
+
+    let contextName: string | null = null;
+
+    if (strategy === 'parent' && parentFile) {
+        contextName = parentFile.basename;
+    } else if (strategy === 'ancestor' && parentFile) {
+        const graph = indexer.getGraph();
+        let current: string | undefined = parentFile.path;
+        let root: string = parentFile.path;
+        
+        const visited = new Set<string>();
+        while (current && !visited.has(current)) {
+            visited.add(current);
+            const parents = graph.childToParents.get(current);
+            if (!parents || parents.size === 0 || (parents.size === 1 && parents.has(HIDDEN_FOLDER_ID))) {
+                root = current;
+                break;
+            }
+            // Pick the first parent arbitrarily for ancestor strategy in case of multiple parents
+            current = Array.from(parents)[0];
+            if (current === HIDDEN_FOLDER_ID) break;
+        }
+        const rootFile = app.vault.getAbstractFileByPath(root);
+        contextName = rootFile instanceof TFile ? rootFile.basename : rootFile?.name || null;
+    }
+
+    if (contextName) {
+        if (separator === '-') {
+            if (order === 'parent-first') {
+                candidateName = `${contextName} - ${safeBaseName}${extension}`;
+            } else {
+                candidateName = `${safeBaseName} - ${contextName}${extension}`;
+            }
+        } else {
+            if (order === 'parent-first') {
+                candidateName = `[${contextName}] ${safeBaseName}${extension}`;
+            } else {
+                candidateName = `${safeBaseName} [${contextName}]${extension}`;
+            }
+        }
+        
+        if (!app.vault.getAbstractFileByPath(candidateName)) {
+            return candidateName;
+        }
+    }
+
+    // Fallback to counter if resolution still conflicts
+    const fallbackBase = candidateName.replace(extension, "");
+    let counter = 0;
+    while (app.vault.getAbstractFileByPath(candidateName)) {
+        counter++;
+        candidateName = `${fallbackBase} ${counter}${extension}`;
+    }
+    
+    return candidateName;
 }
 
 /**

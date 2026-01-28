@@ -9,7 +9,10 @@ import AbstractFolderPlugin from "../../main"; // Adjust path if necessary
 
 // Helper for path suggestions
 export class PathInputSuggest extends AbstractInputSuggest<string> {
-	constructor(app: App, private inputEl: HTMLInputElement) {
+	constructor(
+		app: App,
+		private inputEl: HTMLInputElement,
+	) {
 		super(app, inputEl);
 	}
 
@@ -22,7 +25,7 @@ export class PathInputSuggest extends AbstractInputSuggest<string> {
 
 		const lowerCaseInputStr = inputStr.toLowerCase();
 		return paths.filter((path) =>
-			path.toLowerCase().includes(lowerCaseInputStr)
+			path.toLowerCase().includes(lowerCaseInputStr),
 		);
 	}
 
@@ -57,7 +60,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Parent property name")
 			.setDesc(
-				"The frontmatter property key used to define parent notes (e.g., 'parent' or 'folder'). This setting is case-sensitive, so ensure your frontmatter property name matches the casing exactly."
+				"The frontmatter property key used to define parent notes (e.g., 'parent' or 'folder'). This setting is case-sensitive, so ensure your frontmatter property name matches the casing exactly.",
 			)
 			.addText((text) =>
 				text
@@ -67,15 +70,15 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 						this.plugin.settings.propertyName = value;
 						await this.plugin.saveSettings();
 						this.plugin.indexer.updateSettings(
-							this.plugin.settings
+							this.plugin.settings,
 						); // Notify indexer of setting change
-					})
+					}),
 			);
 
 		new Setting(containerEl)
 			.setName("Children property name")
 			.setDesc(
-				"The frontmatter property key used by a parent to define its children (e.g., 'children' or 'sub_notes'). This setting is case-sensitive, so ensure your frontmatter property name matches the casing exactly."
+				"The frontmatter property key used by a parent to define its children (e.g., 'children' or 'sub_notes'). This setting is case-sensitive, so ensure your frontmatter property name matches the casing exactly.",
 			)
 			.addText((text) =>
 				text
@@ -85,15 +88,15 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 						this.plugin.settings.childrenPropertyName = value;
 						await this.plugin.saveSettings();
 						this.plugin.indexer.updateSettings(
-							this.plugin.settings
+							this.plugin.settings,
 						); // Notify indexer of setting change
-					})
+					}),
 			);
 
 		new Setting(containerEl)
 			.setName("Created date field names")
 			.setDesc(
-				"Set the field name in frontmatter to use for the created date (support multiple field names, separated by commas)."
+				"Set the field name in frontmatter to use for the created date (support multiple field names, separated by commas).",
 			)
 			.addText((text) =>
 				text
@@ -103,13 +106,13 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 						this.plugin.settings.customCreatedDateProperties =
 							value;
 						await this.plugin.saveSettings();
-					})
+					}),
 			);
 
 		new Setting(containerEl)
 			.setName("Modified date field names")
 			.setDesc(
-				"Set the field name in frontmatter to use for the modified date (support multiple field names, separated by commas)."
+				"Set the field name in frontmatter to use for the modified date (support multiple field names, separated by commas).",
 			)
 			.addText((text) =>
 				text
@@ -119,7 +122,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 						this.plugin.settings.customModifiedDateProperties =
 							value;
 						await this.plugin.saveSettings();
-					})
+					}),
 			);
 
 		new Setting(containerEl).setName("Display name").setHeading();
@@ -127,7 +130,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Show aliases")
 			.setDesc(
-				"Use the first alias from the 'aliases' frontmatter property as the display name. This is now managed by the priority setting below."
+				"Use the first alias from the 'aliases' frontmatter property as the display name. This is now managed by the priority setting below.",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -136,15 +139,15 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 						this.plugin.settings.showAliases = value;
 						await this.plugin.saveSettings();
 						this.plugin.indexer.updateSettings(
-							this.plugin.settings
+							this.plugin.settings,
 						);
-					})
+					}),
 			);
 
 		new Setting(containerEl)
 			.setName("Display name priority")
 			.setDesc(
-				"Determine the priority for displaying names. Use frontmatter property names (e.g., 'title'), or use the special keyword 'aliases' for the first alias and 'basename' for the original filename. Separate entries with commas."
+				"Determine the priority for displaying names. Use frontmatter property names (e.g., 'title'), or use the special keyword 'aliases' for the first alias and 'basename' for the original filename. Separate entries with commas.",
 			)
 			.addText((text) =>
 				text
@@ -157,9 +160,9 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 							.filter((v) => v.length > 0);
 						await this.plugin.saveSettings();
 						this.plugin.indexer.updateSettings(
-							this.plugin.settings
+							this.plugin.settings,
 						);
-					})
+					}),
 			);
 
 		new Setting(containerEl).setName("Behavior").setHeading();
@@ -167,7 +170,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Expand parent folders for active file")
 			.setDesc(
-				"Automatically expand all parent folders in the tree view to reveal the active file's location. This ensures that even if a file has multiple parents, all ancestors will be expanded. The active file will always be highlighted."
+				"Automatically expand all parent folders in the tree view to reveal the active file's location. This ensures that even if a file has multiple parents, all ancestors will be expanded. The active file will always be highlighted.",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -176,13 +179,13 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 						this.plugin.settings.autoExpandParents = value;
 						await this.plugin.saveSettings();
 						// No indexer update needed, fileRevealManager uses settings directly
-					})
+					}),
 			);
 
 		new Setting(containerEl)
 			.setName("Scroll to active file")
 			.setDesc(
-				"When opening a file, scroll the tree view to ensure the file is visible."
+				"When opening a file, scroll the tree view to ensure the file is visible.",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -190,13 +193,13 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.autoScrollToActiveFile = value;
 						await this.plugin.saveSettings();
-					})
+					}),
 			);
 
 		new Setting(containerEl)
 			.setName("Expand children when opening a file")
 			.setDesc(
-				"If enabled, when you open a file, its direct children folders will be expanded in the tree view."
+				"If enabled, when you open a file, its direct children folders will be expanded in the tree view.",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -204,13 +207,13 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.autoExpandChildren = value;
 						await this.plugin.saveSettings();
-					})
+					}),
 			);
 
 		new Setting(containerEl)
 			.setName("Expand target folder on drag & drop")
 			.setDesc(
-				"If enabled, the target folder will automatically expand when an item is dropped into it."
+				"If enabled, the target folder will automatically expand when an item is dropped into it.",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -218,13 +221,13 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.expandTargetFolderOnDrop = value;
 						await this.plugin.saveSettings();
-					})
+					}),
 			);
 
 		new Setting(containerEl)
 			.setName("Remember expanded folders")
 			.setDesc(
-				"Keep folders expanded even when switching views or restarting Obsidian."
+				"Keep folders expanded even when switching views or restarting Obsidian.",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -235,7 +238,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 							this.plugin.settings.expandedFolders = [];
 						}
 						await this.plugin.saveSettings();
-					})
+					}),
 			);
 
 		new Setting(containerEl).setName("Startup & layout").setHeading();
@@ -243,7 +246,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Open on startup")
 			.setDesc(
-				"Automatically open the abstract folders view when Obsidian starts."
+				"Automatically open the abstract folders view when Obsidian starts.",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -251,7 +254,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.startupOpen = value;
 						await this.plugin.saveSettings();
-					})
+					}),
 			);
 
 		new Setting(containerEl)
@@ -265,13 +268,13 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 					.onChange(async (value: "left" | "right") => {
 						this.plugin.settings.openSide = value;
 						await this.plugin.saveSettings();
-					})
+					}),
 			);
 
 		new Setting(containerEl)
 			.setName("Show ribbon icon")
 			.setDesc(
-				"Toggle the visibility of the abstract folders icon in the left ribbon."
+				"Toggle the visibility of the abstract folders icon in the left ribbon.",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -280,7 +283,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 						this.plugin.settings.showRibbonIcon = value;
 						await this.plugin.saveSettings();
 						// The main plugin class's saveSettings will call updateRibbonIconVisibility
-					})
+					}),
 			);
 
 		new Setting(containerEl).setName("Visual").setHeading();
@@ -288,7 +291,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Enable rainbow indents")
 			.setDesc(
-				"Color the indentation lines to visually distinguish tree depth."
+				"Color the indentation lines to visually distinguish tree depth.",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -298,9 +301,9 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 						// Trigger view refresh to apply new styling
 						this.plugin.indexer.updateSettings(
-							this.plugin.settings
+							this.plugin.settings,
 						);
-					})
+					}),
 			);
 
 		new Setting(containerEl)
@@ -317,15 +320,15 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 						// Trigger view refresh to apply new styling
 						this.plugin.indexer.updateSettings(
-							this.plugin.settings
+							this.plugin.settings,
 						);
-					})
+					}),
 			);
 
 		new Setting(containerEl)
 			.setName("Rainbow indent - varied item colors")
 			.setDesc(
-				"If enabled, sibling items at the same indentation level will use different colors from the palette, making them easier to distinguish. If disabled, all items at the same depth will share the same color."
+				"If enabled, sibling items at the same indentation level will use different colors from the palette, making them easier to distinguish. If disabled, all items at the same depth will share the same color.",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -335,63 +338,79 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 						// Trigger view refresh to apply new styling
 						this.plugin.indexer.updateSettings(
-							this.plugin.settings
+							this.plugin.settings,
 						);
-					})
+					}),
 			);
 
 		new Setting(containerEl).setName("Toolbar & search").setHeading();
 
 		new Setting(containerEl)
 			.setName("Show search bar")
-			.setDesc("Toggle the visibility of the search bar at the top of the tree view.")
+			.setDesc(
+				"Toggle the visibility of the search bar at the top of the tree view.",
+			)
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.showSearchHeader)
 					.onChange(async (value) => {
 						this.plugin.settings.showSearchHeader = value;
 						await this.plugin.saveSettings();
-						this.app.workspace.trigger("abstract-folder:graph-updated");
-					})
+						this.app.workspace.trigger(
+							"abstract-folder:graph-updated",
+						);
+					}),
 			);
 
 		new Setting(containerEl)
 			.setName("Show view style toggle")
-			.setDesc("Toggle the visibility of the tree/column view switch button.")
+			.setDesc(
+				"Toggle the visibility of the tree/column view switch button.",
+			)
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.showViewStyleToggle)
 					.onChange(async (value) => {
 						this.plugin.settings.showViewStyleToggle = value;
 						await this.plugin.saveSettings();
-						this.app.workspace.trigger("abstract-folder:graph-updated");
-					})
+						this.app.workspace.trigger(
+							"abstract-folder:graph-updated",
+						);
+					}),
 			);
 
 		new Setting(containerEl)
 			.setName("Show focus active file button")
-			.setDesc("Toggle the visibility of the button that focuses the active file.")
+			.setDesc(
+				"Toggle the visibility of the button that focuses the active file.",
+			)
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.showFocusActiveFileButton)
 					.onChange(async (value) => {
 						this.plugin.settings.showFocusActiveFileButton = value;
 						await this.plugin.saveSettings();
-						this.app.workspace.trigger("abstract-folder:graph-updated");
-					})
+						this.app.workspace.trigger(
+							"abstract-folder:graph-updated",
+						);
+					}),
 			);
 
 		new Setting(containerEl)
 			.setName("Show search button")
-			.setDesc("Toggle the visibility of the search button in the toolbar.")
+			.setDesc(
+				"Toggle the visibility of the search button in the toolbar.",
+			)
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.showSearchButton)
 					.onChange(async (value) => {
 						this.plugin.settings.showSearchButton = value;
 						await this.plugin.saveSettings();
-						this.app.workspace.trigger("abstract-folder:graph-updated");
-					})
+						this.app.workspace.trigger(
+							"abstract-folder:graph-updated",
+						);
+					}),
 			);
 
 		new Setting(containerEl)
@@ -403,21 +422,27 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.showConversionButton = value;
 						await this.plugin.saveSettings();
-						this.app.workspace.trigger("abstract-folder:graph-updated");
-					})
+						this.app.workspace.trigger(
+							"abstract-folder:graph-updated",
+						);
+					}),
 			);
 
 		new Setting(containerEl)
 			.setName("Show collapse all button")
-			.setDesc("Toggle the visibility of the collapse all folders button.")
+			.setDesc(
+				"Toggle the visibility of the collapse all folders button.",
+			)
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.showCollapseAllButton)
 					.onChange(async (value) => {
 						this.plugin.settings.showCollapseAllButton = value;
 						await this.plugin.saveSettings();
-						this.app.workspace.trigger("abstract-folder:graph-updated");
-					})
+						this.app.workspace.trigger(
+							"abstract-folder:graph-updated",
+						);
+					}),
 			);
 
 		new Setting(containerEl)
@@ -429,8 +454,10 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.showExpandAllButton = value;
 						await this.plugin.saveSettings();
-						this.app.workspace.trigger("abstract-folder:graph-updated");
-					})
+						this.app.workspace.trigger(
+							"abstract-folder:graph-updated",
+						);
+					}),
 			);
 
 		new Setting(containerEl)
@@ -442,8 +469,10 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.showSortButton = value;
 						await this.plugin.saveSettings();
-						this.app.workspace.trigger("abstract-folder:graph-updated");
-					})
+						this.app.workspace.trigger(
+							"abstract-folder:graph-updated",
+						);
+					}),
 			);
 
 		new Setting(containerEl)
@@ -455,8 +484,10 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.showFilterButton = value;
 						await this.plugin.saveSettings();
-						this.app.workspace.trigger("abstract-folder:graph-updated");
-					})
+						this.app.workspace.trigger(
+							"abstract-folder:graph-updated",
+						);
+					}),
 			);
 
 		new Setting(containerEl)
@@ -468,26 +499,34 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.showGroupButton = value;
 						await this.plugin.saveSettings();
-						this.app.workspace.trigger("abstract-folder:graph-updated");
-					})
+						this.app.workspace.trigger(
+							"abstract-folder:graph-updated",
+						);
+					}),
 			);
 
 		new Setting(containerEl)
 			.setName("Show create note button")
-			.setDesc("Toggle the visibility of the create new root note button.")
+			.setDesc(
+				"Toggle the visibility of the create new root note button.",
+			)
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.showCreateNoteButton)
 					.onChange(async (value) => {
 						this.plugin.settings.showCreateNoteButton = value;
 						await this.plugin.saveSettings();
-						this.app.workspace.trigger("abstract-folder:graph-updated");
-					})
+						this.app.workspace.trigger(
+							"abstract-folder:graph-updated",
+						);
+					}),
 			);
 
 		new Setting(containerEl)
 			.setName("Max menu name length")
-			.setDesc("The maximum number of characters shown for file names in right-click menus and dropdowns. Longer names will be truncated.")
+			.setDesc(
+				"The maximum number of characters shown for file names in right-click menus and dropdowns. Longer names will be truncated.",
+			)
 			.addSlider((slider) =>
 				slider
 					.setLimits(10, 100, 5)
@@ -496,9 +535,62 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.maxMenuNameLength = value;
 						await this.plugin.saveSettings();
-					})
+					}),
 			);
 
+		new Setting(containerEl).setName("Naming conflicts").setHeading();
+
+		new Setting(containerEl)
+			.setName("Conflict resolution strategy")
+			.setDesc(
+				"Determine how to resolve naming conflicts in the flat folder structure. Use the immediate parent name or the highest root ancestor name.",
+			)
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("none", "None (standard counter)")
+					.addOption("parent", "Use parent name")
+					.addOption("ancestor", "Use highest ancestor name")
+					.setValue(this.plugin.settings.namingConflictStrategy)
+					.onChange(async (value: "parent" | "ancestor" | "none") => {
+						this.plugin.settings.namingConflictStrategy = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Conflict separator")
+			.setDesc(
+				"The separator or format used when prefixing or suffixing names to resolve conflicts.",
+			)
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("-", "Dash (e.g., parent - name)")
+					.addOption("brackets", "Brackets (e.g., name [parent])")
+					.setValue(this.plugin.settings.namingConflictSeparator)
+					.onChange(async (value: "-" | "brackets") => {
+						this.plugin.settings.namingConflictSeparator = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Conflict naming order")
+			.setDesc(
+				"Determine whether to place the parent or ancestor name before or after the note name.",
+			)
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption(
+						"parent-first",
+						"Parent first (e.g., parent - name)",
+					)
+					.addOption("name-first", "Name first (e.g., name - parent)")
+					.setValue(this.plugin.settings.namingConflictOrder)
+					.onChange(async (value: "parent-first" | "name-first") => {
+						this.plugin.settings.namingConflictOrder = value;
+						await this.plugin.saveSettings();
+					}),
+			);
 	}
 
 	private renderExcludedPaths(containerEl: HTMLElement): void {
@@ -521,7 +613,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 							normalizePath(value);
 						await this.plugin.saveSettings();
 						this.plugin.indexer.updateSettings(
-							this.plugin.settings
+							this.plugin.settings,
 						);
 					});
 				})
@@ -533,10 +625,10 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 							this.plugin.settings.excludedPaths.splice(index, 1);
 							await this.plugin.saveSettings();
 							this.plugin.indexer.updateSettings(
-								this.plugin.settings
+								this.plugin.settings,
 							);
 							this.display(); // Re-render to update the list
-						})
+						}),
 				);
 		});
 
@@ -548,7 +640,7 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 					this.plugin.settings.excludedPaths.push(normalizePath("")); // Add an empty path for the new input, normalized
 					await this.plugin.saveSettings();
 					this.display(); // Re-render to show the new input field
-				})
+				}),
 		);
 	}
 }
