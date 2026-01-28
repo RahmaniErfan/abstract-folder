@@ -183,6 +183,12 @@ aliases:
     const fileName = getConflictFreeName(app, settings, indexer, childName, fileExtension, parentFile);
 
     try {
+        // Ensure the directory exists
+        const dirPath = fileName.includes('/') ? fileName.substring(0, fileName.lastIndexOf('/')) : '';
+        if (dirPath && !app.vault.getAbstractFileByPath(dirPath)) {
+            await app.vault.createFolder(dirPath);
+        }
+
         const file = await app.vault.create(fileName, initialContent);
         new Notice(`Created: ${fileName}`);
 
@@ -231,7 +237,18 @@ export function getConflictFreeName(
     const order = settings.namingConflictOrder;
     const safeBaseName = baseName.replace(/[\\/:*?"<>|]/g, "");
     
-    let candidateName = `${safeBaseName}${extension}`;
+    // Determine the base path based on whether it's a root note or has a physical parent
+    let basePath = "";
+    if (!parentFile && settings.defaultNewNotePath) {
+        basePath = settings.defaultNewNotePath.endsWith('/')
+            ? settings.defaultNewNotePath
+            : settings.defaultNewNotePath + '/';
+    } else if (parentFile) {
+        const parentDir = parentFile.parent?.path || "";
+        basePath = parentDir === "/" ? "" : (parentDir ? parentDir + "/" : "");
+    }
+
+    let candidateName = `${basePath}${safeBaseName}${extension}`;
     
     if (!app.vault.getAbstractFileByPath(candidateName)) {
         return candidateName;
@@ -241,7 +258,7 @@ export function getConflictFreeName(
         let counter = 0;
         while (app.vault.getAbstractFileByPath(candidateName)) {
             counter++;
-            candidateName = `${safeBaseName} ${counter}${extension}`;
+            candidateName = `${basePath}${safeBaseName} ${counter}${extension}`;
         }
         return candidateName;
     }
@@ -274,15 +291,15 @@ export function getConflictFreeName(
     if (contextName) {
         if (separator === '-') {
             if (order === 'parent-first') {
-                candidateName = `${contextName} - ${safeBaseName}${extension}`;
+                candidateName = `${basePath}${contextName} - ${safeBaseName}${extension}`;
             } else {
-                candidateName = `${safeBaseName} - ${contextName}${extension}`;
+                candidateName = `${basePath}${safeBaseName} - ${contextName}${extension}`;
             }
         } else {
             if (order === 'parent-first') {
-                candidateName = `[${contextName}] ${safeBaseName}${extension}`;
+                candidateName = `${basePath}[${contextName}] ${safeBaseName}${extension}`;
             } else {
-                candidateName = `${safeBaseName} [${contextName}]${extension}`;
+                candidateName = `${basePath}${safeBaseName} [${contextName}]${extension}`;
             }
         }
         
@@ -292,7 +309,7 @@ export function getConflictFreeName(
     }
 
     // Fallback to counter if resolution still conflicts
-    const fallbackBase = candidateName.replace(extension, "");
+    const fallbackBase = candidateName.slice(0, -extension.length);
     let counter = 0;
     while (app.vault.getAbstractFileByPath(candidateName)) {
         counter++;

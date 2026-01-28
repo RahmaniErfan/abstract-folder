@@ -44,6 +44,7 @@ export interface AbstractFolderPluginSettings {
   namingConflictStrategy: 'parent' | 'ancestor' | 'none'; // Strategy to resolve name conflicts in flat structure
   namingConflictSeparator: '-' | 'brackets'; // Separator to use for naming conflicts
   namingConflictOrder: 'parent-first' | 'name-first'; // Order of parent and name
+  defaultNewNotePath: string; // Default path for new notes
 }
 
 export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
@@ -90,4 +91,5 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   namingConflictStrategy: 'parent',
   namingConflictSeparator: '-',
   namingConflictOrder: 'parent-first',
+  defaultNewNotePath: '',
 };

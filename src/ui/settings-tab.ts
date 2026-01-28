@@ -4,6 +4,7 @@ import {
 	Setting,
 	AbstractInputSuggest,
 	normalizePath,
+	TFolder,
 } from "obsidian";
 import AbstractFolderPlugin from "../../main"; // Adjust path if necessary
 
@@ -20,7 +21,9 @@ export class PathInputSuggest extends AbstractInputSuggest<string> {
 		const files = this.app.vault.getAllLoadedFiles();
 		const paths: string[] = [];
 		for (const file of files) {
-			paths.push(file.path);
+			if (file instanceof TFolder) {
+				paths.push(file.path);
+			}
 		}
 
 		const lowerCaseInputStr = inputStr.toLowerCase();
@@ -242,6 +245,22 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl).setName("Startup & layout").setHeading();
+
+		new Setting(containerEl)
+			.setName("Default new note path")
+			.setDesc(
+				"The default directory where new root-level notes will be created. If left empty, notes will be created in the vault root.",
+			)
+			.addText((text) => {
+				text.setPlaceholder("Example: notes/new")
+					.setValue(this.plugin.settings.defaultNewNotePath)
+					.onChange(async (value) => {
+						this.plugin.settings.defaultNewNotePath =
+							normalizePath(value);
+						await this.plugin.saveSettings();
+					});
+				new PathInputSuggest(this.app, text.inputEl);
+			});
 
 		new Setting(containerEl)
 			.setName("Open on startup")
