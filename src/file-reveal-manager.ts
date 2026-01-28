@@ -6,6 +6,7 @@ import { FolderIndexer } from "./indexer";
 import AbstractFolderPlugin from "../main";
 import { VirtualTreeManager } from "./ui/view/virtual-tree-manager";
 import { AncestryEngine } from "./utils/ancestry";
+import { getContextualId } from "./utils/context-utils";
 
 export class FileRevealManager {
     private app: App;
@@ -52,14 +53,36 @@ export class FileRevealManager {
 
             if (expandParents && this.settings.autoExpandParents) {
                 const ancestry = new AncestryEngine(this.indexer);
-                const ancestors = ancestry.getAncestryNodePaths(filePath);
-                ancestors.forEach(path => {
-                    // Expand all ancestors, but not necessarily the file itself unless it's a folder we want to open
-                    if (path !== filePath && !expandedSet.has(path)) {
-                        expandedSet.add(path);
-                        changed = true;
+                const ancestryPaths = ancestry.getAllPaths(filePath);
+                
+                if (ancestryPaths.length > 0) {
+                    // Try to find the path that includes our last interacted branch
+                    let targetPath = ancestryPaths[0];
+                    if (this.settings.lastInteractionContextId) {
+                        const foundPath = ancestryPaths.find(p => {
+                            let parent: string | null = null;
+                            return p.segments.some(seg => {
+                                const cid = getContextualId(seg, parent);
+                                parent = seg;
+                                return cid === this.settings.lastInteractionContextId;
+                            });
+                        });
+                        if (foundPath) targetPath = foundPath;
                     }
-                });
+
+                    let currentParent: string | null = null;
+                    // The ancestry path is [root, ..., parent, file]
+                    for (let i = 0; i < targetPath.segments.length - 1; i++) {
+                        const currentPath = targetPath.segments[i];
+                        const contextId = getContextualId(currentPath, currentParent);
+                        
+                        if (!expandedSet.has(contextId)) {
+                            expandedSet.add(contextId);
+                            changed = true;
+                        }
+                        currentParent = currentPath;
+                    }
+                }
             }
 
             if (this.settings.autoExpandChildren) {

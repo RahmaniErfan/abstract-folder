@@ -17,13 +17,19 @@ function stringToNumberHash(str: string): number {
     return hash;
 }
 
+interface ExtendedHTMLElement extends HTMLElement {
+    _folderNode?: FolderNode;
+    _ancestors?: Set<string>;
+    _contextId?: string;
+}
+
 export class TreeRenderer {
     private app: App;
     private settings: AbstractFolderPluginSettings;
     private plugin: AbstractFolderPlugin;
     private multiSelectedPaths: Set<string>;
     private getDisplayName: (node: FolderNode) => string;
-    private toggleCollapse: (itemEl: HTMLElement, path: string) => Promise<void>;
+    private toggleCollapse: (itemEl: HTMLElement, path: string, contextId?: string) => Promise<void>;
     private contextMenuHandler: ContextMenuHandler;
     private dragManager: DragManager;
 
@@ -33,7 +39,7 @@ export class TreeRenderer {
         plugin: AbstractFolderPlugin,
         multiSelectedPaths: Set<string>,
         getDisplayName: (node: FolderNode) => string,
-        toggleCollapse: (itemEl: HTMLElement, path: string) => Promise<void>,
+        toggleCollapse: (itemEl: HTMLElement, path: string, contextId?: string) => Promise<void>,
         indexer: FolderIndexer, // Add indexer here
         dragManager: DragManager,
         focusFile: FocusFileCallback
@@ -117,7 +123,7 @@ if (activeFile && activeFile.path === node.path) {
 
             iconEl.addEventListener("click", (e) => {
                 e.stopPropagation();
-                this.toggleCollapse(itemEl, node.path).catch(console.error);
+                this.toggleCollapse(itemEl, node.path, (itemEl as ExtendedHTMLElement)._contextId).catch(console.error);
             });
         }
 
@@ -213,10 +219,12 @@ if (activeFile && activeFile.path === node.path) {
     public renderFlatItem(item: FlatItem, container: HTMLElement | DocumentFragment, top: number) {
         const node = item.node;
         const depth = item.depth;
+        const contextId = item.contextId;
         const activeFile = this.app.workspace.getActiveFile();
 
         const itemEl = container.createDiv({ cls: "abstract-folder-item abstract-folder-virtual-item" });
         itemEl.style.setProperty('top', `${top}px`);
+        itemEl.dataset.contextId = contextId;
 
         if (this.settings.enableRainbowIndents && depth > 0) {
             const guidesContainer = itemEl.createDiv({ cls: "abstract-folder-indent-guides" });
@@ -237,6 +245,8 @@ if (activeFile && activeFile.path === node.path) {
         itemEl.dataset.depth = String(depth);
         // @ts-ignore - Storing node data on element for easy access in event handlers
         itemEl._folderNode = node;
+        // @ts-ignore
+        itemEl._contextId = contextId;
 
         itemEl.draggable = true;
 
@@ -249,7 +259,7 @@ if (activeFile && activeFile.path === node.path) {
 
         if (node.isFolder) {
             itemEl.addClass("is-folder");
-            if (!this.settings.expandedFolders.includes(node.path)) {
+            if (!this.settings.expandedFolders.includes(contextId)) {
                 itemEl.addClass("is-collapsed");
             }
         } else {
@@ -273,7 +283,7 @@ if (activeFile && activeFile.path === node.path) {
 
             iconEl.addEventListener("click", (e) => {
                 e.stopPropagation();
-                this.toggleCollapse(itemEl, node.path).catch(console.error);
+                this.toggleCollapse(itemEl, node.path, contextId).catch(console.error);
             });
         }
 
@@ -330,6 +340,14 @@ if (activeFile && activeFile.path === node.path) {
     }
 
     private async handleNodeClick(node: FolderNode, e: MouseEvent) {
+        // Record last interaction context
+        const contextId = (e.currentTarget as ExtendedHTMLElement).parentElement?.dataset.contextId
+            || (e.currentTarget as ExtendedHTMLElement).dataset.contextId;
+        if (contextId) {
+            this.settings.lastInteractionContextId = contextId;
+            void this.plugin.saveSettings();
+        }
+
         const isMultiSelectModifier = e.altKey || e.ctrlKey || e.metaKey;
 
         if (isMultiSelectModifier) {
@@ -364,7 +382,7 @@ if (activeFile && activeFile.path === node.path) {
                     const selfEl = e.currentTarget as HTMLElement;
                     const itemEl = selfEl.parentElement; // The .abstract-folder-item
                     if (itemEl) {
-                        await this.toggleCollapse(itemEl, node.path);
+                        await this.toggleCollapse(itemEl, node.path, (itemEl as ExtendedHTMLElement)._contextId);
                     }
                 }
             }
@@ -373,7 +391,7 @@ if (activeFile && activeFile.path === node.path) {
             const itemEl = selfEl.parentElement;
 
             if (itemEl) {
-                await this.toggleCollapse(itemEl, node.path);
+                await this.toggleCollapse(itemEl, node.path, (itemEl as ExtendedHTMLElement)._contextId);
             }
         }
     }

@@ -1,11 +1,13 @@
 import { App } from "obsidian";
 import { FileGraph, FolderNode, HIDDEN_FOLDER_ID, Group } from "../types";
 import { createFolderNode, resolveGroupRoots } from "./tree-utils";
+import { getContextualId } from "./context-utils";
 
 export interface FlatItem {
     node: FolderNode;
     depth: number;
     parentPath: string | null;
+    contextId: string;
 }
 
 export function flattenTree(
@@ -16,8 +18,9 @@ export function flattenTree(
     result: FlatItem[] = []
 ): FlatItem[] {
     for (const node of nodes) {
-        result.push({ node, depth, parentPath });
-        if (node.isFolder && expandedFolders.has(node.path)) {
+        const contextId = getContextualId(node.path, parentPath);
+        result.push({ node, depth, parentPath, contextId });
+        if (node.isFolder && expandedFolders.has(contextId)) {
             flattenTree(node.children, expandedFolders, depth + 1, node.path, result);
         }
     }
@@ -72,13 +75,13 @@ export function generateFlatItemsFromGraph(
     }
     
     function traverse(node: FolderNode, depth: number, parentPath: string | null) {
-        // console.log("Traversing node:", node.path, "Depth:", depth, "Parent:", parentPath);
-        flatItems.push({ node, depth, parentPath });
+        const contextId = getContextualId(node.path, parentPath);
+        flatItems.push({ node, depth, parentPath, contextId });
         
         // Lazy Recursion: Only if expanded
         // During search, we might want to show children even if not explicitly in expandedFolders
         // but typically expandedFolders will contain what we want to show.
-        if (node.isFolder && expandedFolders.has(node.path)) {
+        if (node.isFolder && expandedFolders.has(contextId)) {
             const childrenPaths = parentToChildren[node.path];
             if (childrenPaths && childrenPaths.size > 0) {
                 const childNodes: FolderNode[] = [];

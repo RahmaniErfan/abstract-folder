@@ -19,6 +19,12 @@ import { PathSuggest } from "../path-suggest";
 
 export const VIEW_TYPE_ABSTRACT_FOLDER = "abstract-folder-view";
 
+interface ExtendedHTMLElement extends HTMLElement {
+    _folderNode?: FolderNode;
+    _ancestors?: Set<string>;
+    _contextId?: string;
+}
+
 export class AbstractFolderView extends ItemView {
   private indexer: FolderIndexer;
   private metricsManager: MetricsManager;
@@ -69,7 +75,7 @@ export class AbstractFolderView extends ItemView {
       this.app, this.settings, this.plugin,
       this.viewState.multiSelectedPaths,
       this.getDisplayName,
-      (itemEl, path) => this.toggleCollapse(itemEl, path),
+      (itemEl, path, contextId) => this.toggleCollapse(itemEl, path, contextId),
       this.indexer, this.dragManager,
       (path) => this.focusFile(path)
     );
@@ -269,8 +275,9 @@ export class AbstractFolderView extends ItemView {
         const selectedEl = this.contentEl.querySelector(".is-active");
       if (!selectedEl) return;
       
-      const itemEl = selectedEl.closest(".abstract-folder-item") as HTMLElement;
+      const itemEl = selectedEl.closest(".abstract-folder-item") as ExtendedHTMLElement;
       const path = itemEl?.getAttribute("data-path");
+      const contextId = itemEl?._contextId;
 
       if (path) {
           const file = this.app.vault.getAbstractFileByPath(path);
@@ -284,7 +291,7 @@ export class AbstractFolderView extends ItemView {
               // Enter on folder -> Toggle collapse
                const folderNode = this.indexer.getGraph().parentToChildren[path];
                if (folderNode || this.indexer.getGraph().allFiles.has(path)) {
-                   this.toggleCollapse(null as unknown as HTMLElement, path).catch(console.error);
+                   this.toggleCollapse(itemEl || null as unknown as HTMLElement, path, contextId).catch(console.error);
                }
           }
       }
@@ -785,21 +792,25 @@ export class AbstractFolderView extends ItemView {
     }
   }
 
-  public async expandFolderByPath(folderPath: string) {
-    const folderEl = this.contentEl.querySelector(`[data-path="${folderPath}"]`);
+  public async expandFolderByPath(folderPath: string, contextId?: string) {
+    const selector = contextId ? `[data-context-id="${contextId}"]` : `[data-path="${folderPath}"]`;
+    const folderEl = this.contentEl.querySelector(selector);
+    const effectiveId = contextId || (folderEl as ExtendedHTMLElement)?._contextId || folderPath;
+
     if (folderEl && folderEl.hasClass("is-collapsed")) {
       folderEl.removeClass("is-collapsed");
-      if (this.settings.rememberExpanded && !this.settings.expandedFolders.includes(folderPath)) {
-        this.settings.expandedFolders.push(folderPath);
+      if (this.settings.rememberExpanded && !this.settings.expandedFolders.includes(effectiveId)) {
+        this.settings.expandedFolders.push(effectiveId);
         await this.plugin.saveSettings();
       }
     }
   }
 
-  private async toggleCollapse(itemEl: HTMLElement, path: string) {
-    const expanded = this.settings.expandedFolders.includes(path);
-    if (expanded) this.settings.expandedFolders = this.settings.expandedFolders.filter(p => p !== path);
-    else this.settings.expandedFolders.push(path);
+  private async toggleCollapse(itemEl: HTMLElement, path: string, contextId?: string) {
+    const effectiveId = contextId || (itemEl as ExtendedHTMLElement)?._contextId || path;
+    const expanded = this.settings.expandedFolders.includes(effectiveId);
+    if (expanded) this.settings.expandedFolders = this.settings.expandedFolders.filter(p => p !== effectiveId);
+    else this.settings.expandedFolders.push(effectiveId);
     
     if (this.settings.rememberExpanded) await this.plugin.saveSettings();
     this.renderView();

@@ -28,6 +28,7 @@ export interface AbstractFolderPluginSettings {
   displayNameOrder: string[]; // Ordered list of properties to check for display name
   searchShowChildren: boolean; // Whether to show children in search results
   searchShowParents: boolean; // Whether to show parents in search results
+  lastInteractionContextId: string | null; // The contextual ID of the most recently interacted folder/file
   showViewStyleToggle: boolean; // Whether to show the view style toggle button
   showFocusActiveFileButton: boolean; // Whether to show the focus active file button
   showSearchButton: boolean; // Whether to show the search button in toolbar
@@ -70,6 +71,7 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   displayNameOrder: ['title', 'aliases', 'basename'],
   searchShowChildren: false,
   searchShowParents: false,
+  lastInteractionContextId: null,
   showViewStyleToggle: true,
   showFocusActiveFileButton: true,
   showSearchButton: true,

@@ -1,5 +1,12 @@
 # Changelog
 
+## Version 1.13.5
+
+**Fixes:**
+*   **Independent Folder Expansion**: Fixed an issue where folders appearing in multiple locations (abstract folders) would expand or collapse simultaneously across all branches.
+*   **Context-Aware Reveal**: Improved the "Reveal in tree" logic to correctly target and expand only the specific branch leading to a file, preventing jumping to the top-most instance.
+*   **Independent Scrolling**: Ensured that interactions with duplicate folders do not trigger unintended scrolling or view shifts in other parts of the tree.
+
 ## Version 1.13.4
 
 **Features:**

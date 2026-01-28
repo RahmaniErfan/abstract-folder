@@ -177,7 +177,7 @@ export class VirtualTreeManager {
                 
                  // Update Collapsed State
                 if (item.node.isFolder) {
-                    if (this.settings.expandedFolders.includes(item.node.path)) {
+                    if (this.settings.expandedFolders.includes(item.contextId)) {
                         el.removeClass("is-collapsed");
                     } else {
                         el.addClass("is-collapsed");
