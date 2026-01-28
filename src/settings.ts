@@ -39,6 +39,7 @@ export interface AbstractFolderPluginSettings {
   showGroupButton: boolean; // Whether to show the group button
   showCreateNoteButton: boolean; // Whether to show the create note button
   showSearchHeader: boolean; // Whether to show the search bar header
+  maxMenuNameLength: number; // Maximum length of file names shown in menus/dropdowns
 }
 
 export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
@@ -80,4 +81,5 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   showGroupButton: true,
   showCreateNoteButton: true,
   showSearchHeader: true,
+  maxMenuNameLength: 10,
 };

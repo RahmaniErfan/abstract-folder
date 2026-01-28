@@ -100,8 +100,14 @@ export class ContextMenuHandler {
         this.app.workspace.trigger("file-menu", menu, node.file, "abstract-folder-view");
     }
 
+    private truncate(text: string): string {
+        const maxLength = this.settings.maxMenuNameLength;
+        if (text.length <= maxLength) return text;
+        return text.substring(0, maxLength) + "...";
+    }
+
     private addCreationItems(menu: Menu, parentFile: TFile | null = null) {
-        const parentName = parentFile ? ` in ${parentFile.basename}` : "";
+        const parentName = parentFile ? ` in ${this.truncate(parentFile.basename)}` : "";
         menu.addItem((item) =>
             item
             .setTitle(parentFile ? `Create child note${parentName}` : "Create new root note")

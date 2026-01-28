@@ -180,20 +180,31 @@ export class PathSuggest extends AbstractInputSuggest<string> {
 		});
 	}
 
+	private truncate(text: string): string {
+		const maxLength = this.settings.maxMenuNameLength;
+		if (text.length <= maxLength) return text;
+		return text.substring(0, maxLength) + "...";
+	}
+
 	renderSuggestion(value: string, el: HTMLElement): void {
-		const text = value;
 		const suggestionEl = el.createDiv({
 			cls: "abstract-folder-suggestion-item",
 		});
 
 		const mainText = suggestionEl.createDiv({ cls: "suggestion-content" });
-		
+
 		const alias = this.matchedAlias.get(value);
 		if (alias) {
-			mainText.createDiv({ cls: "suggestion-title", text: alias });
-			mainText.createDiv({ cls: "suggestion-note", text: value });
+			mainText.createDiv({
+				cls: "suggestion-title",
+				text: this.truncate(alias),
+			});
+			mainText.createDiv({
+				cls: "suggestion-note",
+				text: this.truncate(value),
+			});
 		} else {
-			mainText.setText(text);
+			mainText.setText(this.truncate(value));
 		}
 
 		const metadata = this.suggestionMetadata.get(value);

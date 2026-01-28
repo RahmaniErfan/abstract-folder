@@ -1,5 +1,14 @@
 # Changelog
 
+## Version 1.13.4
+
+**Features:**
+*   **Truncated Menu Names**: Added a new setting to limit the length of file names shown in right-click menus and dropdowns. This prevents long names from breaking the UI layout.
+*   **Customizable Truncation**: New "Max menu name length" slider in settings (range: 10-100, default: 10).
+
+**Fixes:**
+*   **Ellipsis Support**: Improved CSS handling for long names in search suggestions to ensure graceful overflow with ellipsis.
+
 ## Version 1.13.3
 
 **Fixes:**

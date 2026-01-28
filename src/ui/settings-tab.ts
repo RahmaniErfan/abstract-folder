@@ -485,6 +485,20 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 					})
 			);
 
+		new Setting(containerEl)
+			.setName("Max menu name length")
+			.setDesc("The maximum number of characters shown for file names in right-click menus and dropdowns. Longer names will be truncated.")
+			.addSlider((slider) =>
+				slider
+					.setLimits(10, 100, 5)
+					.setValue(this.plugin.settings.maxMenuNameLength)
+					.setDynamicTooltip()
+					.onChange(async (value) => {
+						this.plugin.settings.maxMenuNameLength = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
 	}
 
 	private renderExcludedPaths(containerEl: HTMLElement): void {
