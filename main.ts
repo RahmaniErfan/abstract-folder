@@ -7,6 +7,7 @@
  */
 
 import { Plugin, WorkspaceLeaf, Notice } from 'obsidian';
+import { Logger } from './src/utils/logger';
 import { AbstractFolderPluginSettings, DEFAULT_SETTINGS } from './src/settings';
 import { FolderIndexer } from './src/indexer';
 import { MetricsManager } from './src/metrics-manager';
@@ -27,10 +28,12 @@ export default class AbstractFolderPlugin extends Plugin {
 	ribbonIconEl: HTMLElement | null = null;
 
 	async onload() {
+		Logger.debug("Starting onload...");
 		await this.loadSettings();
 
 		this.indexer = new FolderIndexer(this.app, this.settings, this);
 		this.metricsManager = new MetricsManager(this.app, this.indexer, this);
+		Logger.debug("Initializing indexer...");
 		this.indexer.initializeIndexer();
 
 		this.registerView(
@@ -205,7 +208,9 @@ this.addCommand({
 	}
 
 	onunload() {
+		Logger.debug("Starting onunload...");
 		this.indexer.onunload();
+		Logger.debug("Saving metrics...");
 		void this.metricsManager.saveMetrics();
 		if (this.ribbonIconEl) {
 			this.ribbonIconEl.remove();

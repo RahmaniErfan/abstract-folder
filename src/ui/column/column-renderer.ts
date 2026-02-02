@@ -114,7 +114,7 @@ export class ColumnRenderer {
         itemEl.addEventListener("dragover", (e) => this.dragManager.handleDragOver(e, node));
         itemEl.addEventListener("dragleave", (e) => this.dragManager.handleDragLeave(e));
         itemEl.addEventListener("drop", (e) => {
-            this.dragManager.handleDrop(e, node).catch(console.error);
+            this.dragManager.handleDrop(e, node).catch(Logger.error);
         });
 
         if (isFolder) {

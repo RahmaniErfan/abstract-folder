@@ -7,6 +7,7 @@ import {
 	TFolder,
 } from "obsidian";
 import AbstractFolderPlugin from "../../main"; // Adjust path if necessary
+import { exportDebugDetails } from "../utils/debug-exporter";
 
 // Helper for path suggestions
 export class PathInputSuggest extends AbstractInputSuggest<string> {
@@ -616,6 +617,26 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 					.onChange(async (value: "parent-first" | "name-first") => {
 						this.plugin.settings.namingConflictOrder = value;
 						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl).setName("Debug").setHeading();
+
+		new Setting(containerEl)
+			.setName("Export debug details")
+			.setDesc(
+				"Gather diagnostic information about your environment, plugins, and abstract folder graph into a new folder in your vault.",
+			)
+			.addButton((button) =>
+				button
+					.setButtonText("Export debug folder")
+					.setIcon("download")
+					.onClick(async () => {
+						await exportDebugDetails(
+							this.app,
+							this.plugin.settings,
+							this.plugin.indexer,
+						);
 					}),
 			);
 	}

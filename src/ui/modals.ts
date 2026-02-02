@@ -1,3 +1,4 @@
+import { Logger } from "../utils/logger";
 import { App, Modal, Setting, TFile, TFolder, Notice, FuzzySuggestModal, normalizePath } from "obsidian";
 import { ConversionOptions, FileConflict } from "../utils/conversion";
 import { AbstractFolderPluginSettings } from "../settings";
@@ -123,7 +124,7 @@ export class RenameModal extends Modal {
                 });
                 text.inputEl.addEventListener("keydown", (e) => {
                     if (e.key === "Enter") {
-                        this.submit().catch((error) => console.error(error));
+                        this.submit().catch((error) => Logger.error(error));
                     }
                 });
             });
@@ -134,7 +135,7 @@ export class RenameModal extends Modal {
                     .setButtonText("Rename")
                     .setCta()
                     .onClick(() => {
-                        this.submit().catch((error) => console.error(error));
+                        this.submit().catch((error) => Logger.error(error));
                     })
             );
     }
@@ -161,7 +162,7 @@ export class RenameModal extends Modal {
             this.close();
         } catch (error) {
             new Notice(`Failed to rename: ${error}`);
-            console.error(error);
+            Logger.error(error);
         }
     }
 

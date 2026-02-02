@@ -213,7 +213,7 @@ export class AbstractFolderView extends ItemView {
     this.contentEl.addEventListener("dragover", (e) => this.dragManager.handleDragOver(e, null));
     this.contentEl.addEventListener("dragleave", (e) => this.dragManager.handleDragLeave(e));
     this.contentEl.addEventListener("drop", (e) => {
-        this.dragManager.handleDrop(e, null).catch(console.error);
+        this.dragManager.handleDrop(e, null).catch(Logger.error);
     });
 
     // Content scroll event is now secondary to virtual wrapper scroll
@@ -283,15 +283,15 @@ export class AbstractFolderView extends ItemView {
           const file = this.app.vault.getAbstractFileByPath(path);
           if (file instanceof TFile) {
               if (newTab) {
-                  this.app.workspace.getLeaf('tab').openFile(file).catch(console.error);
+                  this.app.workspace.getLeaf('tab').openFile(file).catch(Logger.error);
               } else {
-                  this.app.workspace.getLeaf(false).openFile(file).catch(console.error);
+                  this.app.workspace.getLeaf(false).openFile(file).catch(Logger.error);
               }
           } else if (!newTab) {
               // Enter on folder -> Toggle collapse
                const folderNode = this.indexer.getGraph().parentToChildren[path];
                if (folderNode || this.indexer.getGraph().allFiles.has(path)) {
-                   this.toggleCollapse(itemEl || null as unknown as HTMLElement, path, contextId).catch(console.error);
+                   this.toggleCollapse(itemEl || null as unknown as HTMLElement, path, contextId).catch(Logger.error);
                }
           }
       }
@@ -876,7 +876,7 @@ export class AbstractFolderView extends ItemView {
         this.plugin.saveSettings().then(() => {
             if (showNotice) new Notice("Active group cleared.");
             this.app.workspace.trigger('abstract-folder:group-changed');
-        }).catch(console.error);
+        }).catch(Logger.error);
     } else if (showNotice) {
         new Notice("No active group to clear.");
     }
@@ -929,7 +929,7 @@ export class AbstractFolderView extends ItemView {
     this.viewState.clearMultiSelection();
     if (node.file) {
       const fileExists = this.app.vault.getAbstractFileByPath(node.file.path);
-      if (fileExists) this.app.workspace.getLeaf(false).openFile(node.file).catch(console.error);
+      if (fileExists) this.app.workspace.getLeaf(false).openFile(node.file).catch(Logger.error);
     }
 
     if (node.isFolder || node.file) {

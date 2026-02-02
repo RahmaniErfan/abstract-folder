@@ -81,7 +81,7 @@ export class AbstractFolderViewToolbar {
         if (this.settings.showCreateNoteButton) {
             this.addAction("file-plus", "Create new root note", () => {
                 new CreateAbstractChildModal(this.app, this.settings, (name, type) => {
-                    createAbstractChildFile(this.app, this.settings, name, null, type, this.plugin.indexer).catch(console.error);
+                    createAbstractChildFile(this.app, this.settings, name, null, type, this.plugin.indexer).catch(Logger.error);
                 }, 'note').open();
             });
         }
@@ -122,7 +122,7 @@ export class AbstractFolderViewToolbar {
                         if (active && active.sort) sortConfig = active.sort;
                     }
                     this.viewState.setSort(sortConfig.sortBy, sortConfig.sortOrder);
-                }).catch(console.error);
+                }).catch(Logger.error);
             }).open();
         }));
         menu.addSeparator();
@@ -163,7 +163,7 @@ export class AbstractFolderViewToolbar {
                         if (active && active.filter) filterConfig = active.filter;
                     }
                     this.viewState.setFilter(filterConfig.excludeExtensions);
-                }).catch(console.error);
+                }).catch(Logger.error);
             }).open();
         }));
         menu.addSeparator();
@@ -218,7 +218,7 @@ export class AbstractFolderViewToolbar {
                 this.plugin.settings.activeGroupId = activeGroupId;
                 this.plugin.saveSettings().then(() => {
                     this.plugin.app.workspace.trigger('abstract-folder:group-changed');
-                }).catch(console.error);
+                }).catch(Logger.error);
             }).open();
         }));
 

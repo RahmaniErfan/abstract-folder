@@ -177,7 +177,7 @@ export class DragManager {
                 
                 // Expand target folder if setting is enabled and target is a folder
                 if (this.settings.expandTargetFolderOnDrop && targetNode?.isFolder) {
-                  this.view.expandFolderByPath(targetNode.path).catch(console.error);
+                  this.view.expandFolderByPath(targetNode.path).catch(Logger.error);
                 }
             }
         } finally {

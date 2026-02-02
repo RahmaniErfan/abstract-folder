@@ -4,6 +4,7 @@ import { FileGraph, ParentChildMap, HIDDEN_FOLDER_ID, Cycle, AbstractFolderFront
 import AbstractFolderPlugin from '../main';
 import { debounce, Debouncer } from 'obsidian';
 import { updateAbstractLinksOnRename, updateGroupsOnRename } from "./utils/file-operations";
+import { Logger } from "./utils/logger";
 
 interface FileDefinedRelationships {
     definedParents: Set<string>;
@@ -76,8 +77,10 @@ export class FolderIndexer {
         do {
             this.pendingRebuild = false;
             this.app.workspace.trigger('abstract-folder:graph-build-start');
+            Logger.debug("Graph build started...");
             await this.buildGraph();
             this.hasBuiltGraph = true;
+            Logger.debug("Graph build complete.");
             this.app.workspace.trigger('abstract-folder:graph-updated');
         } while (this.pendingRebuild);
     } finally {
@@ -144,7 +147,7 @@ export class FolderIndexer {
         
         currentPath = nextParent;
     }
-    // console.debug(`Indexer - getPathToRoot result for ${filePath}:`, pathSegments);
+    // Logger.debug(`Indexer - getPathToRoot result for ${filePath}:`, pathSegments);
     return pathSegments;
   }
 
@@ -159,7 +162,7 @@ export class FolderIndexer {
     this.plugin.registerEvent(
       this.app.vault.on("delete", (file) => {
         if (file instanceof TFile) {
-          this.deleteFileFromGraph(file).catch((error) => console.error(error));
+          this.deleteFileFromGraph(file).catch((error) => Logger.error("Error deleting file from graph", error));
         }
       })
     );
@@ -167,7 +170,7 @@ export class FolderIndexer {
     this.plugin.registerEvent(
       this.app.vault.on("rename", (file, oldPath) => {
         if (file instanceof TFile) {
-          this.renameFileInGraph(file, oldPath).catch((error) => console.error(error));
+          this.renameFileInGraph(file, oldPath).catch((error) => Logger.error("Error renaming file in graph", error));
         }
       })
     );
@@ -288,9 +291,9 @@ export class FolderIndexer {
 
   private displayCycleWarning(cycles: Cycle[]) {
     if (cycles.length > 0) {
-      const message = `Abstract Folder Plugin: ${cycles.length} circular relationship(s) detected. See console for details.`;
+      const message = `Abstract Folder Plugin: ${cycles.length} circular relationship(s) detected. See logs for details.`;
       new Notice(message, 5000); // Display a concise notice for 5 seconds
-      console.warn("Abstract Folder Plugin: Circular relationships detected!", cycles);
+      Logger.warn("Circular relationships detected!", cycles);
     }
   }
 
@@ -364,17 +367,17 @@ export class FolderIndexer {
                 // Parent Definitions
                 if (!isHidden && this.PARENT_PROPERTIES_TO_CHECK_FOR_CHILD_DEFINED_PARENTS.includes(baseKey)) {
                     if (resolvedFile.path !== file.path) {
-                        // console.debug(`Abstract Folder Indexer - Found PARENT for ${file.path} via key ${baseKey} -> ${resolvedFile.path}`);
+                        // Logger.debug(`Abstract Folder Indexer - Found PARENT for ${file.path} via key ${baseKey} -> ${resolvedFile.path}`);
                         relationships.definedParents.add(resolvedFile.path);
                     } else {
-                         console.warn(`Indexer - ${file.path} attempted to define itself as its own parent. Skipping.`);
+                         Logger.warn(`Indexer - ${file.path} attempted to define itself as its own parent. Skipping.`);
                     }
                 }
 
                 // Child Definitions
                 if (this.CHILD_PROPERTIES_TO_CHECK_FOR_PARENT_DEFINED_CHILDREN.includes(baseKey)) {
                      if (resolvedFile.path !== file.path) {
-                        // console.debug(`Abstract Folder Indexer - Found CHILD for ${file.path} via key ${baseKey} -> ${resolvedFile.path}`);
+                        // Logger.debug(`Abstract Folder Indexer - Found CHILD for ${file.path} via key ${baseKey} -> ${resolvedFile.path}`);
                         relationships.definedChildren.add(resolvedFile.path);
                     }
                 }

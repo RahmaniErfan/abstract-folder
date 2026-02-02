@@ -1,3 +1,4 @@
+import { Logger } from "../utils/logger";
 import { App, Menu, TFile } from "obsidian";
 import { FolderNode } from "../types";
 import { AbstractFolderPluginSettings } from "../settings";
@@ -60,7 +61,7 @@ export class ContextMenuHandler {
                         Promise.all(deletePromises).then(() => {
                             multiSelectedPaths.clear();
                             this.plugin.app.workspace.trigger('abstract-folder:graph-updated');
-                        }).catch(console.error);
+                        }).catch(Logger.error);
                     }).open();
                 })
         );
@@ -86,7 +87,7 @@ export class ContextMenuHandler {
             .onClick(() => {
                 new DeleteConfirmModal(this.app, node.file!, (deleteChildren: boolean) => {
                     deleteAbstractFile(this.app, node.file!, deleteChildren, this.indexer)
-                        .catch(console.error);
+                        .catch(Logger.error);
                 }).open();
             })
         );
@@ -116,7 +117,7 @@ export class ContextMenuHandler {
             .onClick(() => {
                 new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
                     createAbstractChildFile(this.app, this.settings, childName, parentFile, childType, this.indexer)
-                        .catch(console.error);
+                        .catch(Logger.error);
                 }, 'note').open();
             })
         );
@@ -129,7 +130,7 @@ export class ContextMenuHandler {
             .onClick(() => {
                 new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
                     createAbstractChildFile(this.app, this.settings, childName, parentFile, childType, this.indexer)
-                        .catch(console.error);
+                        .catch(Logger.error);
                 }, 'canvas').open();
             })
         );
@@ -142,7 +143,7 @@ export class ContextMenuHandler {
             .onClick(() => {
                 new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
                     createAbstractChildFile(this.app, this.settings, childName, parentFile, childType, this.indexer)
-                        .catch(console.error);
+                        .catch(Logger.error);
                 }, 'base').open();
             })
         );
@@ -181,7 +182,7 @@ export class ContextMenuHandler {
                     .setIcon("eye")
                     .setSection('abstract-folder')
                     .onClick(() => {
-                        toggleHiddenStatus(this.app, file, this.settings).catch(console.error);
+                        toggleHiddenStatus(this.app, file, this.settings).catch(Logger.error);
                     })
             );
         } else {
@@ -191,7 +192,7 @@ export class ContextMenuHandler {
                     .setIcon("eye-off")
                     .setSection('abstract-folder')
                     .onClick(() => {
-                        toggleHiddenStatus(this.app, file, this.settings).catch(console.error);
+                        toggleHiddenStatus(this.app, file, this.settings).catch(Logger.error);
                     })
             );
         }
@@ -204,7 +205,7 @@ export class ContextMenuHandler {
                 .onClick(() => {
                     const currentIcon = this.app.metadataCache.getFileCache(file)?.frontmatter?.icon as string | undefined;
                     new IconModal(this.app, (result) => {
-                        updateFileIcon(this.app, file, result).catch(console.error);
+                        updateFileIcon(this.app, file, result).catch(Logger.error);
                     }, currentIcon as string || "").open();
                 })
         );
@@ -217,7 +218,7 @@ export class ContextMenuHandler {
                 .setTitle("Open in new tab")
                 .setIcon("file-plus")
                 .onClick(() => {
-                    this.app.workspace.getLeaf('tab').openFile(file).catch(console.error);
+                    this.app.workspace.getLeaf('tab').openFile(file).catch(Logger.error);
                 })
         );
 
@@ -226,7 +227,7 @@ export class ContextMenuHandler {
                 .setTitle("Open to the right")
                 .setIcon("separator-vertical")
                 .onClick(() => {
-                    this.app.workspace.getLeaf('split').openFile(file).catch(console.error);
+                    this.app.workspace.getLeaf('split').openFile(file).catch(Logger.error);
                 })
         );
 
@@ -235,7 +236,7 @@ export class ContextMenuHandler {
                 .setTitle("Open in new window")
                 .setIcon("popout")
                 .onClick(() => {
-                    this.app.workspace.getLeaf('window').openFile(file).catch(console.error);
+                    this.app.workspace.getLeaf('window').openFile(file).catch(Logger.error);
                 })
         );
     }

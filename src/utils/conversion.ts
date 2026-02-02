@@ -1,3 +1,4 @@
+import { Logger } from "../utils/logger";
 import { App, TFolder, TFile, TAbstractFile, Notice, normalizePath } from "obsidian";
 import { AbstractFolderPluginSettings } from "../settings";
 import { FolderIndexer } from "../indexer";
@@ -95,7 +96,7 @@ export async function convertFoldersToPluginFormat(
                 folderNote = await app.vault.create(potentialParentNotePath, "");
                 updatedCount++;
             } catch (e) {
-                console.warn(`[Abstract Folder] Could not create folder note at ${potentialParentNotePath} for folder ${folder.path}`, e);
+                Logger.warn(`[Abstract Folder] Could not create folder note at ${potentialParentNotePath} for folder ${folder.path}`, e);
                 // If we can't create it, we can't link to it, so continue
                 continue;
             }
@@ -503,7 +504,7 @@ export async function executeFolderGeneration(
                 } catch (error) {
                      const check = app.vault.getAbstractFileByPath(currentPath);
                      if (!check) {
-                         console.error(`[Abstract Folder] Failed to create folder ${currentPath}:`, error);
+                         Logger.error(`[Abstract Folder] Failed to create folder ${currentPath}:`, error);
                      }
                 }
             }

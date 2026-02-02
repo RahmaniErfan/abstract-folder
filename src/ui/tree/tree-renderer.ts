@@ -93,7 +93,7 @@ itemEl.addEventListener("dragstart", (e) => this.dragManager.handleDragStart(e, 
 itemEl.addEventListener("dragover", (e) => this.dragManager.handleDragOver(e, node));
 itemEl.addEventListener("dragleave", (e) => this.dragManager.handleDragLeave(e));
 itemEl.addEventListener("drop", (e) => {
-    this.dragManager.handleDrop(e, node).catch(console.error);
+    this.dragManager.handleDrop(e, node).catch(Logger.error);
 });
 
 if (node.isFolder) {
@@ -123,7 +123,7 @@ if (activeFile && activeFile.path === node.path) {
 
             iconEl.addEventListener("click", (e) => {
                 e.stopPropagation();
-                this.toggleCollapse(itemEl, node.path, (itemEl as ExtendedHTMLElement)._contextId).catch(console.error);
+                this.toggleCollapse(itemEl, node.path, (itemEl as ExtendedHTMLElement)._contextId).catch(Logger.error);
             });
         }
 
@@ -150,7 +150,7 @@ if (activeFile && activeFile.path === node.path) {
 
         selfEl.addEventListener("click", (e) => {
             e.stopPropagation();
-            this.handleNodeClick(node, e).catch(console.error);
+            this.handleNodeClick(node, e).catch(Logger.error);
         });
 
         selfEl.addEventListener("auxclick", (e) => {
@@ -254,7 +254,7 @@ if (activeFile && activeFile.path === node.path) {
         itemEl.addEventListener("dragover", (e) => this.dragManager.handleDragOver(e, node));
         itemEl.addEventListener("dragleave", (e) => this.dragManager.handleDragLeave(e));
         itemEl.addEventListener("drop", (e) => {
-            this.dragManager.handleDrop(e, node).catch(console.error);
+            this.dragManager.handleDrop(e, node).catch(Logger.error);
         });
 
         if (node.isFolder) {
@@ -283,7 +283,7 @@ if (activeFile && activeFile.path === node.path) {
 
             iconEl.addEventListener("click", (e) => {
                 e.stopPropagation();
-                this.toggleCollapse(itemEl, node.path, contextId).catch(console.error);
+                this.toggleCollapse(itemEl, node.path, contextId).catch(Logger.error);
             });
         }
 
@@ -310,7 +310,7 @@ if (activeFile && activeFile.path === node.path) {
 
         selfEl.addEventListener("click", (e) => {
             e.stopPropagation();
-            this.handleNodeClick(node, e).catch(console.error);
+            this.handleNodeClick(node, e).catch(Logger.error);
         });
 
         selfEl.addEventListener("auxclick", (e) => {
@@ -334,7 +334,7 @@ if (activeFile && activeFile.path === node.path) {
             const fileExists = this.app.vault.getAbstractFileByPath(node.file.path);
             if (fileExists) {
                 // Open in new tab (true = split leaf)
-                this.app.workspace.getLeaf('tab').openFile(node.file).catch(console.error);
+                this.app.workspace.getLeaf('tab').openFile(node.file).catch(Logger.error);
             }
         }
     }
@@ -375,7 +375,7 @@ if (activeFile && activeFile.path === node.path) {
         if (node.file) {
             const fileExists = this.app.vault.getAbstractFileByPath(node.file.path);
             if (fileExists) {
-                this.app.workspace.getLeaf(false).openFile(node.file).catch(console.error);
+                this.app.workspace.getLeaf(false).openFile(node.file).catch(Logger.error);
 
                 // If this file also has children and autoExpandChildren is enabled, toggle its expanded state
                 if (this.settings.autoExpandChildren && node.children.length > 0) {

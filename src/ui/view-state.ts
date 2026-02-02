@@ -1,3 +1,4 @@
+import { Logger } from "../utils/logger";
 import { AbstractFolderPluginSettings } from '../settings';
 import AbstractFolderPlugin from 'main'; // Import the plugin class
 
@@ -58,7 +59,7 @@ export class ViewState {
 
     toggleViewStyle() {
         this.settings.viewStyle = this.settings.viewStyle === 'tree' ? 'column' : 'tree';
-        this.plugin.saveSettings().catch(console.error); // Save settings via the plugin instance
+        this.plugin.saveSettings().catch(Logger.error); // Save settings via the plugin instance
         this.plugin.app.workspace.trigger('abstract-folder:view-style-changed'); // Trigger re-render and button update
     }
 

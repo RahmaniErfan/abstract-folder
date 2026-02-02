@@ -1,3 +1,4 @@
+import { Logger } from "../utils/logger";
 import { App, TFile, Notice, TFolder } from "obsidian";
 import { AbstractFolderPluginSettings } from "../settings";
 import { ChildFileType } from "../ui/modals";
@@ -214,11 +215,11 @@ aliases:
             });
         }
 
-        app.workspace.getLeaf(true).openFile(file).catch(console.error);
+        app.workspace.getLeaf(true).openFile(file).catch(Logger.error);
         app.workspace.trigger('abstract-folder:graph-updated');
     } catch (error) {
         new Notice(`Failed to create file: ${error}`);
-        console.error(error);
+        Logger.error(error);
     }
 }
 
@@ -349,7 +350,7 @@ export async function deleteAbstractFile(app: App, file: TFile, deleteChildren: 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         new Notice(`Failed to delete file ${file.name}: ${errorMessage}`);
-        console.error(`Error deleting file ${file.name}:`, error);
+        Logger.error(`Error deleting file ${file.name}:`, error);
     }
 }
 
@@ -375,7 +376,7 @@ async function deleteFolderRecursive(app: App, folder: TFolder, deleteChildren: 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         new Notice(`Failed to delete folder ${folder.name}: ${errorMessage}`);
-        console.error(`Error deleting folder ${folder.name}:`, error);
+        Logger.error(`Error deleting folder ${folder.name}:`, error);
     }
 }
 

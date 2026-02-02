@@ -1,3 +1,4 @@
+import { Logger } from "./utils/logger";
 import { App, TFile } from "obsidian";
 import { AbstractFolderPluginSettings } from "./settings";
 import { ViewState } from "./ui/view-state";
@@ -99,7 +100,7 @@ export class FileRevealManager {
             if (changed) {
                 this.settings.expandedFolders = Array.from(expandedSet);
                 if (this.settings.rememberExpanded) {
-                    this.plugin.saveSettings().catch(console.error);
+                    this.plugin.saveSettings().catch(Logger.error);
                 }
                 this.renderView();
             } else {
