@@ -623,9 +623,23 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 		new Setting(containerEl).setName("Debug").setHeading();
 
 		new Setting(containerEl)
+			.setName("Anonymize debug export")
+			.setDesc(
+				"Redact file and folder names in the debug export to protect your privacy. Highly recommended when sharing logs for troubleshooting.",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.anonymizeDebugExport)
+					.onChange(async (value) => {
+						this.plugin.settings.anonymizeDebugExport = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
 			.setName("Export debug details")
 			.setDesc(
-				"Gather diagnostic information about your environment, plugins, and abstract folder graph into a new folder in your vault.",
+				"Gather diagnostic information into a new folder in your vault. Includes: environment (version, theme, snippets), plugins (enabled list, versions), settings, vault stats, graph state (roots, cycles, relationships), active view states, logs, and folder structure. Note content is never included, only metadata and structure.",
 			)
 			.addButton((button) =>
 				button

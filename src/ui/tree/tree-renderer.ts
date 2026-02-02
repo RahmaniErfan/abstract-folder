@@ -6,6 +6,7 @@ import { ContextMenuHandler } from "../context-menu";
 import { FolderIndexer } from "../../indexer";
 import { DragManager } from "../dnd/drag-manager";
 import { FlatItem } from "../../utils/virtualization";
+import { Logger } from "../../utils/logger";
 
 export type FocusFileCallback = (path: string) => void;
 

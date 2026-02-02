@@ -4,6 +4,7 @@ import { moveFiles } from "../../utils/file-operations";
 import { FolderNode } from "../../types";
 import { FolderIndexer } from "../../indexer";
 import { AbstractFolderView } from "../../view"; // Import AbstractFolderView
+import { Logger } from "../../utils/logger";
 
 export interface DragData {
     sourcePaths: string[];

@@ -8,6 +8,7 @@ import { ManageSortingModal } from "../modals/manage-sorting-modal";
 import { ManageFilteringModal } from "../modals/manage-filtering-modal";
 import { Group, SortBy } from "../../types";
 import { ManageGroupsModal } from "../modals/manage-groups-modal";
+import { Logger } from "../../utils/logger";
 
 export class AbstractFolderViewToolbar {
     private viewStyleToggleAction: HTMLElement | undefined;

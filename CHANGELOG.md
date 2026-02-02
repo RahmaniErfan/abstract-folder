@@ -3,7 +3,8 @@
 ## Unreleased
 
 **Features:**
-*   **Diagnostic Debug Export**: Added an "Export Debug Details" feature in settings that generates a comprehensive diagnostic folder. It captures vault structure, plugin environment, internal graph state, active view configurations, and recent logs to assist in troubleshooting.
+*   **Privacy-First Diagnostic Export**: Added an "Export Debug Details" feature with built-in anonymization. It generates a comprehensive diagnostic folder capturing vault structure, plugin environment, internal graph state, and recent logs while redacting sensitive file and folder names.
+*   **Debug Privacy Settings**: New toggle to enable/disable anonymization of debug exports. The settings page now explicitly lists all exported data and confirms that note content is never included.
 *   **Internal Logging System**: Implemented a global log buffer that tracks plugin activity in-memory, providing better visibility into indexing and lifecycle events without persistent overhead.
 *   **Multiple Parent/Child Properties**: Added support for defining multiple frontmatter property names for parent and child relationships. This allows users to use different vocabularies (e.g., `parent`, `folder`, `up`) simultaneously to build the same abstract hierarchy.
 *   **Default note creation path**: Added a setting to specify a default directory for new root-level notes, allowing users to keep their vault root clean.

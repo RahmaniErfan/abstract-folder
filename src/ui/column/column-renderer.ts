@@ -6,6 +6,7 @@ import AbstractFolderPlugin from "../../../main";
 import { ContextMenuHandler } from "../context-menu";
 import { FolderIndexer } from "src/indexer";
 import { DragManager } from "../dnd/drag-manager";
+import { Logger } from "../../utils/logger";
 
 export class ColumnRenderer {
     private app: App;

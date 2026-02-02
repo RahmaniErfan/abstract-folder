@@ -16,6 +16,7 @@ import { DragManager } from "../dnd/drag-manager";
 import { VirtualTreeManager } from "./virtual-tree-manager";
 import { AncestryEngine } from "../../utils/ancestry";
 import { PathSuggest } from "../path-suggest";
+import { Logger } from "../../utils/logger";
 
 export const VIEW_TYPE_ABSTRACT_FOLDER = "abstract-folder-view";
 
