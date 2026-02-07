@@ -1,29 +1,33 @@
 # Changelog
 
-## Unreleased
+## Version 1.14.0
 
-**Features:**
-*   **Rename Option**: Added a "Rename" option to the right-click context menu for items in the abstract tree view, allowing for quick file renaming directly from the plugin's UI.
-*   **Legacy Data Cleanup**: Introduced automated and manual tools to resolve migration issues from older versions. The plugin now automatically strips problematic legacy fields (like `views`) on load.
-*   **Factory Reset Settings**: Added a safe, in-app tool to reset all plugin configuration to factory defaults. This provides a reliable recovery path without touching your notes or frontmatter properties.
+### Hierarchy & Conflict Resolution
+*   **Conflict Resolution System**: Added a customizable system to resolve file name collisions in the flat structure by automatically prefixing or suffixing parent or ancestor names.
+*   **Hierarchical Naming Logic**: Choose between using the immediate 'parent' name or the highest 'ancestor' name to distinguish conflicting notes.
+*   **Customizable Name Formatting**: New settings to control separators (dash/brackets) and naming order (parent-first/name-first), supporting formats like `Parent - Name` or `[Parent] Name`.
+*   **Multi-Parent Scrolling & Reveal**: Fixed issues where clicking files with multiple abstract locations caused view jumps; the plugin now correctly distinguishes instances and maintains scroll position.
+*   **Global Branch Expansion**: Auto-expand logic now ensures all abstract instances of a file are made visible across the entire tree when revealed.
+*   **Context-Aware Expansion**: Expansion logic now uses contextual IDs to ensure folders are expanded correctly across all instances in the abstract hierarchy.
 
-**Fixes:**
-*   **Multi-Parent Scrolling**: Fixed an issue where clicking a file that exists in multiple abstract locations would cause the view to jump to the first occurrence. The plugin now correctly distinguishes between instances and maintains the current scroll position upon interaction.
-*   **Global Branch Expansion**: Updated the auto-expand logic to ensure that when a file is revealed, all its abstract instances across the entire tree are expanded and made visible, rather than just the first one found.
-*   **Top-Aligned Reveal**: Improved the reveal and search behavior to align the target file to the top of the viewport for better visibility.
-*   **Non-Markdown Sorting**: Fixed an issue where non-Markdown files (PDFs, images, etc.) were consistently appearing at the top of the list. These files are now correctly grouped below abstract folders and sorted according to the active criteria.
-*   **Folders-First Logic**: Implemented "Folders First" grouping in the sort comparator to align with standard file explorer behavior.
-*   **Expand All in Tree View**: Fixed a bug where the "Expand All" button would fail to expand folders, or sometimes collapse them, especially when a Group filter was active.
-*   **Context-Aware Expansion**: The expansion logic now correctly uses contextual IDs to ensure folders are expanded across all their instances in the abstract hierarchy.
-*   **Virtualization Traversal**: Fixed a logic error in the virtualized tree renderer that could prevent children from being displayed even when their parent was expanded.
-*   **Privacy-First Diagnostic Export**: Added an "Export Debug Details" feature with built-in anonymization. It generates a comprehensive diagnostic folder capturing vault structure, plugin environment, internal graph state, and recent logs while redacting sensitive file and folder names.
-*   **Debug Privacy Settings**: New toggle to enable/disable anonymization of debug exports. The settings page now explicitly lists all exported data and confirms that note content is never included.
-*   **Internal Logging System**: Implemented a global log buffer that tracks plugin activity in-memory, providing better visibility into indexing and lifecycle events without persistent overhead.
-*   **Multiple Parent/Child Properties**: Added support for defining multiple frontmatter property names for parent and child relationships. This allows users to use different vocabularies (e.g., `parent`, `folder`, `up`) simultaneously to build the same abstract hierarchy.
-*   **Default note creation path**: Added a setting to specify a default directory for new root-level notes, allowing users to keep their vault root clean.
-*   **Naming conflict resolution**: Added a customizable system to resolve file name collisions in the flat structure by automatically prefixing or suffixing the parent's or highest ancestor's name.
-*   **Hierarchical naming logic**: Users can now choose between using the immediate 'parent' name or the highest 'ancestor' name to distinguish conflicting notes.
-*   **Customizable name formatting**: New settings to control the separator (dash or brackets) and the naming order (parent-first or name-first), resulting in formats like `Parent - Name`, `Name - Parent`, `[Parent] Name`, or `Name [Parent]`.
+### Core Features & Improvements
+*   **Multiple Relationship Properties**: Added support for defining multiple frontmatter property names for parent/child relationships (e.g., `parent`, `folder`, `up`).
+*   **Rename Option**: Added a "Rename" option to the right-click context menu for items in the abstract tree view.
+*   **Legacy Data Cleanup**: Automated tools to resolve migration issues by stripping problematic legacy fields on load.
+*   **Factory Reset Settings**: Added a safe tool to reset plugin configuration to defaults without affecting vault content.
+*   **Default Note Path**: New setting to specify a default directory for new root-level notes.
+
+### Maintenance & Debugging
+*   **Privacy-First Diagnostic Export**: Added "Export Debug Details" with built-in anonymization for troubleshooting, redacting sensitive names while capturing environment state.
+*   **Internal Logging System**: Implemented a global log buffer for better visibility into indexing and lifecycle events.
+*   **Debug Privacy Settings**: New toggle to enable/disable anonymization of debug exports with explicit data disclosure.
+
+### Bug Fixes
+*   **Non-Markdown Sorting**: Fixed an issue where non-Markdown files were appearing at the top; they are now correctly grouped below abstract folders.
+*   **Folders-First Logic**: Implemented standard "Folders First" grouping in the sort comparator.
+*   **Expand All in Tree View**: Fixed a bug where the "Expand All" button failed to expand folders when a Group filter was active.
+*   **Virtualization Traversal**: Fixed a logic error in the virtualized tree renderer that could prevent children from being displayed.
+*   **Top-Aligned Reveal**: Improved search behavior to align the target file to the top of the viewport.
 
 ## Version 1.13.5
 
@@ -70,18 +74,18 @@
 *   **Jump to Search Bar**: Added a command and toolbar action to quickly focus the search bar.
 *   **Clear Active Group**: New command to instantly clear the active group filter.
 *   **Create Group with Active File**: New command to instantly create a virtual group using the currently active file as the root parent. It opens the group creation modal with the active file pre-filled as a root parent, allowing you to customize the name before saving.
-    *   **Global Command**: Added "Focus search bar in abstract tree" to the command palette.
-    *   **Toolbar Integration**: Added a search icon (🔍) to the toolbar for mouse-driven access.
-    *   **Automatic View Switching**: Automatically switches from Column mode to Tree mode when searching, as search is optimized for the hierarchical tree layout.
+*   **Global Command**: Added "Focus search bar in abstract tree" to the command palette.
+*   **Toolbar Integration**: Added a search icon (🔍) to the toolbar for mouse-driven access.
+*   **Automatic View Switching**: Automatically switches from Column mode to Tree mode when searching, as search is optimized for the hierarchical tree layout.
 
 ## Version 1.11.0
 
 **Features:**
 *   **Focus Active File**: Introduced a new feature to focus on a specific file in the tree view. Focusing filters the view to show only the selected file's ancestry and/or children, integrated with existing search settings.
-    *   **Toolbar Integration**: Added a "Target" icon (🎯) to the toolbar for quick toggling of focus on the active file.
-    *   **Context Menu**: Added "Focus this file" option to the right-click menu for any item in the tree.
-    *   **Global Command**: Added "Toggle focus on active file in abstract tree" command for keyboard accessibility.
-    *   **Intelligent Switching**: Automatically switches the view from Column mode to Tree mode when focusing to ensure the focused hierarchy is clearly visible.
+*   **Toolbar Integration**: Added a "Target" icon (🎯) to the toolbar for quick toggling of focus on the active file.
+*   **Context Menu**: Added "Focus this file" option to the right-click menu for any item in the tree.
+*   **Global Command**: Added "Toggle focus on active file in abstract tree" command for keyboard accessibility.
+*   **Intelligent Switching**: Automatically switches the view from Column mode to Tree mode when focusing to ensure the focused hierarchy is clearly visible.
 
 ## Version 1.10.6
 
