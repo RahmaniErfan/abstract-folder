@@ -3,6 +3,7 @@
 ## Unreleased
 
 **Features:**
+*   **Rename Option**: Added a "Rename" option to the right-click context menu for items in the abstract tree view, allowing for quick file renaming directly from the plugin's UI.
 *   **Privacy-First Diagnostic Export**: Added an "Export Debug Details" feature with built-in anonymization. It generates a comprehensive diagnostic folder capturing vault structure, plugin environment, internal graph state, and recent logs while redacting sensitive file and folder names.
 *   **Debug Privacy Settings**: New toggle to enable/disable anonymization of debug exports. The settings page now explicitly lists all exported data and confirms that note content is never included.
 *   **Internal Logging System**: Implemented a global log buffer that tracks plugin activity in-memory, providing better visibility into indexing and lifecycle events without persistent overhead.

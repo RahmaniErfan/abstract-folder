@@ -3,7 +3,7 @@ import { App, Menu, TFile } from "obsidian";
 import { FolderNode } from "../types";
 import { AbstractFolderPluginSettings } from "../settings";
 import AbstractFolderPlugin from "../../main";
-import { BatchDeleteConfirmModal, CreateAbstractChildModal, ChildFileType, DeleteConfirmModal } from './modals';
+import { BatchDeleteConfirmModal, CreateAbstractChildModal, ChildFileType, DeleteConfirmModal, RenameModal } from './modals';
 import { IconModal } from './icon-modal';
 import { updateFileIcon, toggleHiddenStatus, createAbstractChildFile, deleteAbstractFile } from '../utils/file-operations';
 import { FolderIndexer } from "../indexer";
@@ -78,6 +78,16 @@ export class ContextMenuHandler {
         // Plugin-specific actions first
         this.addCreationItems(menu, node.file);
         this.addPluginSpecificActions(menu, node.file);
+
+        menu.addItem((item) =>
+            item
+            .setTitle("Rename")
+            .setIcon("pencil")
+            .setSection('abstract-folder')
+            .onClick(() => {
+                new RenameModal(this.app, node.file!).open();
+            })
+        );
 
         menu.addItem((item) =>
             item
