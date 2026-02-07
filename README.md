@@ -5,6 +5,7 @@
 
 You can support me if you find this useful :)
 
+[![Sponsor on GitHub](https://img.shields.io/badge/Sponsor-GitHub-EA4AAA?style=for-the-badge&logo=github)](https://github.com/sponsors/RahmaniErfan)
 [![Donate via PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?style=for-the-badge&logo=paypal)](https://www.paypal.com/paypalme/airfunn)
 [![Donate via Wise](https://img.shields.io/badge/Donate-Wise-00BF8D?style=for-the-badge&logo=wise)](https://wise.com/pay/me/erfanr47)
 
@@ -71,16 +72,20 @@ Using groups to filter and manage a subset of your abstract folders.
 
 ## Key Features
 
-  * **Virtual Hierarchy:** Create deep nesting and folder structures entirely via metadata.
-  * **Drag & Drop:** Reorganize your abstract folders naturally. Drag to move, or hold `Ctrl`/`Cmd` to copy (add to a second parent).
   * **Multi-Parenting:** Assign a file to multiple "parents" using the `parent` property. It will appear in all of them in the tree view.
-  * **Parent-Defined Children:** Use the `children` property to manually list files that belong to a parent file.
+  * **Drag & Drop:** Reorganize your abstract folders naturally. Drag to move, or hold `Ctrl`/`Cmd` to copy (add to a second parent).
+  * **Custom Groups & Views:** Browse your files using a Tree view, Column view, or high-level Groups to isolate project contexts.
+  * **Advanced Sorting:** Organize your view using smart metrics like "Thermal" (Hotness), "Stale Rot" (Neglect), and "Gravity" (Recursive Density).
   * **Non-Markdown Support:** Using the "Parent-Defined Children" feature, you can organize files that don't have frontmatter (like Canvas, Excalidraw, Images, or PDFs) into your abstract folders.
-  * **Custom Views:** Browse your files using a Tree view, Column view, or Groups.
   * **Migration Tools:** One-click tools to convert your physical folder structure to Abstract Folders (and vice-versa).
-  * **Advanced Sorting:** Organize your view using smart metrics like "Thermal," "Stale Rot," and "Gravity."
-  * **Hotness (Thermal):** Surface notes you are actively working on using exponential decay logic.
   * **Focus & Isolate:** Instantly focus on a file's ancestry or use the search bar to isolate project branches.
+
+## Flexibility & Power
+
+  * **Virtual Hierarchy:** Create deep nesting and folder structures entirely via metadata.
+  * **Conflict Resolution**: Automatically resolve file name collisions in flat structures using parent or ancestor names (e.g., `[Parent] Name` or `Name - Parent`).
+  * **Flexible Properties**: Define multiple property names (e.g., `parent`, `up`, `category`) to build your hierarchy.
+  * **Hotness (Thermal):** Surface notes you are actively working on using exponential decay logic.
 
 ## Usage
 
@@ -187,9 +192,10 @@ Customize the plugin behavior in **Settings → Abstract Folder**.
 
 ### General Configuration
 
-  * **Property Name:** The frontmatter key used to define parents (default: `parent`). *Case-sensitive.*
-  * **Children Property Name:** The frontmatter key used to define children (default: `children`).
+  * **Property Name:** The frontmatter key(s) used to define parents (default: `parent`). You can specify multiple names separated by commas. *Case-sensitive.*
+  * **Children Property Name:** The frontmatter key(s) used to define children (default: `children`).
   * **Show Aliases:** If enabled, the tree view will display the file's first alias instead of the filename.
+  * **Conflict Resolution**: Settings to control how conflicting filenames are displayed, including naming logic (parent vs ancestor) and formatting (separators and order).
   * **Excluded Paths:** A list of file paths to hide from the abstract view.
 
 ### View Behavior
@@ -205,6 +211,11 @@ Customize the plugin behavior in **Settings → Abstract Folder**.
   * **Enable Rainbow Indents:** Colors the indentation lines to visually distinguish tree depth.
   * **Rainbow Palette:** Select the color scheme for indentations (`classic`, `pastel`, or `neon`).
   * **Per-Item Colors:** If enabled, sibling items at the same depth will use different colors. If disabled, all items at the same depth share the same color.
+
+### Advanced & Maintenance
+
+  * **Factory Reset Settings**: Reset all plugin configuration to factory defaults without touching your vault content.
+  * **Debug Privacy**: Control the anonymization levels for diagnostic exports.
 
 -----
 
