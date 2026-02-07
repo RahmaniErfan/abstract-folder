@@ -262,6 +262,15 @@ this.addCommand({
 		if (this.settings.childrenPropertyName && (!this.settings.childrenPropertyNames || this.settings.childrenPropertyNames.length === 0)) {
 			this.settings.childrenPropertyNames = [this.settings.childrenPropertyName];
 		}
+
+		// Cleanup: Remove legacy "views" field if it exists in the data.json as it causes issues in newer versions
+		// and is no longer part of the settings interface.
+		const settingsRecord = this.settings as unknown as Record<string, unknown>;
+		if (settingsRecord.views) {
+			Logger.debug("Found legacy 'views' field in settings, removing it.");
+			delete settingsRecord.views;
+			await this.saveSettings();
+		}
 	}
 
 	async saveSettings() {

@@ -5,9 +5,12 @@ import {
 	AbstractInputSuggest,
 	normalizePath,
 	TFolder,
+	Notice,
+	Modal,
 } from "obsidian";
 import AbstractFolderPlugin from "../../main"; // Adjust path if necessary
 import { exportDebugDetails } from "../utils/debug-exporter";
+import { DEFAULT_SETTINGS } from "../settings";
 
 // Helper for path suggestions
 export class PathInputSuggest extends AbstractInputSuggest<string> {
@@ -69,12 +72,19 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 			.addText((text) =>
 				text
 					.setPlaceholder("Example: parent, up")
-					.setValue(this.plugin.settings.parentPropertyNames.join(", "))
+					.setValue(
+						this.plugin.settings.parentPropertyNames.join(", "),
+					)
 					.onChange(async (value) => {
-						const propertyNames = value.split(",").map(v => v.trim()).filter(v => v.length > 0);
-						this.plugin.settings.parentPropertyNames = propertyNames;
+						const propertyNames = value
+							.split(",")
+							.map((v) => v.trim())
+							.filter((v) => v.length > 0);
+						this.plugin.settings.parentPropertyNames =
+							propertyNames;
 						if (propertyNames.length > 0) {
-							this.plugin.settings.propertyName = propertyNames[0];
+							this.plugin.settings.propertyName =
+								propertyNames[0];
 						}
 						await this.plugin.saveSettings();
 						this.plugin.indexer.updateSettings(
@@ -91,12 +101,19 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 			.addText((text) =>
 				text
 					.setPlaceholder("Example: children, members")
-					.setValue(this.plugin.settings.childrenPropertyNames.join(", "))
+					.setValue(
+						this.plugin.settings.childrenPropertyNames.join(", "),
+					)
 					.onChange(async (value) => {
-						const propertyNames = value.split(",").map(v => v.trim()).filter(v => v.length > 0);
-						this.plugin.settings.childrenPropertyNames = propertyNames;
+						const propertyNames = value
+							.split(",")
+							.map((v) => v.trim())
+							.filter((v) => v.length > 0);
+						this.plugin.settings.childrenPropertyNames =
+							propertyNames;
 						if (propertyNames.length > 0) {
-							this.plugin.settings.childrenPropertyName = propertyNames[0];
+							this.plugin.settings.childrenPropertyName =
+								propertyNames[0];
 						}
 						await this.plugin.saveSettings();
 						this.plugin.indexer.updateSettings(
@@ -651,6 +668,102 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 							this.plugin.settings,
 							this.plugin.indexer,
 						);
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Cleanup legacy data")
+			.setDesc(
+				"If you're experiencing issues or errors after updating from an older version, use this to clean up outdated data from your settings (specifically the legacy 'views' field).",
+			)
+			.addButton((button) =>
+				button
+					.setButtonText("Cleanup settings")
+					.setWarning()
+					.onClick(async () => {
+						const settingsRecord = this.plugin
+							.settings as unknown as Record<string, unknown>;
+						let cleaned = false;
+
+						if (settingsRecord.views) {
+							delete settingsRecord.views;
+							cleaned = true;
+						}
+
+						// More aggressive cleanup for "really really old" versions
+						// Reset problematic arrays/records if they contain invalid data formats
+						if (
+							Array.isArray(
+								this.plugin.settings.expandedFolders,
+							) &&
+							this.plugin.settings.expandedFolders.some(
+								(f) => typeof f !== "string",
+							)
+						) {
+							this.plugin.settings.expandedFolders = [];
+							cleaned = true;
+						}
+
+						if (
+							this.plugin.settings.metrics &&
+							typeof this.plugin.settings.metrics !== "object"
+						) {
+							this.plugin.settings.metrics = {};
+							cleaned = true;
+						}
+
+						// If user is desperate, reset everything but the basics
+						if (cleaned) {
+							await this.plugin.saveSettings();
+							new Notice("Legacy data cleaned up successfully.");
+						} else {
+							new Notice("No legacy data found to clean up.");
+						}
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Factory reset settings")
+			.setDesc(
+				"Reset all plugin configuration to factory defaults. This is a safe alternative to deleting data.json. It only affects plugin settings like UI preferences and excluded paths. It will not touch your notes or frontmatter properties.",
+			)
+			.addButton((button) =>
+				button
+					.setButtonText("Reset all settings")
+					.setWarning()
+					.onClick(() => {
+						const modal = new (class extends Modal {
+							constructor(app: App, onConfirm: () => void) {
+								super(app);
+								this.setTitle("Reset all settings");
+								this.contentEl.createEl("p", {
+									text: "Are you sure you want to reset all settings? This cannot be undone.",
+								});
+								
+								new Setting(this.contentEl)
+									.addButton((btn) => btn
+										.setButtonText("Cancel")
+										.onClick(() => this.close()))
+									.addButton((btn) => btn
+										.setButtonText("Reset everything")
+										.setWarning()
+										.onClick(() => {
+											onConfirm();
+											this.close();
+										}));
+							}
+						})(this.app, () => {
+							this.plugin.settings = Object.assign(
+								{},
+								DEFAULT_SETTINGS,
+							);
+							this.plugin.saveSettings().then(() => {
+								new Notice(
+									"Settings have been reset to defaults. Please reload Obsidian.",
+								);
+							}).catch(console.error);
+						});
+						modal.open();
 					}),
 			);
 	}

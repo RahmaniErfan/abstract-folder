@@ -4,6 +4,8 @@
 
 **Features:**
 *   **Rename Option**: Added a "Rename" option to the right-click context menu for items in the abstract tree view, allowing for quick file renaming directly from the plugin's UI.
+*   **Legacy Data Cleanup**: Introduced automated and manual tools to resolve migration issues from older versions. The plugin now automatically strips problematic legacy fields (like `views`) on load.
+*   **Factory Reset Settings**: Added a safe, in-app tool to reset all plugin configuration to factory defaults. This provides a reliable recovery path without touching your notes or frontmatter properties.
 
 **Fixes:**
 *   **Multi-Parent Scrolling**: Fixed an issue where clicking a file that exists in multiple abstract locations would cause the view to jump to the first occurrence. The plugin now correctly distinguishes between instances and maintains the current scroll position upon interaction.
