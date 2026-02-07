@@ -65,10 +65,16 @@ export class AbstractFolderViewToolbar {
             this.addAction("lucide-folder-sync", "Convert folder structure", (evt) => this.showConversionMenu(evt));
         }
         if (this.settings.showCollapseAllButton) {
-            this.collapseAllAction = this.addAction("chevrons-down-up", "Collapse all folders", () => this.collapseAllView());
+            this.collapseAllAction = this.addAction("chevrons-down-up", "Collapse all folders", () => {
+                Logger.debug("AbstractFolderViewToolbar: collapse all clicked");
+                this.collapseAllView();
+            });
         }
         if (this.settings.showExpandAllButton) {
-            this.expandAllAction = this.addAction("chevrons-up-down", "Expand all folders", () => this.expandAllView());
+            this.expandAllAction = this.addAction("chevrons-up-down", "Expand all folders", () => {
+                Logger.debug("AbstractFolderViewToolbar: expand all clicked");
+                this.expandAllView();
+            });
         }
         if (this.settings.showSortButton) {
             this.addAction("arrow-up-down", "Sort order", (evt) => this.showSortMenu(evt));

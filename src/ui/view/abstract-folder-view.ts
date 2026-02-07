@@ -713,6 +713,10 @@ export class AbstractFolderView extends ItemView {
 
     this.virtualTreeManager.clear();
     this.virtualTreeManager.updateRender();
+    Logger.debug("AbstractFolderView: renderVirtualTreeView complete", {
+        flatItemsCount: this.virtualTreeManager.getFlatItems().length,
+        expandedFoldersCount: this.settings.expandedFolders.length
+    });
    }
 
   private renderColumnView = () => {
@@ -776,20 +780,63 @@ export class AbstractFolderView extends ItemView {
   }
 
   private expandAll = async () => {
+    Logger.debug("AbstractFolderView: expandAll called");
     if (this.settings.viewStyle === 'tree') {
       const graph = this.indexer.getGraph();
-      const allPaths = Object.keys(graph.parentToChildren);
-      this.settings.expandedFolders = Array.from(allPaths);
-      if (this.settings.rememberExpanded) await this.plugin.saveSettings();
+      const allContextualIds: string[] = [];
+      
+      const traverseAll = (currentPath: string, parentPath: string | null) => {
+          const cid = `${parentPath || "root"} > ${currentPath}`;
+          const children = graph.parentToChildren[currentPath];
+          
+          if (children && children.size > 0) {
+              allContextualIds.push(cid);
+              for (const childPath of children) {
+                  traverseAll(childPath, currentPath);
+              }
+          }
+      };
+
+      let rootPaths: string[] = [];
+      if (this.settings.activeGroupId) {
+          const activeGroup = this.settings.groups.find(g => g.id === this.settings.activeGroupId);
+          if (activeGroup) {
+              rootPaths = activeGroup.parentFolders.map(p => this.app.vault.getAbstractFileByPath(p)?.path).filter(Boolean) as string[];
+          }
+      }
+      
+      if (rootPaths.length === 0) {
+          rootPaths = Array.from(graph.roots);
+      }
+
+      for (const rootPath of rootPaths) {
+          traverseAll(rootPath, null);
+      }
+
+      Logger.debug(`AbstractFolderView: expandAll generated ${allContextualIds.length} CIDs for ${this.settings.activeGroupId ? 'group' : 'global'} view`);
+      this.settings.expandedFolders = allContextualIds;
+      
+      if (this.settings.rememberExpanded) {
+        Logger.debug("AbstractFolderView: saving settings for expandAll");
+        await this.plugin.saveSettings();
+      }
       this.renderView();
+    } else {
+        Logger.debug("AbstractFolderView: expandAll ignored because viewStyle is not tree", this.settings.viewStyle);
     }
   }
 
   private collapseAll = async () => {
+    Logger.debug("AbstractFolderView: collapseAll called");
     if (this.settings.viewStyle === 'tree') {
       this.settings.expandedFolders = [];
-      if (this.settings.rememberExpanded) await this.plugin.saveSettings();
+      if (this.settings.rememberExpanded) {
+        Logger.debug("AbstractFolderView: saving settings for collapseAll");
+        await this.plugin.saveSettings();
+      }
       this.renderView();
+    } else {
+        Logger.debug("AbstractFolderView: collapseAll ignored because viewStyle is not tree", this.settings.viewStyle);
     }
   }
 

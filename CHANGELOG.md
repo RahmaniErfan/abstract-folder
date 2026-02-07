@@ -4,6 +4,11 @@
 
 **Features:**
 *   **Rename Option**: Added a "Rename" option to the right-click context menu for items in the abstract tree view, allowing for quick file renaming directly from the plugin's UI.
+
+**Fixes:**
+*   **Expand All in Tree View**: Fixed a bug where the "Expand All" button would fail to expand folders, or sometimes collapse them, especially when a Group filter was active.
+*   **Context-Aware Expansion**: The expansion logic now correctly uses contextual IDs to ensure folders are expanded across all their instances in the abstract hierarchy.
+*   **Virtualization Traversal**: Fixed a logic error in the virtualized tree renderer that could prevent children from being displayed even when their parent was expanded.
 *   **Privacy-First Diagnostic Export**: Added an "Export Debug Details" feature with built-in anonymization. It generates a comprehensive diagnostic folder capturing vault structure, plugin environment, internal graph state, and recent logs while redacting sensitive file and folder names.
 *   **Debug Privacy Settings**: New toggle to enable/disable anonymization of debug exports. The settings page now explicitly lists all exported data and confirms that note content is never included.
 *   **Internal Logging System**: Implemented a global log buffer that tracks plugin activity in-memory, providing better visibility into indexing and lifecycle events without persistent overhead.

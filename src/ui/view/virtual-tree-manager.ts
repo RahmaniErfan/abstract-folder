@@ -5,6 +5,7 @@ import { AbstractFolderPluginSettings } from "../../settings";
 import { ViewState } from "../view-state";
 import { TreeRenderer } from "../tree/tree-renderer";
 import { FolderNode } from "../../types";
+import { Logger } from "../../utils/logger";
 
 export class VirtualTreeManager {
     private flatItems: FlatItem[] = [];
@@ -71,6 +72,12 @@ export class VirtualTreeManager {
             isSearching
         );
 
+        Logger.debug("VirtualTreeManager: generateItems complete", {
+            flatItemsCount: this.flatItems.length,
+            expandedSetSize: expandedSet.size,
+            sampleContextIds: Array.from(expandedSet).slice(0, 5)
+        });
+
         if (allowedPaths) {
             this.flatItems = this.flatItems.filter(item => allowedPaths.has(item.node.path));
 
@@ -121,6 +128,10 @@ export class VirtualTreeManager {
     }
 
     public updateRender(): void {
+        Logger.debug("VirtualTreeManager: updateRender called", {
+            flatItemsCount: this.flatItems.length,
+            renderedItemsCount: this.renderedItems.size
+        });
         if (!this.virtualContainer || !this.containerEl) return;
 
         // Use the virtual wrapper (scroll container) for calculations

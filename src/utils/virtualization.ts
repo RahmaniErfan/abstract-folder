@@ -81,7 +81,8 @@ export function generateFlatItemsFromGraph(
         // Lazy Recursion: Only if expanded
         // During search, we might want to show children even if not explicitly in expandedFolders
         // but typically expandedFolders will contain what we want to show.
-        if (node.isFolder && expandedFolders.has(contextId)) {
+        const isExpanded = expandedFolders.has(contextId);
+        if (node.isFolder && isExpanded) {
             const childrenPaths = parentToChildren[node.path];
             if (childrenPaths && childrenPaths.size > 0) {
                 const childNodes: FolderNode[] = [];
@@ -102,6 +103,10 @@ export function generateFlatItemsFromGraph(
                 for (const child of childNodes) {
                     traverse(child, depth + 1, node.path);
                 }
+            }
+        } else if (node.isFolder) {
+            if (expandedFolders.size > 10) {
+                console.debug(`[Abstract Folder] Virtualization: Folder NOT expanded: ${contextId}. isFolder: ${node.isFolder}, in set: ${expandedFolders.has(contextId)}`);
             }
         }
     }
