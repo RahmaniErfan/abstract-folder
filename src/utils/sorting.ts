@@ -50,6 +50,10 @@ export function createSortComparator(
     metricsManager: MetricsManager
 ): (a: FolderNode, b: FolderNode) => number {
     return (a: FolderNode, b: FolderNode): number => {
+        // Primary: Folders (nodes with children) first, regardless of sort order
+        if (a.isFolder && !b.isFolder) return -1;
+        if (!a.isFolder && b.isFolder) return 1;
+
         let compareResult: number;
         
         if (sortBy === 'name') {
@@ -72,6 +76,17 @@ export function createSortComparator(
             compareResult = a.path.localeCompare(b.path);
         }
 
-        return sortOrder === 'asc' ? compareResult : -compareResult;
+        // Apply sort order
+        let result = sortOrder === 'asc' ? compareResult : -compareResult;
+
+        // Final fallback: If values are equal, prioritize .md files within the same group
+        if (result === 0) {
+            const isA_MD = a.path.toLowerCase().endsWith('.md');
+            const isB_MD = b.path.toLowerCase().endsWith('.md');
+            if (isA_MD && !isB_MD) return -1;
+            if (!isA_MD && isB_MD) return 1;
+        }
+
+        return result;
     };
 }
