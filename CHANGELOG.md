@@ -8,6 +8,9 @@
 *   **Customizable Name Formatting**: New settings to control separators (dash/brackets) and naming order (parent-first/name-first), supporting formats like `Parent - Name` or `[Parent] Name`.
 *   **Multi-Parent Scrolling & Reveal**: Fixed issues where clicking files with multiple abstract locations caused view jumps; the plugin now correctly distinguishes instances and maintains scroll position.
 *   **Global Branch Expansion**: Auto-expand logic now ensures all abstract instances of a file are made visible across the entire tree when revealed.
+
+### UI/UX Improvements
+*   **Search Optimization**: Removed the search button from the toolbar and settings, as the search bar provides a more direct and efficient way to search.
 *   **Context-Aware Expansion**: Expansion logic now uses contextual IDs to ensure folders are expanded correctly across all instances in the abstract hierarchy.
 
 ### Core Features & Improvements

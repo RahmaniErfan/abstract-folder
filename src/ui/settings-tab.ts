@@ -442,23 +442,6 @@ export class AbstractFolderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Show search button")
-			.setDesc(
-				"Toggle the visibility of the search button in the toolbar.",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.showSearchButton)
-					.onChange(async (value) => {
-						this.plugin.settings.showSearchButton = value;
-						await this.plugin.saveSettings();
-						this.app.workspace.trigger(
-							"abstract-folder:graph-updated",
-						);
-					}),
-			);
-
-		new Setting(containerEl)
 			.setName("Show conversion button")
 			.setDesc("Toggle the visibility of the folder conversion button.")
 			.addToggle((toggle) =>

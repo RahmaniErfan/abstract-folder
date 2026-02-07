@@ -58,9 +58,6 @@ export class AbstractFolderViewToolbar {
         if (this.settings.showFocusActiveFileButton) {
             this.addAction("target", "Focus active file", () => this.focusActiveFile?.());
         }
-        if (this.settings.showSearchButton) {
-            this.addAction("search", "Search", () => this.focusSearch?.());
-        }
         if (this.settings.showConversionButton) {
             this.addAction("lucide-folder-sync", "Convert folder structure", (evt) => this.showConversionMenu(evt));
         }

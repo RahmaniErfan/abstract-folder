@@ -33,7 +33,6 @@ export interface AbstractFolderPluginSettings {
   lastInteractionContextId: string | null; // The contextual ID of the most recently interacted folder/file
   showViewStyleToggle: boolean; // Whether to show the view style toggle button
   showFocusActiveFileButton: boolean; // Whether to show the focus active file button
-  showSearchButton: boolean; // Whether to show the search button in toolbar
   showConversionButton: boolean; // Whether to show the conversion button
   showCollapseAllButton: boolean; // Whether to show the collapse all button
   showExpandAllButton: boolean; // Whether to show the expand all button
@@ -83,7 +82,6 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   lastInteractionContextId: null,
   showViewStyleToggle: true,
   showFocusActiveFileButton: true,
-  showSearchButton: true,
   showConversionButton: true,
   showCollapseAllButton: true,
   showExpandAllButton: true,
