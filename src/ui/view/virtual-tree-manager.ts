@@ -128,10 +128,6 @@ export class VirtualTreeManager {
     }
 
     public updateRender(): void {
-        Logger.debug("VirtualTreeManager: updateRender called", {
-            flatItemsCount: this.flatItems.length,
-            renderedItemsCount: this.renderedItems.size
-        });
         if (!this.virtualContainer || !this.containerEl) return;
 
         // Use the virtual wrapper (scroll container) for calculations

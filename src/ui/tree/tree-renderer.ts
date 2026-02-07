@@ -7,6 +7,7 @@ import { FolderIndexer } from "../../indexer";
 import { DragManager } from "../dnd/drag-manager";
 import { FlatItem } from "../../utils/virtualization";
 import { Logger } from "../../utils/logger";
+import { FileRevealManager } from "../../file-reveal-manager";
 
 export type FocusFileCallback = (path: string) => void;
 
@@ -25,6 +26,7 @@ interface ExtendedHTMLElement extends HTMLElement {
 }
 
 export class TreeRenderer {
+    public fileRevealManager?: FileRevealManager;
     private app: App;
     private settings: AbstractFolderPluginSettings;
     private plugin: AbstractFolderPlugin;
@@ -342,8 +344,10 @@ if (activeFile && activeFile.path === node.path) {
 
     private async handleNodeClick(node: FolderNode, e: MouseEvent) {
         // Record last interaction context
-        const contextId = (e.currentTarget as ExtendedHTMLElement).parentElement?.dataset.contextId
-            || (e.currentTarget as ExtendedHTMLElement).dataset.contextId;
+        const selfEl = e.currentTarget as HTMLElement;
+        const itemEl = selfEl.closest('.abstract-folder-item') as ExtendedHTMLElement;
+        const contextId = itemEl?._contextId || itemEl?.dataset.contextId;
+
         if (contextId) {
             this.settings.lastInteractionContextId = contextId;
             void this.plugin.saveSettings();
@@ -376,6 +380,9 @@ if (activeFile && activeFile.path === node.path) {
         if (node.file) {
             const fileExists = this.app.vault.getAbstractFileByPath(node.file.path);
             if (fileExists) {
+                if (this.fileRevealManager) {
+                    this.fileRevealManager.setInternalClick(true);
+                }
                 this.app.workspace.getLeaf(false).openFile(node.file).catch(Logger.error);
 
                 // If this file also has children and autoExpandChildren is enabled, toggle its expanded state

@@ -131,6 +131,8 @@ export class AbstractFolderView extends ItemView {
         this.virtualTreeManager
     );
 
+    this.treeRenderer.fileRevealManager = this.fileRevealManager;
+
     this.toolbar.setupToolbarActions();
     this.renderView();
 

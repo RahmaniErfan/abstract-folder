@@ -6,6 +6,9 @@
 *   **Rename Option**: Added a "Rename" option to the right-click context menu for items in the abstract tree view, allowing for quick file renaming directly from the plugin's UI.
 
 **Fixes:**
+*   **Multi-Parent Scrolling**: Fixed an issue where clicking a file that exists in multiple abstract locations would cause the view to jump to the first occurrence. The plugin now correctly distinguishes between instances and maintains the current scroll position upon interaction.
+*   **Global Branch Expansion**: Updated the auto-expand logic to ensure that when a file is revealed, all its abstract instances across the entire tree are expanded and made visible, rather than just the first one found.
+*   **Top-Aligned Reveal**: Improved the reveal and search behavior to align the target file to the top of the viewport for better visibility.
 *   **Non-Markdown Sorting**: Fixed an issue where non-Markdown files (PDFs, images, etc.) were consistently appearing at the top of the list. These files are now correctly grouped below abstract folders and sorted according to the active criteria.
 *   **Folders-First Logic**: Implemented "Folders First" grouping in the sort comparator to align with standard file explorer behavior.
 *   **Expand All in Tree View**: Fixed a bug where the "Expand All" button would fail to expand folders, or sometimes collapse them, especially when a Group filter was active.
