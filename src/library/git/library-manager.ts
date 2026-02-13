@@ -1,32 +1,42 @@
-import { App, Notice } from "obsidian";
+import { App, Notice, FileSystemAdapter } from "obsidian";
 import * as git from "isomorphic-git";
+import * as path from 'path';
 import { ObsidianHttpAdapter } from "./http-adapter";
-import { LibraryConfig, LibraryStatus } from "../types";
+import { LibraryConfig, LibraryStatus, RegistryItem } from "../types";
+import { NodeFsAdapter } from "./node-fs-adapter";
 import { DataService } from "../services/data-service";
 
 /**
  * LibraryManager handles Git operations using isomorphic-git.
- * It expects a lightning-fs instance to interact with the virtual file system.
+ * It uses a physical Node FS adapter to sync files directly to the vault.
  */
 export class LibraryManager {
-    /* eslint-disable @typescript-eslint/no-explicit-any */
-    constructor(private app: App, private fs: any) {}
+    constructor(private app: App) {}
+
+    /**
+     * Helper to get absolute path on disk from vault path.
+     */
+    private getAbsolutePath(vaultPath: string): string {
+        if (!(this.app.vault.adapter instanceof FileSystemAdapter)) {
+            throw new Error("Vault is not on a physical filesystem");
+        }
+        return path.join(this.app.vault.adapter.getBasePath(), vaultPath);
+    }
 
     /**
      * Clone a library into the vault.
      */
-    async cloneLibrary(repositoryUrl: string, destinationPath: string, token?: string): Promise<void> {
+    async cloneLibrary(repositoryUrl: string, destinationPath: string, item?: RegistryItem, token?: string): Promise<void> {
         try {
-            // lightning-fs often requires paths to start with a leading slash
-            const dir = destinationPath.startsWith('/') ? destinationPath : `/${destinationPath}`;
+            const absoluteDir = this.getAbsolutePath(destinationPath);
             
-            console.debug(`Cloning library from ${repositoryUrl} to ${dir}`);
+            console.debug(`[LibraryManager] Cloning library from ${repositoryUrl} to ${absoluteDir}`);
 
             /* eslint-disable @typescript-eslint/no-unsafe-assignment */
             await git.clone({
-                fs: this.fs,
+                fs: NodeFsAdapter,
                 http: ObsidianHttpAdapter as any,
-                dir: dir,
+                dir: absoluteDir,
                 url: repositoryUrl,
                 onAuth: token ? () => ({ username: token }) : undefined,
                 singleBranch: true,
@@ -34,7 +44,33 @@ export class LibraryManager {
             });
             /* eslint-enable @typescript-eslint/no-unsafe-assignment */
 
-            new Notice(`Library cloned successfully to ${destinationPath}`);
+            console.debug(`[LibraryManager] Clone complete for ${absoluteDir}. Verifying contents...`);
+            try {
+                const configPath = path.join(absoluteDir, 'library.config.json');
+                const configExists = await NodeFsAdapter.promises.stat(configPath).catch(() => null);
+
+                if (!configExists && item) {
+                    console.debug(`[LibraryManager] library.config.json missing in ${absoluteDir}. Bootstrapping from Registry metadata...`);
+                    const manifest: LibraryConfig = {
+                        id: item.id || `gen-${item.name.toLowerCase().replace(/\s+/g, '-')}`,
+                        name: item.name,
+                        author: item.author,
+                        version: "1.0.0",
+                        description: item.description,
+                        repositoryUrl: item.repositoryUrl,
+                        branch: "main"
+                    };
+                    await NodeFsAdapter.promises.writeFile(configPath, JSON.stringify(manifest, null, 2), "utf8");
+                    console.debug(`[LibraryManager] Created bootstrap manifest at ${configPath}`);
+                }
+            } catch (e) {
+                console.error(`[LibraryManager] Post-clone bootstrapping failed for ${absoluteDir}:`, e);
+            }
+
+            // Refresh the vault so Obsidian sees the new files
+            await this.app.vault.adapter.list(destinationPath);
+            
+            new Notice(`Library installed: ${destinationPath}`);
         } catch (error) {
             console.error("Clone failed", error);
             throw error;
@@ -44,14 +80,14 @@ export class LibraryManager {
     /**
      * Pull updates for an existing library.
      */
-    async updateLibrary(path: string, token?: string): Promise<void> {
+    async updateLibrary(vaultPath: string, token?: string): Promise<void> {
         try {
-            const dir = path.startsWith('/') ? path : `/${path}`;
+            const absoluteDir = this.getAbsolutePath(vaultPath);
             /* eslint-disable @typescript-eslint/no-unsafe-assignment */
             await git.pull({
-                fs: this.fs,
+                fs: NodeFsAdapter,
                 http: ObsidianHttpAdapter as any,
-                dir: dir,
+                dir: absoluteDir,
                 onAuth: token ? () => ({ username: token }) : undefined,
                 singleBranch: true,
                 author: {
@@ -60,6 +96,10 @@ export class LibraryManager {
                 }
             });
             /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+
+            // Refresh vault
+            await this.app.vault.adapter.list(vaultPath);
+
             new Notice("Library updated successfully");
         } catch (error) {
             console.error("Update failed", error);
@@ -70,13 +110,13 @@ export class LibraryManager {
     /**
      * Check the status of the library.
      */
-    async getStatus(path: string): Promise<LibraryStatus> {
+    async getStatus(vaultPath: string): Promise<LibraryStatus> {
         try {
-            const dir = path.startsWith('/') ? path : `/${path}`;
+            const absoluteDir = this.getAbsolutePath(vaultPath);
             /* eslint-disable @typescript-eslint/no-unsafe-assignment */
             const matrix = await git.statusMatrix({
-                fs: this.fs,
-                dir: dir
+                fs: NodeFsAdapter,
+                dir: absoluteDir
             });
             /* eslint-enable @typescript-eslint/no-unsafe-assignment */
             
@@ -93,19 +133,51 @@ export class LibraryManager {
     /**
      * Validate library.config.json in the library folder.
      */
-    async validateLibrary(path: string): Promise<LibraryConfig> {
+    async validateLibrary(vaultPath: string): Promise<LibraryConfig> {
         try {
-            const dir = path.startsWith('/') ? path : `/${path}`;
-            const configPath = dir.endsWith('/') ? `${dir}library.config.json` : `${dir}/library.config.json`;
-            /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
-            const configContent = await this.fs.promises.readFile(configPath, "utf8");
-            /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
-            return DataService.parseLibraryConfig(configContent as string);
+            const absoluteDir = this.getAbsolutePath(vaultPath);
+            const configPath = path.join(absoluteDir, 'library.config.json');
+            const configContent = await NodeFsAdapter.promises.readFile(configPath, "utf8");
+            return DataService.parseLibraryConfig(configContent);
         } catch (error) {
             console.error("Validation failed", error);
-            /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-            throw new Error(`Failed to validate library at ${path}: ${error.message}`);
-            /* eslint-enable @typescript-eslint/no-unsafe-member-access */
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`Failed to validate library at ${vaultPath}: ${message}`);
+        }
+    }
+
+    /**
+     * Delete a library from the physical filesystem and vault.
+     */
+    async deleteLibrary(vaultPath: string): Promise<void> {
+        try {
+            const absoluteDir = this.getAbsolutePath(vaultPath);
+            
+            // Recursive deletion using Node-FS
+            const removeRecursive = async (absPath: string) => {
+                const stats = await NodeFsAdapter.promises.stat(absPath).catch(() => null);
+                if (!stats) return;
+
+                if (stats.isDirectory()) {
+                    const entries = await NodeFsAdapter.promises.readdir(absPath);
+                    for (const entry of entries) {
+                        await removeRecursive(path.join(absPath, entry));
+                    }
+                    await NodeFsAdapter.promises.rmdir(absPath);
+                } else {
+                    await NodeFsAdapter.promises.unlink(absPath);
+                }
+            };
+
+            await removeRecursive(absoluteDir);
+            
+            // Refresh vault to reflect changes
+            await this.app.vault.adapter.list(path.dirname(vaultPath));
+
+            new Notice("Library deleted successfully");
+        } catch (error) {
+            console.error("Delete failed", error);
+            throw error;
         }
     }
 }

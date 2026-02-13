@@ -1,5 +1,5 @@
 import { App } from "obsidian";
-import { FlatItem, generateFlatItemsFromGraph } from "../../utils/virtualization";
+import { FlatItem, generateFlatItemsFromGraph, flattenTree } from "../../utils/virtualization";
 import { AbstractBridge } from "../../library/bridge/abstract-bridge";
 import { FolderIndexer } from "../../indexer";
 import { AbstractFolderPluginSettings } from "../../settings";
@@ -78,13 +78,20 @@ export class VirtualTreeManager {
         if (this.abstractBridge && !activeGroup) {
             const libraries = await this.abstractBridge.discoverLibraries(this.settings.librarySettings.librariesPath);
             
-            // Map LibraryNodes to FlatItems
-            const libraryFlatItems: FlatItem[] = libraries.map(lib => ({
-                node: lib,
-                depth: 0,
-                parentPath: null,
-                contextId: lib.path
-            }));
+            // Use flattenTree to handle recursive expansion of virtual nodes
+            const libraryFlatItems: FlatItem[] = flattenTree(
+                libraries,
+                expandedSet,
+                0,
+                null
+            );
+
+            // Add debug logging to confirm discovery
+            Logger.debug("VirtualTreeManager: discovered virtual libraries", {
+                count: libraries.length,
+                flatCount: libraryFlatItems.length,
+                paths: libraries.map(l => l.path)
+            });
 
             // Merge with existing flatItems
             this.flatItems = [...this.flatItems, ...libraryFlatItems];

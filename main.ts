@@ -23,7 +23,6 @@ import { LibraryManager } from './src/library/git/library-manager';
 import { AbstractBridge } from './src/library/bridge/abstract-bridge';
 import { ContributionEngine } from './src/library/services/contribution-engine';
 import { LibraryCenterView, VIEW_TYPE_LIBRARY_CENTER } from './src/library/ui/library-center-view';
-import * as LightningFS from '@isomorphic-git/lightning-fs';
 import './src/styles/index.css';
 
 export default class AbstractFolderPlugin extends Plugin {
@@ -33,7 +32,6 @@ export default class AbstractFolderPlugin extends Plugin {
 	abstractBridge: AbstractBridge;
 	contributionEngine: ContributionEngine;
 	metricsManager: MetricsManager;
-	fs: unknown;
 	ribbonIconEl: HTMLElement | null = null;
 
 	async onload() {
@@ -43,16 +41,7 @@ export default class AbstractFolderPlugin extends Plugin {
 		// Initialize Abstract Library services
 		this.abstractBridge = new AbstractBridge(this.app);
 		this.contributionEngine = new ContributionEngine(this.app);
-		
-		// Initialize lightning-fs
-		/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
-		// @ts-ignore
-		const FSConstructor = LightningFS.default || LightningFS;
-		// @ts-ignore
-		this.fs = new FSConstructor('abstract-folder-libraries');
-		/* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
-
-		this.libraryManager = new LibraryManager(this.app, this.fs);
+		this.libraryManager = new LibraryManager(this.app);
 
 		this.indexer = new FolderIndexer(this.app, this.settings, this);
 		this.metricsManager = new MetricsManager(this.app, this.indexer, this);

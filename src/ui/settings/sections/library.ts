@@ -6,8 +6,8 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 	new Setting(containerEl).setName("Abstract library").setHeading();
 
 	new Setting(containerEl)
-		.setName("Libraries path")
-		.setDesc("The folder where your abstract libraries will be stored.")
+		.setName("Virtual root folder")
+		.setDesc("The folder name used to display your remote libraries in the abstract folder view. These libraries are stored in a high-performance virtual layer and do not clutter your physical vault.")
 		.addText((text) =>
 			text
 				.setPlaceholder("Abstract library")
@@ -85,7 +85,7 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 
 	new Setting(containerEl)
 		.setName("Custom registries")
-		.setDesc("Add your own registry URLs (one per line).")
+		.setDesc("Add your own registry link, one per line")
 		.addTextArea((text) =>
 			text
 				.setPlaceholder("https://example.com/registry.json")
@@ -100,7 +100,7 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 
 	new Setting(containerEl)
 		.setName("Standalone libraries")
-		.setDesc("Direct Git repository URLs for standalone libraries.")
+		.setDesc("Direct link for standalone libraries")
 		.addTextArea((text) =>
 			text
 				.setPlaceholder("https://github.com/user/repo")

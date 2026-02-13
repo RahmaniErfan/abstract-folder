@@ -112,6 +112,8 @@ export class LibraryCenterView extends ItemView {
             return;
         }
 
+        const librariesPath = this.plugin.settings.librarySettings.librariesPath;
+
         items.forEach(item => {
             const card = container.createDiv({ cls: "library-card" });
             card.createEl("h3", { text: item.name });
@@ -122,11 +124,34 @@ export class LibraryCenterView extends ItemView {
             meta.createSpan({ text: item.category, cls: "category" });
 
             const footer = card.createDiv({ cls: "library-card-footer" });
-            const installBtn = footer.createEl("button", { text: "Install" });
             
-            installBtn.addEventListener("click", () => {
-                void this.installLibrary(item, installBtn);
-            });
+            // Check if library is already installed
+            const destPath = `${librariesPath}/${item.name}`;
+            const dir = destPath.startsWith('/') ? destPath : `/${destPath}`;
+            
+            void (async () => {
+                let isInstalled = false;
+                try {
+                    /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+                    const stats = await (this.plugin.fs as any).promises.stat(dir);
+                    isInstalled = stats.isDirectory();
+                    /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+                } catch {
+                    isInstalled = false;
+                }
+
+                if (isInstalled) {
+                    const uninstallBtn = footer.createEl("button", { text: "Uninstall", cls: "mod-warning" });
+                    uninstallBtn.addEventListener("click", () => {
+                        void this.uninstallLibrary(item, uninstallBtn);
+                    });
+                } else {
+                    const installBtn = footer.createEl("button", { text: "Install" });
+                    installBtn.addEventListener("click", () => {
+                        void this.installLibrary(item, installBtn);
+                    });
+                }
+            })();
         });
     }
 
@@ -138,15 +163,74 @@ export class LibraryCenterView extends ItemView {
 
         try {
             new Notice(`Installing ${item.name}...`);
-            await this.libraryManager.cloneLibrary(item.repositoryUrl, item.name);
+            const librariesPath = this.plugin.settings.librarySettings.librariesPath;
+            const destPath = `${librariesPath}/${item.name}`;
+            
+            // Log initial state
+            console.debug(`[Library Center] Pre-install check for ${destPath}`);
+            
+            await this.libraryManager.cloneLibrary(item.repositoryUrl, destPath, item);
+            
+            // Post-install verification
+            try {
+                const dir = destPath.startsWith('/') ? destPath : `/${destPath}`;
+                const entries = await (this.plugin.fs as any).promises.readdir(dir);
+                console.debug(`[Library Center] Post-install verification for ${dir}:`, entries);
+            } catch (e) {
+                console.error(`[Library Center] Post-install verification FAILED for ${destPath}`, e);
+            }
+
             new Notice(`Successfully installed ${item.name}`);
             if (btn) btn.setText("Installed");
+            
+            // Trigger graph rebuild to show new virtual files immediately
+            this.plugin.app.workspace.trigger("abstract-folder:graph-updated");
+            new Notice("Virtual tree refreshed");
+
+            // Refresh the registry view to swap button to "Uninstall"
+            const container = this.containerEl.children[1] as HTMLElement;
+            const registryList = container.querySelector(".library-registry-list") as HTMLElement;
+            if (registryList) {
+                await this.refreshRegistry(registryList);
+            }
         } catch (error) {
             console.error(error);
             new Notice(`Failed to install ${item.name}: ${error instanceof Error ? error.message : String(error)}`);
             if (btn) {
                 btn.disabled = false;
                 btn.setText("Install");
+            }
+        }
+    }
+
+    private async uninstallLibrary(item: RegistryItem, btn?: HTMLButtonElement) {
+        if (btn) {
+            btn.disabled = true;
+            btn.setText("Uninstalling...");
+        }
+
+        try {
+            const librariesPath = this.plugin.settings.librarySettings.librariesPath;
+            const destPath = `${librariesPath}/${item.name}`;
+            
+            await this.libraryManager.deleteLibrary(destPath);
+            new Notice(`Successfully uninstalled ${item.name}`);
+            
+            // Trigger graph rebuild to update view
+            this.plugin.app.workspace.trigger("abstract-folder:graph-updated");
+            
+            // Refresh the whole registry view to show "Install" button again
+            const container = this.containerEl.children[1] as HTMLElement;
+            const registryList = container.querySelector(".library-registry-list") as HTMLElement;
+            if (registryList) {
+                await this.refreshRegistry(registryList);
+            }
+        } catch (error) {
+            console.error(error);
+            new Notice(`Failed to uninstall ${item.name}`);
+            if (btn) {
+                btn.disabled = false;
+                btn.setText("Uninstall");
             }
         }
     }

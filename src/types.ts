@@ -1,4 +1,4 @@
-import { TFile } from "obsidian";
+import { TFile, TAbstractFile } from "obsidian";
 
 // Extend the App interface to include the 'commands' property,
 // which is available in Obsidian's internal API but might not be in default types.
@@ -30,7 +30,7 @@ export interface FileGraph {
 }
 
 export interface FolderNode {
-  file: TFile | null; // The file itself, null for root "folder" nodes that don't correspond to a file
+  file: TAbstractFile | null; // The file or folder itself, null for root "folder" nodes that don't correspond to a file
   path: string; // The path of the file or logical folder
   children: FolderNode[];
   isFolder: boolean;

@@ -1,4 +1,4 @@
-import { App } from "obsidian";
+import { App, TFile } from "obsidian";
 import { FileGraph, FolderNode, HIDDEN_FOLDER_ID, Group } from "../types";
 import { createFolderNode, resolveGroupRoots } from "./tree-utils";
 import { getContextualId } from "./context-utils";
@@ -20,8 +20,10 @@ export function flattenTree(
     for (const node of nodes) {
         const contextId = getContextualId(node.path, parentPath);
         result.push({ node, depth, parentPath, contextId });
+        
+        // Ensure virtual folders can be expanded
         if (node.isFolder && expandedFolders.has(contextId)) {
-            flattenTree(node.children, expandedFolders, depth + 1, node.path, result);
+            flattenTree(node.children || [], expandedFolders, depth + 1, node.path, result);
         }
     }
     return result;
@@ -61,7 +63,7 @@ export function generateFlatItemsFromGraph(
     for (const path of rootPaths) {
         const node = createFolderNode(app, path, graph);
         if (node) {
-            if (node.file && excludeExtensions.includes(node.file.extension.toLowerCase())) {
+            if (node.file instanceof TFile && excludeExtensions.includes(node.file.extension.toLowerCase())) {
                 continue;
             }
             rootNodes.push(node);
@@ -92,7 +94,7 @@ export function generateFlatItemsFromGraph(
 
                      const childNode = createFolderNode(app, childPath, graph);
                      if (childNode) {
-                        if (childNode.file && excludeExtensions.includes(childNode.file.extension.toLowerCase())) {
+                        if (childNode.file instanceof TFile && excludeExtensions.includes(childNode.file.extension.toLowerCase())) {
                             continue;
                         }
                         childNodes.push(childNode);

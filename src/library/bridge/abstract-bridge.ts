@@ -3,8 +3,8 @@ import { LibraryNode, LibraryConfig } from "../types";
 import { FolderNode } from "../../types";
 
 /**
- * AbstractBridge is responsible for merging virtual library nodes 
- * into the plugin's file tree.
+ * AbstractBridge is responsible for merging physical library nodes
+ * (synced via Git) into the plugin's file tree.
  */
 export class AbstractBridge {
     constructor(private app: App) {}
@@ -13,54 +13,83 @@ export class AbstractBridge {
      * Finds all library folders in the vault and converts them to LibraryNodes.
      */
     async discoverLibraries(basePath: string): Promise<LibraryNode[]> {
-        const libraryRoot = this.app.vault.getAbstractFileByPath(basePath);
-        if (!(libraryRoot instanceof TFolder)) return [];
+        try {
+            const folder = this.app.vault.getAbstractFileByPath(basePath);
+            if (!(folder instanceof TFolder)) return [];
 
-        const libraries: LibraryNode[] = [];
-        
-        for (const child of libraryRoot.children) {
-            if (child instanceof TFolder) {
-                const configNode = child.children.find(f => f instanceof TFile && f.name === "library.config.json") as TFile;
-                if (configNode) {
-                    try {
-                        const content = await this.app.vault.read(configNode);
-                        const config = JSON.parse(content) as LibraryConfig;
-                        
-                        libraries.push({
-                            file: null, // Virtualized
-                            path: child.path,
-                            isFolder: true,
-                            isLibrary: true,
-                            libraryId: config.id,
-                            registryId: "default", // Placeholder
-                            isPublic: true,
-                            status: 'up-to-date',
-                            isLocked: true,
-                            children: this.mapFolderToNodes(child)
-                        });
-                    } catch (e) {
-                        console.error(`Failed to load library config at ${child.path}`, e);
+            const libraries: LibraryNode[] = [];
+            
+            // Check if the current folder is a library
+            const config = await this.getLibraryConfig(folder.path);
+            if (config) {
+                libraries.push({
+                    file: folder,
+                    path: folder.path,
+                    isFolder: true,
+                    isLibrary: true,
+                    libraryId: config.id,
+                    registryId: "default",
+                    isPublic: true,
+                    status: 'up-to-date',
+                    isLocked: true,
+                    children: this.mapVaultFolderToNodes(folder)
+                });
+            } else {
+                // Scan subfolders for libraries
+                for (const child of folder.children) {
+                    if (child instanceof TFolder) {
+                        const subLibraries = await this.discoverLibraries(child.path);
+                        libraries.push(...subLibraries);
                     }
                 }
             }
+
+            return libraries;
+        } catch (error) {
+            console.error("Failed to discover libraries", error);
+            return [];
         }
-        
-        return libraries;
     }
 
     /**
-     * Recursively maps a TFolder to a list of nodes (FolderNode or LibraryNode).
+     * Helper to read library.config.json from the vault.
      */
-    private mapFolderToNodes(folder: TFolder): (FolderNode | LibraryNode)[] {
-        return folder.children.map(child => {
-            const node: FolderNode = {
-                file: child instanceof TFile ? child : null,
+    private async getLibraryConfig(dir: string): Promise<LibraryConfig | null> {
+        const configPath = `${dir}/library.config.json`;
+        const file = this.app.vault.getAbstractFileByPath(configPath);
+        if (file instanceof TFile) {
+            try {
+                const content = await this.app.vault.read(file);
+                return JSON.parse(content) as LibraryConfig;
+            } catch (e) {
+                console.warn(`Failed to parse library config at ${configPath}`, e);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Recursively maps a vault folder to a list of nodes.
+     */
+    private mapVaultFolderToNodes(folder: TFolder): FolderNode[] {
+        const nodes: FolderNode[] = [];
+
+        for (const child of folder.children) {
+            if (child.name === ".git" || child.name === "node_modules" || child.name === "library.config.json") continue;
+            
+            const isFolder = child instanceof TFolder;
+            const isMarkdown = child instanceof TFile && child.extension === 'md';
+
+            if (!isFolder && !isMarkdown) continue;
+
+            nodes.push({
+                file: child,
                 path: child.path,
-                isFolder: child instanceof TFolder,
-                children: child instanceof TFolder ? this.mapFolderToNodes(child) : []
-            };
-            return node;
-        });
+                isFolder: isFolder,
+                children: isFolder ? this.mapVaultFolderToNodes(child as TFolder) : []
+            });
+        }
+        return nodes;
     }
 
     /**
@@ -69,6 +98,19 @@ export class AbstractBridge {
     injectLibraries(tree: FolderNode[], libraries: LibraryNode[]): FolderNode[] {
         // This is where we hook into the VirtualTreeManager's render logic
         // We add the libraries as top-level roots or under a specific group
-        return [...tree, ...libraries];
+        
+        // Ensure libraries are sorted or unique if needed
+        const libraryPaths = new Set(libraries.map(l => l.path));
+        const filteredTree = tree.filter(node => !libraryPaths.has(node.path));
+        
+        return [...filteredTree, ...libraries];
+    }
+
+    /**
+     * Gets the relative path within a library for a given virtual path.
+     */
+    getRelativePath(fullPath: string, libraryPath: string): string {
+        if (!fullPath.startsWith(libraryPath)) return fullPath;
+        return fullPath.substring(libraryPath.length).replace(/^\/+/, '');
     }
 }
