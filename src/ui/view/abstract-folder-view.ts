@@ -121,7 +121,8 @@ export class AbstractFolderView extends ItemView {
 
     this.virtualTreeManager = new VirtualTreeManager(
         this.app, this.settings, this.indexer, this.viewState, this.treeRenderer,
-        this.contentEl, this.virtualSpacer, this.virtualContainer, (a, b) => this.sortNodes(a, b)
+        this.contentEl, this.virtualSpacer, this.virtualContainer, (a, b) => this.sortNodes(a, b),
+        this.plugin.abstractBridge
     );
 
     await Promise.resolve();
@@ -378,7 +379,7 @@ export class AbstractFolderView extends ItemView {
     if (this.settings.viewStyle === 'tree') {
         this.contentEl.addClass("abstract-folder-tree-wrapper");
         this.showVirtualContainers();
-        this.renderVirtualTreeView();
+        void this.renderVirtualTreeView();
     } else {
         this.contentEl.addClass("abstract-folder-columns-wrapper");
         this.hideVirtualContainers();
@@ -592,7 +593,7 @@ export class AbstractFolderView extends ItemView {
     if (statsEl) statsEl.textContent = `${this.conversionStatus.processed} / ${this.conversionStatus.total} operations`;
   }
 
-    private renderVirtualTreeView = () => {
+    private renderVirtualTreeView = async () => {
     if (this.settings.viewStyle === 'tree' && this.searchInputEl && this.searchInputEl.value.trim().length > 0) {
         const query = this.searchInputEl.value.trim();
         const searchFn = prepareSimpleSearch(query);
@@ -691,17 +692,17 @@ export class AbstractFolderView extends ItemView {
                 this.treeRenderer.setHighlightedPath(exactMatch);
             }
 
-            this.virtualTreeManager.generateItems(allowedPaths, forceExpand, true);
+            await this.virtualTreeManager.generateItems(allowedPaths, forceExpand, true);
         } else {
             // No matches found
-            this.virtualTreeManager.generateItems(new Set(), new Set(), true);
+            await this.virtualTreeManager.generateItems(new Set(), new Set(), true);
         }
     } else {
         // Normal render
         this.contentEl.removeClass("abstract-folder-is-searching");
         this.virtualTreeManager.setHighlightedPath(null);
         this.treeRenderer.setHighlightedPath(null);
-        this.virtualTreeManager.generateItems();
+        await this.virtualTreeManager.generateItems();
     }
 
     if (this.virtualTreeManager.getFlatItems().length === 0) {

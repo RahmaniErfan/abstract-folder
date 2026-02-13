@@ -11,6 +11,7 @@ export interface LibraryConfig {
     repositoryUrl: string;
     branch: string;
     lastSync?: number;
+    isStandalone?: boolean;
 }
 
 export interface LibraryNode extends FolderNode {
@@ -35,7 +36,8 @@ export interface RegistryItem {
 
 export interface LibrarySettings {
     librariesPath: string; // Default: "Abstract Library"
-    registries: string[];  // List of registry URLs
+    registries: string[];  // List of custom registry URLs
+    standaloneLibraries: string[]; // List of direct repository URLs
     githubToken?: string;
     deviceId?: string;
 }

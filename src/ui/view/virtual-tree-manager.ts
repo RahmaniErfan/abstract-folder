@@ -1,5 +1,6 @@
 import { App } from "obsidian";
 import { FlatItem, generateFlatItemsFromGraph } from "../../utils/virtualization";
+import { AbstractBridge } from "../../library/bridge/abstract-bridge";
 import { FolderIndexer } from "../../indexer";
 import { AbstractFolderPluginSettings } from "../../settings";
 import { ViewState } from "../view-state";
@@ -22,7 +23,8 @@ export class VirtualTreeManager {
         private containerEl: HTMLElement,
         private virtualSpacer: HTMLElement | null,
         private virtualContainer: HTMLElement | null,
-        private sortNodes: (a: FolderNode, b: FolderNode) => number
+        private sortNodes: (a: FolderNode, b: FolderNode) => number,
+        private abstractBridge?: AbstractBridge
     ) {}
 
     public setHighlightedPath(path: string | null): void {
@@ -52,7 +54,7 @@ export class VirtualTreeManager {
         if (this.virtualContainer) this.virtualContainer.empty();
     }
 
-    public generateItems(allowedPaths?: Set<string>, forceExpand?: Set<string>, isSearching: boolean = false): void {
+    public async generateItems(allowedPaths?: Set<string>, forceExpand?: Set<string>, isSearching: boolean = false): Promise<void> {
         const activeGroup = this.settings.activeGroupId
             ? this.settings.groups.find(group => group.id === this.settings.activeGroupId)
             : undefined;
@@ -71,6 +73,22 @@ export class VirtualTreeManager {
             this.viewState.excludeExtensions,
             isSearching
         );
+
+        // Inject libraries if bridge is available and not searching
+        if (this.abstractBridge && !activeGroup) {
+            const libraries = await this.abstractBridge.discoverLibraries(this.settings.librarySettings.librariesPath);
+            
+            // Map LibraryNodes to FlatItems
+            const libraryFlatItems: FlatItem[] = libraries.map(lib => ({
+                node: lib,
+                depth: 0,
+                parentPath: null,
+                contextId: lib.path
+            }));
+
+            // Merge with existing flatItems
+            this.flatItems = [...this.flatItems, ...libraryFlatItems];
+        }
 
         Logger.debug("VirtualTreeManager: generateItems complete", {
             flatItemsCount: this.flatItems.length,

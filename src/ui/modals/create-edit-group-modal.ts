@@ -1,20 +1,23 @@
 import { App, Modal, Setting, Notice, normalizePath } from "obsidian";
 import { AbstractFolderPluginSettings } from "../../settings";
 import { Group } from "../../types";
-import { PathInputSuggest } from "../settings-tab";
+import { PathInputSuggest } from "../settings/sections/general";
+import type AbstractFolderPlugin from "main";
 
 export class CreateEditGroupModal extends Modal {
   private settings: AbstractFolderPluginSettings;
   private existingGroup: Group | null;
   private onSubmit: (group: Group) => void;
+  private plugin: AbstractFolderPlugin;
 
   private groupId: string;
   private groupName: string;
   private parentFolders: string[];
   private newParentFolderInput: HTMLInputElement | null = null;
 
-  constructor(app: App, settings: AbstractFolderPluginSettings, existingGroup: Group | null, onSubmit: (group: Group) => void) {
+  constructor(app: App, settings: AbstractFolderPluginSettings, existingGroup: Group | null, onSubmit: (group: Group) => void, plugin: AbstractFolderPlugin) {
     super(app);
+    this.plugin = plugin;
     this.settings = settings;
     this.existingGroup = existingGroup;
     this.onSubmit = onSubmit;
@@ -82,7 +85,7 @@ export class CreateEditGroupModal extends Modal {
       .setDesc("Enter the full path of a note (.md) to include as a root parent (e.g., 'Notes/Parent.md'). The view will show this note and its children.")
       .addText(text => {
         this.newParentFolderInput = text.inputEl;
-        new PathInputSuggest(this.app, text.inputEl); // Use PathInputSuggest
+        new PathInputSuggest(this.plugin, text.inputEl); // Use PathInputSuggest
         text.setPlaceholder("Note path (e.g. folder/note.md)")
           .onChange(value => {
             // No direct update here, wait for add button or enter

@@ -2,15 +2,18 @@ import { App, Modal, Setting } from "obsidian";
 import { AbstractFolderPluginSettings } from "../../settings";
 import { Group } from "../../types";
 import { CreateEditGroupModal } from "./create-edit-group-modal";
+import type AbstractFolderPlugin from "main";
 
 export class ManageGroupsModal extends Modal {
   private settings: AbstractFolderPluginSettings;
   private onSave: (groups: Group[], activeGroupId: string | null) => void;
   private groups: Group[];
   private activeGroupId: string | null;
+  private plugin: AbstractFolderPlugin;
 
-  constructor(app: App, settings: AbstractFolderPluginSettings, onSave: (groups: Group[], activeGroupId: string | null) => void) {
+  constructor(app: App, settings: AbstractFolderPluginSettings, onSave: (groups: Group[], activeGroupId: string | null) => void, plugin: AbstractFolderPlugin) {
     super(app);
+    this.plugin = plugin;
     this.settings = settings;
     this.onSave = onSave;
     this.groups = [...settings.groups]; // Work on a copy
@@ -93,7 +96,7 @@ export class ManageGroupsModal extends Modal {
     new CreateEditGroupModal(this.app, this.settings, null, (newGroup) => {
       this.groups.push(newGroup);
       this.saveAndRerender();
-    }).open();
+    }, this.plugin).open();
   }
 
   editGroup(group: Group) {
@@ -103,7 +106,7 @@ export class ManageGroupsModal extends Modal {
         this.groups[index] = updatedGroup;
         this.saveAndRerender();
       }
-    }).open();
+    }, this.plugin).open();
   }
 
   deleteGroup(index: number) {

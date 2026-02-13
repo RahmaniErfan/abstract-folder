@@ -6,30 +6,43 @@
  * @copyright 2025 Erfan Rahmani
  */
 
-import { Plugin, WorkspaceLeaf, Notice } from 'obsidian';
+import { Plugin, WorkspaceLeaf, Notice, TFolder, TFile } from 'obsidian';
 import { Logger } from './src/utils/logger';
 import { AbstractFolderPluginSettings, DEFAULT_SETTINGS } from './src/settings';
 import { FolderIndexer } from './src/indexer';
 import { MetricsManager } from './src/metrics-manager';
 import { AbstractFolderView, VIEW_TYPE_ABSTRACT_FOLDER } from './src/view';
-import { CreateAbstractChildModal, ParentPickerModal, ChildFileType, FolderSelectionModal, ConversionOptionsModal, DestinationPickerModal, NewFolderNameModal, SimulationModal, ScopeSelectionModal, CreateEditGroupModal } from './src/ui/modals';
+import { CreateAbstractChildModal, ParentPickerModal, ChildFileType, FolderSelectionModal, ConversionOptionsModal, DestinationPickerModal, NewFolderNameModal, SimulationModal, ScopeSelectionModal } from './src/ui/modals';
+import { CreateEditGroupModal } from './src/ui/modals/create-edit-group-modal';
 import { ManageGroupsModal } from './src/ui/modals/manage-groups-modal';
-import { AbstractFolderSettingTab } from './src/ui/settings-tab';
+import { ModularSettingsTab as AbstractFolderSettingTab } from './src/ui/settings/index';
 import { createAbstractChildFile } from './src/utils/file-operations';
 import { convertFoldersToPluginFormat, generateFolderStructurePlan, executeFolderGeneration } from './src/utils/conversion';
-import { TFolder, TFile } from 'obsidian';
 import { Group } from './src/types';
+import { LibraryManager } from './src/library/git/library-manager';
+import { AbstractBridge } from './src/library/bridge/abstract-bridge';
+import { ContributionEngine } from './src/library/services/contribution-engine';
+import { LibraryCenterView, VIEW_TYPE_LIBRARY_CENTER } from './src/library/ui/library-center-view';
 import './src/styles/index.css';
 
 export default class AbstractFolderPlugin extends Plugin {
 	settings: AbstractFolderPluginSettings;
 	indexer: FolderIndexer;
+	libraryManager: LibraryManager;
+	abstractBridge: AbstractBridge;
+	contributionEngine: ContributionEngine;
 	metricsManager: MetricsManager;
 	ribbonIconEl: HTMLElement | null = null;
 
 	async onload() {
 		Logger.debug("Starting onload...");
 		await this.loadSettings();
+
+		// Initialize Abstract Library services
+		this.abstractBridge = new AbstractBridge(this.app);
+		this.contributionEngine = new ContributionEngine(this.app);
+		// fs placeholder for LibraryManager
+		this.libraryManager = new LibraryManager(this.app, (window as any).fs);
 
 		this.indexer = new FolderIndexer(this.app, this.settings, this);
 		this.metricsManager = new MetricsManager(this.app, this.indexer, this);
@@ -41,7 +54,20 @@ export default class AbstractFolderPlugin extends Plugin {
 			(leaf) => new AbstractFolderView(leaf, this.indexer, this.settings, this, this.metricsManager)
 		);
 
+		this.registerView(
+			VIEW_TYPE_LIBRARY_CENTER,
+			(leaf) => new LibraryCenterView(leaf, this)
+		);
+
 		this.updateRibbonIconVisibility();
+
+		this.addCommand({
+			id: "open-library-center",
+			name: "Open library center",
+			callback: () => {
+				this.activateLibraryCenter().catch(console.error);
+			},
+		});
 
 		this.addCommand({
 			id: "open-view",
@@ -105,10 +131,10 @@ this.addCommand({
 		new ManageGroupsModal(this.app, this.settings, (updatedGroups: Group[], activeGroupId: string | null) => {
 			this.settings.groups = updatedGroups;
 			this.settings.activeGroupId = activeGroupId;
-			this.saveSettings().then(() => {
+			void this.saveSettings().then(() => {
 				this.app.workspace.trigger('abstract-folder:group-changed');
 			}).catch(console.error);
-		}).open();
+		}, this).open();
 	},
 });
 
@@ -135,7 +161,7 @@ this.addCommand({
 						this.app.workspace.trigger('abstract-folder:group-changed');
 						this.activateView().catch(console.error);
 					}).catch(console.error);
-				}).open();
+				}, this).open();
 			}
 		});
 
@@ -198,11 +224,21 @@ this.addCommand({
 	});
 		this.addSettingTab(new AbstractFolderSettingTab(this.app, this));
 
-		this.app.workspace.onLayoutReady(() => {
+		this.app.workspace.onLayoutReady(async () => {
 			this.metricsManager.applyDecay();
 			this.indexer.rebuildGraphAndTriggerUpdate();
 			if (this.settings.startupOpen) {
 				this.activateView().catch(console.error);
+			}
+
+			// Ensure library sandbox directory exists
+			const sandboxPath = this.settings.librarySettings.librariesPath;
+			if (!(this.app.vault.getAbstractFileByPath(sandboxPath))) {
+				try {
+					await this.app.vault.createFolder(sandboxPath);
+				} catch (e) {
+					Logger.error("Failed to create library sandbox folder", e);
+				}
 			}
 		});
 	}
@@ -215,6 +251,28 @@ this.addCommand({
 		if (this.ribbonIconEl) {
 			this.ribbonIconEl.remove();
 			this.ribbonIconEl = null;
+		}
+	}
+
+	async activateLibraryCenter() {
+		const { workspace } = this.app;
+		let leaf: WorkspaceLeaf | null = null;
+		const leaves = workspace.getLeavesOfType(VIEW_TYPE_LIBRARY_CENTER);
+
+		if (leaves.length > 0) {
+			leaf = leaves[0];
+		} else {
+			leaf = workspace.getRightLeaf(false);
+			if (leaf) {
+				await leaf.setViewState({
+					type: VIEW_TYPE_LIBRARY_CENTER,
+					active: true,
+				});
+			}
+		}
+
+		if (leaf) {
+			await workspace.revealLeaf(leaf);
 		}
 	}
 

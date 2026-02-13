@@ -1,4 +1,5 @@
 import { Group, SortConfig, FilterConfig } from "./types";
+import { LibrarySettings } from "./library/types";
 
 export interface AbstractFolderPluginSettings {
   propertyName: string; // The frontmatter property key used to define parent notes (child-defined parent)
@@ -47,6 +48,7 @@ export interface AbstractFolderPluginSettings {
   namingConflictOrder: 'parent-first' | 'name-first'; // Order of parent and name
   defaultNewNotePath: string; // Default path for new notes
   anonymizeDebugExport: boolean;
+  librarySettings: LibrarySettings;
 }
 
 export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
@@ -96,4 +98,11 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   namingConflictOrder: 'parent-first',
   defaultNewNotePath: '',
   anonymizeDebugExport: true,
+  librarySettings: {
+    librariesPath: "Abstract Library",
+    registries: ["https://raw.githubusercontent.com/username/abstract-registry/main/directory.json"],
+    standaloneLibraries: [],
+    githubToken: "",
+    deviceId: "",
+  },
 };
