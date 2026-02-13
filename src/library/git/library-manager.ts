@@ -9,6 +9,7 @@ import { DataService } from "../services/data-service";
  * It expects a lightning-fs instance to interact with the virtual file system.
  */
 export class LibraryManager {
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     constructor(private app: App, private fs: any) {}
 
     /**
@@ -16,15 +17,22 @@ export class LibraryManager {
      */
     async cloneLibrary(repositoryUrl: string, destinationPath: string, token?: string): Promise<void> {
         try {
+            // lightning-fs often requires paths to start with a leading slash
+            const dir = destinationPath.startsWith('/') ? destinationPath : `/${destinationPath}`;
+            
+            console.debug(`Cloning library from ${repositoryUrl} to ${dir}`);
+
+            /* eslint-disable @typescript-eslint/no-unsafe-assignment */
             await git.clone({
                 fs: this.fs,
-                http: ObsidianHttpAdapter,
-                dir: destinationPath,
+                http: ObsidianHttpAdapter as any,
+                dir: dir,
                 url: repositoryUrl,
-                onAuth: () => ({ username: token || "" }),
+                onAuth: token ? () => ({ username: token }) : undefined,
                 singleBranch: true,
                 depth: 1
             });
+            /* eslint-enable @typescript-eslint/no-unsafe-assignment */
 
             new Notice(`Library cloned successfully to ${destinationPath}`);
         } catch (error) {
@@ -38,17 +46,20 @@ export class LibraryManager {
      */
     async updateLibrary(path: string, token?: string): Promise<void> {
         try {
+            const dir = path.startsWith('/') ? path : `/${path}`;
+            /* eslint-disable @typescript-eslint/no-unsafe-assignment */
             await git.pull({
                 fs: this.fs,
-                http: ObsidianHttpAdapter,
-                dir: path,
-                onAuth: () => ({ username: token || "" }),
+                http: ObsidianHttpAdapter as any,
+                dir: dir,
+                onAuth: token ? () => ({ username: token }) : undefined,
                 singleBranch: true,
                 author: {
                     name: "Abstract Library Manager",
                     email: "manager@abstract.library"
                 }
             });
+            /* eslint-enable @typescript-eslint/no-unsafe-assignment */
             new Notice("Library updated successfully");
         } catch (error) {
             console.error("Update failed", error);
@@ -61,10 +72,13 @@ export class LibraryManager {
      */
     async getStatus(path: string): Promise<LibraryStatus> {
         try {
+            const dir = path.startsWith('/') ? path : `/${path}`;
+            /* eslint-disable @typescript-eslint/no-unsafe-assignment */
             const matrix = await git.statusMatrix({
                 fs: this.fs,
-                dir: path
+                dir: dir
             });
+            /* eslint-enable @typescript-eslint/no-unsafe-assignment */
             
             // row[1] = head, row[2] = workdir, row[3] = stage
             // 0: absent, 1: unmodified, 2: modified
@@ -81,11 +95,17 @@ export class LibraryManager {
      */
     async validateLibrary(path: string): Promise<LibraryConfig> {
         try {
-            const configContent = await this.fs.promises.readFile(`${path}/library.config.json`, "utf8");
+            const dir = path.startsWith('/') ? path : `/${path}`;
+            const configPath = dir.endsWith('/') ? `${dir}library.config.json` : `${dir}/library.config.json`;
+            /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+            const configContent = await this.fs.promises.readFile(configPath, "utf8");
+            /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
             return DataService.parseLibraryConfig(configContent as string);
         } catch (error) {
             console.error("Validation failed", error);
+            /* eslint-disable @typescript-eslint/no-unsafe-member-access */
             throw new Error(`Failed to validate library at ${path}: ${error.message}`);
+            /* eslint-enable @typescript-eslint/no-unsafe-member-access */
         }
     }
 }

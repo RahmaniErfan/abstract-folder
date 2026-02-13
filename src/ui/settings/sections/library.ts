@@ -10,8 +10,8 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 		.setDesc("The folder where your abstract libraries will be stored.")
 		.addText((text) =>
 			text
-				.setPlaceholder("Abstract Library")
-				.setValue(plugin.settings.librarySettings.librariesPath)
+				.setPlaceholder("Abstract library")
+				.setValue(plugin.settings.librarySettings?.librariesPath || "Abstract Library")
 				.onChange(async (value) => {
 					plugin.settings.librarySettings.librariesPath = value;
 					await plugin.saveSettings();
@@ -23,8 +23,8 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 		.setDesc("Authenticate with GitHub to access private libraries and contribute.")
 		.addButton((btn) =>
 			btn
-				.setButtonText(plugin.settings.librarySettings.githubToken ? "Authenticated" : "Login with GitHub")
-				.setDisabled(!!plugin.settings.librarySettings.githubToken)
+				.setButtonText(plugin.settings.librarySettings?.githubToken ? "Authenticated" : "Login with GitHub")
+				.setDisabled(!!plugin.settings.librarySettings?.githubToken)
 				.onClick(async () => {
 					try {
 						const deviceCode = await AuthService.requestDeviceCode();
@@ -79,7 +79,7 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 		.addText((text) =>
 			text
 				.setPlaceholder("Official URL")
-				.setValue("https://raw.githubusercontent.com/username/abstract-registry/main/directory.json")
+				.setValue("https://raw.githubusercontent.com/RahmaniErfan/abstract-registry/main/directory.json")
 				.setDisabled(true),
 		);
 
@@ -89,7 +89,7 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 		.addTextArea((text) =>
 			text
 				.setPlaceholder("https://example.com/registry.json")
-				.setValue(plugin.settings.librarySettings.registries.join("\n"))
+				.setValue((plugin.settings.librarySettings?.registries || []).join("\n"))
 				.onChange(async (value) => {
 					plugin.settings.librarySettings.registries = value
 						.split("\n")
@@ -104,7 +104,7 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 		.addTextArea((text) =>
 			text
 				.setPlaceholder("https://github.com/user/repo")
-				.setValue(plugin.settings.librarySettings.standaloneLibraries.join("\n"))
+				.setValue((plugin.settings.librarySettings?.standaloneLibraries || []).join("\n"))
 				.onChange(async (value) => {
 					plugin.settings.librarySettings.standaloneLibraries = value
 						.split("\n")

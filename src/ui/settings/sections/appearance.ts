@@ -70,4 +70,116 @@ export function renderAppearanceSettings(containerEl: HTMLElement, plugin: Abstr
 					await plugin.saveSettings();
 				}),
 		);
+
+	new Setting(containerEl).setName("Visibility").setHeading();
+
+	new Setting(containerEl)
+		.setName("Show view style toggle")
+		.setDesc("Show the button to toggle between tree and column view.")
+		.addToggle((toggle) =>
+			toggle.setValue(plugin.settings.showViewStyleToggle).onChange(async (value) => {
+				plugin.settings.showViewStyleToggle = value;
+				await plugin.saveSettings();
+				plugin.app.workspace.trigger("abstract-folder:graph-updated");
+			}),
+		);
+
+	new Setting(containerEl)
+		.setName("Show focus active file button")
+		.setDesc("Show the button to focus the active file in the abstract tree.")
+		.addToggle((toggle) =>
+			toggle.setValue(plugin.settings.showFocusActiveFileButton).onChange(async (value) => {
+				plugin.settings.showFocusActiveFileButton = value;
+				await plugin.saveSettings();
+				plugin.app.workspace.trigger("abstract-folder:graph-updated");
+			}),
+		);
+
+	new Setting(containerEl)
+		.setName("Show search bar header")
+		.setDesc("Show the search bar and filter/sort buttons.")
+		.addToggle((toggle) =>
+			toggle.setValue(plugin.settings.showSearchHeader).onChange(async (value) => {
+				plugin.settings.showSearchHeader = value;
+				await plugin.saveSettings();
+				plugin.app.workspace.trigger("abstract-folder:graph-updated");
+			}),
+		);
+
+	new Setting(containerEl)
+		.setName("Show group button")
+		.setDesc("Show the button to manage groups.")
+		.addToggle((toggle) =>
+			toggle.setValue(plugin.settings.showGroupButton).onChange(async (value) => {
+				plugin.settings.showGroupButton = value;
+				await plugin.saveSettings();
+				plugin.app.workspace.trigger("abstract-folder:graph-updated");
+			}),
+		);
+
+	new Setting(containerEl)
+		.setName("Show create note button")
+		.setDesc("Show the button to create a new abstract note.")
+		.addToggle((toggle) =>
+			toggle.setValue(plugin.settings.showCreateNoteButton).onChange(async (value) => {
+				plugin.settings.showCreateNoteButton = value;
+				await plugin.saveSettings();
+				plugin.app.workspace.trigger("abstract-folder:graph-updated");
+			}),
+		);
+
+	new Setting(containerEl)
+		.setName("Show conversion button")
+		.setDesc("Show the button to convert folders to plugin format.")
+		.addToggle((toggle) =>
+			toggle.setValue(plugin.settings.showConversionButton).onChange(async (value) => {
+				plugin.settings.showConversionButton = value;
+				await plugin.saveSettings();
+				plugin.app.workspace.trigger("abstract-folder:graph-updated");
+			}),
+		);
+
+	new Setting(containerEl)
+		.setName("Show collapse all button")
+		.setDesc("Show the button to collapse all folders.")
+		.addToggle((toggle) =>
+			toggle.setValue(plugin.settings.showCollapseAllButton).onChange(async (value) => {
+				plugin.settings.showCollapseAllButton = value;
+				await plugin.saveSettings();
+				plugin.app.workspace.trigger("abstract-folder:graph-updated");
+			}),
+		);
+
+	new Setting(containerEl)
+		.setName("Show expand all button")
+		.setDesc("Show the button to expand all folders.")
+		.addToggle((toggle) =>
+			toggle.setValue(plugin.settings.showExpandAllButton).onChange(async (value) => {
+				plugin.settings.showExpandAllButton = value;
+				await plugin.saveSettings();
+				plugin.app.workspace.trigger("abstract-folder:graph-updated");
+			}),
+		);
+
+	new Setting(containerEl)
+		.setName("Show sort button")
+		.setDesc("Show the button to change sorting.")
+		.addToggle((toggle) =>
+			toggle.setValue(plugin.settings.showSortButton).onChange(async (value) => {
+				plugin.settings.showSortButton = value;
+				await plugin.saveSettings();
+				plugin.app.workspace.trigger("abstract-folder:graph-updated");
+			}),
+		);
+
+	new Setting(containerEl)
+		.setName("Show filter button")
+		.setDesc("Show the button to filter files.")
+		.addToggle((toggle) =>
+			toggle.setValue(plugin.settings.showFilterButton).onChange(async (value) => {
+				plugin.settings.showFilterButton = value;
+				await plugin.saveSettings();
+				plugin.app.workspace.trigger("abstract-folder:graph-updated");
+			}),
+		);
 }

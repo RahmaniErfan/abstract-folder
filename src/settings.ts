@@ -100,7 +100,7 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   anonymizeDebugExport: true,
   librarySettings: {
     librariesPath: "Abstract Library",
-    registries: ["https://raw.githubusercontent.com/username/abstract-registry/main/directory.json"],
+    registries: ["https://raw.githubusercontent.com/RahmaniErfan/abstract-registry/main/directory.json"],
     standaloneLibraries: [],
     githubToken: "",
     deviceId: "",

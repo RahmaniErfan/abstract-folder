@@ -3,7 +3,7 @@ import { RegistryItem, LibrarySettings } from "../types";
 
 export class RegistryService {
     // Hardcoded official registry URL
-    private static readonly OFFICIAL_REGISTRY_URL = "https://raw.githubusercontent.com/username/abstract-registry/main/directory.json";
+    private static readonly OFFICIAL_REGISTRY_URL = "https://raw.githubusercontent.com/RahmaniErfan/abstract-registry/main/directory.json";
 
     constructor(private settings: LibrarySettings) {}
 
@@ -14,7 +14,7 @@ export class RegistryService {
         const urls = [
             RegistryService.OFFICIAL_REGISTRY_URL,
             ...this.settings.registries
-        ];
+        ].filter(url => !url.includes("/username/"));
 
         const allItems: RegistryItem[] = [];
         const seenIds = new Set<string>();

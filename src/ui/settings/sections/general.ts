@@ -1,9 +1,9 @@
-import { Setting, AbstractInputSuggest } from "obsidian";
+import { Setting, AbstractInputSuggest, normalizePath, TFolder } from "obsidian";
 import type AbstractFolderPlugin from "main";
 
 export class PathInputSuggest extends AbstractInputSuggest<string> {
-	constructor(private plugin: AbstractFolderPlugin, textInputEl: HTMLInputElement) {
-		super(plugin.app, textInputEl);
+	constructor(private plugin: AbstractFolderPlugin, private inputEl: HTMLInputElement) {
+		super(plugin.app, inputEl);
 	}
 
 	getSuggestions(inputStr: string): string[] {
@@ -13,7 +13,7 @@ export class PathInputSuggest extends AbstractInputSuggest<string> {
 
 		abstractFiles.forEach((file) => {
 			if (
-				file instanceof (window as any).TFolder &&
+				file instanceof TFolder &&
 				file.path.toLowerCase().contains(lowerCaseInputStr)
 			) {
 				folders.push(file.path);
@@ -28,26 +28,32 @@ export class PathInputSuggest extends AbstractInputSuggest<string> {
 	}
 
 	selectSuggestion(value: string): void {
-		(this as any).textInputEl.value = value;
-		(this as any).textInputEl.trigger("input");
+		this.inputEl.value = value;
+		this.inputEl.trigger("input");
 		this.close();
 	}
 }
 
 export function renderGeneralSettings(containerEl: HTMLElement, plugin: AbstractFolderPlugin) {
-	new Setting(containerEl).setName("General").setHeading();
+	new Setting(containerEl).setName("Properties").setHeading();
 
 	new Setting(containerEl)
-		.setName("Parent property name")
-		.setDesc("The frontmatter property key used to define parent notes (child-defined parent).")
+		.setName("Parent property names")
+		.setDesc(
+			"The frontmatter property key(s) used to define parent notes (e.g., 'parent' or 'folder'). Support multiple names, separated by commas. These are case-sensitive.",
+		)
 		.addText((text) =>
 			text
-				.setPlaceholder("parent")
-				.setValue(plugin.settings.propertyName)
+				.setPlaceholder("Example: parent, up")
+				.setValue(plugin.settings.parentPropertyNames.join(", "))
 				.onChange(async (value) => {
-					plugin.settings.propertyName = value;
-					if (!plugin.settings.parentPropertyNames.includes(value)) {
-						plugin.settings.parentPropertyNames.push(value);
+					const propertyNames = value
+						.split(",")
+						.map((v) => v.trim())
+						.filter((v) => v.length > 0);
+					plugin.settings.parentPropertyNames = propertyNames;
+					if (propertyNames.length > 0) {
+						plugin.settings.propertyName = propertyNames[0];
 					}
 					await plugin.saveSettings();
 					plugin.indexer.updateSettings(plugin.settings);
@@ -55,36 +61,134 @@ export function renderGeneralSettings(containerEl: HTMLElement, plugin: Abstract
 		);
 
 	new Setting(containerEl)
-		.setName("Children property name")
-		.setDesc("The frontmatter property key used by a parent to define its children (parent-defined children).")
+		.setName("Children property names")
+		.setDesc(
+			"The frontmatter property key(s) used by a parent to define its children (e.g., 'children' or 'sub_notes'). Support multiple names, separated by commas. These are case-sensitive.",
+		)
 		.addText((text) =>
 			text
-				.setPlaceholder("children")
-				.setValue(plugin.settings.childrenPropertyName)
+				.setPlaceholder("Example: children, members")
+				.setValue(plugin.settings.childrenPropertyNames.join(", "))
 				.onChange(async (value) => {
-					plugin.settings.childrenPropertyName = value;
-					if (!plugin.settings.childrenPropertyNames.includes(value)) {
-						plugin.settings.childrenPropertyNames.push(value);
+					const propertyNames = value
+						.split(",")
+						.map((v) => v.trim())
+						.filter((v) => v.length > 0);
+					plugin.settings.childrenPropertyNames = propertyNames;
+					if (propertyNames.length > 0) {
+						plugin.settings.childrenPropertyName = propertyNames[0];
 					}
 					await plugin.saveSettings();
 					plugin.indexer.updateSettings(plugin.settings);
 				}),
 		);
+
+	new Setting(containerEl)
+		.setName("Created date field names")
+		.setDesc(
+			"Set the field name in frontmatter to use for the created date (support multiple field names, separated by commas).",
+		)
+		.addText((text) =>
+			text
+				.setPlaceholder("Example: created, ctime")
+				.setValue(plugin.settings.customCreatedDateProperties)
+				.onChange(async (value) => {
+					plugin.settings.customCreatedDateProperties = value;
+					await plugin.saveSettings();
+				}),
+		);
+
+	new Setting(containerEl)
+		.setName("Modified date field names")
+		.setDesc(
+			"Set the field name in frontmatter to use for the modified date (support multiple field names, separated by commas).",
+		)
+		.addText((text) =>
+			text
+				.setPlaceholder("Example: modified, updated, mtime")
+				.setValue(plugin.settings.customModifiedDateProperties)
+				.onChange(async (value) => {
+					plugin.settings.customModifiedDateProperties = value;
+					await plugin.saveSettings();
+				}),
+		);
+
+	new Setting(containerEl).setName("Display name").setHeading();
 
 	new Setting(containerEl)
 		.setName("Show aliases")
-		.setDesc("Show aliases instead of file names in the view.")
+		.setDesc("Use the first alias from the 'aliases' frontmatter property as the display name.")
 		.addToggle((toggle) =>
 			toggle.setValue(plugin.settings.showAliases).onChange(async (value) => {
 				plugin.settings.showAliases = value;
 				await plugin.saveSettings();
-				plugin.app.workspace.trigger("abstract-folder:graph-updated");
+				plugin.indexer.updateSettings(plugin.settings);
 			}),
 		);
 
 	new Setting(containerEl)
+		.setName("Display name priority")
+		.setDesc(
+			"Determine the priority for displaying names. Use frontmatter property names (e.g., 'title'), 'aliases' for the first alias, or 'basename' for the filename. Separate with commas.",
+		)
+		.addText((text) =>
+			text
+				.setPlaceholder("Example: title, aliases, basename")
+				.setValue(plugin.settings.displayNameOrder.join(", "))
+				.onChange(async (value) => {
+					plugin.settings.displayNameOrder = value
+						.split(",")
+						.map((v) => v.trim())
+						.filter((v) => v.length > 0);
+					await plugin.saveSettings();
+					plugin.indexer.updateSettings(plugin.settings);
+				}),
+		);
+
+	new Setting(containerEl).setName("Startup & layout").setHeading();
+
+	new Setting(containerEl)
+		.setName("Default new note path")
+		.setDesc(
+			"The default directory where new root-level notes will be created. If left empty, notes will be created in the vault root.",
+		)
+		.addText((text) => {
+			text.setPlaceholder("Example: notes/new")
+				.setValue(plugin.settings.defaultNewNotePath)
+				.onChange(async (value) => {
+					plugin.settings.defaultNewNotePath = normalizePath(value);
+					await plugin.saveSettings();
+				});
+			new PathInputSuggest(plugin, text.inputEl);
+		});
+
+	new Setting(containerEl)
+		.setName("Open on startup")
+		.setDesc("Automatically open the abstract folders view when Obsidian starts.")
+		.addToggle((toggle) =>
+			toggle.setValue(plugin.settings.startupOpen).onChange(async (value) => {
+				plugin.settings.startupOpen = value;
+				await plugin.saveSettings();
+			}),
+		);
+
+	new Setting(containerEl)
+		.setName("Open position")
+		.setDesc("Which side sidebar to open the view in.")
+		.addDropdown((dropdown) =>
+			dropdown
+				.addOption("left", "Left")
+				.addOption("right", "Right")
+				.setValue(plugin.settings.openSide)
+				.onChange(async (value: "left" | "right") => {
+					plugin.settings.openSide = value;
+					await plugin.saveSettings();
+				}),
+		);
+
+	new Setting(containerEl)
 		.setName("Show ribbon icon")
-		.setDesc("Display the ribbon icon to open the abstract folder view.")
+		.setDesc("Toggle the visibility of the abstract folders icon in the left ribbon.")
 		.addToggle((toggle) =>
 			toggle.setValue(plugin.settings.showRibbonIcon).onChange(async (value) => {
 				plugin.settings.showRibbonIcon = value;
@@ -92,62 +196,57 @@ export function renderGeneralSettings(containerEl: HTMLElement, plugin: Abstract
 			}),
 		);
 
-	new Setting(containerEl)
-		.setName("Default new note path")
-		.setDesc("Default path for newly created notes.")
-		.addText((text) => {
-			text.setPlaceholder("Folder/Path")
-				.setValue(plugin.settings.defaultNewNotePath)
-				.onChange(async (value) => {
-					plugin.settings.defaultNewNotePath = value;
-					await plugin.saveSettings();
-				});
-			new PathInputSuggest(plugin, text.inputEl);
-		});
-
 	renderExcludedPaths(containerEl, plugin);
 }
 
 function renderExcludedPaths(containerEl: HTMLElement, plugin: AbstractFolderPlugin): void {
-	const excludedPathsContainer = containerEl.createDiv();
-	new Setting(excludedPathsContainer)
+	new Setting(containerEl)
 		.setName("Excluded paths")
-		.setDesc("Paths to exclude from the abstract folder view (e.g., export folders).")
+		.setDesc("The plugin will ignore these folders and their contents.")
 		.setHeading();
 
-	plugin.settings.excludedPaths.forEach((path, index) => {
-		new Setting(excludedPathsContainer)
-			.addText((text) => {
-				text.setPlaceholder("Folder/Path")
-					.setValue(path)
-					.onChange(async (value) => {
-						plugin.settings.excludedPaths[index] = value;
+	const excludedPathsContainer = containerEl.createDiv({
+		cls: "abstract-folder-excluded-paths-container",
+	});
+
+	const renderList = () => {
+		excludedPathsContainer.empty();
+		plugin.settings.excludedPaths.forEach((path, index) => {
+			new Setting(excludedPathsContainer)
+				.addText((text) => {
+					text.setPlaceholder("Path to exclude");
+					text.setValue(path);
+					new PathInputSuggest(plugin, text.inputEl);
+					text.onChange(async (value) => {
+						plugin.settings.excludedPaths[index] = normalizePath(value);
 						await plugin.saveSettings();
 						plugin.indexer.updateSettings(plugin.settings);
 					});
-				new PathInputSuggest(plugin, text.inputEl);
-			})
-			.addButton((button) =>
-				button
-					.setIcon("trash")
-					.setTooltip("Remove path")
-					.onClick(async () => {
-						plugin.settings.excludedPaths.splice(index, 1);
-						await plugin.saveSettings();
-						plugin.indexer.updateSettings(plugin.settings);
-						renderExcludedPaths(containerEl, plugin);
-					}),
-			);
-	});
+				})
+				.addButton((button) =>
+					button
+						.setIcon("trash")
+						.setTooltip("Remove path")
+						.onClick(async () => {
+							plugin.settings.excludedPaths.splice(index, 1);
+							await plugin.saveSettings();
+							plugin.indexer.updateSettings(plugin.settings);
+							renderList();
+						}),
+				);
+		});
+	};
 
-	new Setting(excludedPathsContainer).addExtraButton((button) =>
+	renderList();
+
+	new Setting(containerEl).addExtraButton((button) =>
 		button
 			.setIcon("plus")
-			.setTooltip("Add excluded path")
+			.setTooltip("Add new excluded path")
 			.onClick(async () => {
-				plugin.settings.excludedPaths.push("");
+				plugin.settings.excludedPaths.push(normalizePath(""));
 				await plugin.saveSettings();
-				renderExcludedPaths(containerEl, plugin);
+				renderList();
 			}),
 	);
 }

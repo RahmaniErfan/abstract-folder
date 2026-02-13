@@ -1,6 +1,7 @@
-import { Setting, Notice } from "obsidian";
+import { Setting, Notice, Modal, App } from "obsidian";
 import type AbstractFolderPlugin from "main";
 import { exportDebugDetails } from "../../../utils/debug-exporter";
+import { DEFAULT_SETTINGS } from "../../../settings";
 
 export function renderDebugSettings(containerEl: HTMLElement, plugin: AbstractFolderPlugin) {
 	new Setting(containerEl).setName("Debug").setHeading();
@@ -68,6 +69,52 @@ export function renderDebugSettings(containerEl: HTMLElement, plugin: AbstractFo
 					} else {
 						new Notice("No legacy data found.");
 					}
+				}),
+		);
+
+	new Setting(containerEl)
+		.setName("Factory reset settings")
+		.setDesc(
+			"Reset all plugin configuration to factory defaults. This is a safe alternative to deleting data.json. It only affects plugin settings like UI preferences and excluded paths. It will not touch your notes or frontmatter properties.",
+		)
+		.addButton((button) =>
+			button
+				.setButtonText("Reset all settings")
+				.setWarning()
+				.onClick(() => {
+					const ConfirmModal = class extends Modal {
+						constructor(app: App, onConfirm: () => void) {
+							super(app);
+							this.setTitle("Reset all settings");
+							this.contentEl.createEl("p", {
+								text: "Are you sure you want to reset all settings? This cannot be undone.",
+							});
+
+							new Setting(this.contentEl)
+								.addButton((btn) =>
+									btn.setButtonText("Cancel").onClick(() => this.close()),
+								)
+								.addButton((btn) =>
+									btn
+										.setButtonText("Reset everything")
+										.setWarning()
+										.onClick(() => {
+											onConfirm();
+											this.close();
+										}),
+								);
+						}
+					};
+
+					new ConfirmModal(plugin.app, () => {
+						plugin.settings = Object.assign({}, DEFAULT_SETTINGS);
+						plugin
+							.saveSettings()
+							.then(() => {
+								new Notice("Settings have been reset to defaults. Please reload Obsidian.");
+							})
+							.catch(console.error);
+					}).open();
 				}),
 		);
 }

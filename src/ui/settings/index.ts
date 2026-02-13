@@ -17,12 +17,17 @@ export class ModularSettingsTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		renderGeneralSettings(containerEl, this.plugin);
-		renderAppearanceSettings(containerEl, this.plugin);
-		renderBehaviorSettings(containerEl, this.plugin);
-		renderSearchSettings(containerEl, this.plugin);
-		renderGroupSettings(containerEl, this.plugin);
-		renderLibrarySettings(containerEl, this.plugin);
-		renderDebugSettings(containerEl, this.plugin);
+		try {
+			renderGeneralSettings(containerEl, this.plugin);
+			renderAppearanceSettings(containerEl, this.plugin);
+			renderBehaviorSettings(containerEl, this.plugin);
+			renderSearchSettings(containerEl, this.plugin);
+			renderGroupSettings(containerEl, this.plugin);
+			renderLibrarySettings(containerEl, this.plugin);
+			renderDebugSettings(containerEl, this.plugin);
+		} catch (e) {
+			console.error("Failed to render settings", e);
+			containerEl.createEl("p", { text: "Error loading settings. Check console for details.", cls: "error-text" });
+		}
 	}
 }
