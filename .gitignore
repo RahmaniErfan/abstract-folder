@@ -26,3 +26,6 @@ data.json
 
 # Test scripts
 generate_md.py
+
+# Others
+/plans
