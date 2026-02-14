@@ -21,6 +21,16 @@
 *   **Logic**: Unified the "Effective Folder" check across standard and virtualized tree rendering.
 *   **Result**: Nodes with children (even if they are markdown files) now consistently show folder icons and expansion chevrons, improving visual hierarchy clarity in libraries.
 
+### 5. Unified Interaction Controller (`src/ui/tree/tree-renderer.ts`)
+*   **Problem**: Inconsistent behavior between Main View (virtualized) and Library Explorer (recursive) because the renderer relied on the local `node.children` array, which is empty in virtualized views.
+*   **Solution**: Refactored `TreeRenderer` to use the `Indexer` as the absolute source of truth for node relationships.
+*   **Benefit**: Guaranteed behavioral consistency across all tree-based views. Settings like `autoExpandChildren` now apply correctly regardless of the underlying data structure.
+
+### 6. Event-Driven View Synchronization
+*   **Implementation**: Introduced `abstract-folder:tree-state-updated` workspace event.
+*   **Flow**: Triggered whenever a folder is expanded/collapsed. All active views (Main View, Library Explorer) now subscribe to this event to stay in sync automatically.
+*   **Rationale**: Eliminates "state fragmentation" where expanding a folder in one pane wasn't reflected in another.
+
 # Technical Changelog - Abstract Folder Plugin v1.13.1
 
 ## Context Menu Architecture Refinement

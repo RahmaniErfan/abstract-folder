@@ -860,10 +860,14 @@ export class AbstractFolderView extends ItemView {
   private async toggleCollapse(itemEl: HTMLElement, path: string, contextId?: string) {
     const effectiveId = contextId || (itemEl as ExtendedHTMLElement)?._contextId || path;
     const expanded = this.settings.expandedFolders.includes(effectiveId);
+    
     if (expanded) this.settings.expandedFolders = this.settings.expandedFolders.filter(p => p !== effectiveId);
     else this.settings.expandedFolders.push(effectiveId);
     
     if (this.settings.rememberExpanded) await this.plugin.saveSettings();
+    
+    // Notify all views that the tree state has changed
+    this.app.workspace.trigger('abstract-folder:tree-state-updated');
     this.renderView();
   }
 

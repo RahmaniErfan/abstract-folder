@@ -56,6 +56,11 @@ export class LibraryExplorerView extends ItemView {
         this.registerEvent(this.app.workspace.on("abstract-folder:library-changed", () => {
             this.renderView();
         }));
+        // Listen for global tree state changes (e.g. expanded folders)
+        // @ts-ignore - Custom workspace event
+        this.registerEvent(this.app.workspace.on("abstract-folder:tree-state-updated", () => {
+            void this.refreshLibraryTree();
+        }));
         this.renderView();
     }
 
@@ -179,6 +184,9 @@ export class LibraryExplorerView extends ItemView {
             this.plugin.settings.expandedFolders.push(effectiveId);
         }
         await this.plugin.saveSettings();
+        
+        // Notify all views that the tree state has changed
+        this.app.workspace.trigger('abstract-folder:tree-state-updated');
         void this.refreshLibraryTree();
     }
 

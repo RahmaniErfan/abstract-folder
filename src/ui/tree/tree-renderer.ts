@@ -33,6 +33,7 @@ export class TreeRenderer {
     private multiSelectedPaths: Set<string>;
     private getDisplayName: (node: FolderNode) => string;
     private toggleCollapse: (itemEl: HTMLElement, path: string, contextId?: string) => Promise<void>;
+    private indexer: FolderIndexer;
     private contextMenuHandler: ContextMenuHandler;
     private dragManager: DragManager;
 
@@ -53,6 +54,7 @@ export class TreeRenderer {
         this.multiSelectedPaths = multiSelectedPaths;
         this.getDisplayName = getDisplayName;
         this.toggleCollapse = toggleCollapse;
+        this.indexer = indexer;
         this.contextMenuHandler = new ContextMenuHandler(app, settings, plugin, indexer, focusFile);
         this.dragManager = dragManager;
     }
@@ -120,9 +122,10 @@ if (activeFile && activeFile.path === node.path) {
             selfEl.addClass("is-multi-selected");
         }
 
-        // Unified check for folder-like behavior
-        const hasChildrenRecursive = node.children && node.children.length > 0;
-        const isEffectiveFolderRecursive = node.isFolder || hasChildrenRecursive;
+        // Unified check for folder-like behavior using Indexer as source of truth
+        const childrenInGraphRecursive = this.indexer.getGraph().parentToChildren[node.path];
+        const hasEffectiveChildrenRecursive = (childrenInGraphRecursive && childrenInGraphRecursive.size > 0) || (node.children && node.children.length > 0);
+        const isEffectiveFolderRecursive = node.isFolder || hasEffectiveChildrenRecursive;
 
         if (isEffectiveFolderRecursive) {
             const iconEl = selfEl.createDiv({ cls: "abstract-folder-collapse-icon" });
@@ -271,9 +274,10 @@ if (activeFile && activeFile.path === node.path) {
             this.dragManager.handleDrop(e, node).catch(Logger.error);
         });
 
-        // A node is treated as a folder if it's explicitly a folder OR if it has virtual children
-        const hasChildren = node.children && node.children.length > 0;
-        const isEffectiveFolder = node.isFolder || hasChildren;
+        // Unified check for folder-like behavior using Indexer as source of truth
+        const childrenInGraph = this.indexer.getGraph().parentToChildren[node.path];
+        const hasEffectiveChildren = (childrenInGraph && childrenInGraph.size > 0) || (node.children && node.children.length > 0);
+        const isEffectiveFolder = node.isFolder || hasEffectiveChildren;
 
         if (isEffectiveFolder) {
             itemEl.addClass("is-folder");
@@ -398,6 +402,14 @@ if (activeFile && activeFile.path === node.path) {
             this.plugin.app.workspace.trigger('abstract-folder:graph-updated'); // Re-render to clear selection
         }
 
+        // UNIFIED CHILD DETECTION: Use Indexer as source of truth to avoid virtualization issues
+        const graph = this.indexer.getGraph();
+        const childrenInGraph = graph.parentToChildren[node.path];
+        const hasEffectiveChildren = (childrenInGraph && childrenInGraph.size > 0) || (node.children && node.children.length > 0);
+        
+        let togglePerformed = false;
+
+        // 1. Handle File Opening
         if (node.file instanceof TFile) {
             const fileExists = this.app.vault.getAbstractFileByPath(node.file.path);
             if (fileExists) {
@@ -406,21 +418,22 @@ if (activeFile && activeFile.path === node.path) {
                 }
                 this.app.workspace.getLeaf(false).openFile(node.file).catch(Logger.error);
 
-                // If this file also has children and autoExpandChildren is enabled, toggle its expanded state
-                if (this.settings.autoExpandChildren && node.children.length > 0) {
-                    const selfEl = e.currentTarget as HTMLElement;
-                    const itemEl = selfEl.parentElement; // The .abstract-folder-item
-                    if (itemEl) {
-                        await this.toggleCollapse(itemEl, node.path, (itemEl as ExtendedHTMLElement)._contextId);
-                    }
+                // If this file also has children and autoExpandChildren is enabled, we mark for toggle
+                if (this.settings.autoExpandChildren && hasEffectiveChildren) {
+                    togglePerformed = true;
                 }
             }
-        } else if (node.isFolder || (node.children && node.children.length > 0)) {
-            const selfEl = e.currentTarget as HTMLElement;
-            const itemEl = selfEl.parentElement;
+        } else if (node.isFolder || hasEffectiveChildren || node.path === HIDDEN_FOLDER_ID || node.path === 'abstract-hidden-root') {
+            // 2. Handle Folder Toggling (when no file is associated)
+            togglePerformed = true;
+        }
 
-            if (itemEl) {
-                await this.toggleCollapse(itemEl, node.path, (itemEl as ExtendedHTMLElement)._contextId);
+        // 3. Perform Toggle if needed
+        if (togglePerformed) {
+            const targetItemEl = itemEl || (selfEl.parentElement as HTMLElement);
+            if (targetItemEl) {
+                const effectiveContextId = (targetItemEl as ExtendedHTMLElement)._contextId;
+                await this.toggleCollapse(targetItemEl, node.path, effectiveContextId);
             }
         }
     }
