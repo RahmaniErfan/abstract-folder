@@ -15,6 +15,7 @@ import { AbstractFolderView, VIEW_TYPE_ABSTRACT_FOLDER } from './src/ui/view/abs
 import { ContextEngine } from './src/core/context-engine';
 import { TreeCoordinator } from './src/core/tree-coordinator';
 import { LocalVaultProvider } from './src/core/local-vault-provider';
+import { LibraryTreeProvider } from './src/core/library-tree-provider';
 import { CreateAbstractChildModal, ParentPickerModal, ChildFileType, FolderSelectionModal, ConversionOptionsModal, DestinationPickerModal, NewFolderNameModal, SimulationModal, ScopeSelectionModal } from './src/ui/modals';
 import { CreateEditGroupModal } from './src/ui/modals/create-edit-group-modal';
 import { ManageGroupsModal } from './src/ui/modals/manage-groups-modal';
@@ -43,6 +44,7 @@ export default class AbstractFolderPlugin extends Plugin {
 	contextEngine: ContextEngine;
 	treeCoordinator: TreeCoordinator;
 	localVaultProvider: LocalVaultProvider;
+	libraryTreeProvider: LibraryTreeProvider;
 
 	async onload() {
 		Logger.debug("Starting onload...");
@@ -62,7 +64,9 @@ export default class AbstractFolderPlugin extends Plugin {
 		this.contextEngine = new ContextEngine();
 		this.treeCoordinator = new TreeCoordinator(this.contextEngine);
 		this.localVaultProvider = new LocalVaultProvider(this.app, this.indexer);
+		this.libraryTreeProvider = new LibraryTreeProvider(this.app, this.settings);
 		this.treeCoordinator.registerProvider(this.localVaultProvider);
+		this.treeCoordinator.registerProvider(this.libraryTreeProvider);
 
 		this.registerView(
 			VIEW_TYPE_ABSTRACT_FOLDER,
