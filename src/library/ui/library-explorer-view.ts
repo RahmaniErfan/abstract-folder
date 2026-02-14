@@ -1,8 +1,6 @@
-import { ItemView, WorkspaceLeaf, setIcon, TFile, TFolder } from "obsidian";
+import { ItemView, WorkspaceLeaf, setIcon, TFolder } from "obsidian";
 import type AbstractFolderPlugin from "../../../main";
-import { TreeRenderer } from "../../ui/tree/tree-renderer";
-import { VirtualTreeManager } from "../../ui/view/virtual-tree-manager";
-import { ViewState } from "../../ui/view-state";
+import { TreeFacet } from "../../ui/components/tree-facet";
 import { LibraryNode } from "../types";
 import { Logger } from "../../utils/logger";
 
@@ -13,30 +11,11 @@ export const VIEW_TYPE_LIBRARY_EXPLORER = "abstract-library-explorer";
  * It features a "Shelf" view with pill-shaped selection and a scoped "Tree" view for the selected library.
  */
 export class LibraryExplorerView extends ItemView {
-    private virtualTreeManager: VirtualTreeManager;
-    private viewState: ViewState;
-    private treeRenderer: TreeRenderer;
+    private treeFacet: TreeFacet | null = null;
     private selectedLibrary: LibraryNode | null = null;
-    private searchInputEl: HTMLInputElement | null = null;
 
     constructor(leaf: WorkspaceLeaf, private plugin: AbstractFolderPlugin) {
         super(leaf);
-        
-        // Use a dedicated ViewState for the library explorer to avoid affecting the main view
-        this.viewState = new ViewState(this.plugin.settings, this.plugin);
-        
-        this.treeRenderer = new TreeRenderer(
-            this.app, this.plugin.settings, this.plugin,
-            this.viewState.multiSelectedPaths,
-            (node) => {
-                if (node.file instanceof TFile) return node.file.basename;
-                return node.path.split('/').pop() || "";
-            },
-            (itemEl, path, contextId) => this.toggleCollapse(itemEl, path, contextId),
-            this.plugin.indexer,
-            null as any,
-            (path) => this.openFile(path)
-        );
     }
 
     getViewType(): string {
@@ -52,14 +31,8 @@ export class LibraryExplorerView extends ItemView {
     }
 
     async onOpen() {
-        // @ts-ignore - Custom workspace event
-        this.registerEvent(this.app.workspace.on("abstract-folder:library-changed", () => {
+        this.registerEvent((this.app.workspace as any).on("abstract-folder:library-changed", () => {
             this.renderView();
-        }));
-        // Listen for global tree state changes (e.g. expanded folders)
-        // @ts-ignore - Custom workspace event
-        this.registerEvent(this.app.workspace.on("abstract-folder:tree-state-updated", () => {
-            void this.refreshLibraryTree();
         }));
         this.renderView();
     }
@@ -104,13 +77,11 @@ export class LibraryExplorerView extends ItemView {
             const info = card.createDiv({ cls: "library-card-info" });
             if (lib.file instanceof TFolder) {
                 info.createDiv({ cls: "library-card-name", text: lib.file.name });
-                // We could potentially add more info here later, like item count
             }
             
             card.addEventListener("click", () => {
                 this.selectedLibrary = lib;
                 this.renderView();
-                void this.refreshLibraryTree();
             });
         });
     }
@@ -123,6 +94,10 @@ export class LibraryExplorerView extends ItemView {
         const backBtn = header.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Back to shelf" } });
         setIcon(backBtn, "arrow-left");
         backBtn.addEventListener("click", () => {
+            if (this.treeFacet) {
+                this.treeFacet.onDestroy();
+                this.treeFacet = null;
+            }
             this.selectedLibrary = null;
             this.renderView();
         });
@@ -131,69 +106,28 @@ export class LibraryExplorerView extends ItemView {
             header.createEl("h3", { text: this.selectedLibrary.file.name });
         }
 
-        const refreshBtn = header.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Refresh library" } });
-        setIcon(refreshBtn, "refresh-ccw");
-        refreshBtn.addEventListener("click", () => {
-            void (async () => {
-                const libraries = await this.plugin.abstractBridge.discoverLibraries(this.plugin.settings.librarySettings.librariesPath);
-                const updated = libraries.find(l => l.path === this.selectedLibrary?.path);
-                if (updated) {
-                    this.selectedLibrary = updated;
-                    await this.refreshLibraryTree();
-                }
-            })();
-        });
+        const treeContainer = container.createDiv({ cls: "abstract-folder-tree-container" });
 
-        const virtualWrapper = container.createDiv({ cls: "abstract-folder-virtual-wrapper" });
-        const virtualSpacer = virtualWrapper.createDiv({ cls: "abstract-folder-virtual-spacer" });
-        const virtualContainer = virtualWrapper.createDiv({ cls: "abstract-folder-virtual-container" });
+        Logger.debug("LibraryExplorerView: Mounting TreeFacet for selected library.");
 
-        this.virtualTreeManager = new VirtualTreeManager(
-            this.app, this.plugin.settings, null, this.viewState, this.treeRenderer,
-            container, virtualSpacer, virtualContainer,
-            (a, b) => a.path.localeCompare(b.path)
-            // Note: We do NOT pass the bridge here because we use setSourceNodes()
-            // for the library tree. Passing the bridge would trigger "Injected Library"
-            // logic which is only for the main view.
+        // Set coordinator to only show library provider
+        this.plugin.treeCoordinator.setActiveProviders(["library"]);
+
+        this.treeFacet = new TreeFacet(
+            this.plugin.treeCoordinator,
+            this.plugin.contextEngine,
+            treeContainer,
+            this.app,
+            this.plugin
         );
 
-        await this.refreshLibraryTree();
-
-        virtualWrapper.addEventListener("scroll", () => {
-            this.virtualTreeManager.updateRender();
-        });
+        this.treeFacet.onMount();
     }
 
-    private async refreshLibraryTree() {
-        if (!this.selectedLibrary || !this.virtualTreeManager) return;
-        
-        // We use the children of the selected library as the source nodes
-        // This avoids rendering the root "Library" folder itself inside its own tree
-        this.virtualTreeManager.setSourceNodes(this.selectedLibrary.children);
-        // We use "root" as the forced root context so that contextIds are generated
-        // consistently (e.g., "root > path") matching how they would be in the main view.
-        await this.virtualTreeManager.generateItems(undefined, undefined, false, "root");
-        this.virtualTreeManager.updateRender();
-    }
-
-    private async toggleCollapse(itemEl: HTMLElement, path: string, contextId?: string) {
-        const effectiveId = contextId || path;
-        if (this.plugin.settings.expandedFolders.includes(effectiveId)) {
-            this.plugin.settings.expandedFolders = this.plugin.settings.expandedFolders.filter(id => id !== effectiveId);
-        } else {
-            this.plugin.settings.expandedFolders.push(effectiveId);
-        }
-        await this.plugin.saveSettings();
-        
-        // Notify all views that the tree state has changed
-        this.app.workspace.trigger('abstract-folder:tree-state-updated');
-        void this.refreshLibraryTree();
-    }
-
-    private openFile(path: string) {
-        const file = this.app.vault.getAbstractFileByPath(path);
-        if (file instanceof TFile) {
-            this.app.workspace.getLeaf(false).openFile(file).catch(Logger.error);
+    async onClose() {
+        if (this.treeFacet) {
+            this.treeFacet.onDestroy();
+            this.treeFacet = null;
         }
     }
 }

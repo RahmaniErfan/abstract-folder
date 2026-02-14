@@ -295,6 +295,7 @@ this.addCommand({
 	}
 
 	async activateLibraryCenter() {
+		Logger.debug("Activating Library Center...");
 		const { workspace } = this.app;
 		let leaf: WorkspaceLeaf | null = null;
 		const leaves = workspace.getLeavesOfType(VIEW_TYPE_LIBRARY_CENTER);
@@ -317,6 +318,7 @@ this.addCommand({
 	}
 
 	async activateLibraryExplorer() {
+		Logger.debug("Activating Library Explorer...");
 		const { workspace } = this.app;
 		let leaf: WorkspaceLeaf | null = null;
 		const leaves = workspace.getLeavesOfType(VIEW_TYPE_LIBRARY_EXPLORER);
@@ -344,6 +346,7 @@ this.addCommand({
 	}
 
 	async activateView() {
+		Logger.debug("Activating Abstract Folder View...");
 		let leaf: WorkspaceLeaf | null = null;
 		const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_ABSTRACT_FOLDER);
 

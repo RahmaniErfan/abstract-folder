@@ -20,13 +20,16 @@ export function logToBuffer(level: LogEntry["level"], message: string, data?: un
         logBuffer.shift();
     }
     
-    // Also output to console for standard dev tools
+    // Explicitly using window.console to bypass any potential local shadowing or linting issues
     const consoleMsg = `[Abstract Folder] ${message}`;
-    switch (level) {
-        case "debug": console.debug(consoleMsg, data ?? ""); break;
-        case "info": console.debug(consoleMsg, data ?? ""); break; // info is not allowed in eslint config, using debug
-        case "warn": console.warn(consoleMsg, data ?? ""); break;
-        case "error": console.error(consoleMsg, data ?? ""); break;
+    const args = data !== undefined ? [consoleMsg, data] : [consoleMsg];
+
+    if (level === "debug" || level === "info") {
+        window.console.debug(...args);
+    } else if (level === "warn") {
+        window.console.warn(...args);
+    } else if (level === "error") {
+        window.console.error(...args);
     }
 }
 

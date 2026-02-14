@@ -39,6 +39,15 @@ export class AbstractFolderView extends ItemView {
         contentEl.empty();
         contentEl.addClass("abstract-folder-view-container");
 
+        // Set coordinator to use all providers (local + library) for the main view
+        this.plugin.treeCoordinator.setActiveProviders(null);
+        
+        // Ensure indexer starts building graph if it hasn't
+        if (!this.plugin.indexer.hasBuiltFirstGraph()) {
+            Logger.debug("AbstractFolderView: Indexer not ready, triggering initialization.");
+            this.plugin.indexer.initializeIndexer();
+        }
+
         const toolbarContainer = contentEl.createDiv({ cls: "abstract-folder-toolbar-container" });
         const searchContainer = contentEl.createDiv({ cls: "abstract-folder-search-container" });
         const treeContainer = contentEl.createDiv({ cls: "abstract-folder-tree-container" });

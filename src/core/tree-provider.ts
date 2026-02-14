@@ -8,6 +8,7 @@ export interface TreeNode {
 	uri: ResourceURI;
 	name: string;
 	isFolder: boolean;
+	depth?: number; // Calculated by TreeCoordinator during flattening
 	file?: TFile; // Optional, as some nodes might be purely virtual or from remote sources
 	metadata?: Record<string, any>;
 }

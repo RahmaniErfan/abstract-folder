@@ -1,12 +1,25 @@
 /* Abstract Folder View Container */
-.abstract-folder-view {
+.abstract-folder-view-container {
 	padding: 0;
 	margin: 0;
 	height: 100%;
-	overflow: hidden; /* Changed from overflow-y: auto to allow sub-scrolling */
-	position: relative; /* For virtual items */
+	overflow: hidden;
+	position: relative;
 	display: flex;
 	flex-direction: column;
+}
+
+.abstract-folder-tree-container {
+    flex-grow: 1;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Ensure the Virtual Viewport items are clickable and visible */
+.abstract-folder-virtual-container {
+    pointer-events: auto !important;
 }
 
 .abstract-folder-virtual-spacer {
