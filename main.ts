@@ -23,7 +23,9 @@ import { LibraryManager } from './src/library/git/library-manager';
 import { AbstractBridge } from './src/library/bridge/abstract-bridge';
 import { ContributionEngine } from './src/library/services/contribution-engine';
 import { LibraryCenterView, VIEW_TYPE_LIBRARY_CENTER } from './src/library/ui/library-center-view';
+import { LibraryExplorerView, VIEW_TYPE_LIBRARY_EXPLORER } from './src/library/ui/library-explorer-view';
 import './src/styles/index.css';
+import './src/styles/library-explorer.css';
 
 export default class AbstractFolderPlugin extends Plugin {
 	settings: AbstractFolderPluginSettings;
@@ -58,6 +60,11 @@ export default class AbstractFolderPlugin extends Plugin {
 			(leaf) => new LibraryCenterView(leaf, this)
 		);
 
+		this.registerView(
+			VIEW_TYPE_LIBRARY_EXPLORER,
+			(leaf) => new LibraryExplorerView(leaf, this)
+		);
+
 		this.updateRibbonIconVisibility();
 
 		this.addCommand({
@@ -65,6 +72,14 @@ export default class AbstractFolderPlugin extends Plugin {
 			name: "Open library center",
 			callback: () => {
 				this.activateLibraryCenter().catch(console.error);
+			},
+		});
+
+		this.addCommand({
+			id: "open-library-explorer",
+			name: "Open library explorer",
+			callback: () => {
+				this.activateLibraryExplorer().catch(console.error);
 			},
 		});
 
@@ -265,6 +280,33 @@ this.addCommand({
 			if (leaf) {
 				await leaf.setViewState({
 					type: VIEW_TYPE_LIBRARY_CENTER,
+					active: true,
+				});
+			}
+		}
+
+		if (leaf) {
+			await workspace.revealLeaf(leaf);
+		}
+	}
+
+	async activateLibraryExplorer() {
+		const { workspace } = this.app;
+		let leaf: WorkspaceLeaf | null = null;
+		const leaves = workspace.getLeavesOfType(VIEW_TYPE_LIBRARY_EXPLORER);
+
+		if (leaves.length > 0) {
+			leaf = leaves[0];
+		} else {
+			const side = this.settings.openSide;
+			leaf = side === 'left' ? workspace.getLeftLeaf(false) : workspace.getRightLeaf(false);
+			if (!leaf) {
+				leaf = side === 'left' ? workspace.getLeftLeaf(true) : workspace.getRightLeaf(true);
+			}
+			
+			if (leaf) {
+				await leaf.setViewState({
+					type: VIEW_TYPE_LIBRARY_EXPLORER,
 					active: true,
 				});
 			}

@@ -1,4 +1,4 @@
-import { App, setIcon } from "obsidian";
+import { App, setIcon, TFile } from "obsidian";
 import { FolderNode, HIDDEN_FOLDER_ID } from "../../types";
 import { AbstractFolderPluginSettings } from "../../settings";
 import AbstractFolderPlugin from "../../../main";
@@ -120,7 +120,11 @@ if (activeFile && activeFile.path === node.path) {
             selfEl.addClass("is-multi-selected");
         }
 
-        if (node.isFolder) {
+        // Unified check for folder-like behavior
+        const hasChildrenRecursive = node.children && node.children.length > 0;
+        const isEffectiveFolderRecursive = node.isFolder || hasChildrenRecursive;
+
+        if (isEffectiveFolderRecursive) {
             const iconEl = selfEl.createDiv({ cls: "abstract-folder-collapse-icon" });
             setIcon(iconEl, "chevron-right");
 
@@ -135,6 +139,13 @@ if (activeFile && activeFile.path === node.path) {
           iconToUse = "eye-off";
         }
 
+        // If it's an effective folder and has no custom icon, show folder icon
+        if (isEffectiveFolderRecursive && !iconToUse) {
+            const contextId = (itemEl as ExtendedHTMLElement)._contextId;
+            const isExpanded = contextId ? this.settings.expandedFolders.includes(contextId) : this.settings.expandedFolders.includes(node.path);
+            iconToUse = isExpanded ? "folder-open" : "folder-closed";
+        }
+
         if (iconToUse) {
           const iconContainerEl = selfEl.createDiv({ cls: "abstract-folder-item-icon" });
           setIcon(iconContainerEl, iconToUse);
@@ -146,7 +157,7 @@ if (activeFile && activeFile.path === node.path) {
         const innerEl = selfEl.createDiv({ cls: "abstract-folder-item-inner" });
         innerEl.setText(this.getDisplayName(node));
 
-        if (node.file && node.path !== HIDDEN_FOLDER_ID && node.file.extension !== 'md') {
+        if (node.file && node.path !== HIDDEN_FOLDER_ID && node.file instanceof TFile && node.file.extension !== 'md') {
           const fileTypeTag = selfEl.createDiv({ cls: "abstract-folder-file-tag" });
           fileTypeTag.setText(node.file.extension.toUpperCase());
         }
@@ -260,7 +271,11 @@ if (activeFile && activeFile.path === node.path) {
             this.dragManager.handleDrop(e, node).catch(Logger.error);
         });
 
-        if (node.isFolder) {
+        // A node is treated as a folder if it's explicitly a folder OR if it has virtual children
+        const hasChildren = node.children && node.children.length > 0;
+        const isEffectiveFolder = node.isFolder || hasChildren;
+
+        if (isEffectiveFolder) {
             itemEl.addClass("is-folder");
             if (!this.settings.expandedFolders.includes(contextId)) {
                 itemEl.addClass("is-collapsed");
@@ -280,7 +295,7 @@ if (activeFile && activeFile.path === node.path) {
             selfEl.addClass("is-multi-selected");
         }
 
-        if (node.isFolder) {
+        if (isEffectiveFolder) {
             const iconEl = selfEl.createDiv({ cls: "abstract-folder-collapse-icon" });
             setIcon(iconEl, "chevron-right");
 
@@ -292,21 +307,27 @@ if (activeFile && activeFile.path === node.path) {
 
         let iconToUse = node.icon;
         if (node.path === HIDDEN_FOLDER_ID && !iconToUse) {
-          iconToUse = "eye-off";
+            iconToUse = "eye-off";
+        }
+
+        // If it's an effective folder (even if it's a file), and has no custom icon, show folder icon
+        if (isEffectiveFolder && !iconToUse) {
+            const isExpanded = contextId ? this.settings.expandedFolders.includes(contextId) : this.settings.expandedFolders.includes(node.path);
+            iconToUse = isExpanded ? "folder-open" : "folder-closed";
         }
 
         if (iconToUse) {
-          const iconContainerEl = selfEl.createDiv({ cls: "abstract-folder-item-icon" });
-          setIcon(iconContainerEl, iconToUse);
-          if (!iconContainerEl.querySelector('svg')) {
-            iconContainerEl.setText(iconToUse);
-          }
+            const iconContainerEl = selfEl.createDiv({ cls: "abstract-folder-item-icon" });
+            setIcon(iconContainerEl, iconToUse);
+            if (!iconContainerEl.querySelector('svg')) {
+                iconContainerEl.setText(iconToUse);
+            }
         }
 
         const innerEl = selfEl.createDiv({ cls: "abstract-folder-item-inner" });
         innerEl.setText(this.getDisplayName(node));
 
-        if (node.file && node.path !== HIDDEN_FOLDER_ID && node.file.extension !== 'md') {
+        if (node.file && node.path !== HIDDEN_FOLDER_ID && node.file instanceof TFile && node.file.extension !== 'md') {
           const fileTypeTag = selfEl.createDiv({ cls: "abstract-folder-file-tag" });
           fileTypeTag.setText(node.file.extension.toUpperCase());
         }
@@ -333,7 +354,7 @@ if (activeFile && activeFile.path === node.path) {
     }
 
     private handleNodeMiddleClick(node: FolderNode, e: MouseEvent) {
-        if (node.file) {
+        if (node.file instanceof TFile) {
             const fileExists = this.app.vault.getAbstractFileByPath(node.file.path);
             if (fileExists) {
                 // Open in new tab (true = split leaf)
@@ -377,7 +398,7 @@ if (activeFile && activeFile.path === node.path) {
             this.plugin.app.workspace.trigger('abstract-folder:graph-updated'); // Re-render to clear selection
         }
 
-        if (node.file) {
+        if (node.file instanceof TFile) {
             const fileExists = this.app.vault.getAbstractFileByPath(node.file.path);
             if (fileExists) {
                 if (this.fileRevealManager) {
@@ -394,7 +415,7 @@ if (activeFile && activeFile.path === node.path) {
                     }
                 }
             }
-        } else if (node.isFolder) {
+        } else if (node.isFolder || (node.children && node.children.length > 0)) {
             const selfEl = e.currentTarget as HTMLElement;
             const itemEl = selfEl.parentElement;
 

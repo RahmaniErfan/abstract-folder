@@ -1,0 +1,70 @@
+.abstract-library-explorer {
+    padding: 10px;
+}
+
+.abstract-library-explorer h2 {
+    margin-bottom: 20px;
+    font-size: 1.4em;
+    color: var(--text-accent);
+}
+
+.library-shelf {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.library-pill-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.library-pill {
+    background-color: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 20px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+}
+
+.library-pill:hover {
+    background-color: var(--background-secondary-alt);
+    transform: translateY(-1px);
+}
+
+.library-pill:active {
+    transform: translateY(0);
+}
+
+.library-pill-name {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.library-tree-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.library-tree-header h3 {
+    margin: 0;
+    font-size: 1.1em;
+}
+
+.empty-state {
+    color: var(--text-muted);
+    font-style: italic;
+    margin-bottom: 10px;
+}

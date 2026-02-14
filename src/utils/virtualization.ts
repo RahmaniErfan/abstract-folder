@@ -15,15 +15,32 @@ export function flattenTree(
     expandedFolders: Set<string>,
     depth: number = 0,
     parentPath: string | null = null,
-    result: FlatItem[] = []
+    result: FlatItem[] = [],
+    forcedRootContext: string | null = null
 ): FlatItem[] {
     for (const node of nodes) {
-        const contextId = getContextualId(node.path, parentPath);
+        // 1. Generate Context ID
+        // For Depth 0, we allow forcing a specific root context (e.g. "root")
+        const effectiveParentPathForContext = (depth === 0 && forcedRootContext) ? forcedRootContext : parentPath;
+        const contextId = getContextualId(node.path, effectiveParentPathForContext);
+        
+        // 2. Add to result
         result.push({ node, depth, parentPath, contextId });
         
-        // Ensure virtual folders can be expanded
-        if (node.isFolder && expandedFolders.has(contextId)) {
-            flattenTree(node.children || [], expandedFolders, depth + 1, node.path, result);
+        // 3. Recurse if expanded
+        // Abstract Philosophy: Any node with children acts as a folder
+        const hasChildren = node.children && node.children.length > 0;
+        const isExpanded = expandedFolders.has(contextId);
+        
+        if (hasChildren && isExpanded) {
+            flattenTree(
+                node.children,
+                expandedFolders,
+                depth + 1,
+                node.path, // Children always use their actual parent's path
+                result,
+                null // Propagation stops after depth 0
+            );
         }
     }
     return result;

@@ -1,4 +1,4 @@
-import { TFile, TAbstractFile } from "obsidian";
+import { TAbstractFile } from "obsidian";
 
 // Extend the App interface to include the 'commands' property,
 // which is available in Obsidian's internal API but might not be in default types.
@@ -36,6 +36,7 @@ export interface FolderNode {
   isFolder: boolean;
   icon?: string; // Optional icon or emoji from frontmatter
   isHidden?: boolean; // Whether this node should be considered "hidden" from the main tree
+  isLibrary?: boolean; // Whether this node belongs to a library (read-only)
 }
 
 export interface Group {

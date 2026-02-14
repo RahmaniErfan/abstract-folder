@@ -49,22 +49,27 @@ export class LibraryManager {
                 const configPath = path.join(absoluteDir, 'library.config.json');
                 const configExists = await NodeFsAdapter.promises.stat(configPath).catch(() => null);
 
-                if (!configExists && item) {
-                    console.debug(`[LibraryManager] library.config.json missing in ${absoluteDir}. Bootstrapping from Registry metadata...`);
-                    const manifest: LibraryConfig = {
-                        id: item.id || `gen-${item.name.toLowerCase().replace(/\s+/g, '-')}`,
-                        name: item.name,
-                        author: item.author,
-                        version: "1.0.0",
-                        description: item.description,
-                        repositoryUrl: item.repositoryUrl,
-                        branch: "main"
-                    };
-                    await NodeFsAdapter.promises.writeFile(configPath, JSON.stringify(manifest, null, 2), "utf8");
-                    console.debug(`[LibraryManager] Created bootstrap manifest at ${configPath}`);
+                if (!configExists) {
+                    if (item) {
+                        console.debug(`[LibraryManager] library.config.json missing in ${absoluteDir}. Bootstrapping from Registry metadata...`);
+                        const manifest: LibraryConfig = {
+                            id: item.id || `gen-${item.name.toLowerCase().replace(/\s+/g, '-')}`,
+                            name: item.name,
+                            author: item.author,
+                            version: "1.0.0",
+                            description: item.description,
+                            repositoryUrl: item.repositoryUrl,
+                            branch: "main"
+                        };
+                        await NodeFsAdapter.promises.writeFile(configPath, JSON.stringify(manifest, null, 2), "utf8");
+                        console.debug(`[LibraryManager] Created bootstrap manifest at ${configPath}`);
+                    } else {
+                        throw new Error("Library is missing library.config.json and no metadata was provided for bootstrapping.");
+                    }
                 }
             } catch (e) {
-                console.error(`[LibraryManager] Post-clone bootstrapping failed for ${absoluteDir}:`, e);
+                console.error(`[LibraryManager] Post-clone verification/bootstrapping failed for ${absoluteDir}:`, e);
+                throw e; // Re-throw to ensure the UI knows installation failed
             }
 
             // Refresh the vault so Obsidian sees the new files

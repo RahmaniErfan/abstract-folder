@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Notice } from "obsidian";
+import { ItemView, WorkspaceLeaf, Notice, FileSystemAdapter } from "obsidian";
 import { RegistryItem } from "../types";
 import { RegistryService } from "../services/registry-service";
 import { LibraryManager } from "../git/library-manager";
@@ -127,15 +127,11 @@ export class LibraryCenterView extends ItemView {
             
             // Check if library is already installed
             const destPath = `${librariesPath}/${item.name}`;
-            const dir = destPath.startsWith('/') ? destPath : `/${destPath}`;
             
             void (async () => {
                 let isInstalled = false;
                 try {
-                    /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
-                    const stats = await (this.plugin.fs as any).promises.stat(dir);
-                    isInstalled = stats.isDirectory();
-                    /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+                    isInstalled = await this.app.vault.adapter.exists(destPath);
                 } catch {
                     isInstalled = false;
                 }
@@ -173,9 +169,11 @@ export class LibraryCenterView extends ItemView {
             
             // Post-install verification
             try {
-                const dir = destPath.startsWith('/') ? destPath : `/${destPath}`;
-                const entries = await (this.plugin.fs as any).promises.readdir(dir);
-                console.debug(`[Library Center] Post-install verification for ${dir}:`, entries);
+                const adapter = this.app.vault.adapter;
+                if (adapter instanceof FileSystemAdapter) {
+                    const entries = await adapter.list(destPath);
+                    console.debug(`[Library Center] Post-install verification for ${destPath}:`, entries);
+                }
             } catch (e) {
                 console.error(`[Library Center] Post-install verification FAILED for ${destPath}`, e);
             }
@@ -185,6 +183,9 @@ export class LibraryCenterView extends ItemView {
             
             // Trigger graph rebuild to show new virtual files immediately
             this.plugin.app.workspace.trigger("abstract-folder:graph-updated");
+            // Notify that library structure changed so Library Explorer can refresh its shelf
+            this.plugin.app.workspace.trigger("abstract-folder:library-changed");
+            
             new Notice("Virtual tree refreshed");
 
             // Refresh the registry view to swap button to "Uninstall"
@@ -218,6 +219,8 @@ export class LibraryCenterView extends ItemView {
             
             // Trigger graph rebuild to update view
             this.plugin.app.workspace.trigger("abstract-folder:graph-updated");
+            // Notify that library structure changed
+            this.plugin.app.workspace.trigger("abstract-folder:library-changed");
             
             // Refresh the whole registry view to show "Install" button again
             const container = this.containerEl.children[1] as HTMLElement;

@@ -13,11 +13,12 @@ export class VirtualTreeManager {
     private renderedItems: Map<number, HTMLElement> = new Map();
     private readonly ITEM_HEIGHT = 24;
     private highlightedPath: string | null = null;
+    private customSourceNodes: FolderNode[] | null = null;
 
     constructor(
         private app: App,
         private settings: AbstractFolderPluginSettings,
-        private indexer: FolderIndexer,
+        private indexer: FolderIndexer | null,
         private viewState: ViewState,
         private treeRenderer: TreeRenderer,
         private containerEl: HTMLElement,
@@ -26,6 +27,10 @@ export class VirtualTreeManager {
         private sortNodes: (a: FolderNode, b: FolderNode) => number,
         private abstractBridge?: AbstractBridge
     ) {}
+
+    public setSourceNodes(nodes: FolderNode[] | null): void {
+        this.customSourceNodes = nodes;
+    }
 
     public setHighlightedPath(path: string | null): void {
         this.highlightedPath = path;
@@ -54,47 +59,62 @@ export class VirtualTreeManager {
         if (this.virtualContainer) this.virtualContainer.empty();
     }
 
-    public async generateItems(allowedPaths?: Set<string>, forceExpand?: Set<string>, isSearching: boolean = false): Promise<void> {
-        const activeGroup = this.settings.activeGroupId
-            ? this.settings.groups.find(group => group.id === this.settings.activeGroupId)
-            : undefined;
-
+    public async generateItems(allowedPaths?: Set<string>, forceExpand?: Set<string>, isSearching: boolean = false, forcedRootContext: string | null = null): Promise<void> {
         const expandedSet = new Set(this.settings.expandedFolders);
         if (forceExpand) {
             forceExpand.forEach(path => expandedSet.add(path));
         }
 
-        this.flatItems = generateFlatItemsFromGraph(
-            this.app,
-            this.indexer.getGraph(),
-            expandedSet,
-            (a, b) => this.sortNodes(a, b),
-            activeGroup,
-            this.viewState.excludeExtensions,
-            isSearching
-        );
-
-        // Inject libraries if bridge is available and not searching
-        if (this.abstractBridge && !activeGroup) {
-            const libraries = await this.abstractBridge.discoverLibraries(this.settings.librarySettings.librariesPath);
-            
-            // Use flattenTree to handle recursive expansion of virtual nodes
-            const libraryFlatItems: FlatItem[] = flattenTree(
-                libraries,
+        if (this.customSourceNodes) {
+            // Contextual mode: use the custom nodes (e.g., for Library Explorer)
+            this.flatItems = flattenTree(
+                this.customSourceNodes,
                 expandedSet,
                 0,
-                null
+                null,
+                [],
+                forcedRootContext
+            );
+            
+            Logger.debug("VirtualTreeManager: generated items from custom source", {
+                count: this.customSourceNodes.length,
+                flatCount: this.flatItems.length
+            });
+        } else if (this.indexer) {
+            // Standard mode: use the global graph
+            const activeGroup = this.settings.activeGroupId
+                ? this.settings.groups.find(group => group.id === this.settings.activeGroupId)
+                : undefined;
+
+            this.flatItems = generateFlatItemsFromGraph(
+                this.app,
+                this.indexer.getGraph(),
+                expandedSet,
+                (a, b) => this.sortNodes(a, b),
+                activeGroup,
+                this.viewState.excludeExtensions,
+                isSearching
             );
 
-            // Add debug logging to confirm discovery
-            Logger.debug("VirtualTreeManager: discovered virtual libraries", {
-                count: libraries.length,
-                flatCount: libraryFlatItems.length,
-                paths: libraries.map(l => l.path)
-            });
+            // Inject libraries ONLY IF allowedPaths is provided (and we have a bridge)
+            // This ensures libraries don't leak into the main view unless explicitly requested (e.g. via allowedPaths)
+            if (this.abstractBridge && !activeGroup && allowedPaths && allowedPaths.size > 0) {
+                const libraries = await this.abstractBridge.discoverLibraries(this.settings.librarySettings.librariesPath);
+                
+                // Only include libraries that are in the allowedPaths set
+                const filteredLibraries = libraries.filter(l => allowedPaths.has(l.path));
 
-            // Merge with existing flatItems
-            this.flatItems = [...this.flatItems, ...libraryFlatItems];
+                if (filteredLibraries.length > 0) {
+                    const libraryFlatItems: FlatItem[] = flattenTree(
+                        filteredLibraries,
+                        expandedSet,
+                        0,
+                        null
+                    );
+
+                    this.flatItems = [...this.flatItems, ...libraryFlatItems];
+                }
+            }
         }
 
         Logger.debug("VirtualTreeManager: generateItems complete", {

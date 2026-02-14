@@ -121,8 +121,8 @@ export class AbstractFolderView extends ItemView {
 
     this.virtualTreeManager = new VirtualTreeManager(
         this.app, this.settings, this.indexer, this.viewState, this.treeRenderer,
-        this.contentEl, this.virtualSpacer, this.virtualContainer, (a, b) => this.sortNodes(a, b),
-        this.plugin.abstractBridge
+        this.contentEl, this.virtualSpacer, this.virtualContainer, (a, b) => this.sortNodes(a, b)
+        // We removed abstractBridge here. Libraries should only be visible in the Library Explorer.
     );
 
     await Promise.resolve();
@@ -935,7 +935,7 @@ export class AbstractFolderView extends ItemView {
 
   private getDisplayName = (node: FolderNode): string => {
     if (node.path === HIDDEN_FOLDER_ID) return "Hidden";
-    if (node.file) {
+    if (node.file instanceof TFile) {
       const cache = this.app.metadataCache.getFileCache(node.file);
       const frontmatter = cache?.frontmatter;
 
@@ -978,9 +978,9 @@ export class AbstractFolderView extends ItemView {
     }
 
     this.viewState.clearMultiSelection();
-    if (node.file) {
+    if (node.file instanceof TFile) {
       const fileExists = this.app.vault.getAbstractFileByPath(node.file.path);
-      if (fileExists) this.app.workspace.getLeaf(false).openFile(node.file).catch(Logger.error);
+      if (fileExists instanceof TFile) this.app.workspace.getLeaf(false).openFile(fileExists).catch(Logger.error);
     }
 
     if (node.isFolder || node.file) {

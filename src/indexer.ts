@@ -310,6 +310,17 @@ export class FolderIndexer {
   }
 
   private isExcluded(path: string): boolean {
+      // 1. Globally exclude the library storage path to prevent community notes
+      // from leaking into the user's personal Abstract Folder view.
+      const librariesPath = this.settings.librarySettings.librariesPath;
+      if (librariesPath) {
+          const cleanPath = path.replace(/^\//, '');
+          const cleanLibPath = librariesPath.replace(/^\//, '');
+          if (cleanPath === cleanLibPath || cleanPath.startsWith(cleanLibPath + '/')) {
+              return true;
+          }
+      }
+
       if (!this.settings.excludedPaths) return false;
       for (const excluded of this.settings.excludedPaths) {
           // Check if path starts with excluded folder path

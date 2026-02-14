@@ -13,9 +13,15 @@
   - **Modular Settings**: Fully refactored settings tab with specialized sections for Appearance, Library, Groups, and Debugging.
 
 ### Improved
+- **Library Explorer Reliability**: Fixed "Flat Tree" issue by implementing proactive link resolution. Hierarchy now renders immediately after installation.
+- **Reactive Navigation**: The Library Explorer shelf now refreshes automatically when libraries are installed or uninstalled.
+- **Visual Clarity**: Parent notes in libraries now consistently display folder icons and expansion chevrons.
 - **Stability**: Enforced leading-slash pathing for virtual filesystem operations.
 - **Resilience**: Defensive rendering in Settings UI to prevent crashes on corrupted `data.json`.
 - **Reliability**: Hardened discovery URL normalization for GitHub repositories.
+
+### Fixed
+- **Read-Only Enforcement**: Disabled destructive context menu actions for community library files to prevent accidental data loss.
 
 ---
 *For versions 1.0.0 through 1.14.0, see [CHANGELOG_ARCHIVE.md](./CHANGELOG_ARCHIVE.md)*

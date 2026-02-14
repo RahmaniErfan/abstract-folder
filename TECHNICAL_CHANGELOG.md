@@ -1,3 +1,26 @@
+# Technical Changelog - [Unreleased]
+
+## Library Explorer Robustness & Read-Only Integrity
+
+### 1. Proactive Link Resolution (`src/library/bridge/abstract-bridge.ts`)
+*   **Problem**: Obsidian's metadata cache is often empty immediately after a library is installed or synced via Git, causing hierarchy links to fail and rendering a "Flat Tree".
+*   **Solution**: Implemented a `localPathMap` (basename to full path) built during the initial filesystem scan.
+*   **Strategy**: The bridge now prioritizes this local map for link resolution before falling back to the Obsidian cache. This ensures the hierarchy is built correctly even before Obsidian finishes indexing.
+*   **Manual Parsing Fallback**: Enhanced the YAML parser to aggressively read file contents if the cache is stale or incomplete.
+
+### 2. Read-Only Context Menus (`src/ui/context-menu.ts`, `src/types.ts`)
+*   **Implementation**: Introduced `isLibrary` property to the `FolderNode` interface.
+*   **UI Enforcement**: The `ContextMenuHandler` now detects library nodes and automatically strips destructive actions (Create, Rename, Delete, Hide/Unhide) while preserving standard "Open" and "Focus" actions.
+*   **Rationale**: Protects community-synced content from accidental local modifications that would be overwritten by future syncs.
+
+### 3. Reactive View Synchronization (`src/library/ui/library-center-view.ts`, `src/library/ui/library-explorer-view.ts`)
+*   **Event-Driven Refresh**: Created a dedicated `abstract-folder:library-changed` workspace event.
+*   **Flow**: Triggered by the Library Center immediately after installation or uninstallation. The Library Explorer listens for this event to refresh its "Shelf" navigation without requiring a plugin restart.
+
+### 4. Folder Icon Consistency (`src/ui/tree/tree-renderer.ts`)
+*   **Logic**: Unified the "Effective Folder" check across standard and virtualized tree rendering.
+*   **Result**: Nodes with children (even if they are markdown files) now consistently show folder icons and expansion chevrons, improving visual hierarchy clarity in libraries.
+
 # Technical Changelog - Abstract Folder Plugin v1.13.1
 
 ## Context Menu Architecture Refinement

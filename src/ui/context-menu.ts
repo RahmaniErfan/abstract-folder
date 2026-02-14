@@ -68,16 +68,25 @@ export class ContextMenuHandler {
     }
 
     private addSingleItemItems(menu: Menu, node: FolderNode, multiSelectedPaths: Set<string>) {
-        if (!node.file) return;
+        if (!node.file || !(node.file instanceof TFile)) return;
+        const file = node.file;
 
         if (!multiSelectedPaths.has(node.path) && multiSelectedPaths.size > 0) {
             multiSelectedPaths.clear();
             this.plugin.app.workspace.trigger('abstract-folder:graph-updated');
         }
 
+        // If it's a library node, we restrict all modifications
+        if (node.isLibrary) {
+            this.addStandardFileActions(menu, file);
+            menu.addSeparator();
+            this.app.workspace.trigger("file-menu", menu, file, "abstract-folder-view");
+            return;
+        }
+
         // Plugin-specific actions first
-        this.addCreationItems(menu, node.file);
-        this.addPluginSpecificActions(menu, node.file);
+        this.addCreationItems(menu, file);
+        this.addPluginSpecificActions(menu, file);
 
         menu.addItem((item) =>
             item
@@ -85,7 +94,7 @@ export class ContextMenuHandler {
             .setIcon("pencil")
             .setSection('abstract-folder')
             .onClick(() => {
-                new RenameModal(this.app, node.file!).open();
+                new RenameModal(this.app, file).open();
             })
         );
 
@@ -95,8 +104,8 @@ export class ContextMenuHandler {
             .setIcon("trash")
             .setSection('abstract-folder')
             .onClick(() => {
-                new DeleteConfirmModal(this.app, node.file!, (deleteChildren: boolean) => {
-                    deleteAbstractFile(this.app, node.file!, deleteChildren, this.indexer)
+                new DeleteConfirmModal(this.app, file, (deleteChildren: boolean) => {
+                    deleteAbstractFile(this.app, file, deleteChildren, this.indexer)
                         .catch(Logger.error);
                 }).open();
             })
@@ -104,11 +113,11 @@ export class ContextMenuHandler {
         menu.addSeparator();
 
         // Standard file actions
-        this.addStandardFileActions(menu, node.file);
+        this.addStandardFileActions(menu, file);
         menu.addSeparator();
 
         // Trigger file-menu after adding our primary items
-        this.app.workspace.trigger("file-menu", menu, node.file, "abstract-folder-view");
+        this.app.workspace.trigger("file-menu", menu, file, "abstract-folder-view");
     }
 
     private truncate(text: string): string {
