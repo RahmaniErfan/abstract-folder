@@ -77,6 +77,14 @@ export class ContextEngine {
     }
 
     /**
+     * Collapses all nodes.
+     */
+    collapseAll() {
+        this.state.expandedURIs.clear();
+        this.notify();
+    }
+
+    /**
      * Sets the active group.
      */
     setActiveGroup(groupId: string | null) {
