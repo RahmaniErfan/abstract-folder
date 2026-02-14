@@ -1,49 +1,72 @@
 .abstract-library-explorer {
     padding: 10px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .abstract-library-explorer h2 {
-    margin-bottom: 20px;
-    font-size: 1.4em;
-    color: var(--text-accent);
+    margin: 10px 0 20px 0;
+    font-size: 1.2em;
+    font-weight: 600;
+    color: var(--text-normal);
 }
 
 .library-shelf {
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 10px;
 }
 
-.library-pill-container {
+.library-card-container {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+.library-explorer-card {
+    background-color: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    padding: 10px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
     display: flex;
-    flex-wrap: wrap;
+    align-items: center;
     gap: 12px;
 }
 
-.library-pill {
-    background-color: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 20px;
-    padding: 8px 16px;
-    cursor: pointer;
-    transition: background-color 0.2s, transform 0.1s;
+.library-explorer-card:hover {
+    background-color: var(--background-secondary-alt);
+    border-color: var(--interactive-accent);
+}
+
+.library-explorer-card:active {
+    background-color: var(--background-modifier-active-hover);
+}
+
+.library-card-icon {
     display: flex;
     align-items: center;
-    gap: 8px;
-    max-width: 100%;
+    justify-content: center;
+    color: var(--text-muted);
 }
 
-.library-pill:hover {
-    background-color: var(--background-secondary-alt);
-    transform: translateY(-1px);
+.library-card-icon svg {
+    width: 18px;
+    height: 18px;
 }
 
-.library-pill:active {
-    transform: translateY(0);
+.library-card-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
-.library-pill-name {
+.library-card-name {
     font-weight: 500;
+    font-size: 0.95em;
+    color: var(--text-normal);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -53,18 +76,27 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 15px;
-    padding-bottom: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
     border-bottom: 1px solid var(--background-modifier-border);
 }
 
 .library-tree-header h3 {
     margin: 0;
-    font-size: 1.1em;
+    font-size: 1.05em;
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .empty-state {
     color: var(--text-muted);
     font-style: italic;
-    margin-bottom: 10px;
+    margin: 20px 0 10px 0;
+    text-align: center;
+}
+
+.abstract-library-explorer .empty-state + button {
+    align-self: center;
 }

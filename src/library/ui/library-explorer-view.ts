@@ -89,16 +89,20 @@ export class LibraryExplorerView extends ItemView {
             return;
         }
 
-        const pillContainer = shelfContainer.createDiv({ cls: "library-pill-container" });
+        const cardContainer = shelfContainer.createDiv({ cls: "library-card-container" });
 
         libraries.forEach(lib => {
-            const pill = pillContainer.createDiv({ cls: "library-pill" });
-            const info = pill.createDiv({ cls: "library-pill-info" });
+            const card = cardContainer.createDiv({ cls: "library-explorer-card" });
+            const iconContainer = card.createDiv({ cls: "library-card-icon" });
+            setIcon(iconContainer, "folder-closed");
+            
+            const info = card.createDiv({ cls: "library-card-info" });
             if (lib.file instanceof TFolder) {
-                info.createDiv({ cls: "library-pill-name", text: lib.file.name });
+                info.createDiv({ cls: "library-card-name", text: lib.file.name });
+                // We could potentially add more info here later, like item count
             }
             
-            pill.addEventListener("click", () => {
+            card.addEventListener("click", () => {
                 this.selectedLibrary = lib;
                 this.renderView();
                 void this.refreshLibraryTree();
