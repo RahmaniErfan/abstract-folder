@@ -1,3 +1,4 @@
+import { TreeCoordinator } from "./tree-coordinator";
 import { ResourceURI, URIUtils } from "./uri";
 
 export interface ContextState {
@@ -107,6 +108,19 @@ export class ContextEngine {
     clearSelection() {
         if (this.state.selectedURIs.size === 0) return;
         this.state.selectedURIs.clear();
+        this.notify();
+    }
+    /**
+     * Expands all nodes in the tree.
+     * Note: This only marks URIs as expanded; the TreeCoordinator determines if they have children.
+     */
+    async expandAll(coordinator: TreeCoordinator) {
+        const items = await coordinator.getFlatVisibleItems();
+        const folderUris = items
+            .filter(node => node.isFolder)
+            .map(node => URIUtils.toString(node.uri));
+        
+        folderUris.forEach((uri: string) => this.state.expandedURIs.add(uri));
         this.notify();
     }
 }

@@ -110,10 +110,17 @@ export class TreeFacet extends BaseFacet {
             if (!isExpanded) {
                 collapseIcon.addClass("is-collapsed");
             }
-        } else {
-            const fileIcon = selfEl.createDiv({ cls: "nav-file-icon" });
-            setIcon(fileIcon, "file-text");
         }
+
+        // Icon Rendering (Support custom icons from metadata)
+        const iconContainer = selfEl.createDiv({ cls: node.isFolder ? "nav-folder-icon" : "nav-file-icon" });
+        let iconId = node.isFolder ? "folder" : "file-text";
+        
+        if (node.metadata && typeof node.metadata.icon === 'string') {
+            iconId = node.metadata.icon;
+        }
+
+        setIcon(iconContainer, iconId);
 
         selfEl.createDiv({ cls: "nav-file-title-content", text: node.name });
 

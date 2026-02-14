@@ -21,6 +21,11 @@ export class ContextMenuHandler {
         const menu = new Menu();
         menu.setUseNativeMenu(false);
 
+        // If node.file is already provided (SOVM), use it, otherwise lookup by path
+        if (!(node as any).file && node.path) {
+            (node as any).file = this.app.vault.getAbstractFileByPath(node.path);
+        }
+
         if (multiSelectedPaths.size > 1 && multiSelectedPaths.has(node.path)) {
             this.addMultiSelectItems(menu, multiSelectedPaths);
         } else {
@@ -68,8 +73,8 @@ export class ContextMenuHandler {
     }
 
     private addSingleItemItems(menu: Menu, node: FolderNode, multiSelectedPaths: Set<string>) {
-        if (!node.file || !(node.file instanceof TFile)) return;
-        const file = node.file;
+        const file = node.file || (node as any).file;
+        if (!file || !(file instanceof TFile)) return;
 
         if (!multiSelectedPaths.has(node.path) && multiSelectedPaths.size > 0) {
             multiSelectedPaths.clear();

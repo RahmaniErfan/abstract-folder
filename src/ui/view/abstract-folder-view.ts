@@ -57,7 +57,9 @@ export class AbstractFolderView extends ItemView {
             this.plugin.treeCoordinator,
             this.plugin.contextEngine,
             toolbarContainer,
-            this.app
+            this.app,
+            this.plugin.settings,
+            () => this.plugin.saveSettings()
         );
 
         this.searchFacet = new SearchFacet(

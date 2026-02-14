@@ -10,7 +10,7 @@ export interface TreeNode {
 	isFolder: boolean;
 	depth?: number; // Calculated by TreeCoordinator during flattening
 	file?: TFile; // Optional, as some nodes might be purely virtual or from remote sources
-	metadata?: Record<string, any>;
+	metadata?: Record<string, unknown>;
 }
 
 /**
@@ -21,6 +21,6 @@ export interface ITreeProvider {
 
 	getRoots(): Promise<TreeNode[]>;
 	getChildren(parentUri: ResourceURI): Promise<TreeNode[]>;
-	getMetadata(uri: ResourceURI): Promise<Record<string, any>>;
+	getMetadata(uri: ResourceURI): Promise<Record<string, unknown>>;
 	search(query: string): Promise<ResourceURI[]>;
 }

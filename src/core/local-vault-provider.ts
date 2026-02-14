@@ -74,12 +74,19 @@ export class LocalVaultProvider implements ITreeProvider {
         const file = this.app.vault.getAbstractFileByPath(path);
         const name = file ? file.name : path.split('/').pop() || path;
         const isFolder = !!this.indexer.getGraph().parentToChildren[path];
+        
+        let metadata: Record<string, unknown> | undefined;
+        if (file instanceof TFile) {
+            const cache = this.app.metadataCache.getFileCache(file);
+            metadata = (cache?.frontmatter as Record<string, unknown>) || undefined;
+        }
 
         return {
             uri: URIUtils.local(path),
             name,
             isFolder,
-            file: file instanceof TFile ? file : undefined
+            file: file instanceof TFile ? file : undefined,
+            metadata
         };
     }
 }
