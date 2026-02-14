@@ -8,9 +8,9 @@ export abstract class BaseFacet {
     protected subscriptions: (() => void)[] = [];
 
     constructor(
-        protected containerEl: HTMLElement,
+        protected treeCoordinator: TreeCoordinator,
         protected contextEngine: ContextEngine,
-        protected treeCoordinator: TreeCoordinator
+        protected containerEl: HTMLElement
     ) {}
 
     /**

@@ -11,7 +11,10 @@ import { Logger } from './src/utils/logger';
 import { AbstractFolderPluginSettings, DEFAULT_SETTINGS } from './src/settings';
 import { FolderIndexer } from './src/indexer';
 import { MetricsManager } from './src/metrics-manager';
-import { AbstractFolderView, VIEW_TYPE_ABSTRACT_FOLDER } from './src/view';
+import { AbstractFolderView, VIEW_TYPE_ABSTRACT_FOLDER } from './src/ui/view/abstract-folder-view';
+import { ContextEngine } from './src/core/context-engine';
+import { TreeCoordinator } from './src/core/tree-coordinator';
+import { LocalVaultProvider } from './src/core/local-vault-provider';
 import { CreateAbstractChildModal, ParentPickerModal, ChildFileType, FolderSelectionModal, ConversionOptionsModal, DestinationPickerModal, NewFolderNameModal, SimulationModal, ScopeSelectionModal } from './src/ui/modals';
 import { CreateEditGroupModal } from './src/ui/modals/create-edit-group-modal';
 import { ManageGroupsModal } from './src/ui/modals/manage-groups-modal';
@@ -36,6 +39,11 @@ export default class AbstractFolderPlugin extends Plugin {
 	metricsManager: MetricsManager;
 	ribbonIconEl: HTMLElement | null = null;
 
+	// SOVM Singletons
+	contextEngine: ContextEngine;
+	treeCoordinator: TreeCoordinator;
+	localVaultProvider: LocalVaultProvider;
+
 	async onload() {
 		Logger.debug("Starting onload...");
 		await this.loadSettings();
@@ -50,9 +58,15 @@ export default class AbstractFolderPlugin extends Plugin {
 		Logger.debug("Initializing indexer...");
 		this.indexer.initializeIndexer();
 
+		// Initialize SOVM Stack
+		this.contextEngine = new ContextEngine();
+		this.treeCoordinator = new TreeCoordinator(this.contextEngine);
+		this.localVaultProvider = new LocalVaultProvider(this.app, this.indexer);
+		this.treeCoordinator.registerProvider(this.localVaultProvider);
+
 		this.registerView(
 			VIEW_TYPE_ABSTRACT_FOLDER,
-			(leaf) => new AbstractFolderView(leaf, this.indexer, this.settings, this, this.metricsManager)
+			(leaf) => new AbstractFolderView(leaf, this)
 		);
 
 		this.registerView(
@@ -104,8 +118,11 @@ export default class AbstractFolderPlugin extends Plugin {
 				this.activateView().then(() => {
 					const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_ABSTRACT_FOLDER);
 					if (leaves.length > 0) {
-						const view = leaves[0].view as AbstractFolderView;
-						view.focusFile(activeFile.path);
+						const view = leaves[0].view;
+						if (view instanceof AbstractFolderView) {
+							// TODO: Re-implement focusFile in SOVM
+							// view.focusFile(activeFile.path);
+						}
 					}
 				}).catch(console.error);
 			}
@@ -118,8 +135,11 @@ export default class AbstractFolderPlugin extends Plugin {
 				this.activateView().then(() => {
 					const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_ABSTRACT_FOLDER);
 					if (leaves.length > 0) {
-						const view = leaves[0].view as AbstractFolderView;
-						view.focusSearch();
+						const view = leaves[0].view;
+						if (view instanceof AbstractFolderView) {
+							// TODO: Re-implement focusSearch in SOVM
+							// view.focusSearch();
+						}
 					}
 				}).catch(console.error);
 			}
@@ -185,8 +205,11 @@ this.addCommand({
 	callback: () => {
 		const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_ABSTRACT_FOLDER);
 		if (leaves.length > 0) {
-			const view = leaves[0].view as AbstractFolderView;
-			view.clearActiveGroup();
+			const view = leaves[0].view;
+			if (view instanceof AbstractFolderView) {
+				// TODO: Re-implement group clearing in SOVM
+				// view.clearActiveGroup();
+			}
 		} else if (this.settings.activeGroupId) {
 			this.settings.activeGroupId = null;
 			this.saveSettings().then(() => {
