@@ -31,6 +31,7 @@ import { LibraryCenterView, VIEW_TYPE_LIBRARY_CENTER } from './src/library/ui/li
 import { LibraryExplorerView, VIEW_TYPE_LIBRARY_EXPLORER } from './src/library/ui/library-explorer-view';
 import './src/styles/index.css';
 import './src/styles/library-explorer.css';
+import { TreeBuilder } from './src/core/tree-builder';
 
 export default class AbstractFolderPlugin extends Plugin {
 	settings: AbstractFolderPluginSettings;
@@ -47,6 +48,7 @@ export default class AbstractFolderPlugin extends Plugin {
 	localVaultProvider: LocalVaultProvider;
 	libraryTreeProvider: LibraryTreeProvider;
 	graphEngine: GraphEngine;
+	treeBuilder: TreeBuilder;
 
 	async onload() {
 		Logger.debug("Starting onload...");
@@ -67,8 +69,12 @@ export default class AbstractFolderPlugin extends Plugin {
 		
 		// Initialize Graph Engine
 		this.graphEngine = new GraphEngine(this.app, this.settings);
-		void this.graphEngine.initialize().catch(error => Logger.error("Failed to initialize GraphEngine", error));
+		void this.graphEngine.initialize().then(() => {
+			void this.runShadowTreeBuild();
+		}).catch(error => Logger.error("Failed to initialize GraphEngine", error));
 		
+		this.treeBuilder = new TreeBuilder(this.graphEngine);
+
 		this.treeCoordinator = new TreeCoordinator(this.app, this.contextEngine, this.settings, this.metricsManager);
 		this.localVaultProvider = new LocalVaultProvider(this.app, this.indexer, this.settings);
 		this.libraryTreeProvider = new LibraryTreeProvider(this.app, this.settings);
@@ -172,6 +178,14 @@ export default class AbstractFolderPlugin extends Plugin {
 					Logger.debug("Legacy dump:", legacyDump);
 					Logger.debug("V2 dump:", v2Dump);
 				}
+			}
+		});
+
+		this.addCommand({
+			id: "debug-tree-build",
+			name: "Debug tree build (v2 shadow build)",
+			callback: () => {
+				this.runShadowTreeBuild().catch(console.error);
 			}
 		});
 
@@ -484,6 +498,26 @@ this.addCommand({
 				this.ribbonIconEl.remove();
 				this.ribbonIconEl = null;
 			}
+		}
+	}
+
+	private async runShadowTreeBuild() {
+		Logger.info("Starting v2 shadow tree build...");
+		const generator = this.treeBuilder.buildTree();
+		let result;
+
+		while (true) {
+			const next = await generator.next();
+			if (next.done) {
+				result = next.value;
+				break;
+			}
+		}
+
+		if (result) {
+			Logger.info(`V2 shadow tree build complete. Nodes: ${result.flatList.length}`);
+			// Log first 5 nodes for sanity check
+			Logger.debug("First 5 nodes:", result.flatList.slice(0, 5));
 		}
 	}
 }
