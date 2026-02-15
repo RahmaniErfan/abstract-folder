@@ -1,4 +1,5 @@
 import { TreeCoordinator } from "./tree-coordinator";
+import { TreeContext } from "./tree-provider";
 import { ResourceURI, URIUtils } from "./uri";
 
 import { SortConfig } from "../types";
@@ -20,6 +21,7 @@ export type StateListener = (state: ContextState) => void;
 export class ContextEngine {
     private state: ContextState;
     private listeners: Set<StateListener> = new Set();
+    private isSilent = false;
 
     constructor(initialState?: Partial<ContextState>, defaultSort?: SortConfig) {
         this.state = {
@@ -47,8 +49,22 @@ export class ContextEngine {
     }
 
     private notify() {
+        if (this.isSilent) return;
         const stateCopy = this.getState();
         this.listeners.forEach(l => l(stateCopy));
+    }
+
+    /**
+     * Executes a callback without triggering notifications.
+     */
+    silent(callback: () => void) {
+        const wasSilent = this.isSilent;
+        this.isSilent = true;
+        try {
+            callback();
+        } finally {
+            this.isSilent = wasSilent;
+        }
     }
 
     /**
@@ -126,8 +142,8 @@ export class ContextEngine {
      * Expands all nodes in the tree.
      * Note: This only marks URIs as expanded; the TreeCoordinator determines if they have children.
      */
-    async expandAll(coordinator: TreeCoordinator) {
-        const items = await coordinator.getFlatVisibleItems();
+    async expandAll(coordinator: TreeCoordinator, context: TreeContext) {
+        const items = await coordinator.getFlatVisibleItems(context);
         const folderUris = items
             .filter(node => node.isFolder)
             .map(node => URIUtils.toString(node.uri));

@@ -11,6 +11,14 @@ import { AbstractFolderPluginSettings } from "../../settings";
  */
 export class AbstractBridge {
     private parentPropertyNames: string[] = ['parent'];
+    
+    // Cache for discovered libraries
+    private discoveryCache: LibraryNode[] | null = null;
+    private lastDiscoveryTime: number = 0;
+    private DISCOVERY_TTL = 5000; // 5 seconds cache for discovery
+
+    // Cache for built trees per library
+    private treeCache: Map<string, { nodes: FolderNode[], timestamp: number }> = new Map();
 
     constructor(private app: App, settings?: Partial<AbstractFolderPluginSettings>) {
         if (settings) {
@@ -30,7 +38,13 @@ export class AbstractBridge {
     /**
      * Finds all library folders in the vault and converts them to LibraryNodes.
      */
-    async discoverLibraries(basePath: string): Promise<LibraryNode[]> {
+    async discoverLibraries(basePath: string, forceRefresh = false): Promise<LibraryNode[]> {
+        const now = Date.now();
+        if (!forceRefresh && this.discoveryCache && (now - this.lastDiscoveryTime < this.DISCOVERY_TTL)) {
+            return this.discoveryCache;
+        }
+
+        Logger.debug(`[AbstractBridge] discoverLibraries called for: ${basePath}`);
         try {
             const folder = this.app.vault.getAbstractFileByPath(basePath);
             if (!(folder instanceof TFolder)) return [];
@@ -62,6 +76,8 @@ export class AbstractBridge {
                 }
             }
 
+            this.discoveryCache = libraries;
+            this.lastDiscoveryTime = now;
             return libraries;
         } catch (error) {
             console.error("Failed to discover libraries", error);
@@ -91,7 +107,16 @@ export class AbstractBridge {
      * This follows the core philosophy: physical folders are flattened,
      * and structure is derived purely from parent-child relationships.
      */
-    async buildAbstractLibraryTree(libraryRoot: TFolder): Promise<FolderNode[]> {
+    async buildAbstractLibraryTree(libraryRoot: TFolder, forceRefresh = false): Promise<FolderNode[]> {
+        const cacheKey = libraryRoot.path;
+        const now = Date.now();
+        const cached = this.treeCache.get(cacheKey);
+        
+        if (!forceRefresh && cached && (now - cached.timestamp < 30000)) { // 30s cache for tree
+            return cached.nodes;
+        }
+
+        Logger.debug(`[AbstractBridge] buildAbstractLibraryTree called for root: ${libraryRoot.path}`);
         const files: TFile[] = [];
         const localPathMap = new Map<string, string>(); // basename/name -> path
 
@@ -215,7 +240,17 @@ export class AbstractBridge {
         }
 
         Logger.debug(`[AbstractBridge] Tree building complete. Roots count: ${roots.length}`, roots.map(r => r.path));
+        
+        this.treeCache.set(cacheKey, { nodes: roots, timestamp: now });
         return roots;
+    }
+
+    /**
+     * Invalidates all caches
+     */
+    invalidateCache() {
+        this.discoveryCache = null;
+        this.treeCache.clear();
     }
 
     private resolveLibraryLink(link: string, sourcePath: string, libraryBasePath: string, localPathMap?: Map<string, string>): string | null {

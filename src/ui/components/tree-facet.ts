@@ -7,7 +7,7 @@ import { TreeCoordinator } from "../../core/tree-coordinator";
 import { ContextEngine } from "../../core/context-engine";
 import AbstractFolderPlugin from "../../../main";
 import { URIUtils } from "../../core/uri";
-import { TreeNode } from "../../core/tree-provider";
+import { TreeNode, TreeContext } from "../../core/tree-provider";
 import { DragManager } from "../dnd/drag-manager";
 import { FolderNode } from "../../types";
 
@@ -18,15 +18,22 @@ export class TreeFacet extends BaseFacet {
     private viewport: VirtualViewport;
     private contextMenuHandler: ContextMenuHandler;
     private dragManager: DragManager | null = null;
+    private isActive = false;
+    private refreshTimer: number | null = null;
+    public treeContext: TreeContext = { providerIds: null, libraryId: null };
 
     constructor(
         treeCoordinator: TreeCoordinator,
         contextEngine: ContextEngine,
         containerEl: HTMLElement,
         private app: App,
-        private plugin: AbstractFolderPlugin
+        private plugin: AbstractFolderPlugin,
+        treeContext?: Partial<TreeContext>
     ) {
         super(treeCoordinator, contextEngine, containerEl);
+        if (treeContext) {
+            this.treeContext = { ...this.treeContext, ...treeContext };
+        }
         Logger.debug("TreeFacet: Initialized.");
         this.contextMenuHandler = new ContextMenuHandler(
             this.app,
@@ -45,6 +52,7 @@ export class TreeFacet extends BaseFacet {
     private virtualContainer: HTMLElement;
 
     onMount(): void {
+        this.isActive = true;
         Logger.debug("TreeFacet: onMount() called.");
         this.containerEl.addClass("abstract-folder-tree-facet");
         
@@ -66,17 +74,18 @@ export class TreeFacet extends BaseFacet {
 
         // Subscribe to engine changes
         this.subscribe(this.contextEngine.subscribe(() => {
-            Logger.debug("TreeFacet: ContextEngine changed, refreshing.");
-            void this.refresh();
+            if (!this.isActive) return;
+            Logger.debug("TreeFacet: ContextEngine changed, debouncing refresh.");
+            this.debouncedRefresh();
         }));
 
         // Subscribe to graph updates from indexer
         // Note: Using 'any' cast for custom event name to satisfy Obsidian's EventRef type constraints
         const workspace = this.app.workspace as unknown as Record<string, (name: string, callback: () => void) => unknown>;
         const eventRef = workspace.on('abstract-folder:graph-updated', () => {
+            if (!this.isActive) return;
             Logger.debug("TreeFacet: Graph updated event received.");
-            Logger.debug("TreeFacet: Graph updated, refreshing view.");
-            void this.refresh();
+            this.debouncedRefresh();
         });
         this.subscribe(() => {
             const ws = this.app.workspace as unknown as Record<string, (ref: unknown) => void>;
@@ -87,9 +96,19 @@ export class TreeFacet extends BaseFacet {
         void this.refresh();
     }
 
+    private debouncedRefresh() {
+        if (this.refreshTimer) {
+            window.clearTimeout(this.refreshTimer);
+        }
+        this.refreshTimer = window.setTimeout(() => {
+            void this.refresh();
+            this.refreshTimer = null;
+        }, 50); // Small 50ms debounce to batch notifications
+    }
+
     private async refresh() {
         Logger.debug("TreeFacet: refresh() triggered.");
-        const items = await this.treeCoordinator.getFlatVisibleItems();
+        const items = await this.treeCoordinator.getFlatVisibleItems(this.treeContext);
         Logger.debug(`TreeFacet: refresh() received ${items.length} items from coordinator.`);
         this.viewport.setItems(items);
     }
@@ -228,6 +247,10 @@ export class TreeFacet extends BaseFacet {
     }
 
     onDestroy(): void {
+        this.isActive = false;
+        if (this.refreshTimer) {
+            window.clearTimeout(this.refreshTimer);
+        }
         if (this.viewport) {
             this.viewport.destroy();
         }

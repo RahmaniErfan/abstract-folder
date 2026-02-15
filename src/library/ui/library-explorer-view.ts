@@ -31,7 +31,8 @@ export class LibraryExplorerView extends ItemView {
     }
 
     async onOpen() {
-        this.registerEvent((this.app.workspace as any).on("abstract-folder:library-changed", () => {
+        // @ts-ignore - Internal workspace event
+        this.registerEvent(this.app.workspace.on("abstract-folder:library-changed", () => {
             this.renderView();
         }));
         this.renderView();
@@ -81,6 +82,8 @@ export class LibraryExplorerView extends ItemView {
             
             card.addEventListener("click", () => {
                 this.selectedLibrary = lib;
+                // Invalidate cache when choosing a library to ensure fresh view
+                this.plugin.libraryTreeProvider.invalidateCache();
                 this.renderView();
             });
         });
@@ -110,15 +113,16 @@ export class LibraryExplorerView extends ItemView {
 
         Logger.debug("LibraryExplorerView: Mounting TreeFacet for selected library.");
 
-        // Set coordinator to only show library provider
-        this.plugin.treeCoordinator.setActiveProviders(["library"]);
-
         this.treeFacet = new TreeFacet(
             this.plugin.treeCoordinator,
             this.plugin.contextEngine,
             treeContainer,
             this.app,
-            this.plugin
+            this.plugin,
+            {
+                providerIds: ["library"],
+                libraryId: this.selectedLibrary.libraryId
+            }
         );
 
         this.treeFacet.onMount();

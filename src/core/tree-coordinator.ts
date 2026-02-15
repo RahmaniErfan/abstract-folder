@@ -8,13 +8,14 @@ import { MetricsManager } from "../metrics-manager";
 import { AbstractFolderPluginSettings } from "../settings";
 import { FolderNode } from "../types";
 
+import { TreeContext } from "./tree-provider";
+
 /**
  * TreeCoordinator aggregates multiple ITreeProviders and manages
  * the unified hierarchical model for the view.
  */
 export class TreeCoordinator {
     private providers: Map<string, ITreeProvider> = new Map();
-    private activeProviderIds: Set<string> | null = null;
 
     constructor(
         private app: App,
@@ -43,30 +44,22 @@ export class TreeCoordinator {
         this.providers.set(provider.id, provider);
     }
 
-    /**
-     * Filters which providers are used for unified operations.
-     * Pass null to use all registered providers.
-     */
-    setActiveProviders(providerIds: string[] | null) {
-        this.activeProviderIds = providerIds ? new Set(providerIds) : null;
-        Logger.debug(`TreeCoordinator: active providers set to ${providerIds ? providerIds.join(", ") : "all"}`);
-    }
-
-    private getEnabledProviders(): ITreeProvider[] {
+    private getEnabledProviders(context: TreeContext): ITreeProvider[] {
         const all = Array.from(this.providers.values());
-        if (!this.activeProviderIds) return all;
-        return all.filter(p => this.activeProviderIds!.has(p.id));
+        if (!context.providerIds) return all;
+        const activeIds = new Set(context.providerIds);
+        return all.filter(p => activeIds.has(p.id));
     }
 
     /**
      * Gets roots from enabled providers.
      */
-    async getUnifiedRoots(): Promise<TreeNode[]> {
-        const enabled = this.getEnabledProviders();
+    async getUnifiedRoots(context: TreeContext): Promise<TreeNode[]> {
+        const enabled = this.getEnabledProviders(context);
         Logger.debug(`TreeCoordinator: getUnifiedRoots() called. Enabled: ${enabled.map(p => p.id).join(", ")}`);
         const allRoots: TreeNode[][] = await Promise.all(
             enabled.map(async p => {
-                const roots = await p.getRoots();
+                const roots = await p.getRoots(context);
                 Logger.debug(`TreeCoordinator: Provider ${p.id} returned ${roots.length} roots.`);
                 return roots;
             })
@@ -96,13 +89,13 @@ export class TreeCoordinator {
     /**
      * Resolves children for a given URI by delegating to the correct provider.
      */
-    async getChildren(uri: ResourceURI): Promise<TreeNode[]> {
+    async getChildren(uri: ResourceURI, context: TreeContext): Promise<TreeNode[]> {
         const provider = this.providers.get(uri.provider);
         if (!provider) {
             Logger.error(`TreeCoordinator: No provider found for provider ID: ${uri.provider}`);
             return [];
         }
-        const children = await provider.getChildren(uri);
+        const children = await provider.getChildren(uri, context);
         Logger.debug(`TreeCoordinator: Found ${children.length} children for path: ${uri.path}`);
         
         // Apply sorting
@@ -142,10 +135,10 @@ export class TreeCoordinator {
      * Flattens the visible tree based on expansion state in ContextEngine.
      * This is the core logic for the VirtualViewport.
      */
-    async getFlatVisibleItems(): Promise<TreeNode[]> {
-        Logger.debug("TreeCoordinator: getFlatVisibleItems() started.");
+    async getFlatVisibleItems(context: TreeContext): Promise<TreeNode[]> {
+        Logger.debug(`TreeCoordinator: getFlatVisibleItems() started. ActiveProviders: ${context.providerIds ? context.providerIds.join(",") : "all"}`);
         const state = this.contextEngine.getState();
-        const roots = await this.getUnifiedRoots();
+        const roots = await this.getUnifiedRoots(context);
         const flatItems: TreeNode[] = [];
         const searchQuery = state.searchQuery?.toLowerCase() || "";
 
@@ -194,7 +187,7 @@ export class TreeCoordinator {
             
             // If searching, we effectively "expand" everything to find matches in children
             if (node.isFolder && (isExpanded || searchQuery)) {
-                const children = await this.getChildren(node.uri);
+                const children = await this.getChildren(node.uri, context);
                 for (const child of children) {
                     await traverse(child, depth + 1);
                 }

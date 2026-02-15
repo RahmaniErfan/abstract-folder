@@ -36,6 +36,12 @@ export class AbstractFolderView extends ItemView {
 
     async onOpen() {
         Logger.debug("AbstractFolderView: Opening...");
+        
+        // Reset selection silently
+        this.plugin.contextEngine.silent(() => {
+            this.plugin.contextEngine.clearSelection();
+        });
+
         const { contentEl } = this;
         contentEl.empty();
         contentEl.addClass("abstract-folder-view-container");
@@ -59,7 +65,8 @@ export class AbstractFolderView extends ItemView {
             this.app,
             this.plugin.settings,
             () => this.plugin.saveSettings(),
-            groupHeaderContainer
+            groupHeaderContainer,
+            () => this.treeFacet?.treeContext || { providerIds: ['local'], libraryId: null }
         );
 
         // Initialize Search Facet
@@ -75,7 +82,8 @@ export class AbstractFolderView extends ItemView {
             this.plugin.contextEngine,
             treeContainer,
             this.app,
-            this.plugin
+            this.plugin,
+            { providerIds: ['local'] } // Explicitly isolate to local vault
         );
 
         // Initialize DragManager and connect to TreeFacet

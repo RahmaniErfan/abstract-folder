@@ -1,5 +1,5 @@
 import { App, TFile } from "obsidian";
-import { ITreeProvider, TreeNode } from "./tree-provider";
+import { ITreeProvider, TreeNode, TreeContext } from "./tree-provider";
 import { ResourceURI, URIUtils } from "./uri";
 import { FolderIndexer } from "../indexer";
 import { Logger } from "../utils/logger";
@@ -30,7 +30,7 @@ export class LocalVaultProvider implements ITreeProvider {
         Logger.debug(`LocalVaultProvider: activeGroupId set to ${groupId}`);
     }
 
-    async getRoots(): Promise<TreeNode[]> {
+    async getRoots(context: TreeContext): Promise<TreeNode[]> {
         Logger.debug("LocalVaultProvider: getRoots() called.");
         if (!this.indexer.hasBuiltFirstGraph()) {
             Logger.debug("LocalVaultProvider: Indexer has not built first graph yet.");
@@ -63,7 +63,7 @@ export class LocalVaultProvider implements ITreeProvider {
         return roots;
     }
 
-    async getChildren(parentUri: ResourceURI): Promise<TreeNode[]> {
+    async getChildren(parentUri: ResourceURI, context: TreeContext): Promise<TreeNode[]> {
         Logger.debug(`LocalVaultProvider: getChildren() called for ${parentUri.path}`);
         if (parentUri.provider !== this.id) {
             Logger.debug(`LocalVaultProvider: Provider mismatch. Expected ${this.id}, got ${parentUri.provider}`);

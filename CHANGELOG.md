@@ -28,7 +28,19 @@
   - **High Performance Rendering**: Switched to a virtualized tree system that can handle thousands of nodes with minimal memory footprint.
   - **Modular UI (Facets)**: Decoupled Toolbar, Search, and Tree logic into independent, reactive components.
   - **Unified Resource Model**: Introduced a URI-based resource model supporting multi-source tree providers (Local Vault + Libraries).
+  - **Stateless Tree Coordination**: Moved from global mutation to stateless context-passing for robust view isolation.
   - **Advanced Feature Restoration**: Fully restored and hardened advanced sorting (Gravity/Thermal), search filtering, and group-scoped views within the new architecture.
+
+### Improved
+- **View Isolation**: Guaranteed data isolation between main vault and library explorer using view-scoped contexts.
+- **Performance**: Multi-layer caching in `AbstractBridge` (Discovery + Tree) with TTL logic to minimize vault scans.
+- **UI Responsiveness**: Debounced refreshes (50ms) and active-view gating to eliminate redundant render cycles.
+- **CSS Hardening**: Refined box model and z-indexing for tree items to fix hover/overlap regressions.
+
+### Fixed
+- **Critical Data Leakage**: Fixed bug where library files would appear in the local vault view after switching.
+- **Infinite Refresh Loops**: Resolved circular triggers between `ContextEngine` and `TreeFacet`.
+- **Redundant Disk Scans**: Eliminated expensive recursive vault scans during every tree expansion.
 
 ---
 *For versions 1.0.0 through 1.14.0, see [CHANGELOG_ARCHIVE.md](./CHANGELOG_ARCHIVE.md)*

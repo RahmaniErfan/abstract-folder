@@ -2,6 +2,14 @@ import { TFile } from "obsidian";
 import { ResourceURI } from "./uri";
 
 /**
+ * Contextual information for tree operations.
+ */
+export interface TreeContext {
+	providerIds: string[] | null;
+	libraryId: string | null;
+}
+
+/**
  * Standard tree node structure for the SOVM architecture.
  */
 export interface TreeNode {
@@ -13,14 +21,11 @@ export interface TreeNode {
 	metadata?: Record<string, unknown>;
 }
 
-/**
- * Interface for pluggable tree data sources.
- */
 export interface ITreeProvider {
 	readonly id: string;
 
-	getRoots(): Promise<TreeNode[]>;
-	getChildren(parentUri: ResourceURI): Promise<TreeNode[]>;
+	getRoots(context: TreeContext): Promise<TreeNode[]>;
+	getChildren(parentUri: ResourceURI, context: TreeContext): Promise<TreeNode[]>;
 	getMetadata(uri: ResourceURI): Promise<Record<string, unknown>>;
 	search(query: string): Promise<ResourceURI[]>;
 }

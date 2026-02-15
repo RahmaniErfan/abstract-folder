@@ -1,5 +1,6 @@
 import { BaseFacet } from "./base-facet";
 import { setIcon, App, Menu } from "obsidian";
+import { TreeContext } from "../../core/tree-provider";
 import AbstractFolderPlugin from "main";
 import { Logger } from "../../utils/logger";
 import { ContextEngine } from "../../core/context-engine";
@@ -22,7 +23,8 @@ export class ToolbarFacet extends BaseFacet {
 		private app: App,
 		private settings: AbstractFolderPluginSettings,
 		private onSaveSettings: () => Promise<void>,
-		private groupHeaderContainer?: HTMLElement,
+		private groupHeaderContainer: HTMLElement,
+		private getContext?: () => TreeContext,
 	) {
 		super(treeCoordinator, contextEngine, containerEl);
 	}
@@ -62,7 +64,8 @@ export class ToolbarFacet extends BaseFacet {
 		// 1. Expand All
 		this.addAction("chevrons-up-down", "Expand all", () => {
 			Logger.debug("ToolbarFacet: Expand all");
-			this.contextEngine.expandAll(this.treeCoordinator).catch((err) => {
+			const context = this.getContext ? this.getContext() : { providerIds: ['local'], libraryId: null };
+			this.contextEngine.expandAll(this.treeCoordinator, context).catch((err) => {
 				Logger.error("ToolbarFacet: Error expanding all", err);
 			});
 		});

@@ -4,6 +4,13 @@ import { ResourceURI } from "./uri";
 import { AbstractBridge } from "../library/bridge/abstract-bridge";
 import { AbstractFolderPluginSettings } from "../settings";
 import { FolderNode } from "../types";
+import { Logger } from "src/utils/logger";
+
+/**
+ * LibraryTreeProvider integrates remote/synced libraries into the SOVM tree.
+ * It uses AbstractBridge to discover and map library files to abstract hierarchies.
+ */
+import { TreeContext } from "./tree-provider";
 
 /**
  * LibraryTreeProvider integrates remote/synced libraries into the SOVM tree.
@@ -20,9 +27,16 @@ export class LibraryTreeProvider implements ITreeProvider {
         this.bridge = new AbstractBridge(this.app, this.settings);
     }
 
-    async getRoots(): Promise<TreeNode[]> {
-        const libraries = await this.bridge.discoverLibraries(this.settings.librarySettings.librariesPath);
+    async getRoots(context: TreeContext): Promise<TreeNode[]> {
+        // If we have a selected library, we can optimize by not scanning everything if cached
+        let libraries = await this.bridge.discoverLibraries(this.settings.librarySettings.librariesPath);
         
+        const selectedId = context.libraryId;
+        if (selectedId) {
+            libraries = libraries.filter(lib => lib.libraryId === selectedId);
+            Logger.debug(`LibraryTreeProvider: Filtered to ${libraries.length} libraries based on scope ${selectedId}`);
+        }
+
         // Map top-level LibraryNodes to TreeNodes
         return libraries.map(lib => ({
             uri: {
@@ -33,7 +47,7 @@ export class LibraryTreeProvider implements ITreeProvider {
             },
             name: (lib.file as TAbstractFile).name,
             isFolder: true,
-            metadata: { 
+            metadata: {
                 isLibrary: true,
                 status: lib.status,
                 libraryId: lib.libraryId
@@ -41,7 +55,7 @@ export class LibraryTreeProvider implements ITreeProvider {
         }));
     }
 
-    async getChildren(parentUri: ResourceURI): Promise<TreeNode[]> {
+    async getChildren(parentUri: ResourceURI, context: TreeContext): Promise<TreeNode[]> {
         if (parentUri.provider !== this.id) return [];
 
         const folder = this.app.vault.getAbstractFileByPath(parentUri.path);
@@ -50,6 +64,10 @@ export class LibraryTreeProvider implements ITreeProvider {
         const nodes: FolderNode[] = await this.bridge.buildAbstractLibraryTree(folder);
         
         return nodes.map(node => this.mapFolderNodeToTreeNode(node, parentUri.context));
+    }
+
+    invalidateCache() {
+        this.bridge.invalidateCache();
     }
 
     async getMetadata(uri: ResourceURI): Promise<Record<string, unknown>> {

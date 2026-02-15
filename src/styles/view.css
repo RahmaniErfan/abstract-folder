@@ -116,6 +116,24 @@
 
 .abstract-folder-item-self {
     position: relative;
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    z-index: 1;
+}
+
+/* Fix overlapping items by ensuring relative parent has proper height */
+.abstract-folder-item {
+    display: block;
+    overflow: hidden;
+}
+
+.abstract-folder-item:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.abstract-folder-item.is-selected {
+    background-color: var(--background-modifier-active-hover);
 }
 
 .abstract-folder-item-self.is-search-match::after {
