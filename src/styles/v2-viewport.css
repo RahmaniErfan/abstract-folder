@@ -116,29 +116,7 @@
     padding-right: 8px;
     box-sizing: border-box;
     
-    /* Indentation Guide System (Background Gradient) */
     --indent-width: 18px;
-    --guide-color: var(--background-modifier-border);
-    background-image: linear-gradient(to right, transparent calc(var(--indent-width) - 1px), var(--guide-color) var(--indent-width));
-    background-size: var(--indent-width) 100%;
-    background-repeat: repeat-x;
-}
-
-/* Limit guides to current depth */
-.af-v2-item::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    /* Hide guides beyond current depth */
-    width: calc(var(--depth, 0) * var(--indent-width));
-    background-image: inherit; /* Use the parent's gradient */
-    background-size: inherit;
-    background-repeat: inherit;
-    background-color: var(--background-primary); /* Solid block to hide guides */
-    pointer-events: none;
-    z-index: 2;
 }
 
 /* Clear background for the actual content area */
@@ -160,10 +138,6 @@
 }
 
 .af-v2-item:hover {
-    background-color: var(--background-modifier-hover);
-}
-
-.af-v2-item:hover::before {
     background-color: var(--background-modifier-hover);
 }
 
