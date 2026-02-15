@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
 import { SortConfig } from '../types';
 import { Logger } from 'src/utils/logger';
+import { NodeLocationMap } from './tree-builder';
 
 export interface ContextStateV2 {
     /** Currently selected Synthetic URIs */
@@ -21,6 +22,10 @@ export interface ContextStateV2 {
  */
 export class ContextEngineV2 extends EventEmitter {
     private state: ContextStateV2;
+    /** Stable reference to physical paths of selections for the Repair Cycle */
+    private selectedPaths: Set<string> = new Set();
+    /** Stable reference to physical paths of expansions for the Repair Cycle */
+    private expandedPaths: Set<string> = new Set();
 
     constructor(initialState?: Partial<ContextStateV2>) {
         super();
@@ -48,8 +53,24 @@ export class ContextEngineV2 extends EventEmitter {
     /**
      * Handles single and multi-selection
      */
-    select(uri: string, options?: { multi?: boolean }): void {
-        if (options?.multi) {
+    select(uri: string, options?: { multi?: boolean, range?: boolean, flatList?: string[] }): void {
+        if (options?.range && options.flatList && this.state.focusedURI) {
+            const start = options.flatList.indexOf(this.state.focusedURI);
+            const end = options.flatList.indexOf(uri);
+            
+            if (start !== -1 && end !== -1) {
+                const [low, high] = [Math.min(start, end), Math.max(start, end)];
+                // Range select adds to existing selection if multi is also pressed,
+                // but usually, it replaces the selection in standard file explorers.
+                // We'll follow the "replace" pattern unless multi is also true.
+                if (!options.multi) {
+                    this.state.selectedURIs.clear();
+                }
+                for (let i = low; i <= high; i++) {
+                    this.state.selectedURIs.add(options.flatList[i]);
+                }
+            }
+        } else if (options?.multi) {
             if (this.state.selectedURIs.has(uri)) {
                 this.state.selectedURIs.delete(uri);
             } else {
@@ -59,6 +80,9 @@ export class ContextEngineV2 extends EventEmitter {
             this.state.selectedURIs.clear();
             this.state.selectedURIs.add(uri);
         }
+        
+        // Update focus cursor on every selection
+        this.state.focusedURI = uri;
         
         this.emit('selection-changed', this.state.selectedURIs);
         this.emit('changed', this.getState());
@@ -115,5 +139,63 @@ export class ContextEngineV2 extends EventEmitter {
 
     isFocused(uri: string): boolean {
         return this.state.focusedURI === uri;
+    }
+
+    // =========================================================================================
+    // State Repair Cycle
+    // =========================================================================================
+
+    /**
+     * Snapshots the current synthetic URIs into physical file paths.
+     * This must be called BEFORE a graph rebuild if we want to preserve state.
+     * @param locationMap The map from the current (pre-rebuild) tree snapshot
+     */
+    snapshotPhysicalPaths(locationMap: NodeLocationMap): void {
+        this.selectedPaths.clear();
+        this.expandedPaths.clear();
+
+        // Since one physical path can map to multiple URIs, we store the path
+        // if ANY of its URIs are selected/expanded.
+        for (const [path, uris] of locationMap.entries()) {
+            for (const uri of uris) {
+                if (this.state.selectedURIs.has(uri)) {
+                    this.selectedPaths.add(path);
+                }
+                if (this.state.expandedURIs.has(uri)) {
+                    this.expandedPaths.add(path);
+                }
+            }
+        }
+        
+        Logger.debug(`[Abstract Folder] Context: Snapshot complete. Paths - Selected: ${this.selectedPaths.size}, Expanded: ${this.expandedPaths.size}`);
+    }
+
+    /**
+     * Repairs the synthetic URIs based on a new location map.
+     * This is called AFTER a graph rebuild.
+     * @param locationMap The map from the new (post-rebuild) tree snapshot
+     */
+    repairState(locationMap: NodeLocationMap): void {
+        const newSelectedURIs = new Set<string>();
+        const newExpandedURIs = new Set<string>();
+
+        for (const path of this.selectedPaths) {
+            const uris = locationMap.get(path);
+            if (uris) uris.forEach(uri => newSelectedURIs.add(uri));
+        }
+
+        for (const path of this.expandedPaths) {
+            const uris = locationMap.get(path);
+            if (uris) uris.forEach(uri => newExpandedURIs.add(uri));
+        }
+
+        this.state.selectedURIs = newSelectedURIs;
+        this.state.expandedURIs = newExpandedURIs;
+
+        Logger.debug(`[Abstract Folder] Context: State repaired. URIs - Selected: ${this.state.selectedURIs.size}, Expanded: ${this.state.expandedURIs.size}`);
+        
+        // Notify projector and viewport if selection changed
+        this.emit('selection-changed', this.state.selectedURIs);
+        this.emit('changed', this.getState());
     }
 }

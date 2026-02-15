@@ -71,6 +71,10 @@ export class TransactionManager {
             // 3. Resume and force re-index to reflect changes
             this.graph.resume();
             await this.graph.forceReindex();
+            // 4. Emit transaction-complete for the UI/Repair logic
+            // Since we don't have a direct emitter on TransactionManager in the spec,
+            // we'll trigger an event on the app workspace to notify components.
+            this.app.workspace.trigger('abstract-folder:graph-updated');
         }
 
         if (errors.length > 0) {

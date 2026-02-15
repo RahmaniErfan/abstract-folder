@@ -90,7 +90,13 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
             this
         );
 
-        // Subscribe to context changes
+        // Subscribe to selection changes to update ScopeProjector
+        this.plugin.contextEngineV2.on('selection-changed', (selectedURIs: Set<string>) => {
+            this.plugin.scopeProjector.update(selectedURIs);
+            this.viewport.update(); // Fast repaint of visible rows
+        });
+
+        // Subscribe to general context changes
         this.plugin.contextEngineV2.on('changed', () => {
             void this.refreshV2Tree();
         });
@@ -98,7 +104,17 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
         // Subscribe to graph changes
         // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
         this.registerEvent(this.app.workspace.on('abstract-folder:graph-updated' as any, () => {
-            void this.refreshV2Tree();
+            // 1. Snapshot physical paths BEFORE rebuilding the tree
+            if (this.currentSnapshot?.locationMap) {
+                this.plugin.contextEngineV2.snapshotPhysicalPaths(this.currentSnapshot.locationMap);
+            }
+            // 2. Refresh the tree (this generates a NEW locationMap)
+            void this.refreshV2Tree().then(() => {
+                // 3. Repair the state based on the NEW locationMap
+                if (this.currentSnapshot?.locationMap) {
+                    this.plugin.contextEngineV2.repairState(this.currentSnapshot.locationMap);
+                }
+            });
         }));
 
         // Initial build
@@ -126,9 +142,20 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
     }
 
     onItemClick(node: AbstractNode, event: MouseEvent): void {
+        const isMulti = event.ctrlKey || event.metaKey;
+        const isRange = event.shiftKey;
+
+        // 1. Update Selection State
+        this.plugin.contextEngineV2.select(node.id, {
+            multi: isMulti,
+            range: isRange,
+            flatList: this.currentSnapshot?.flatList.map(n => n.id)
+        });
+
+        // 2. Open File if it's a single click (no modifier or just range)
         const file = this.app.vault.getAbstractFileByPath(node.path);
-        if (file instanceof TFile) {
-            void this.app.workspace.getLeaf(event.ctrlKey || event.metaKey).openFile(file);
+        if (file instanceof TFile && !isMulti) {
+            void this.app.workspace.getLeaf(false).openFile(file);
         }
     }
 
