@@ -31,7 +31,11 @@ import { LibraryCenterView, VIEW_TYPE_LIBRARY_CENTER } from './src/library/ui/li
 import { LibraryExplorerView, VIEW_TYPE_LIBRARY_EXPLORER } from './src/library/ui/library-explorer-view';
 import './src/styles/index.css';
 import './src/styles/library-explorer.css';
+import './src/styles/v2-viewport.css';
 import { TreeBuilder } from './src/core/tree-builder';
+import { ContextEngineV2 } from './src/core/context-engine-v2';
+import { ScopeProjector } from './src/core/scope-projector';
+import { TransactionManager } from './src/core/transaction-manager';
 
 export default class AbstractFolderPlugin extends Plugin {
 	settings: AbstractFolderPluginSettings;
@@ -49,6 +53,9 @@ export default class AbstractFolderPlugin extends Plugin {
 	libraryTreeProvider: LibraryTreeProvider;
 	graphEngine: GraphEngine;
 	treeBuilder: TreeBuilder;
+	contextEngineV2: ContextEngineV2;
+	scopeProjector: ScopeProjector;
+	transactionManager: TransactionManager;
 
 	async onload() {
 		Logger.debug("Starting onload...");
@@ -74,6 +81,14 @@ export default class AbstractFolderPlugin extends Plugin {
 		}).catch(error => Logger.error("Failed to initialize GraphEngine", error));
 		
 		this.treeBuilder = new TreeBuilder(this.graphEngine);
+		this.contextEngineV2 = new ContextEngineV2();
+		this.scopeProjector = new ScopeProjector();
+		this.transactionManager = new TransactionManager(this.app, this.graphEngine, this.settings);
+
+		// Sync ScopeProjector with ContextEngineV2
+		this.contextEngineV2.on('selection-changed', (selections: Set<string>) => {
+			this.scopeProjector.update(selections);
+		});
 
 		this.treeCoordinator = new TreeCoordinator(this.app, this.contextEngine, this.settings, this.metricsManager);
 		this.localVaultProvider = new LocalVaultProvider(this.app, this.indexer, this.settings);

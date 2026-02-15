@@ -196,6 +196,19 @@ export function renderGeneralSettings(containerEl: HTMLElement, plugin: Abstract
 			}),
 		);
 
+	new Setting(containerEl).setName("Advanced (v2 engine)").setHeading();
+
+	new Setting(containerEl)
+		.setName("Use v2 engine (beta)")
+		.setDesc("Enable the new high-performance graph engine and virtual viewport. This is experimental and may have bugs.")
+		.addToggle((toggle) =>
+			toggle.setValue(plugin.settings.useV2Engine).onChange(async (value) => {
+				plugin.settings.useV2Engine = value;
+				await plugin.saveSettings();
+				new Notice("Please reload Obsidian or the plugin for the engine change to take effect.");
+			}),
+		);
+
 	renderExcludedPaths(containerEl, plugin);
 }
 

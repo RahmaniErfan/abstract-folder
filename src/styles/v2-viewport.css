@@ -1,0 +1,122 @@
+/**
+ * Virtual Viewport v2 Styles
+ * Optimized for performance and scoped highlighting.
+ */
+
+.abstract-folder-v2-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    background-color: var(--background-primary);
+    contain: layout size; /* Performance optimization */
+}
+
+.abstract-folder-v2-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    pointer-events: none;
+}
+
+.abstract-folder-v2-row {
+    position: absolute;
+    width: 100%;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    pointer-events: auto;
+    cursor: var(--cursor-clickable);
+    user-select: none;
+    padding-right: 8px;
+    
+    /* Indentation Guide System (Background Gradient) */
+    --indent-width: 18px;
+    --guide-color: var(--background-modifier-border);
+    background-image: linear-gradient(to right, transparent calc(var(--indent-width) - 1px), var(--guide-color) var(--indent-width));
+    background-size: var(--indent-width) 100%;
+    background-repeat: repeat-x;
+}
+
+/* Limit guides to current depth */
+.abstract-folder-v2-row::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    /* Hide guides beyond current depth */
+    width: calc(var(--depth) * var(--indent-width));
+    background: inherit;
+    pointer-events: none;
+}
+
+/* Clear background for the actual content area */
+.abstract-folder-v2-row-content {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    padding-left: calc(var(--depth) * var(--indent-width) + 4px);
+    background-color: var(--background-primary);
+    z-index: 1;
+}
+
+.abstract-folder-v2-row:hover .abstract-folder-v2-row-content {
+    background-color: var(--background-modifier-hover);
+}
+
+.abstract-folder-v2-row.is-selected .abstract-folder-v2-row-content {
+    background-color: var(--background-modifier-active-hover);
+    color: var(--text-accent);
+}
+
+/* =========================================================================================
+   Scoped Highlighting (The Senior Architecture)
+   ========================================================================================= */
+
+/* When a row is IN SCOPE (descendant of selected), it gets a subtle background tint */
+.abstract-folder-v2-row.is-in-scope .abstract-folder-v2-row-content {
+    background-color: var(--background-modifier-success-soft, rgba(0, 255, 0, 0.05));
+    border-left: 2px solid var(--interactive-accent);
+}
+
+/* Special icons or badges for scoped items */
+.abstract-folder-v2-row.is-in-scope .nav-file-title-content::after {
+    content: " •";
+    opacity: 0.5;
+    font-size: 0.8em;
+}
+
+/* =========================================================================================
+   UI Elements
+   ========================================================================================= */
+
+.abstract-folder-v2-row .collapse-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    color: var(--text-muted);
+    transition: transform 0.1s ease-in-out;
+}
+
+.abstract-folder-v2-row .collapse-icon.is-collapsed {
+    transform: rotate(-90deg);
+}
+
+.abstract-folder-v2-row .row-icon {
+    margin: 0 4px;
+    font-size: 14px;
+}
+
+.abstract-folder-v2-row .row-name {
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: var(--font-ui-small);
+}
