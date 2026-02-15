@@ -1,7 +1,21 @@
 # Changelog
 
-## [Unreleased] - (Abstract Library Update v1.15)
+## [Unreleased] - (V2 High-Performance Architecture)
 ### Added
+- **V2 SOVM Architecture**: Complete architectural overhaul to a Service-Oriented View Model for massive vault support.
+  - **GraphEngine**: High-speed, bidirectional adjacency index for link-based hierarchy.
+  - **TreeBuilder**: Iterative DFS tree construction with time-slicing (AsyncGenerators) to prevent UI freezing.
+  - **VirtualViewportV2**: Absolute-positioned windowed virtualization for O(1) rendering performance.
+  - **ContextEngineV2**: Atomic state management for selections and expansions using the Action-Reducer pattern.
+- **Scoped Highlighting**: Visual "focus" mode that highlights all descendants of the currently selected node.
+- **Enhanced Search**: Time-sliced search construction with automatic parent expansion for matches.
+- **Mobile Optimized**: Adaptive row heights and touch-friendly targets for iOS and Android.
+
+### Removed
+- **Legacy Components**: Removed monolithic `FolderIndexer`, `TreeCoordinator`, and all class-based `Facets`.
+- **Shadow V1 Logic**: Completely purged legacy rendering paths and `useV2Engine` toggle; the V2 stack is now the sole engine.
+
+### Improved
 - **Indentation Guides**: Reddit-style vertical indentation guides for the tree view. Supports "Rainbow Indents" with multiple color palettes (Classic, Pastel, Neon) and hover highlighting.
 - **Abstract Library System**: Integrated library management for shared knowledge structures.
   - **Physical Library Sync**: Replaced Lightning-FS with direct vault synchronization. Libraries now exist as real files in your vault, enabling native Obsidian features (Search, Graph View, Backlinks) to work out-of-the-box.

@@ -56,7 +56,6 @@ export function renderGeneralSettings(containerEl: HTMLElement, plugin: Abstract
 						plugin.settings.propertyName = propertyNames[0];
 					}
 					await plugin.saveSettings();
-					plugin.indexer.updateSettings(plugin.settings);
 				}),
 		);
 
@@ -79,7 +78,6 @@ export function renderGeneralSettings(containerEl: HTMLElement, plugin: Abstract
 						plugin.settings.childrenPropertyName = propertyNames[0];
 					}
 					await plugin.saveSettings();
-					plugin.indexer.updateSettings(plugin.settings);
 				}),
 		);
 
@@ -122,7 +120,6 @@ export function renderGeneralSettings(containerEl: HTMLElement, plugin: Abstract
 			toggle.setValue(plugin.settings.showAliases).onChange(async (value) => {
 				plugin.settings.showAliases = value;
 				await plugin.saveSettings();
-				plugin.indexer.updateSettings(plugin.settings);
 			}),
 		);
 
@@ -141,7 +138,6 @@ export function renderGeneralSettings(containerEl: HTMLElement, plugin: Abstract
 						.map((v) => v.trim())
 						.filter((v) => v.length > 0);
 					await plugin.saveSettings();
-					plugin.indexer.updateSettings(plugin.settings);
 				}),
 		);
 
@@ -196,19 +192,6 @@ export function renderGeneralSettings(containerEl: HTMLElement, plugin: Abstract
 			}),
 		);
 
-	new Setting(containerEl).setName("Advanced (v2 engine)").setHeading();
-
-	new Setting(containerEl)
-		.setName("Use v2 engine (beta)")
-		.setDesc("Enable the new high-performance graph engine and virtual viewport. This is experimental and may have bugs.")
-		.addToggle((toggle) =>
-			toggle.setValue(plugin.settings.useV2Engine).onChange(async (value) => {
-				plugin.settings.useV2Engine = value;
-				await plugin.saveSettings();
-				new Notice("Please reload Obsidian or the plugin for the engine change to take effect.");
-			}),
-		);
-
 	renderExcludedPaths(containerEl, plugin);
 }
 
@@ -233,7 +216,6 @@ function renderExcludedPaths(containerEl: HTMLElement, plugin: AbstractFolderPlu
 					text.onChange(async (value) => {
 						plugin.settings.excludedPaths[index] = normalizePath(value);
 						await plugin.saveSettings();
-						plugin.indexer.updateSettings(plugin.settings);
 					});
 				})
 				.addButton((button) =>
@@ -243,7 +225,6 @@ function renderExcludedPaths(containerEl: HTMLElement, plugin: AbstractFolderPlu
 						.onClick(async () => {
 							plugin.settings.excludedPaths.splice(index, 1);
 							await plugin.saveSettings();
-							plugin.indexer.updateSettings(plugin.settings);
 							renderList();
 						}),
 				);

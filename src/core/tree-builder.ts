@@ -1,5 +1,6 @@
 import { FileID, IGraphEngine } from './graph-engine';
 import { HIDDEN_FOLDER_ID } from '../types';
+import { ContextEngineV2 } from './context-engine-v2';
 
 /**
  * Represents a node in the flattened tree view.
@@ -46,14 +47,13 @@ export class TreeBuilder {
      * Builds the tree snapshot iteratively and with time-slicing.
      * Returns a generator that yields when the time budget is exceeded.
      */
-    async *buildTree(): AsyncGenerator<void, TreeSnapshot, void> {
+    async *buildTree(context: ContextEngineV2, filterQuery?: string | null, forceExpandAll = false): AsyncGenerator<void, TreeSnapshot, void> {
         const flatList: AbstractNode[] = [];
         const locationMap: NodeLocationMap = new Map();
         
         const roots = this.graph.getAllRoots();
         
         // Stack-based DFS
-        // Each entry: { id, parentUri, depth, visitedPath }
         const stack: Array<{
             id: FileID;
             parentUri: string;
@@ -61,8 +61,6 @@ export class TreeBuilder {
             visitedPath: Set<FileID>;
         }> = [];
 
-        // Push roots to stack in reverse order to process them in alphabetical order
-        // (Since it's a stack, last-in first-out)
         for (const rootId of [...roots].reverse()) {
             stack.push({
                 id: rootId,
@@ -75,52 +73,50 @@ export class TreeBuilder {
         let lastFrameTime = performance.now();
 
         while (stack.length > 0) {
-            // Check time budget
             const now = performance.now();
             if (now - lastFrameTime > this.timeBudget) {
                 yield;
+                lastFrameTime = performance.now();
                 lastFrameTime = performance.now();
             }
 
             const current = stack.pop()!;
             const { id, parentUri, depth, visitedPath } = current;
 
-            // 1. Generate Synthetic URI
-            // We append a slash to ensure "Folder" doesn't match "Folder-Backup" in prefix checks
             const nodeName = this.getNodeName(id);
             const uri = `${parentUri}${nodeName}/`;
 
-            // 2. Cycle Detection
-            if (visitedPath.has(id)) {
-                // TODO: Maybe add a special "Loop" node
-                continue;
-            }
+            if (visitedPath.has(id)) continue;
 
-            // 3. Add to Snapshot
+            const matchesFilter = !filterQuery || nodeName.toLowerCase().includes(filterQuery.toLowerCase());
             const children = this.graph.getChildren(id);
             const meta = this.graph.getNodeMeta(id);
+            const isExpanded = forceExpandAll || context.isExpanded(uri);
 
-            flatList.push({
-                id: uri,
-                path: id,
-                name: nodeName,
-                depth,
-                hasChildren: children.length > 0,
-                extension: meta?.extension || ''
-            });
+            if (matchesFilter) {
+                flatList.push({
+                    id: uri,
+                    path: id,
+                    name: nodeName,
+                    depth,
+                    hasChildren: children.length > 0,
+                    extension: meta?.extension || ''
+                });
 
-            // Update Inverse Index
-            if (!locationMap.has(id)) {
-                locationMap.set(id, []);
+                if (!locationMap.has(id)) {
+                    locationMap.set(id, []);
+                }
+                locationMap.get(id)!.push(uri);
             }
-            locationMap.get(id)!.push(uri);
 
-            // 4. Process Children
-            if (children.length > 0) {
+            // Process children if expanded OR if we are filtering (to find matches deeper)
+            // If filtering, we might want to only show the path to the match.
+            // For now, let's keep it simple: if filtering, we traverse everything but only add matches to flatList.
+            // This is "Search" mode.
+            if (children.length > 0 && (isExpanded || filterQuery)) {
                 const nextVisitedPath = new Set(visitedPath);
                 nextVisitedPath.add(id);
 
-                // Push children to stack in reverse order for correct visual sorting
                 for (const childId of [...children].reverse()) {
                     stack.push({
                         id: childId,
@@ -137,7 +133,6 @@ export class TreeBuilder {
 
     private getNodeName(path: string): string {
         if (path === HIDDEN_FOLDER_ID) return 'Hidden';
-        
         const lastSlash = path.lastIndexOf('/');
         if (lastSlash === -1) return path;
         return path.substring(lastSlash + 1);

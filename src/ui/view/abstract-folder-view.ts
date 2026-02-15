@@ -1,33 +1,21 @@
-import { ItemView, WorkspaceLeaf, TFile } from "obsidian";
-import AbstractFolderPlugin from '../../../main';
-import { TreeFacet } from "../components/tree-facet";
+import { ItemView, WorkspaceLeaf, TFile, Notice, Platform, Menu } from "obsidian";
+import type AbstractFolderPlugin from "main";
 import { VirtualViewportV2, ViewportDelegateV2 } from "../components/virtual-viewport-v2";
-import { DragManager } from "../dnd/drag-manager";
-import { ToolbarFacet } from "../components/toolbar-facet";
-import { SearchFacet } from "../components/search-facet";
-import { Logger } from "../../utils/logger";
+import { TreeSnapshot, AbstractNode } from "../../core/tree-builder";
+import { deleteAbstractFile, createAbstractChildFile, toggleHiddenStatus } from "../../utils/file-operations";
 
 export const VIEW_TYPE_ABSTRACT_FOLDER = "abstract-folder-view";
 
-/**
- * AbstractFolderView is the primary view for the plugin.
- * Refactored to use the SOVM (Service-Oriented View Model) architecture.
- */
-export class AbstractFolderView extends ItemView {
-    private toolbarFacet: ToolbarFacet | null = null;
-    private searchFacet: SearchFacet | null = null;
-    private treeFacet: TreeFacet | null = null;
+export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
+    private plugin: AbstractFolderPlugin;
+    private viewport: VirtualViewportV2;
+    private searchInput: HTMLInputElement;
+    private currentSnapshot: TreeSnapshot | null = null;
+    private isRefreshing = false;
 
-    // V2 stack
-    private viewportV2: VirtualViewportV2 | null = null;
-
-    constructor(
-        leaf: WorkspaceLeaf,
-        private plugin: AbstractFolderPlugin
-    ) {
+    constructor(leaf: WorkspaceLeaf, plugin: AbstractFolderPlugin) {
         super(leaf);
-        this.icon = "folder-tree";
-        this.navigation = false;
+        this.plugin = plugin;
     }
 
     getViewType(): string {
@@ -35,158 +23,202 @@ export class AbstractFolderView extends ItemView {
     }
 
     getDisplayText(): string {
-        return "Abstract folder";
+        return "Abstract folders";
+    }
+
+    getIcon(): string {
+        return "folder-tree";
     }
 
     async onOpen() {
-        Logger.debug("AbstractFolderView: Opening...");
-        
-        // Reset selection silently
-        this.plugin.contextEngine.silent(() => {
-            this.plugin.contextEngine.clearSelection();
-        });
-
         const { contentEl } = this;
         contentEl.empty();
-        contentEl.addClass("abstract-folder-view-container");
+        contentEl.addClass("abstract-folder-view-v2");
 
-        // Ensure indexer starts building graph if it hasn't
-        if (!this.plugin.indexer.hasBuiltFirstGraph()) {
-            Logger.debug("AbstractFolderView: Indexer not ready, triggering initialization.");
-            this.plugin.indexer.initializeIndexer();
-        }
+        // Header/Search area
+        const headerEl = contentEl.createDiv({ cls: "abstract-folder-header" });
+        
+        // Toolbar
+        const toolbarEl = headerEl.createDiv({ cls: "abstract-folder-toolbar" });
+        
+        toolbarEl.createEl("button", {
+            cls: "clickable-icon",
+            attr: { "aria-label": "Collapse all" }
+        }, (el) => {
+            el.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>';
+            el.onclick = () => {
+                this.plugin.contextEngineV2.collapseAll();
+            };
+        });
 
-        if (this.plugin.settings.useV2Engine) {
-            this.renderV2();
-            return;
-        }
+        toolbarEl.createEl("button", {
+            cls: "clickable-icon",
+            attr: { "aria-label": "Refresh tree" }
+        }, (el) => {
+            el.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>';
+            el.onclick = async () => {
+                await this.plugin.graphEngine.forceReindex();
+                await this.refreshV2Tree();
+            };
+        });
 
-        const toolbarContainer = contentEl.createDiv({ cls: "abstract-folder-toolbar-container" });
-        const searchContainer = contentEl.createDiv({ cls: "abstract-folder-search-container" });
-        const groupHeaderContainer = contentEl.createDiv({ cls: "abstract-folder-group-header-container" });
-        const treeContainer = contentEl.createDiv({ cls: "abstract-folder-tree-container" });
+        this.searchInput = headerEl.createEl("input", {
+            type: "text",
+            placeholder: "Search notes...",
+            cls: "abstract-folder-search-input"
+        });
 
-        // Initialize Facets
-        this.toolbarFacet = new ToolbarFacet(
-            this.plugin.treeCoordinator,
-            this.plugin.contextEngine,
-            toolbarContainer,
-            this.app,
-            this.plugin.settings,
-            () => this.plugin.saveSettings(),
-            groupHeaderContainer,
-            () => this.treeFacet?.treeContext || { providerIds: ['local'], libraryId: null }
+        this.searchInput.addEventListener("input", () => {
+            this.plugin.contextEngineV2.setFilter(this.searchInput.value);
+        });
+
+        // Viewport Container
+        const scrollContainer = contentEl.createDiv({ cls: "abstract-folder-viewport-scroll-container" });
+        const spacerEl = scrollContainer.createDiv({ cls: "abstract-folder-viewport-spacer" });
+        const rowsContainer = scrollContainer.createDiv({ cls: "abstract-folder-viewport-rows" });
+        
+        this.viewport = new VirtualViewportV2(
+            rowsContainer,
+            scrollContainer,
+            spacerEl,
+            this.plugin.contextEngineV2,
+            this.plugin.scopeProjector,
+            this
         );
 
-        // Initialize Search Facet
-        this.searchFacet = new SearchFacet(
-            this.plugin.treeCoordinator,
-            this.plugin.contextEngine,
-            searchContainer,
-            this.app
-        );
+        // Subscribe to context changes
+        this.plugin.contextEngineV2.on('changed', () => {
+            void this.refreshV2Tree();
+        });
 
-        this.treeFacet = new TreeFacet(
-            this.plugin.treeCoordinator,
-            this.plugin.contextEngine,
-            treeContainer,
-            this.app,
-            this.plugin,
-            { providerIds: ['local'] } // Explicitly isolate to local vault
-        );
+        // Subscribe to graph changes
+        this.registerEvent(this.app.workspace.on('abstract-folder:graph-updated' as any, () => {
+            void this.refreshV2Tree();
+        }));
 
-        // Initialize DragManager and connect to TreeFacet
-        const dragManager = new DragManager(this.app, this.plugin.settings, this.plugin.indexer, this);
-        this.treeFacet.setDragManager(dragManager);
-
-        // Mount Facets
-        this.toolbarFacet.onMount();
-        this.searchFacet.onMount();
-        this.treeFacet.onMount();
-
-        Logger.debug("AbstractFolderView: Facets mounted.");
+        // Initial build
+        await this.refreshV2Tree();
     }
 
     async onClose() {
-        Logger.debug("AbstractFolderView: Closing...");
-        if (this.toolbarFacet) this.toolbarFacet.onDestroy();
-        if (this.searchFacet) this.searchFacet.onDestroy();
-        if (this.treeFacet) this.treeFacet.onDestroy();
-        if (this.viewportV2) this.viewportV2.destroy();
-        
-        this.toolbarFacet = null;
-        this.searchFacet = null;
-        this.treeFacet = null;
-        this.viewportV2 = null;
+        if (this.viewport) {
+            this.viewport.destroy();
+        }
+    }
+
+    getItemHeight(): number {
+        return 24;
+    }
+
+    isMobile(): boolean {
+        return Platform.isMobile;
     }
 
     public focusSearch() {
-        if (this.searchFacet) {
-            this.searchFacet.focus();
+        if (this.searchInput) {
+            this.searchInput.focus();
         }
     }
 
-    private renderV2() {
-        const { contentEl } = this;
-        contentEl.addClass("abstract-folder-v2-view");
+    onItemClick(node: AbstractNode, event: MouseEvent): void {
+        const file = this.app.vault.getAbstractFileByPath(node.path);
+        if (file instanceof TFile) {
+            this.app.workspace.getLeaf(event.ctrlKey || event.metaKey).openFile(file);
+        }
+    }
 
-        const toolbarContainer = contentEl.createDiv({ cls: "abstract-folder-toolbar-container" });
-        toolbarContainer.createEl("h3", { text: "Abstract folder v2 (beta)" });
-
-        const viewportWrapper = contentEl.createDiv({ cls: "abstract-folder-v2-wrapper" });
-        const spacer = viewportWrapper.createDiv({ cls: "abstract-folder-v2-spacer" });
-        const itemContainer = viewportWrapper.createDiv({ cls: "abstract-folder-v2-container" });
-
-        const delegate: ViewportDelegateV2 = {
-            getItemHeight: () => 24,
-            onItemClick: (node) => {
-                this.plugin.contextEngineV2.select(node.id);
-                const abstractFile = this.app.vault.getAbstractFileByPath(node.path);
-                if (abstractFile instanceof TFile) {
-                    void this.app.workspace.getLeaf(false).openFile(abstractFile);
-                }
-            },
-            onItemToggle: (node) => {
-                this.plugin.contextEngineV2.toggleExpand(node.id);
-                void this.refreshV2Tree();
-            },
-            onItemContextMenu: (node) => {
-                // TODO: Context menu
-            }
-        };
-
-        this.viewportV2 = new VirtualViewportV2(
-            itemContainer,
-            viewportWrapper,
-            spacer,
-            this.plugin.contextEngineV2,
-            this.plugin.scopeProjector,
-            delegate
-        );
-
-        // Listen for changes
-        this.plugin.contextEngineV2.on('changed', () => {
-            this.viewportV2?.update();
-        });
-
+    onItemToggle(node: AbstractNode, event: MouseEvent): void {
+        this.plugin.contextEngineV2.toggleExpand(node.id);
         void this.refreshV2Tree();
     }
 
-    private async refreshV2Tree() {
-        if (!this.viewportV2) return;
+    onItemContextMenu(node: AbstractNode, event: MouseEvent): void {
+        const menu = new Menu();
+        const file = this.app.vault.getAbstractFileByPath(node.path);
 
-        const generator = this.plugin.treeBuilder.buildTree();
-        let result;
-        while (true) {
-            const next = await generator.next();
-            if (next.done) {
-                result = next.value;
-                break;
-            }
+        if (file instanceof TFile) {
+            menu.addItem((item) =>
+                item
+                    .setTitle("Open in new tab")
+                    .setIcon("file-plus")
+                    .onClick(() => {
+                        this.app.workspace.getLeaf(true).openFile(file);
+                    })
+            );
+
+            menu.addItem((item) =>
+                item
+                    .setTitle("Toggle hidden")
+                    .setIcon("eye-off")
+                    .onClick(async () => {
+                        await toggleHiddenStatus(this.app, file, this.plugin.settings);
+                    })
+            );
+
+            menu.addSeparator();
+
+            menu.addItem((item) =>
+                item
+                    .setTitle("Create child note")
+                    .setIcon("plus-circle")
+                    .onClick(() => {
+                        createAbstractChildFile(this.app, this.plugin.settings, "New Note", file, "note", this.plugin.graphEngine)
+                            .catch(console.error);
+                    })
+            );
+
+            menu.addSeparator();
+
+            menu.addItem((item) =>
+                item
+                    .setTitle("Delete")
+                    .setIcon("trash")
+                    .onClick(async () => {
+                        await deleteAbstractFile(this.app, file, false, this.plugin.graphEngine);
+                    })
+            );
         }
 
-        if (result) {
-            this.viewportV2.setItems(result.flatList);
+        menu.showAtMouseEvent(event);
+    }
+
+    onItemDrop(draggedPath: string, targetNode: AbstractNode): void {
+        const draggedFile = this.app.vault.getAbstractFileByPath(draggedPath);
+        if (!(draggedFile instanceof TFile)) return;
+
+        this.plugin.transactionManager.moveNode(draggedFile, targetNode.path)
+            .then(() => {
+                new Notice(`Moved ${draggedFile.basename} to ${targetNode.name}`);
+                return this.refreshV2Tree();
+            })
+            .catch((error) => {
+                console.error("Failed to move node", error);
+                new Notice("Failed to move node. See console for details.");
+            });
+    }
+
+    private async refreshV2Tree() {
+        if (this.isRefreshing) return;
+        this.isRefreshing = true;
+
+        try {
+            const state = this.plugin.contextEngineV2.getState();
+            const generator = this.plugin.treeBuilder.buildTree(this.plugin.contextEngineV2, state.activeFilter);
+            while (true) {
+                const result = await generator.next();
+                if (result.done) {
+                    this.currentSnapshot = result.value;
+                    break;
+                }
+            }
+
+            if (this.currentSnapshot) {
+                this.viewport.setItems(this.currentSnapshot.flatList);
+            }
+        } catch (error) {
+            console.error("Failed to refresh v2 tree", error);
+        } finally {
+            this.isRefreshing = false;
         }
     }
 }

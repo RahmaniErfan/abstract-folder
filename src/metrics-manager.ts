@@ -1,17 +1,17 @@
 import { App, TFile } from "obsidian";
-import { FolderIndexer } from "./indexer";
+import { IGraphEngine } from "./core/graph-engine";
 import { NodeMetrics } from "./types";
 import AbstractFolderPlugin from "../main";
 
 export class MetricsManager {
     private app: App;
-    private indexer: FolderIndexer;
+    private graphEngine: IGraphEngine;
     private plugin: AbstractFolderPlugin;
     private metrics: Map<string, NodeMetrics> = new Map();
 
-    constructor(app: App, indexer: FolderIndexer, plugin: AbstractFolderPlugin) {
+    constructor(app: App, graphEngine: IGraphEngine, plugin: AbstractFolderPlugin) {
         this.app = app;
-        this.indexer = indexer;
+        this.graphEngine = graphEngine;
         this.plugin = plugin;
         this.loadPersistedMetrics();
     }
@@ -83,13 +83,12 @@ export class MetricsManager {
      * Recalculate graph-based metrics: Payload and Rot.
      */
     public calculateGraphMetrics() {
-        const graph = this.indexer.getGraph();
         const memoGravity = new Map<string, number>();
 
         const getGravity = (path: string): number => {
             if (memoGravity.has(path)) return memoGravity.get(path)!;
             
-            const children = graph.parentToChildren[path];
+            const children = this.graphEngine.getChildren(path);
             let count = 0;
             if (children) {
                 children.forEach(childPath => {
@@ -103,10 +102,15 @@ export class MetricsManager {
         const now = Date.now();
         const msPerDay = 24 * 60 * 60 * 1000;
 
-        graph.allFiles.forEach(path => {
+        // Note: graphEngine needs an efficient way to get all registered file paths
+        // For now we might need to rely on what's indexed, but getDiagnosticDump gives keys
+        const dump = this.graphEngine.getDiagnosticDump();
+        const allPaths = Object.keys(dump);
+
+        allPaths.forEach(path => {
             const m = this.getMetrics(path);
             const gravity = getGravity(path);
-            const directChildren = graph.parentToChildren[path]?.size || 0;
+            const directChildren = this.graphEngine.getChildren(path)?.length || 0;
             
             m.gravity = gravity;
             m.complexity = directChildren;
@@ -115,7 +119,6 @@ export class MetricsManager {
             if (file instanceof TFile) {
                 const daysSinceEdit = (now - file.stat.mtime) / msPerDay;
                 // Rot = Inactivity (days) * Complexity (number of abstract children)
-                // We'll use direct children for complexity as per "abstract logic" prompt
                 m.rot = daysSinceEdit * directChildren;
             } else {
                 m.rot = 0;

@@ -3,7 +3,7 @@
  * Optimized for performance and scoped highlighting.
  */
 
-.abstract-folder-v2-wrapper {
+.abstract-folder-viewport-scroll {
     position: relative;
     width: 100%;
     height: 100%;
@@ -12,7 +12,7 @@
     contain: layout size; /* Performance optimization */
 }
 
-.abstract-folder-v2-container {
+.abstract-folder-viewport-content {
     position: absolute;
     top: 0;
     left: 0;
@@ -20,7 +20,17 @@
     pointer-events: none;
 }
 
-.abstract-folder-v2-row {
+.abstract-folder-viewport-spacer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* Base row styling using Obsidian nav-file classes */
+.tree-item.nav-file {
     position: absolute;
     width: 100%;
     height: 24px;
@@ -40,35 +50,35 @@
 }
 
 /* Limit guides to current depth */
-.abstract-folder-v2-row::before {
+.tree-item.nav-file::before {
     content: "";
     position: absolute;
     top: 0;
     left: 0;
     height: 100%;
     /* Hide guides beyond current depth */
-    width: calc(var(--depth) * var(--indent-width));
+    width: calc(var(--depth, 0) * var(--indent-width));
     background: inherit;
     pointer-events: none;
 }
 
 /* Clear background for the actual content area */
-.abstract-folder-v2-row-content {
+.tree-item-self.nav-file-title {
     position: relative;
     display: flex;
     align-items: center;
     width: 100%;
     height: 100%;
-    padding-left: calc(var(--depth) * var(--indent-width) + 4px);
+    padding-left: calc(var(--depth, 0) * var(--indent-width) + 4px);
     background-color: var(--background-primary);
     z-index: 1;
 }
 
-.abstract-folder-v2-row:hover .abstract-folder-v2-row-content {
+.tree-item.nav-file:hover .tree-item-self.nav-file-title {
     background-color: var(--background-modifier-hover);
 }
 
-.abstract-folder-v2-row.is-selected .abstract-folder-v2-row-content {
+.tree-item.nav-file.is-selected .tree-item-self.nav-file-title {
     background-color: var(--background-modifier-active-hover);
     color: var(--text-accent);
 }
@@ -78,13 +88,13 @@
    ========================================================================================= */
 
 /* When a row is IN SCOPE (descendant of selected), it gets a subtle background tint */
-.abstract-folder-v2-row.is-in-scope .abstract-folder-v2-row-content {
+.tree-item.nav-file.is-in-scope .tree-item-self.nav-file-title {
     background-color: var(--background-modifier-success-soft, rgba(0, 255, 0, 0.05));
     border-left: 2px solid var(--interactive-accent);
 }
 
 /* Special icons or badges for scoped items */
-.abstract-folder-v2-row.is-in-scope .nav-file-title-content::after {
+.tree-item.nav-file.is-in-scope .tree-item-inner.nav-file-title-content::after {
     content: " •";
     opacity: 0.5;
     font-size: 0.8em;
@@ -94,7 +104,7 @@
    UI Elements
    ========================================================================================= */
 
-.abstract-folder-v2-row .collapse-icon {
+.tree-item.nav-file .collapse-icon {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -104,16 +114,34 @@
     transition: transform 0.1s ease-in-out;
 }
 
-.abstract-folder-v2-row .collapse-icon.is-collapsed {
+/* Mobile Compatibility via CSS Variables */
+.tree-item.nav-file {
+    height: var(--af-item-height, 24px);
+}
+
+body.is-mobile .tree-item.nav-file {
+    --af-item-height: 32px; /* Taller touch targets for mobile */
+}
+
+.tree-item.nav-file .collapse-icon {
+    width: calc(var(--af-item-height, 24px) * 0.85);
+    height: calc(var(--af-item-height, 24px) * 0.85);
+}
+
+body.is-mobile .tree-item.nav-file .tree-item-inner.nav-file-title-content {
+    font-size: var(--font-ui-medium);
+}
+
+.tree-item.nav-file .collapse-icon.is-collapsed {
     transform: rotate(-90deg);
 }
 
-.abstract-folder-v2-row .row-icon {
+.tree-item.nav-file .nav-file-tag {
     margin: 0 4px;
     font-size: 14px;
 }
 
-.abstract-folder-v2-row .row-name {
+.tree-item.nav-file .tree-item-inner.nav-file-title-content {
     flex-grow: 1;
     white-space: nowrap;
     overflow: hidden;

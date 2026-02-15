@@ -9,14 +9,9 @@
 import { Plugin, WorkspaceLeaf, Notice, TFolder, TFile } from 'obsidian';
 import { Logger } from './src/utils/logger';
 import { AbstractFolderPluginSettings, DEFAULT_SETTINGS } from './src/settings';
-import { FolderIndexer } from './src/indexer';
 import { MetricsManager } from './src/metrics-manager';
 import { AbstractFolderView, VIEW_TYPE_ABSTRACT_FOLDER } from './src/ui/view/abstract-folder-view';
-import { ContextEngine } from './src/core/context-engine';
-import { TreeCoordinator } from './src/core/tree-coordinator';
-import { LocalVaultProvider } from './src/core/local-vault-provider';
-import { LibraryTreeProvider } from './src/core/library-tree-provider';
-import { GraphEngine, GraphDiagnosticDump } from './src/core/graph-engine';
+import { GraphEngine } from './src/core/graph-engine';
 import { CreateAbstractChildModal, ParentPickerModal, ChildFileType, FolderSelectionModal, ConversionOptionsModal, DestinationPickerModal, NewFolderNameModal, SimulationModal, ScopeSelectionModal } from './src/ui/modals';
 import { CreateEditGroupModal } from './src/ui/modals/create-edit-group-modal';
 import { ManageGroupsModal } from './src/ui/modals/manage-groups-modal';
@@ -31,7 +26,6 @@ import { LibraryCenterView, VIEW_TYPE_LIBRARY_CENTER } from './src/library/ui/li
 import { LibraryExplorerView, VIEW_TYPE_LIBRARY_EXPLORER } from './src/library/ui/library-explorer-view';
 import './src/styles/index.css';
 import './src/styles/library-explorer.css';
-import './src/styles/v2-viewport.css';
 import { TreeBuilder } from './src/core/tree-builder';
 import { ContextEngineV2 } from './src/core/context-engine-v2';
 import { ScopeProjector } from './src/core/scope-projector';
@@ -39,7 +33,6 @@ import { TransactionManager } from './src/core/transaction-manager';
 
 export default class AbstractFolderPlugin extends Plugin {
 	settings: AbstractFolderPluginSettings;
-	indexer: FolderIndexer;
 	libraryManager: LibraryManager;
 	abstractBridge: AbstractBridge;
 	contributionEngine: ContributionEngine;
@@ -47,10 +40,6 @@ export default class AbstractFolderPlugin extends Plugin {
 	ribbonIconEl: HTMLElement | null = null;
 
 	// SOVM Singletons
-	contextEngine: ContextEngine;
-	treeCoordinator: TreeCoordinator;
-	localVaultProvider: LocalVaultProvider;
-	libraryTreeProvider: LibraryTreeProvider;
 	graphEngine: GraphEngine;
 	treeBuilder: TreeBuilder;
 	contextEngineV2: ContextEngineV2;
@@ -66,13 +55,7 @@ export default class AbstractFolderPlugin extends Plugin {
 		this.contributionEngine = new ContributionEngine(this.app);
 		this.libraryManager = new LibraryManager(this.app);
 
-		this.indexer = new FolderIndexer(this.app, this.settings, this);
-		this.metricsManager = new MetricsManager(this.app, this.indexer, this);
-		Logger.debug("Initializing indexer...");
-		this.indexer.initializeIndexer();
-
-		// Initialize SOVM Stack
-		this.contextEngine = new ContextEngine(undefined, this.settings.defaultSort);
+		this.metricsManager = new MetricsManager(this.app, this.graphEngine, this);
 		
 		// Initialize Graph Engine
 		this.graphEngine = new GraphEngine(this.app, this.settings);
@@ -89,12 +72,6 @@ export default class AbstractFolderPlugin extends Plugin {
 		this.contextEngineV2.on('selection-changed', (selections: Set<string>) => {
 			this.scopeProjector.update(selections);
 		});
-
-		this.treeCoordinator = new TreeCoordinator(this.app, this.contextEngine, this.settings, this.metricsManager);
-		this.localVaultProvider = new LocalVaultProvider(this.app, this.indexer, this.settings);
-		this.libraryTreeProvider = new LibraryTreeProvider(this.app, this.settings);
-		this.treeCoordinator.registerProvider(this.localVaultProvider);
-		this.treeCoordinator.registerProvider(this.libraryTreeProvider);
 
 		this.registerView(
 			VIEW_TYPE_ABSTRACT_FOLDER,
@@ -135,65 +112,6 @@ export default class AbstractFolderPlugin extends Plugin {
 			callback: () => {
 				this.activateView().catch(console.error);
 			},
-		});
-
-		this.addCommand({
-			id: "compare-graphs",
-			name: "Compare graphs (legacy vs v2)",
-			callback: () => {
-				const legacyGraph = this.indexer.getGraph();
-				const v2Dump = this.graphEngine.getDiagnosticDump();
-
-				const legacyDump: GraphDiagnosticDump = {};
-				
-				// Convert legacy graph to same format
-				for (const file of legacyGraph.allFiles) {
-					const parents = legacyGraph.childToParents.get(file);
-					const children = legacyGraph.parentToChildren[file];
-
-					legacyDump[file] = {
-						parents: parents ? Array.from(parents).sort() : [],
-						children: children ? Array.from(children).sort() : []
-					};
-				}
-
-				// Compare
-				const legacyKeys = Object.keys(legacyDump).sort();
-				const v2Keys = Object.keys(v2Dump).sort();
-
-				const errors: string[] = [];
-
-				if (JSON.stringify(legacyKeys) !== JSON.stringify(v2Keys)) {
-					errors.push(`File set mismatch! Legacy: ${legacyKeys.length}, V2: ${v2Keys.length}`);
-				}
-
-				for (const key of legacyKeys) {
-					if (!v2Dump[key]) {
-						errors.push(`Missing file in V2: ${key}`);
-						continue;
-					}
-
-					const legacyNode = legacyDump[key];
-					const v2Node = v2Dump[key];
-
-					if (JSON.stringify(legacyNode.parents) !== JSON.stringify(v2Node.parents)) {
-						errors.push(`Parent mismatch for ${key}\nLegacy: ${legacyNode.parents.join(', ')}\nV2: ${v2Node.parents.join(', ')}`);
-					}
-					if (JSON.stringify(legacyNode.children) !== JSON.stringify(v2Node.children)) {
-						errors.push(`Child mismatch for ${key}\nLegacy: ${legacyNode.children.join(', ')}\nV2: ${v2Node.children.join(', ')}`);
-					}
-				}
-
-				if (errors.length === 0) {
-					new Notice("Success: graph parity confirmed");
-					Logger.info("Graph parity confirmed.");
-				} else {
-					new Notice(`Graph mismatch! Found ${errors.length} issues.`);
-					Logger.error("Graph mismatch details:", errors);
-					Logger.debug("Legacy dump:", legacyDump);
-					Logger.debug("V2 dump:", v2Dump);
-				}
-			}
 		});
 
 		this.addCommand({
@@ -249,7 +167,7 @@ export default class AbstractFolderPlugin extends Plugin {
 			callback: () => {
 				new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
 					new ParentPickerModal(this.app, (parentFile) => {
-						createAbstractChildFile(this.app, this.settings, childName, parentFile, childType, this.indexer)
+						createAbstractChildFile(this.app, this.settings, childName, parentFile, childType, this.graphEngine)
 							.catch(console.error);
 					}).open();
 				}).open();
@@ -343,12 +261,12 @@ this.addCommand({
 						if (!this.settings.excludedPaths.includes(destinationPath)) {
 							this.settings.excludedPaths.push(destinationPath);
 							this.saveSettings().then(() => {
-								this.indexer.updateSettings(this.settings);
+								// No-op for now as graph engine handles settings updates reactively if needed
 							}).catch(console.error);
 						}
 
 						const rootScope = (scope instanceof TFile) ? scope : undefined;
-						const plan = generateFolderStructurePlan(this.app, this.settings, this.indexer, destinationPath, placeIndexFileInside, rootScope);
+						const plan = generateFolderStructurePlan(this.app, this.settings, this.graphEngine, destinationPath, placeIndexFileInside, rootScope);
 						new SimulationModal(this.app, plan.conflicts, (resolvedConflicts) => {
 							executeFolderGeneration(this.app, plan).catch((error) => console.error(error));
 						}).open();
@@ -361,7 +279,7 @@ this.addCommand({
 
 		this.app.workspace.onLayoutReady(async () => {
 			this.metricsManager.applyDecay();
-			this.indexer.rebuildGraphAndTriggerUpdate();
+			
 			if (this.settings.startupOpen) {
 				this.activateView().catch(console.error);
 			}
@@ -380,7 +298,6 @@ this.addCommand({
 
 	onunload() {
 		Logger.debug("Starting onunload...");
-		this.indexer.onunload();
 		Logger.debug("Saving metrics...");
 		void this.metricsManager.saveMetrics();
 		if (this.ribbonIconEl) {
@@ -518,7 +435,7 @@ this.addCommand({
 
 	private async runShadowTreeBuild() {
 		Logger.info("Starting v2 shadow tree build...");
-		const generator = this.treeBuilder.buildTree();
+		const generator = this.treeBuilder.buildTree(this.contextEngineV2);
 		let result;
 
 		while (true) {

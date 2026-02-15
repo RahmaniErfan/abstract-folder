@@ -5,12 +5,16 @@ import { ScopeProjector } from '../../core/scope-projector';
 export interface ViewportDelegateV2 {
     /** Item height in pixels (default 24-28) */
     getItemHeight(): number;
+    /** Returns the platform state */
+    isMobile(): boolean;
     /** Notifies the delegate that an item was clicked */
     onItemClick(node: AbstractNode, event: MouseEvent): void;
     /** Notifies the delegate that an item was toggled (expanded/collapsed) */
     onItemToggle(node: AbstractNode, event: MouseEvent): void;
     /** Context menu trigger */
     onItemContextMenu(node: AbstractNode, event: MouseEvent): void;
+    /** Drag and drop */
+    onItemDrop(draggedPath: string, targetNode: AbstractNode): void;
 }
 
 /**
@@ -40,7 +44,7 @@ export class VirtualViewportV2 {
      */
     public setItems(items: AbstractNode[]) {
         this.items = items;
-        const itemHeight = this.delegate.getItemHeight();
+        const itemHeight = this.delegate.isMobile() ? 32 : this.delegate.getItemHeight();
         this.spacerEl.style.height = `${this.items.length * itemHeight}px`;
         this.update();
     }
@@ -53,7 +57,7 @@ export class VirtualViewportV2 {
 
         const scrollTop = this.scrollContainer.scrollTop;
         const clientHeight = this.scrollContainer.clientHeight;
-        const itemHeight = this.delegate.getItemHeight();
+        const itemHeight = this.delegate.isMobile() ? 32 : this.delegate.getItemHeight();
         
         const buffer = 5;
         const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - buffer);
@@ -113,8 +117,39 @@ export class VirtualViewportV2 {
         label.textContent = node.name;
 
         // Events
+        // Events
         row.addEventListener("click", (e) => this.delegate.onItemClick(node, e));
         row.addEventListener("contextmenu", (e) => this.delegate.onItemContextMenu(node, e));
+
+        // Drag and Drop
+        row.draggable = true;
+        row.addEventListener("dragstart", (e) => {
+            if (e.dataTransfer) {
+                e.dataTransfer.setData("text/plain", node.path);
+                e.dataTransfer.effectAllowed = "move";
+            }
+        });
+
+        row.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            if (e.dataTransfer) {
+                e.dataTransfer.dropEffect = "move";
+            }
+            row.classList.add("abstract-folder-drag-over");
+        });
+
+        row.addEventListener("dragleave", () => {
+            row.classList.remove("abstract-folder-drag-over");
+        });
+
+        row.addEventListener("drop", (e) => {
+            e.preventDefault();
+            row.classList.remove("abstract-folder-drag-over");
+            if (e.dataTransfer) {
+                const draggedPath = e.dataTransfer.getData("text/plain");
+                this.delegate.onItemDrop(draggedPath, node);
+            }
+        });
 
         return row;
     }

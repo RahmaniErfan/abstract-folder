@@ -2,31 +2,29 @@ import { Logger } from "../utils/logger";
 import { App, TFile, Notice, TFolder } from "obsidian";
 import { AbstractFolderPluginSettings } from "../settings";
 import { ChildFileType } from "../ui/modals";
-import type { FolderIndexer } from "../indexer";
+import { IGraphEngine } from "../core/graph-engine";
 import { AbstractFolderFrontmatter } from "../types";
 import type AbstractFolderPlugin from '../../main';
-import { HIDDEN_FOLDER_ID } from "../types";
 
 /**
  * Updates the frontmatter links in related files when a file is renamed.
  * @param app The Obsidian App instance.
  * @param settings The plugin settings.
- * @param indexer The FolderIndexer instance.
+ * @param graphEngine The IGraphEngine instance.
  * @param file The renamed file.
  * @param oldPath The old path of the file.
  */
-export async function updateAbstractLinksOnRename(app: App, settings: AbstractFolderPluginSettings, indexer: FolderIndexer, file: TFile, oldPath: string) {
+export async function updateAbstractLinksOnRename(app: App, settings: AbstractFolderPluginSettings, graphEngine: IGraphEngine, file: TFile, oldPath: string) {
     const oldName = oldPath.split('/').pop() || oldPath;
     const oldBasename = oldName.endsWith('.md') ? oldName.slice(0, -3) : oldName;
     
-    const graph = indexer.getGraph();
-    const parentsOfRenamed = graph.childToParents.get(oldPath);
-    const childrenOfRenamed = graph.parentToChildren[oldPath];
+    const parentsOfRenamed = graphEngine.getParents(oldPath);
+    const childrenOfRenamed = graphEngine.getChildren(oldPath);
 
     const filesToUpdate = new Set<string>();
     if (parentsOfRenamed) {
         for (const p of parentsOfRenamed) {
-            if (p !== HIDDEN_FOLDER_ID) filesToUpdate.add(p);
+            filesToUpdate.add(p);
         }
     }
     if (childrenOfRenamed) {
@@ -139,9 +137,9 @@ export async function updateGroupsOnRename(app: App, plugin: AbstractFolderPlugi
  * @param childName The name of the new child file.
  * @param parentFile The parent TFile, if creating a child for an existing parent.
  * @param childType The type of child file to create ('note', 'canvas', 'base').
- * @param indexer The FolderIndexer instance.
+ * @param graphEngine The IGraphEngine instance.
  */
-export async function createAbstractChildFile(app: App, settings: AbstractFolderPluginSettings, childName: string, parentFile: TFile | null, childType: ChildFileType, indexer: FolderIndexer) {
+export async function createAbstractChildFile(app: App, settings: AbstractFolderPluginSettings, childName: string, parentFile: TFile | null, childType: ChildFileType, graphEngine: IGraphEngine) {
     let fileExtension: string;
     let initialContent: string;
 
@@ -182,7 +180,7 @@ aliases:
             return;
     }
     
-    const fileName = getConflictFreeName(app, settings, indexer, childName, fileExtension, parentFile);
+    const fileName = getConflictFreeName(app, settings, graphEngine, childName, fileExtension, parentFile);
 
     try {
         // Ensure the directory exists
@@ -219,7 +217,7 @@ aliases:
         app.workspace.trigger('abstract-folder:graph-updated');
     } catch (error) {
         new Notice(`Failed to create file: ${error}`);
-        Logger.error(error);
+        Logger.error("Failed to create file", error);
     }
 }
 
@@ -229,7 +227,7 @@ aliases:
 export function getConflictFreeName(
     app: App,
     settings: AbstractFolderPluginSettings,
-    indexer: FolderIndexer,
+    graphEngine: IGraphEngine,
     baseName: string,
     extension: string,
     parentFile: TFile | null
@@ -270,21 +268,19 @@ export function getConflictFreeName(
     if (strategy === 'parent' && parentFile) {
         contextName = parentFile.basename;
     } else if (strategy === 'ancestor' && parentFile) {
-        const graph = indexer.getGraph();
         let current: string | undefined = parentFile.path;
         let root: string = parentFile.path;
         
         const visited = new Set<string>();
         while (current && !visited.has(current)) {
             visited.add(current);
-            const parents = graph.childToParents.get(current);
-            if (!parents || parents.size === 0 || (parents.size === 1 && parents.has(HIDDEN_FOLDER_ID))) {
+            const parents = graphEngine.getParents(current);
+            if (!parents || parents.length === 0) {
                 root = current;
                 break;
             }
             // Pick the first parent arbitrarily for ancestor strategy in case of multiple parents
-            current = Array.from(parents)[0];
-            if (current === HIDDEN_FOLDER_ID) break;
+            current = parents[0];
         }
         const rootFile = app.vault.getAbstractFileByPath(root);
         contextName = rootFile instanceof TFile ? rootFile.basename : rootFile?.name || null;
@@ -326,21 +322,20 @@ export function getConflictFreeName(
  * @param app The Obsidian App instance.
  * @param file The TFile to delete.
  * @param deleteChildren If true, recursively deletes all children of this file.
- * @param indexer The FolderIndexer instance to query the graph.
+ * @param graphEngine The IGraphEngine instance to query the graph.
  */
-export async function deleteAbstractFile(app: App, file: TFile, deleteChildren: boolean, indexer: FolderIndexer) {
+export async function deleteAbstractFile(app: App, file: TFile, deleteChildren: boolean, graphEngine: IGraphEngine) {
     try {
         if (deleteChildren) {
-            const graph = indexer.getGraph();
-            const childrenPaths = graph.parentToChildren[file.path];
+            const childrenPaths = graphEngine.getChildren(file.path);
 
-            if (childrenPaths && childrenPaths.size > 0) {
+            if (childrenPaths && childrenPaths.length > 0) {
                 for (const childPath of childrenPaths) {
                     const childAbstractFile = app.vault.getAbstractFileByPath(childPath);
                     if (childAbstractFile instanceof TFile) {
-                        await deleteAbstractFile(app, childAbstractFile, deleteChildren, indexer);
+                        await deleteAbstractFile(app, childAbstractFile, deleteChildren, graphEngine);
                     } else if (childAbstractFile instanceof TFolder) {
-                        await deleteFolderRecursive(app, childAbstractFile, deleteChildren, indexer);
+                        await deleteFolderRecursive(app, childAbstractFile, deleteChildren, graphEngine);
                     }
                 }
             }
@@ -360,15 +355,15 @@ export async function deleteAbstractFile(app: App, file: TFile, deleteChildren: 
  * @param app The Obsidian App instance.
  * @param folder The TFolder to delete.
  * @param deleteChildren If true, recursively deletes all children of this folder (passed through).
- * @param indexer The FolderIndexer instance to query the graph.
+ * @param graphEngine The IGraphEngine instance to query the graph.
  */
-async function deleteFolderRecursive(app: App, folder: TFolder, deleteChildren: boolean, indexer: FolderIndexer) {
+async function deleteFolderRecursive(app: App, folder: TFolder, deleteChildren: boolean, graphEngine: IGraphEngine) {
     try {
         for (const child of folder.children) {
             if (child instanceof TFile) {
-                await deleteAbstractFile(app, child, deleteChildren, indexer);
+                await deleteAbstractFile(app, child, deleteChildren, graphEngine);
             } else if (child instanceof TFolder) {
-                await deleteFolderRecursive(app, child, deleteChildren, indexer);
+                await deleteFolderRecursive(app, child, deleteChildren, graphEngine);
             }
         }
         await app.fileManager.trashFile(folder);
@@ -467,7 +462,7 @@ export async function moveFiles(
     files: TFile[],
     targetParentPath: string,
     sourceParentPath: string | null,
-    indexer: FolderIndexer,
+    graphEngine: IGraphEngine,
     isCopy: boolean
 ) {
     const targetParentFile = app.vault.getAbstractFileByPath(targetParentPath);

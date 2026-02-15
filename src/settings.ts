@@ -49,7 +49,6 @@ export interface AbstractFolderPluginSettings {
   defaultNewNotePath: string; // Default path for new notes
   anonymizeDebugExport: boolean;
   librarySettings: LibrarySettings;
-  useV2Engine: boolean; // Toggle for the new Graph/Tree/Virtualization stack
 }
 
 export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
@@ -106,5 +105,4 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
     githubToken: "",
     deviceId: "",
   },
-  useV2Engine: false,
 };

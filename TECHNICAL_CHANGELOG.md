@@ -1,6 +1,26 @@
 # Technical Changelog
 
-## [2026-02-15] SOVM Architecture & Library Integration
+## [2026-02-15] V2 SOVM Architecture (Phase 7-9)
+
+### 1. High-Performance Graph & View Model
+*   **SOVM Implementation**: Transitioned to a Service-Oriented View Model.
+    *   **GraphEngine**: Implements a real-time adjacency index for frontmatter-defined relationships.
+    *   **TreeBuilder**: Uses iterative DFS with `AsyncGenerator` time-slicing (12ms chunks) to maintain 60FPS UI during tree construction.
+    *   **ContextEngineV2**: Centralized reactive state for selections and expansions.
+*   **Windowed Virtualization**: `VirtualViewportV2` uses absolute positioning and calculated offsets to render only visible nodes, enabling support for 10,000+ nodes with constant-time DOM updates.
+
+### 2. The Great Purge & Feature Parity
+*   **Legacy Removal**: Deleted `FolderIndexer`, `TreeCoordinator`, and recursive rendering facets.
+*   **Feature Restoration**: Full parity achieved for Search, Context Menus, and Drag-and-Drop within the V2 stack.
+*   **Transaction Management**: Integrated `TransactionManager` for batch file operations with suppression of graph updates.
+
+### 3. UI Polish & Mobile Hardening
+*   **Adaptive Layout**: Integrated `Platform.isMobile` checks into the virtualization engine.
+*   **Touch Optimization**: Increased item height to `32px` on mobile devices via CSS variables.
+*   **Scoped Highlighting**: Visual implementation of descendant-aware highlighting for improved hierarchical focus.
+*   **Modular CSS**: Unified style rules into a scalable component-based architecture.
+
+## [2026-02-15] Library Integration (V1.15)
 
 ### 1. Library Explorer Robustness & Read-Only Integrity
 *   **Proactive Link Resolution (`src/library/bridge/abstract-bridge.ts`)**: Implemented a `localPathMap` built during the initial filesystem scan to resolve hierarchy links even before Obsidian finishes indexing.

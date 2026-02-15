@@ -1,7 +1,7 @@
 import { Logger } from "../utils/logger";
 import { App, TFolder, TFile, TAbstractFile, Notice, normalizePath } from "obsidian";
 import { AbstractFolderPluginSettings } from "../settings";
-import { FolderIndexer } from "../indexer";
+import { IGraphEngine } from "../core/graph-engine";
 import { AbstractFolderFrontmatter } from "../types";
 
 export interface ConversionOptions {
@@ -224,14 +224,11 @@ export async function convertFoldersToPluginFormat(
          }
     });
 
-    // Wait for a short period to allow the indexer to process pending metadata cache updates.
-    // The Indexer listens to metadataCache.on('changed'), which happens asynchronously after processFrontMatter.
-    // By waiting here, we give the indexer a chance to update its graph BEFORE we unlock the UI.
-    // This reduces the visual "flickering" or "files jumping" effect.
+    // Wait for a short period to allow the graph engine to process pending metadata cache updates.
     app.workspace.trigger('abstract-folder:conversion-progress', { 
         processed: pass2Total, 
         total: pass2Total, 
-        message: "Finalizing... (Waiting for indexer)" 
+        message: "Finalizing... (Waiting for graph engine)" 
     });
     
     // Wait for 2 seconds to allow debounce and event processing to catch up
@@ -343,7 +340,7 @@ async function processInBatches(
 export function generateFolderStructurePlan(
     app: App,
     settings: AbstractFolderPluginSettings,
-    indexer: FolderIndexer,
+    graphEngine: IGraphEngine,
     destinationPath: string,
     placeIndexFileInside: boolean,
     rootScope?: TFile
@@ -353,13 +350,9 @@ export function generateFolderStructurePlan(
     const conflicts: FileConflict[] = [];
     const fileDestinations = new Map<string, string[]>(); // FilePath -> List of target folder paths
 
-    // 1. Get the graph from the indexer
-    const graph = indexer.getGraph();
-    const parentToChildrenMap = graph.parentToChildren;
-
     const getChildren = (file: TFile): Set<TFile> => {
         const childrenFiles = new Set<TFile>();
-        const childPaths = parentToChildrenMap[file.path];
+        const childPaths = graphEngine.getChildren(file.path);
         
         if (childPaths) {
             childPaths.forEach((path: string) => {
@@ -421,22 +414,7 @@ export function generateFolderStructurePlan(
         processNode(rootScope, normalizedDestinationPath, new Set());
     } else {
         // Identify roots for full vault export
-        // For full vault export, we need to find root nodes in the graph
-        // A root node is a node that is a parent but has no parents itself (or at least not within the set of parents)
-        
-        const allParents = Object.keys(parentToChildrenMap);
-        const allChildren = new Set<string>();
-        
-        // Collect all files that are children of someone
-        for (const parent of allParents) {
-             const children = parentToChildrenMap[parent];
-             if (children) {
-                 children.forEach((c: string) => allChildren.add(c));
-             }
-        }
-
-        // Roots are parents that are NOT children of anyone
-        const roots = allParents.filter(p => !allChildren.has(p));
+        const roots = graphEngine.getAllRoots();
         
 
         for (const rootPath of roots) {

@@ -1,8 +1,10 @@
-import { ItemView, WorkspaceLeaf, setIcon, TFolder } from "obsidian";
+import { ItemView, WorkspaceLeaf, setIcon, TFolder, TFile, Platform } from "obsidian";
 import type AbstractFolderPlugin from "../../../main";
-import { TreeFacet } from "../../ui/components/tree-facet";
 import { LibraryNode } from "../types";
 import { Logger } from "../../utils/logger";
+import { VirtualViewportV2, ViewportDelegateV2 } from "../../ui/components/virtual-viewport-v2";
+import { ContextEngineV2 } from "../../core/context-engine-v2";
+import { AbstractNode } from "../../core/tree-builder";
 
 export const VIEW_TYPE_LIBRARY_EXPLORER = "abstract-library-explorer";
 
@@ -10,12 +12,14 @@ export const VIEW_TYPE_LIBRARY_EXPLORER = "abstract-library-explorer";
  * LibraryExplorerView provides a dedicated interface for browsing installed libraries.
  * It features a "Shelf" view with pill-shaped selection and a scoped "Tree" view for the selected library.
  */
-export class LibraryExplorerView extends ItemView {
-    private treeFacet: TreeFacet | null = null;
+export class LibraryExplorerView extends ItemView implements ViewportDelegateV2 {
+    private viewport: VirtualViewportV2 | null = null;
+    private contextEngine: ContextEngineV2;
     private selectedLibrary: LibraryNode | null = null;
 
     constructor(leaf: WorkspaceLeaf, private plugin: AbstractFolderPlugin) {
         super(leaf);
+        this.contextEngine = new ContextEngineV2();
     }
 
     getViewType(): string {
@@ -82,8 +86,6 @@ export class LibraryExplorerView extends ItemView {
             
             card.addEventListener("click", () => {
                 this.selectedLibrary = lib;
-                // Invalidate cache when choosing a library to ensure fresh view
-                this.plugin.libraryTreeProvider.invalidateCache();
                 this.renderView();
             });
         });
@@ -97,9 +99,9 @@ export class LibraryExplorerView extends ItemView {
         const backBtn = header.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Back to shelf" } });
         setIcon(backBtn, "arrow-left");
         backBtn.addEventListener("click", () => {
-            if (this.treeFacet) {
-                this.treeFacet.onDestroy();
-                this.treeFacet = null;
+            if (this.viewport) {
+                this.viewport.destroy();
+                this.viewport = null;
             }
             this.selectedLibrary = null;
             this.renderView();
@@ -110,28 +112,85 @@ export class LibraryExplorerView extends ItemView {
         }
 
         const treeContainer = container.createDiv({ cls: "abstract-folder-tree-container" });
+        const scrollContainer = treeContainer.createDiv({ cls: "abstract-folder-viewport-scroll" });
+        const spacerEl = scrollContainer.createDiv({ cls: "abstract-folder-viewport-spacer" });
+        const contentEl = scrollContainer.createDiv({ cls: "abstract-folder-viewport-content" });
 
-        Logger.debug("LibraryExplorerView: Mounting TreeFacet for selected library.");
+        Logger.debug("LibraryExplorerView: Mounting V2 Viewport for selected library.");
 
-        this.treeFacet = new TreeFacet(
-            this.plugin.treeCoordinator,
-            this.plugin.contextEngine,
-            treeContainer,
-            this.app,
-            this.plugin,
-            {
-                providerIds: ["library"],
-                libraryId: this.selectedLibrary.libraryId
-            }
+        this.viewport = new VirtualViewportV2(
+            contentEl,
+            scrollContainer,
+            spacerEl,
+            this.contextEngine,
+            this.plugin.scopeProjector,
+            this,
         );
+        await this.refreshLibraryTree();
+    }
 
-        this.treeFacet.onMount();
+    private async refreshLibraryTree() {
+        if (!this.viewport) return;
+
+        // For now, we use the global tree builder but we need to filter for the library.
+        // TODO: Implement proper library scoping in TreeBuilder.
+        const generator = this.plugin.treeBuilder.buildTree(this.contextEngine);
+        let result;
+        while (true) {
+            const next = await generator.next();
+            if (next.done) {
+                result = next.value;
+                break;
+            }
+        }
+
+        if (result) {
+            // Temporarily filter by path to simulate library scoping
+            const libraryFile = this.selectedLibrary ? this.selectedLibrary.file : null;
+            const libraryPath = libraryFile ? libraryFile.path : null;
+            const filteredList = libraryPath
+                ? result.flatList.filter(node => node.path.startsWith(libraryPath))
+                : result.flatList;
+
+            this.viewport.setItems(filteredList);
+            this.viewport.update();
+        }
+    }
+
+    // ViewportDelegateV2 implementation
+    getItemHeight(): number {
+        return 24;
+    }
+
+    isMobile(): boolean {
+        return Platform.isMobile;
+    }
+
+    onItemClick(node: AbstractNode, event: MouseEvent): void {
+        this.contextEngine.select(node.id, { multi: event.ctrlKey || event.metaKey });
+        const file = this.app.vault.getAbstractFileByPath(node.path);
+        if (file instanceof TFile) {
+            void this.app.workspace.getLeaf(false).openFile(file);
+        }
+    }
+
+    onItemToggle(node: AbstractNode, event: MouseEvent): void {
+        this.contextEngine.toggleExpand(node.id);
+        void this.refreshLibraryTree();
+    }
+
+    onItemContextMenu(node: AbstractNode, event: MouseEvent): void {
+        // Placeholder for library-specific context menu
+    }
+
+    onItemDrop(draggedPath: string, targetNode: AbstractNode): void {
+        // Library view might be read-only or have different D&D rules
     }
 
     async onClose() {
-        if (this.treeFacet) {
-            this.treeFacet.onDestroy();
-            this.treeFacet = null;
+        if (this.viewport) {
+            this.viewport.destroy();
+            this.viewport = null;
         }
     }
 }
