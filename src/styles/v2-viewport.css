@@ -69,7 +69,7 @@
     pointer-events: none;
 }
 
-.tree-item-icon {
+.af-v2-item-icon {
     display: flex !important;
     align-items: center;
     justify-content: center;
@@ -80,16 +80,16 @@
     flex-shrink: 0 !important; /* Prevent collapsing in flex layouts */
 }
 
-.tree-item-icon:hover {
+.af-v2-item-icon:hover {
     color: var(--text-normal);
 }
 
-.tree-item-icon svg {
+.af-v2-item-icon svg {
     width: 14px !important;
     height: 14px !important;
 }
 
-.tree-item-icon.is-collapsed svg {
+.af-v2-item-icon.is-collapsed svg {
     transform: rotate(-90deg) !important;
 }
 
@@ -103,7 +103,7 @@
 }
 
 /* Base row styling using Obsidian nav-file classes */
-.tree-item.nav-file {
+.af-v2-item {
     position: absolute;
     width: 100%;
     height: var(--af-item-height, 24px);
@@ -125,7 +125,7 @@
 }
 
 /* Limit guides to current depth */
-.tree-item.nav-file::before {
+.af-v2-item::before {
     content: "";
     position: absolute;
     top: 0;
@@ -142,7 +142,7 @@
 }
 
 /* Clear background for the actual content area */
-.tree-item-self.nav-file-title {
+.af-v2-item-self {
     position: relative;
     display: flex;
     align-items: center;
@@ -159,15 +159,15 @@
     left: 0 !important; /* Ensure it stays docked to the left */
 }
 
-.tree-item.nav-file:hover {
+.af-v2-item:hover {
     background-color: var(--background-modifier-hover);
 }
 
-.tree-item.nav-file:hover::before {
+.af-v2-item:hover::before {
     background-color: var(--background-modifier-hover);
 }
 
-.tree-item.nav-file.is-selected .tree-item-self.nav-file-title {
+.af-v2-item.is-selected .af-v2-item-self {
     background-color: var(--background-modifier-active-hover);
     color: var(--text-accent);
 }
@@ -177,13 +177,13 @@
    ========================================================================================= */
 
 /* When a row is IN SCOPE (descendant of selected), it gets a subtle background tint */
-.tree-item.nav-file.is-in-scope .tree-item-self.nav-file-title {
+.af-v2-item.is-in-scope .af-v2-item-self {
     background-color: var(--background-modifier-success-soft, rgba(0, 255, 0, 0.05));
     border-left: 2px solid var(--interactive-accent);
 }
 
 /* Special icons or badges for scoped items */
-.tree-item.nav-file.is-in-scope .tree-item-inner.nav-file-title-content::after {
+.af-v2-item.is-in-scope .af-v2-item-inner::after {
     content: " •";
     opacity: 0.5;
     font-size: 0.8em;
@@ -193,7 +193,7 @@
    UI Elements
    ========================================================================================= */
 
-.tree-item.nav-file .collapse-icon {
+.af-v2-item .af-v2-collapse-icon {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -205,29 +205,29 @@
 
 /* Mobile Compatibility via CSS Variables */
 
-body.is-mobile .tree-item.nav-file {
+body.is-mobile .af-v2-item {
     --af-item-height: 32px; /* Taller touch targets for mobile */
 }
 
-.tree-item.nav-file .collapse-icon {
+.af-v2-item .af-v2-collapse-icon {
     width: calc(var(--af-item-height, 24px) * 0.85);
     height: calc(var(--af-item-height, 24px) * 0.85);
 }
 
-body.is-mobile .tree-item.nav-file .tree-item-inner.nav-file-title-content {
+body.is-mobile .af-v2-item .af-v2-item-inner {
     font-size: var(--font-ui-medium);
 }
 
-.tree-item.nav-file .collapse-icon.is-collapsed {
+.af-v2-item .af-v2-collapse-icon.is-collapsed {
     transform: rotate(-90deg);
 }
 
-.tree-item.nav-file .nav-file-tag {
+.af-v2-item .af-v2-item-tag {
     margin: 0 4px;
     font-size: 14px;
 }
 
-.tree-item.nav-file .tree-item-inner.nav-file-title-content {
+.af-v2-item .af-v2-item-inner {
     flex-grow: 1;
     white-space: nowrap;
     overflow: hidden;

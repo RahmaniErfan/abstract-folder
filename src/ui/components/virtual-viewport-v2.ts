@@ -94,13 +94,13 @@ export class VirtualViewportV2 {
 
     private createRow(node: AbstractNode): HTMLElement {
         const row = document.createElement("div");
-        row.className = "tree-item nav-file";
+        row.className = "af-v2-item";
         
-        const self = row.createDiv("tree-item-self is-clickable nav-file-title");
+        const self = row.createDiv("af-v2-item-self is-clickable");
         
         // Expansion Arrow (for folders)
         if (node.hasChildren) {
-            const arrow = self.createDiv("tree-item-icon collapse-icon nav-folder-collapse-indicator");
+            const arrow = self.createDiv("af-v2-item-icon af-v2-collapse-icon");
             setIcon(arrow, "right-triangle");
             arrow.addEventListener("click", (e) => {
                 e.stopPropagation();
@@ -112,7 +112,7 @@ export class VirtualViewportV2 {
         }
 
         // Label
-        const label = self.createDiv("tree-item-inner nav-file-title-content");
+        const label = self.createDiv("af-v2-item-inner");
         label.textContent = node.name;
 
         // Events
@@ -180,7 +180,7 @@ export class VirtualViewportV2 {
         el.classList.toggle("is-expanded", isExpanded);
         el.classList.toggle("is-in-scope", isInScope);
 
-        const arrow = el.querySelector(".tree-item-icon");
+        const arrow = el.querySelector(".af-v2-item-icon");
         if (arrow && arrow instanceof HTMLElement) {
             arrow.classList.toggle("is-collapsed", !isExpanded);
             arrow.style.setProperty('visibility', node.hasChildren ? 'visible' : 'hidden');
