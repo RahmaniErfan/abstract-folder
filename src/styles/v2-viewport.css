@@ -3,21 +3,94 @@
  * Optimized for performance and scoped highlighting.
  */
 
-.abstract-folder-viewport-scroll {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    overflow-y: auto;
-    background-color: var(--background-primary);
-    contain: layout size; /* Performance optimization */
+/* Force clean container on the view leaf itself */
+.workspace-leaf-content[data-type=abstract-folder-view] .view-content {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
 }
 
-.abstract-folder-viewport-content {
+/* Main View Container */
+.abstract-folder-view-v2 {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.abstract-folder-view-v2 .view-content {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important; /* Force zero margin */
+}
+
+.abstract-folder-header {
+    flex: 0 0 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 8px !important;
+    gap: 8px !important;
+    border-bottom: 1px solid var(--background-modifier-border) !important;
+    background-color: var(--background-secondary) !important;
+    z-index: 10 !important;
+}
+
+.abstract-folder-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.abstract-folder-search-input {
+    width: 100%;
+}
+
+.abstract-folder-viewport-scroll-container {
+    flex: 1 1 0% !important;
+    position: relative !important;
+    width: 100% !important;
+    overflow-y: auto !important;
+    background-color: var(--background-primary) !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.abstract-folder-viewport-rows {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     pointer-events: none;
+}
+
+.tree-item-icon {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 24px !important;
+    height: 24px !important;
+    color: var(--text-muted);
+    pointer-events: auto !important;
+    flex-shrink: 0 !important; /* Prevent collapsing in flex layouts */
+}
+
+.tree-item-icon:hover {
+    color: var(--text-normal);
+}
+
+.tree-item-icon svg {
+    width: 14px !important;
+    height: 14px !important;
+}
+
+.tree-item-icon.is-collapsed svg {
+    transform: rotate(-90deg) !important;
 }
 
 .abstract-folder-viewport-spacer {
@@ -33,13 +106,15 @@
 .tree-item.nav-file {
     position: absolute;
     width: 100%;
-    height: 24px;
+    height: var(--af-item-height, 24px);
     display: flex;
+    pointer-events: auto !important;
     align-items: center;
     pointer-events: auto;
     cursor: var(--cursor-clickable);
     user-select: none;
     padding-right: 8px;
+    box-sizing: border-box;
     
     /* Indentation Guide System (Background Gradient) */
     --indent-width: 18px;
@@ -58,8 +133,12 @@
     height: 100%;
     /* Hide guides beyond current depth */
     width: calc(var(--depth, 0) * var(--indent-width));
-    background: inherit;
+    background-image: inherit; /* Use the parent's gradient */
+    background-size: inherit;
+    background-repeat: inherit;
+    background-color: var(--background-primary); /* Solid block to hide guides */
     pointer-events: none;
+    z-index: 2;
 }
 
 /* Clear background for the actual content area */
@@ -69,12 +148,22 @@
     align-items: center;
     width: 100%;
     height: 100%;
-    padding-left: calc(var(--depth, 0) * var(--indent-width) + 4px);
-    background-color: var(--background-primary);
-    z-index: 1;
+    /* The core indentation logic */
+    /* Add an extra 24px base padding to ensure the first triangle at depth 0 is visible */
+    padding-left: calc(24px + var(--depth, 0) * var(--indent-width)) !important;
+    z-index: 3;
+    overflow: visible; /* Don't clip triangles */
+    background: transparent !important;
+    margin: 0 !important; /* Ensure no internal margins */
+    box-sizing: border-box !important;
+    left: 0 !important; /* Ensure it stays docked to the left */
 }
 
-.tree-item.nav-file:hover .tree-item-self.nav-file-title {
+.tree-item.nav-file:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.tree-item.nav-file:hover::before {
     background-color: var(--background-modifier-hover);
 }
 
@@ -115,9 +204,6 @@
 }
 
 /* Mobile Compatibility via CSS Variables */
-.tree-item.nav-file {
-    height: var(--af-item-height, 24px);
-}
 
 body.is-mobile .tree-item.nav-file {
     --af-item-height: 32px; /* Taller touch targets for mobile */

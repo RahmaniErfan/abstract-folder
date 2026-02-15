@@ -1,6 +1,8 @@
+import { setIcon } from 'obsidian';
 import { AbstractNode } from '../../core/tree-builder';
 import { ContextEngineV2 } from '../../core/context-engine-v2';
 import { ScopeProjector } from '../../core/scope-projector';
+import { Logger } from 'src/utils/logger';
 
 export interface ViewportDelegateV2 {
     /** Item height in pixels (default 24-28) */
@@ -99,18 +101,15 @@ export class VirtualViewportV2 {
         // Expansion Arrow (for folders)
         if (node.hasChildren) {
             const arrow = self.createDiv("tree-item-icon collapse-icon nav-folder-collapse-indicator");
+            setIcon(arrow, "right-triangle");
             arrow.addEventListener("click", (e) => {
                 e.stopPropagation();
+                Logger.debug(`[Abstract Folder] Viewport: Toggle clicked for ${node.id}`);
                 this.delegate.onItemToggle(node, e);
             });
         } else {
             self.createDiv("tree-item-icon"); // Spacer
         }
-
-        // Icon
-        const iconContainer = self.createDiv("tree-item-icon nav-file-tag");
-        // TODO: Map extension to Obsidian icons
-        iconContainer.innerText = node.extension === '' ? '📁' : '📄';
 
         // Label
         const label = self.createDiv("tree-item-inner nav-file-title-content");
@@ -159,22 +158,32 @@ export class VirtualViewportV2 {
         const isExpanded = this.context.isExpanded(node.id);
         const isInScope = this.scope.isDescendant(node.id);
 
-        el.style.position = 'absolute';
-        el.style.top = `${index * itemHeight}px`;
-        el.style.width = '100%';
+        Logger.debug(`[Abstract Folder] Viewport: Row state for ${node.name}`, {
+            id: node.id,
+            isExpanded,
+            isSelected,
+            depth: node.depth
+        });
+
+        /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access */
+        (el.style as any).position = 'absolute';
+        (el.style as any).top = `${index * itemHeight}px`;
+        (el.style as any).width = '100%';
+        (el.style as any).left = '0';
+        /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access */
         
-        // Indentation
+        // Indentation via CSS variable for guide logic
         el.style.setProperty('--depth', node.depth.toString());
-        el.style.paddingLeft = `calc(${node.depth} * 18px)`;
 
         // State classes
         el.classList.toggle("is-selected", isSelected);
         el.classList.toggle("is-expanded", isExpanded);
-        el.classList.toggle("is-in-scope", isInScope); // For v2 "Scoped Highlight"
+        el.classList.toggle("is-in-scope", isInScope);
 
-        const arrow = el.querySelector(".collapse-icon");
-        if (arrow) {
+        const arrow = el.querySelector(".tree-item-icon");
+        if (arrow && arrow instanceof HTMLElement) {
             arrow.classList.toggle("is-collapsed", !isExpanded);
+            arrow.style.setProperty('visibility', node.hasChildren ? 'visible' : 'hidden');
         }
     }
 

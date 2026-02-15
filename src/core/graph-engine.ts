@@ -121,7 +121,10 @@ export class AdjacencyIndex {
             };
             this.nodes.set(id, node);
         } else if (meta) {
+            // Merge metadata but NEVER overwrite parents/children sets
             node.meta = { ...node.meta, ...meta };
+            // Ensure orphan status stays in sync with parents set
+            node.meta.isOrphan = node.parents.size === 0;
         }
         return node;
     }
@@ -130,14 +133,16 @@ export class AdjacencyIndex {
      * Adds a directed edge from Parent -> Child
      */
     addEdge(parentId: FileID, childId: FileID): void {
+        Logger.debug(`[Abstract Folder] AdjacencyIndex: Adding Edge ${parentId} -> ${childId}`);
         const parent = this.addNode(parentId);
         const child = this.addNode(childId);
 
         parent.children.add(childId);
         child.parents.add(parentId);
         
-        // Update orphan status for child
+        // Update orphan status
         child.meta.isOrphan = child.parents.size === 0;
+        Logger.debug(`[Abstract Folder] AdjacencyIndex: Edge confirmed ${parentId} -> ${childId}. Parent children: ${parent.children.size}, Child parents: ${child.parents.size}`);
     }
 
     /**
@@ -310,9 +315,15 @@ export class GraphEngine implements IGraphEngine {
      */
     getChildren(id: FileID): FileID[] {
         const node = this.index.getNode(id);
-        if (!node) return [];
-        // Return sorted list (can be optimized later)
-        return Array.from(node.children).sort();
+        if (!node) {
+            Logger.debug(`[Abstract Folder] GraphEngine: getChildren(${id}) - Node not found`);
+            return [];
+        }
+        const children = Array.from(node.children).sort();
+        if (children.length > 0) {
+            Logger.debug(`[Abstract Folder] GraphEngine: getChildren(${id}) -> [${children.join(', ')}]`);
+        }
+        return children;
     }
 
     /**
@@ -338,10 +349,12 @@ export class GraphEngine implements IGraphEngine {
         const roots: FileID[] = [];
         for (const id of this.index.getAllFileIds()) {
             const node = this.index.getNode(id);
-            if (node && node.meta.isOrphan) {
+            // A root MUST have zero parents.
+            if (node && node.parents.size === 0) {
                 roots.push(id);
             }
         }
+        Logger.debug(`[Abstract Folder] GraphEngine: getAllRoots found ${roots.length} roots out of ${Array.from(this.index.getAllFileIds()).length} nodes`);
         return roots.sort();
     }
 
@@ -394,7 +407,7 @@ export class GraphEngine implements IGraphEngine {
         const dirtyFiles = this.index.flushDirtyQueue();
         if (dirtyFiles.size === 0) return;
 
-        Logger.debug(`GraphEngine: Processing ${dirtyFiles.size} dirty files...`);
+        Logger.debug(`[Abstract Folder] GraphEngine: Processing ${dirtyFiles.size} dirty files...`);
 
         for (const id of dirtyFiles) {
             const file = this.app.vault.getAbstractFileByPath(id);
@@ -413,6 +426,7 @@ export class GraphEngine implements IGraphEngine {
     private updateFileIncremental(file: TFile) {
         if (this.isExcluded(file.path)) return;
 
+        Logger.debug(`[Abstract Folder] GraphEngine: Incremental update for ${file.path}`);
         const oldRelationships = this.fileRelationships.get(file.path) || { definedParents: new Set(), definedChildren: new Set() };
         const newRelationships = this.getFileRelationships(file);
         
@@ -441,9 +455,11 @@ export class GraphEngine implements IGraphEngine {
             Logger.debug(`GraphEngine: Added edge ${file.path} -> ${child}`);
         }
 
+        const existingNode = this.index.getNode(file.path);
         this.index.addNode(file.path, {
             mtime: file.stat.mtime,
-            extension: file.extension
+            extension: file.extension,
+            isOrphan: existingNode ? existingNode.parents.size === 0 : true
         });
     }
 
@@ -533,6 +549,11 @@ export class GraphEngine implements IGraphEngine {
             }
         }
         
+        Logger.debug(`[Abstract Folder] GraphEngine: Relationship for ${file.path}`, {
+            parents: Array.from(relationships.definedParents),
+            children: Array.from(relationships.definedChildren)
+        });
+
         return relationships;
     }
 

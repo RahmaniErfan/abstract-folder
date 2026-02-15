@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import { SortConfig } from '../types';
+import { Logger } from 'src/utils/logger';
 
 export interface ContextStateV2 {
     /** Currently selected Synthetic URIs */
@@ -67,6 +68,7 @@ export class ContextEngineV2 extends EventEmitter {
      * Toggles expansion state of a folder
      */
     toggleExpand(uri: string): void {
+        Logger.debug(`[Abstract Folder] Context: Toggling expand for ${uri}`);
         if (this.state.expandedURIs.has(uri)) {
             this.state.expandedURIs.delete(uri);
         } else {
@@ -104,7 +106,11 @@ export class ContextEngineV2 extends EventEmitter {
     }
 
     isExpanded(uri: string): boolean {
-        return this.state.expandedURIs.has(uri);
+        const expanded = this.state.expandedURIs.has(uri);
+        if (expanded) {
+            Logger.debug(`[Abstract Folder] Context: URI ${uri} is EXPANDED`);
+        }
+        return expanded;
     }
 
     isFocused(uri: string): boolean {

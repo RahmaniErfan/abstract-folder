@@ -1,6 +1,7 @@
 import { FileID, IGraphEngine } from './graph-engine';
 import { HIDDEN_FOLDER_ID } from '../types';
 import { ContextEngineV2 } from './context-engine-v2';
+import { Logger } from 'src/utils/logger';
 
 /**
  * Represents a node in the flattened tree view.
@@ -52,8 +53,49 @@ export class TreeBuilder {
         const locationMap: NodeLocationMap = new Map();
         
         const roots = this.graph.getAllRoots();
+        Logger.debug(`[Abstract Folder] TreeBuilder: Found ${roots.length} roots`, roots);
         
-        // Stack-based DFS
+        // --- PRE-PROCESS: Search Expansion ---
+        const expandedBySearch = new Set<string>();
+        if (filterQuery) {
+            const searchStack: Array<{ id: FileID, uri: string, visitedPath: Set<FileID> }> = roots.map(r => ({
+                id: r,
+                uri: `view://${this.getNodeName(r)}/`,
+                visitedPath: new Set()
+            }));
+
+            while (searchStack.length > 0) {
+                const cur = searchStack.pop()!;
+                if (cur.visitedPath.has(cur.id)) continue;
+                
+                const nodeName = this.getNodeName(cur.id);
+                if (nodeName.toLowerCase().includes(filterQuery.toLowerCase())) {
+                    // Mark path to match as expanded
+                    const parts = cur.uri.split('/').filter(Boolean); // ["view:", "Root", "Child"]
+                    let running = 'view://';
+                    // The last part is the node itself, parents are everything before it
+                    for (let i = 1; i < parts.length; i++) {
+                        running += `${parts[i]}/`;
+                        expandedBySearch.add(running);
+                    }
+                }
+
+                const children = this.graph.getChildren(cur.id);
+                const nextVisited = new Set(cur.visitedPath);
+                nextVisited.add(cur.id);
+
+                for (const childId of children) {
+                    searchStack.push({
+                        id: childId,
+                        uri: `${cur.uri}${this.getNodeName(childId)}/`,
+                        visitedPath: nextVisited
+                    });
+                }
+            }
+            Logger.debug(`[Abstract Folder] TreeBuilder: Search expansion complete. Expanded ${expandedBySearch.size} URIs`);
+        }
+
+        // --- STAGE 2: Flattening DFS ---
         const stack: Array<{
             id: FileID;
             parentUri: string;
@@ -77,27 +119,45 @@ export class TreeBuilder {
             if (now - lastFrameTime > this.timeBudget) {
                 yield;
                 lastFrameTime = performance.now();
-                lastFrameTime = performance.now();
             }
 
             const current = stack.pop()!;
             const { id, parentUri, depth, visitedPath } = current;
 
             const nodeName = this.getNodeName(id);
-            const uri = `${parentUri}${nodeName}/`;
+            // Sanitize node name for URI to prevent trailing slashes in name or double slashes
+            // For folders, we keep the trailing slash to indicate it's a container
+            const sanitizedName = nodeName.replace(/\//g, '_');
+            const uri = `${parentUri}${sanitizedName}/`;
 
-            if (visitedPath.has(id)) continue;
+            const children = this.graph.getChildren(id);
+            const isExpandedInContext = context.isExpanded(uri);
+            const isExpandedBySearch = expandedBySearch.has(uri);
+            const isExpanded = forceExpandAll || isExpandedInContext || isExpandedBySearch;
+
+            Logger.debug(`[Abstract Folder] TreeBuilder: Step - ${id}`, {
+                uri,
+                depth,
+                isExpanded,
+                childCount: children.length
+            });
+
+            if (visitedPath.has(id)) {
+                Logger.debug(`[Abstract Folder] TreeBuilder: Cycle detected for ${id}, skipping`);
+                continue;
+            }
 
             const matchesFilter = !filterQuery || nodeName.toLowerCase().includes(filterQuery.toLowerCase());
-            const children = this.graph.getChildren(id);
             const meta = this.graph.getNodeMeta(id);
-            const isExpanded = forceExpandAll || context.isExpanded(uri);
 
             if (matchesFilter) {
+                // For display name, we strip the extension if it's .md
+                const displayName = nodeName.endsWith('.md') ? nodeName.substring(0, nodeName.length - 3) : nodeName;
+
                 flatList.push({
                     id: uri,
                     path: id,
-                    name: nodeName,
+                    name: displayName,
                     depth,
                     hasChildren: children.length > 0,
                     extension: meta?.extension || ''
@@ -109,14 +169,12 @@ export class TreeBuilder {
                 locationMap.get(id)!.push(uri);
             }
 
-            // Process children if expanded OR if we are filtering (to find matches deeper)
-            // If filtering, we might want to only show the path to the match.
-            // For now, let's keep it simple: if filtering, we traverse everything but only add matches to flatList.
-            // This is "Search" mode.
-            if (children.length > 0 && (isExpanded || filterQuery)) {
+            // Process children if expanded
+            if (children.length > 0 && isExpanded) {
                 const nextVisitedPath = new Set(visitedPath);
                 nextVisitedPath.add(id);
 
+                Logger.debug(`[Abstract Folder] TreeBuilder: Expanding ${id}, pushing ${children.length} children`);
                 for (const childId of [...children].reverse()) {
                     stack.push({
                         id: childId,
@@ -134,7 +192,11 @@ export class TreeBuilder {
     private getNodeName(path: string): string {
         if (path === HIDDEN_FOLDER_ID) return 'Hidden';
         const lastSlash = path.lastIndexOf('/');
-        if (lastSlash === -1) return path;
-        return path.substring(lastSlash + 1);
+        const fullName = lastSlash === -1 ? path : path.substring(lastSlash + 1);
+        
+        // IMPORTANT: We MUST keep the filename exactly as is for URI uniqueness.
+        // If we strip .md here, URIs for "Note.md" and "Note.pdf" will collide.
+        // We only strip .md for display name.
+        return fullName;
     }
 }

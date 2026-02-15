@@ -1,8 +1,9 @@
-import { ItemView, WorkspaceLeaf, TFile, Notice, Platform, Menu } from "obsidian";
+import { ItemView, WorkspaceLeaf, TFile, Notice, Platform, Menu, setIcon } from "obsidian";
 import type AbstractFolderPlugin from "main";
 import { VirtualViewportV2, ViewportDelegateV2 } from "../components/virtual-viewport-v2";
 import { TreeSnapshot, AbstractNode } from "../../core/tree-builder";
 import { deleteAbstractFile, createAbstractChildFile, toggleHiddenStatus } from "../../utils/file-operations";
+import { Logger } from "../../utils/logger";
 
 export const VIEW_TYPE_ABSTRACT_FOLDER = "abstract-folder-view";
 
@@ -45,7 +46,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
             cls: "clickable-icon",
             attr: { "aria-label": "Collapse all" }
         }, (el) => {
-            el.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>';
+            setIcon(el, "chevrons-down-up");
             el.onclick = () => {
                 this.plugin.contextEngineV2.collapseAll();
             };
@@ -55,7 +56,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
             cls: "clickable-icon",
             attr: { "aria-label": "Refresh tree" }
         }, (el) => {
-            el.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>';
+            setIcon(el, "refresh-cw");
             el.onclick = async () => {
                 await this.plugin.graphEngine.forceReindex();
                 await this.refreshV2Tree();
@@ -74,6 +75,9 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
 
         // Viewport Container
         const scrollContainer = contentEl.createDiv({ cls: "abstract-folder-viewport-scroll-container" });
+        // Ensure standard Obsidian scroll behavior
+        scrollContainer.addClass("nav-files-container");
+        
         const spacerEl = scrollContainer.createDiv({ cls: "abstract-folder-viewport-spacer" });
         const rowsContainer = scrollContainer.createDiv({ cls: "abstract-folder-viewport-rows" });
         
@@ -92,6 +96,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
         });
 
         // Subscribe to graph changes
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
         this.registerEvent(this.app.workspace.on('abstract-folder:graph-updated' as any, () => {
             void this.refreshV2Tree();
         }));
@@ -123,7 +128,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
     onItemClick(node: AbstractNode, event: MouseEvent): void {
         const file = this.app.vault.getAbstractFileByPath(node.path);
         if (file instanceof TFile) {
-            this.app.workspace.getLeaf(event.ctrlKey || event.metaKey).openFile(file);
+            void this.app.workspace.getLeaf(event.ctrlKey || event.metaKey).openFile(file);
         }
     }
 
@@ -142,7 +147,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
                     .setTitle("Open in new tab")
                     .setIcon("file-plus")
                     .onClick(() => {
-                        this.app.workspace.getLeaf(true).openFile(file);
+                        void this.app.workspace.getLeaf(true).openFile(file);
                     })
             );
 
@@ -203,7 +208,19 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
 
         try {
             const state = this.plugin.contextEngineV2.getState();
-            const generator = this.plugin.treeBuilder.buildTree(this.plugin.contextEngineV2, state.activeFilter);
+            
+            Logger.debug(`[Abstract Folder] View: Refreshing tree...`, {
+                filter: state.activeFilter,
+                expandedCount: state.expandedURIs.size,
+                expandedURIs: Array.from(state.expandedURIs)
+            });
+
+            // If we have a filter, we FORCE expansion during build
+            const generator = this.plugin.treeBuilder.buildTree(
+                this.plugin.contextEngineV2,
+                state.activeFilter,
+                !!state.activeFilter // Force expand all if searching
+            );
             while (true) {
                 const result = await generator.next();
                 if (result.done) {
@@ -213,6 +230,9 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
             }
 
             if (this.currentSnapshot) {
+                Logger.debug(`[Abstract Folder] View: Snapshot built. Flat list size: ${this.currentSnapshot.flatList.length}`, {
+                    nodes: this.currentSnapshot.flatList.map(n => ({ id: n.id, depth: n.depth }))
+                });
                 this.viewport.setItems(this.currentSnapshot.flatList);
             }
         } catch (error) {
