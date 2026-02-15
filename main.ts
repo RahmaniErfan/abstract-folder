@@ -16,6 +16,7 @@ import { ContextEngine } from './src/core/context-engine';
 import { TreeCoordinator } from './src/core/tree-coordinator';
 import { LocalVaultProvider } from './src/core/local-vault-provider';
 import { LibraryTreeProvider } from './src/core/library-tree-provider';
+import { GraphEngine, GraphDiagnosticDump } from './src/core/graph-engine';
 import { CreateAbstractChildModal, ParentPickerModal, ChildFileType, FolderSelectionModal, ConversionOptionsModal, DestinationPickerModal, NewFolderNameModal, SimulationModal, ScopeSelectionModal } from './src/ui/modals';
 import { CreateEditGroupModal } from './src/ui/modals/create-edit-group-modal';
 import { ManageGroupsModal } from './src/ui/modals/manage-groups-modal';
@@ -45,6 +46,7 @@ export default class AbstractFolderPlugin extends Plugin {
 	treeCoordinator: TreeCoordinator;
 	localVaultProvider: LocalVaultProvider;
 	libraryTreeProvider: LibraryTreeProvider;
+	graphEngine: GraphEngine;
 
 	async onload() {
 		Logger.debug("Starting onload...");
@@ -62,6 +64,11 @@ export default class AbstractFolderPlugin extends Plugin {
 
 		// Initialize SOVM Stack
 		this.contextEngine = new ContextEngine(undefined, this.settings.defaultSort);
+		
+		// Initialize Graph Engine
+		this.graphEngine = new GraphEngine(this.app, this.settings);
+		void this.graphEngine.initialize().catch(error => Logger.error("Failed to initialize GraphEngine", error));
+		
 		this.treeCoordinator = new TreeCoordinator(this.app, this.contextEngine, this.settings, this.metricsManager);
 		this.localVaultProvider = new LocalVaultProvider(this.app, this.indexer, this.settings);
 		this.libraryTreeProvider = new LibraryTreeProvider(this.app, this.settings);
@@ -107,6 +114,65 @@ export default class AbstractFolderPlugin extends Plugin {
 			callback: () => {
 				this.activateView().catch(console.error);
 			},
+		});
+
+		this.addCommand({
+			id: "compare-graphs",
+			name: "Compare graphs (legacy vs v2)",
+			callback: () => {
+				const legacyGraph = this.indexer.getGraph();
+				const v2Dump = this.graphEngine.getDiagnosticDump();
+
+				const legacyDump: GraphDiagnosticDump = {};
+				
+				// Convert legacy graph to same format
+				for (const file of legacyGraph.allFiles) {
+					const parents = legacyGraph.childToParents.get(file);
+					const children = legacyGraph.parentToChildren[file];
+
+					legacyDump[file] = {
+						parents: parents ? Array.from(parents).sort() : [],
+						children: children ? Array.from(children).sort() : []
+					};
+				}
+
+				// Compare
+				const legacyKeys = Object.keys(legacyDump).sort();
+				const v2Keys = Object.keys(v2Dump).sort();
+
+				const errors: string[] = [];
+
+				if (JSON.stringify(legacyKeys) !== JSON.stringify(v2Keys)) {
+					errors.push(`File set mismatch! Legacy: ${legacyKeys.length}, V2: ${v2Keys.length}`);
+				}
+
+				for (const key of legacyKeys) {
+					if (!v2Dump[key]) {
+						errors.push(`Missing file in V2: ${key}`);
+						continue;
+					}
+
+					const legacyNode = legacyDump[key];
+					const v2Node = v2Dump[key];
+
+					if (JSON.stringify(legacyNode.parents) !== JSON.stringify(v2Node.parents)) {
+						errors.push(`Parent mismatch for ${key}\nLegacy: ${legacyNode.parents.join(', ')}\nV2: ${v2Node.parents.join(', ')}`);
+					}
+					if (JSON.stringify(legacyNode.children) !== JSON.stringify(v2Node.children)) {
+						errors.push(`Child mismatch for ${key}\nLegacy: ${legacyNode.children.join(', ')}\nV2: ${v2Node.children.join(', ')}`);
+					}
+				}
+
+				if (errors.length === 0) {
+					new Notice("Success: graph parity confirmed");
+					Logger.info("Graph parity confirmed.");
+				} else {
+					new Notice(`Graph mismatch! Found ${errors.length} issues.`);
+					Logger.error("Graph mismatch details:", errors);
+					Logger.debug("Legacy dump:", legacyDump);
+					Logger.debug("V2 dump:", v2Dump);
+				}
+			}
 		});
 
 		this.addCommand({
