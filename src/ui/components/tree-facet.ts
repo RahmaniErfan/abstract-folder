@@ -185,6 +185,14 @@ export class TreeFacet extends BaseFacet {
 
         selfEl.createDiv({ cls: "nav-file-title-content", text: node.name });
 
+        // File Extension Tag Rendering
+        if (!node.isFolder) {
+            const extension = node.uri.path.split('.').pop()?.toLowerCase();
+            if (extension && extension !== node.name.toLowerCase()) {
+                selfEl.createDiv({ cls: "nav-file-tag", text: extension });
+            }
+        }
+
         const file = this.app.vault.getAbstractFileByPath(node.uri.path);
 
         el.addEventListener("click", (evt) => {

@@ -29,15 +29,19 @@
 	display: flex;
 	align-items: center;
 	cursor: pointer;
-	padding: 0 6px; /* Reduced vertical padding to match native height (24px total) */
-	height: 24px;   /* Explicit height matching the virtualization engine's expectation */
-	margin-bottom: 0;
-	border-radius: var(--radius-s);
-	color: var(--text-normal);
+	padding: var(--nav-item-padding); /* Use Obsidian variables for consistency */
+	height: 24px; /* Explicit height matching the virtualization engine's expectation */
+	margin-bottom: var(--nav-item-margin-bottom);
+	border-radius: var(--nav-item-radius);
+	color: var(--nav-item-color);
+	font-size: var(--nav-item-size);
+	font-weight: var(--nav-item-weight);
+	line-height: var(--line-height-tight);
 	transition: background-color 0.1s ease-in-out;
 	/* Ensure there's space for the icon */
 	justify-content: flex-start;
 	gap: 4px; /* Space between flex items in this container */
+	position: relative;
 }
 
 .abstract-folder-item-self:hover {
@@ -68,11 +72,11 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	font-size: 13px; /* Explicitly set to match native */
-	font-weight: 400; /* Normal weight to match native */
-	line-height: 16.9px; /* Match native */
-	color: var(--text-normal); /* Ensure normal text color */
-	/* Removed margin-left: auto; which was causing the issue before */
+	/* Typography inherited from .abstract-folder-item-self or set specifically */
+	font-size: inherit;
+	font-weight: inherit;
+	line-height: inherit;
+	color: inherit;
 	display: flex; /* Make it a flex container to align its content if needed */
 	align-items: center; /* Vertically align content */
 }
@@ -138,8 +142,8 @@
 	color: var(--collapse-icon-color-hover);
 }
 
-/* Style for file type tag */
-.abstract-folder-file-tag {
+/* Style for file type tag - using Obsidian's native class name for consistency */
+.nav-file-tag {
 	align-self: center;
 	background-color: rgba(0, 0, 0, 0); /* Transparent background */
 	border-radius: 4px;
@@ -151,7 +155,7 @@
 	padding: 0 4px; /* Specific padding from example */
 	text-transform: uppercase; /* Capitalize text */
 	flex-shrink: 0; /* Prevent from shrinking */
-	margin-inline-start: 8px; /* Space between the file name and the tag */
+	margin-inline-start: auto; /* Push to the far right */
 	display: block; /* Ensure it behaves like a block for full style adherence */
 }
 
