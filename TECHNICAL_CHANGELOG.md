@@ -33,6 +33,7 @@
 *   **URI Standardization**: Eliminated "Shadow States" caused by mixed usage of `uri.path` and serialized URIs. All state lookups in `ContextEngine` and `TreeFacet` are now strictly standardized on `URIUtils.toString()`.
 *   **Rotation Mapping**: Identified that the "right-triangle" SVG path is naturally oriented at `0deg` (DOWN). Adjusted mapping to `-90deg` for collapsed (RIGHT) to match native Obsidian behavior.
 *   **Indentation Fix**: Re-implemented hierarchical padding using `depth` tracking in the flattening algorithm.
+*   **Reddit-style Indentation Guides**: Implemented `position: absolute` guide lines with hover highlighting and support for legacy Rainbow Indent palettes.
 *   **Box Model**: Standardized row height to `24px` and refined vertical padding to prevent the "Focus Box" overlap issue.
 
 ### 3. Unified Interaction Controller

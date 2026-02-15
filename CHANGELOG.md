@@ -2,6 +2,7 @@
 
 ## [Unreleased] - (Abstract Library Update v1.15)
 ### Added
+- **Indentation Guides**: Reddit-style vertical indentation guides for the tree view. Supports "Rainbow Indents" with multiple color palettes (Classic, Pastel, Neon) and hover highlighting.
 - **Abstract Library System**: Integrated library management for shared knowledge structures.
   - **Physical Library Sync**: Replaced Lightning-FS with direct vault synchronization. Libraries now exist as real files in your vault, enabling native Obsidian features (Search, Graph View, Backlinks) to work out-of-the-box.
   - **Git Smart HTTP Handshake**: Custom `ObsidianHttpAdapter` with hardened header compliance and iterable body support to resolve `EmptyServerResponseError` and `401 Unauthorized` errors.

@@ -135,26 +135,53 @@ export class TreeFacet extends BaseFacet {
             el.addClass("is-selected");
         }
 
+        // Add indentation guides (Reddit-style vertical lines)
+        for (let i = 0; i < depth; i++) {
+            const guide = el.createDiv({ cls: "abstract-folder-indent-guide" });
+            
+            // Restore Rainbow Indentation logic
+            if (this.plugin.settings.enableRainbowIndents) {
+                const palette = this.plugin.settings.rainbowPalette || 'classic';
+                guide.addClass(`${palette}-palette`);
+                guide.addClass(`rainbow-indent-${i % 10}`);
+            }
+            
+            guide.style.left = `${i * 20 + 12}px`;
+        }
+
         const selfEl = el.createDiv({ cls: "nav-file-title abstract-folder-item-self" });
         selfEl.style.paddingLeft = `${depth * 20 + 8}px`;
 
         if (node.isFolder) {
-            const collapseIcon = selfEl.createDiv({ cls: "nav-folder-collapse-indicator collapse-icon" });
+            const collapseIcon = selfEl.createDiv({ cls: "abstract-folder-collapse-icon collapse-icon" });
             setIcon(collapseIcon, "right-triangle");
             if (!isExpanded) {
                 collapseIcon.addClass("is-collapsed");
             }
         }
 
-        // Icon Rendering (Support custom icons from metadata)
-        const iconContainer = selfEl.createDiv({ cls: node.isFolder ? "nav-folder-icon" : "nav-file-icon" });
-        let iconId = node.isFolder ? "folder" : "file-text";
+        // Icon Rendering Logic (Placeholders):
+        // User requested to hide all standard icons (folders and files) for a cleaner arrow-only look.
+        // We only render an icon if it is explicitly defined in metadata.
+        const hasCustomIcon = !!(node.metadata && typeof node.metadata.icon === 'string' && node.metadata.icon !== "");
         
-        if (node.metadata && typeof node.metadata.icon === 'string') {
-            iconId = node.metadata.icon;
-        }
+        // Placeholder for future logic where we might want to re-enable standard icons:
+        // const shouldRenderFileIcon = !node.isFolder; // Currently disabled per user request
+        const shouldRenderIcon = hasCustomIcon; // Only custom icons for now
 
-        setIcon(iconContainer, iconId);
+        if (shouldRenderIcon) {
+            const iconContainer = selfEl.createDiv({ cls: "abstract-folder-item-icon" });
+            
+            let iconId = "";
+            
+            if (hasCustomIcon) {
+                iconId = node.metadata!.icon as string;
+            }
+
+            if (iconId) {
+                setIcon(iconContainer, iconId);
+            }
+        }
 
         selfEl.createDiv({ cls: "nav-file-title-content", text: node.name });
 

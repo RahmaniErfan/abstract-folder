@@ -3,6 +3,25 @@
 	/* For tree view: each item is a vertical stack of self + children */
 	display: flex;
 	flex-direction: column;
+	position: relative; /* For absolute positioned indentation guides */
+}
+
+/* Indentation Guides */
+.abstract-folder-indent-guide {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 1px;
+	background-color: var(--background-modifier-border);
+	opacity: 0.6; /* Increased default visibility */
+	pointer-events: none;
+	border-left: 1px solid transparent; /* Required for border-left-color in rainbow palettes */
+}
+
+
+.abstract-folder-item:hover > .abstract-folder-indent-guide {
+	background-color: var(--interactive-accent);
+	opacity: 0.6; /* More prominent on hover */
 }
 
 /* The clickable row */
@@ -104,9 +123,7 @@
 	transition: transform 0.1s ease-in-out;
 }
 .abstract-folder-collapse-icon svg {
-	transform: rotate(
-		90deg
-	); /* Default (expanded): chevron-right rotated to point down */
+	transform: rotate(0deg) !important; /* Expanded state: arrow points DOWN */
 	transition: transform 0.1s ease-in-out;
 }
 
@@ -114,7 +131,7 @@
 	> .abstract-folder-item-self
 	> .abstract-folder-collapse-icon
 	svg {
-	transform: rotate(0deg); /* Collapsed: chevron-right points right */
+	transform: rotate(-90deg) !important; /* Collapsed state: arrow points RIGHT */
 }
 
 .abstract-folder-collapse-icon:hover {
