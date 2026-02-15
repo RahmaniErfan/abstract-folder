@@ -1,6 +1,7 @@
 import { ItemView, WorkspaceLeaf } from "obsidian";
 import AbstractFolderPlugin from '../../../main';
 import { TreeFacet } from "../components/tree-facet";
+import { DragManager } from "../dnd/drag-manager";
 import { ToolbarFacet } from "../components/toolbar-facet";
 import { SearchFacet } from "../components/search-facet";
 import { Logger } from "../../utils/logger";
@@ -39,9 +40,6 @@ export class AbstractFolderView extends ItemView {
         contentEl.empty();
         contentEl.addClass("abstract-folder-view-container");
 
-        // Set coordinator to use all providers (local + library) for the main view
-        this.plugin.treeCoordinator.setActiveProviders(null);
-        
         // Ensure indexer starts building graph if it hasn't
         if (!this.plugin.indexer.hasBuiltFirstGraph()) {
             Logger.debug("AbstractFolderView: Indexer not ready, triggering initialization.");
@@ -50,6 +48,7 @@ export class AbstractFolderView extends ItemView {
 
         const toolbarContainer = contentEl.createDiv({ cls: "abstract-folder-toolbar-container" });
         const searchContainer = contentEl.createDiv({ cls: "abstract-folder-search-container" });
+        const groupHeaderContainer = contentEl.createDiv({ cls: "abstract-folder-group-header-container" });
         const treeContainer = contentEl.createDiv({ cls: "abstract-folder-tree-container" });
 
         // Initialize Facets
@@ -59,9 +58,11 @@ export class AbstractFolderView extends ItemView {
             toolbarContainer,
             this.app,
             this.plugin.settings,
-            () => this.plugin.saveSettings()
+            () => this.plugin.saveSettings(),
+            groupHeaderContainer
         );
 
+        // Initialize Search Facet
         this.searchFacet = new SearchFacet(
             this.plugin.treeCoordinator,
             this.plugin.contextEngine,
@@ -76,6 +77,10 @@ export class AbstractFolderView extends ItemView {
             this.app,
             this.plugin
         );
+
+        // Initialize DragManager and connect to TreeFacet
+        const dragManager = new DragManager(this.app, this.plugin.settings, this.plugin.indexer, this);
+        this.treeFacet.setDragManager(dragManager);
 
         // Mount Facets
         this.toolbarFacet.onMount();

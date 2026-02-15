@@ -2,11 +2,14 @@ import { BaseFacet } from "./base-facet";
 import { VirtualViewport, ViewportDelegate, ViewportItem } from "./virtual-viewport";
 import { Logger } from "../../utils/logger";
 import { ContextMenuHandler } from "../context-menu";
-import { App, setIcon, TFile } from "obsidian";
+import { App, setIcon, TFile, TAbstractFile } from "obsidian";
 import { TreeCoordinator } from "../../core/tree-coordinator";
 import { ContextEngine } from "../../core/context-engine";
 import AbstractFolderPlugin from "../../../main";
 import { URIUtils } from "../../core/uri";
+import { TreeNode } from "../../core/tree-provider";
+import { DragManager } from "../dnd/drag-manager";
+import { FolderNode } from "../../types";
 
 /**
  * TreeFacet manages the rendering of the tree structure using the VirtualViewport.
@@ -14,6 +17,7 @@ import { URIUtils } from "../../core/uri";
 export class TreeFacet extends BaseFacet {
     private viewport: VirtualViewport;
     private contextMenuHandler: ContextMenuHandler;
+    private dragManager: DragManager | null = null;
 
     constructor(
         treeCoordinator: TreeCoordinator,
@@ -35,6 +39,7 @@ export class TreeFacet extends BaseFacet {
             }
         );
     }
+
     private virtualWrapper: HTMLElement;
     private virtualSpacer: HTMLElement;
     private virtualContainer: HTMLElement;
@@ -67,12 +72,16 @@ export class TreeFacet extends BaseFacet {
 
         // Subscribe to graph updates from indexer
         // Note: Using 'any' cast for custom event name to satisfy Obsidian's EventRef type constraints
-        const eventRef = (this.app.workspace as any).on('abstract-folder:graph-updated', () => {
+        const workspace = this.app.workspace as unknown as Record<string, (name: string, callback: () => void) => unknown>;
+        const eventRef = workspace.on('abstract-folder:graph-updated', () => {
             Logger.debug("TreeFacet: Graph updated event received.");
             Logger.debug("TreeFacet: Graph updated, refreshing view.");
             void this.refresh();
         });
-        this.subscribe(() => (this.app.workspace as any).offref(eventRef));
+        this.subscribe(() => {
+            const ws = this.app.workspace as unknown as Record<string, (ref: unknown) => void>;
+            ws.offref(eventRef);
+        });
         
         // Initial render
         void this.refresh();
@@ -88,9 +97,11 @@ export class TreeFacet extends BaseFacet {
     private renderNode(item: ViewportItem, container: HTMLElement) {
         const node = item.node;
         const depth = node.depth || 0;
+        const state = this.contextEngine.getState();
         const serializedUri = URIUtils.toString(node.uri);
-        const isExpanded = this.contextEngine.getState().expandedURIs.has(serializedUri) ||
-                          this.contextEngine.getState().expandedURIs.has(node.uri.path);
+        const isExpanded = state.expandedURIs.has(serializedUri) ||
+                          state.expandedURIs.has(node.uri.path);
+        const isSelected = state.selectedURIs.has(serializedUri) || state.selectedURIs.has(node.uri.path);
 
         const el = container.createDiv({
             cls: `abstract-folder-item nav-file ${node.isFolder ? 'nav-folder' : ''}`,
@@ -99,6 +110,10 @@ export class TreeFacet extends BaseFacet {
 
         if (node.isFolder && !isExpanded) {
             el.addClass("is-collapsed");
+        }
+
+        if (isSelected) {
+            el.addClass("is-selected");
         }
 
         const selfEl = el.createDiv({ cls: "nav-file-title abstract-folder-item-self" });
@@ -124,15 +139,21 @@ export class TreeFacet extends BaseFacet {
 
         selfEl.createDiv({ cls: "nav-file-title-content", text: node.name });
 
+        const file = this.app.vault.getAbstractFileByPath(node.uri.path);
+
         el.addEventListener("click", (evt) => {
             evt.preventDefault();
             const serialized = URIUtils.toString(node.uri);
             Logger.debug(`TreeFacet: Item clicked: ${node.uri.path} (full: ${serialized}), isFolder: ${node.isFolder}`);
+            
+            // Selection logic
+            this.contextEngine.clearSelection();
+            this.contextEngine.select(node.uri);
+
             if (node.isFolder) {
                 this.contextEngine.toggleExpansion(node.uri);
             } else {
                 // Focus file
-                const file = this.app.vault.getAbstractFileByPath(node.uri.path);
                 if (file instanceof TFile) {
                     void this.app.workspace.getLeaf(false).openFile(file);
                 }
@@ -141,9 +162,69 @@ export class TreeFacet extends BaseFacet {
 
         el.addEventListener("contextmenu", (evt) => {
             evt.preventDefault();
-            const multiSelectedPaths = new Set<string>();
-            this.contextMenuHandler.showContextMenu(evt, node.metadata?.folderNode as any || { path: node.uri.path, file: this.app.vault.getAbstractFileByPath(node.uri.path) }, multiSelectedPaths);
+            if (this.contextMenuHandler) {
+                const multiSelectedPaths = new Set<string>();
+                const folderNode = (node.metadata?.folderNode as FolderNode) || ({
+                    path: node.uri.path,
+                    isFolder: node.isFolder,
+                    file: file,
+                    isLibrary: node.uri.provider !== "local",
+                    children: []
+                } as FolderNode);
+                this.contextMenuHandler.showContextMenu(evt, folderNode, multiSelectedPaths);
+            }
         });
+
+        this.setupDragEvents(el, node, file);
+    }
+
+    /**
+     * Sets the drag manager for DnD support.
+     */
+    setDragManager(manager: DragManager) {
+        this.dragManager = manager;
+    }
+
+    private setupDragEvents(el: HTMLElement, node: TreeNode, file: TAbstractFile | null) {
+        if (this.dragManager) {
+            el.draggable = true;
+            el.addEventListener("dragstart", (e) => {
+                const folderNode = (node.metadata?.folderNode as FolderNode) || ({
+                    path: node.uri.path,
+                    isFolder: node.isFolder,
+                    file: file,
+                    isLibrary: node.uri.provider !== "local",
+                    children: []
+                } as FolderNode);
+                this.dragManager?.handleDragStart(e, folderNode, "", new Set());
+            });
+
+            el.addEventListener("dragover", (e) => {
+                const folderNode = (node.metadata?.folderNode as FolderNode) || ({
+                    path: node.uri.path,
+                    isFolder: node.isFolder,
+                    file: file,
+                    isLibrary: node.uri.provider !== "local",
+                    children: []
+                } as FolderNode);
+                this.dragManager?.handleDragOver(e, folderNode);
+            });
+
+            el.addEventListener("drop", (e) => {
+                const folderNode = (node.metadata?.folderNode as FolderNode) || ({
+                    path: node.uri.path,
+                    isFolder: node.isFolder,
+                    file: file,
+                    isLibrary: node.uri.provider !== "local",
+                    children: []
+                } as FolderNode);
+                
+                if (this.dragManager && 'handleDrop' in this.dragManager) {
+                    const manager = this.dragManager as unknown as Record<string, (e: DragEvent, node: FolderNode) => void>;
+                    manager.handleDrop(e, folderNode);
+                }
+            });
+        }
     }
 
     onDestroy(): void {

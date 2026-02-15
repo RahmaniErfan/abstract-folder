@@ -27,9 +27,7 @@ export class SearchFacet extends BaseFacet {
     private render() {
         this.containerEl.empty();
 
-        const searchContainer = this.containerEl.createDiv({ cls: "abstract-folder-search-container" });
-        
-        this.searchInputEl = searchContainer.createEl("input", {
+        this.searchInputEl = this.containerEl.createEl("input", {
             cls: "abstract-folder-search-input",
             attr: {
                 type: "text",
@@ -41,7 +39,7 @@ export class SearchFacet extends BaseFacet {
             this.contextEngine.setSearchQuery(this.searchInputEl.value);
         });
 
-        const clearButton = searchContainer.createDiv({
+        const clearButton = this.containerEl.createDiv({
             cls: "abstract-folder-search-clear clickable-icon",
             attr: { "aria-label": "Clear search" }
         });

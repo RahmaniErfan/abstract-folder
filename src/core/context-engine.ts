@@ -1,11 +1,14 @@
 import { TreeCoordinator } from "./tree-coordinator";
 import { ResourceURI, URIUtils } from "./uri";
 
+import { SortConfig } from "../types";
+
 export interface ContextState {
     expandedURIs: Set<string>;
     selectedURIs: Set<string>;
     activeGroup: string | null;
     searchQuery: string;
+    sortConfig: SortConfig;
 }
 
 export type StateListener = (state: ContextState) => void;
@@ -18,12 +21,13 @@ export class ContextEngine {
     private state: ContextState;
     private listeners: Set<StateListener> = new Set();
 
-    constructor(initialState?: Partial<ContextState>) {
+    constructor(initialState?: Partial<ContextState>, defaultSort?: SortConfig) {
         this.state = {
             expandedURIs: initialState?.expandedURIs || new Set(),
             selectedURIs: initialState?.selectedURIs || new Set(),
             activeGroup: initialState?.activeGroup || null,
             searchQuery: initialState?.searchQuery || "",
+            sortConfig: initialState?.sortConfig || defaultSort || { sortBy: "name", sortOrder: "asc" },
         };
     }
 
@@ -91,6 +95,14 @@ export class ContextEngine {
     setActiveGroup(groupId: string | null) {
         if (this.state.activeGroup === groupId) return;
         this.state.activeGroup = groupId;
+        this.notify();
+    }
+
+    /**
+     * Sets the sort configuration.
+     */
+    setSortConfig(config: SortConfig) {
+        this.state.sortConfig = config;
         this.notify();
     }
 

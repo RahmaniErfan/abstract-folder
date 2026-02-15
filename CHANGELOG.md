@@ -24,6 +24,11 @@
 - **Read-Only Enforcement**: Disabled destructive context menu actions for community library files to prevent accidental data loss.
 - **Tree Interaction Consistency**: Unified the behavior between the Main View and Library Explorer. Settings like `autoExpandChildren` now apply correctly across all tree-based views.
 - **Virtualization Support**: Fixed a bug where virtualized nodes in the Main View failed to expand because they appeared to have no children. The system now uses the global Indexer as the source of truth for all interactions.
+- **SOVM Architecture Migration**: Completed the major architectural shift to Service-Oriented View Model.
+  - **High Performance Rendering**: Switched to a virtualized tree system that can handle thousands of nodes with minimal memory footprint.
+  - **Modular UI (Facets)**: Decoupled Toolbar, Search, and Tree logic into independent, reactive components.
+  - **Unified Resource Model**: Introduced a URI-based resource model supporting multi-source tree providers (Local Vault + Libraries).
+  - **Advanced Feature Restoration**: Fully restored and hardened advanced sorting (Gravity/Thermal), search filtering, and group-scoped views within the new architecture.
 
 ---
 *For versions 1.0.0 through 1.14.0, see [CHANGELOG_ARCHIVE.md](./CHANGELOG_ARCHIVE.md)*

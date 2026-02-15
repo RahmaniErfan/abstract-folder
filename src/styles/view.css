@@ -9,6 +9,19 @@
 	flex-direction: column;
 }
 
+.abstract-folder-toolbar-facet {
+    display: flex;
+    flex-direction: column;
+}
+
+.abstract-folder-toolbar-actions {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 2px 4px;
+    gap: 2px;
+}
+
 .abstract-folder-tree-container {
     flex-grow: 1;
     overflow: hidden;
@@ -36,6 +49,7 @@
 	width: 100%;
 	flex-grow: 1;
 	overflow-y: auto;
+    background-color: var(--background-primary);
 }
 
 .abstract-folder-virtual-container {
@@ -141,4 +155,68 @@
 .abstract-folder-suggestion-container .suggestion-note {
     font-size: 0.85em;
     color: var(--text-muted);
+}
+
+/* Search bar styling */
+.abstract-folder-search-container {
+    padding: 8px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    position: relative;
+    background-color: var(--background-primary);
+    width: 100%;
+}
+
+.abstract-folder-search-input {
+    flex: 1 1 auto;
+    width: 100%;
+    height: 30px !important;
+    padding-right: 30px !important; /* Space for clear button */
+    margin: 0 !important;
+}
+
+.abstract-folder-search-clear {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.abstract-folder-search-clear:hover {
+    color: var(--text-normal);
+    background-color: var(--background-modifier-hover);
+}
+
+/* Toolbar and Group Header */
+.abstract-folder-toolbar-container {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--background-secondary);
+}
+
+.abstract-folder-group-header {
+    padding: 6px 12px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background-color: var(--background-primary);
+    border-bottom: 1px solid var(--background-modifier-border);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    line-height: 1.5;
+    text-align: center;
+    width: 100%;
+}
+
+.abstract-folder-group-header-container {
+    display: flex;
 }

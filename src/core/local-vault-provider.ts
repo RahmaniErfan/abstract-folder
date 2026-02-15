@@ -3,15 +3,31 @@ import { ITreeProvider, TreeNode } from "./tree-provider";
 import { ResourceURI, URIUtils } from "./uri";
 import { FolderIndexer } from "../indexer";
 import { Logger } from "../utils/logger";
+import { resolveGroupRoots } from "../utils/tree-utils";
+import { AbstractFolderPluginSettings } from "../settings";
 
 /**
  * LocalVaultProvider bridges the physical Obsidian vault and the SOVM architecture.
  */
 export class LocalVaultProvider implements ITreeProvider {
-    readonly id = 'local';
+    readonly id = "local";
+    private activeGroupId: string | null = null;
 
-    constructor(private app: App, private indexer: FolderIndexer) {
+    constructor(
+        private app: App,
+        private indexer: FolderIndexer,
+        private settings: AbstractFolderPluginSettings
+    ) {
         Logger.debug("LocalVaultProvider: Initialized.");
+    }
+
+    /**
+     * Sets the active group to filter roots.
+     */
+    setActiveGroup(groupId: string | null) {
+        if (this.activeGroupId === groupId) return;
+        this.activeGroupId = groupId;
+        Logger.debug(`LocalVaultProvider: activeGroupId set to ${groupId}`);
     }
 
     async getRoots(): Promise<TreeNode[]> {
@@ -22,14 +38,25 @@ export class LocalVaultProvider implements ITreeProvider {
         }
 
         const graph = this.indexer.getGraph();
-        
+
         if (!graph) {
             Logger.error("LocalVaultProvider: Graph is undefined!");
             return [];
         }
 
-        const rootPaths = Array.from(graph.roots);
-        Logger.debug(`LocalVaultProvider: Indexer graph.roots has ${rootPaths.length} items.`, rootPaths);
+        let rootPaths: string[];
+        if (this.activeGroupId) {
+            const group = this.settings.groups.find(g => g.id === this.activeGroupId);
+            if (group) {
+                rootPaths = resolveGroupRoots(this.app, graph, group);
+            } else {
+                rootPaths = Array.from(graph.roots);
+            }
+        } else {
+            rootPaths = Array.from(graph.roots);
+        }
+
+        Logger.debug(`LocalVaultProvider: Returning ${rootPaths.length} root paths.`);
 
         const roots = rootPaths.map(path => this.mapPathToNode(path));
         Logger.debug(`LocalVaultProvider: Mapped ${roots.length} root nodes.`);

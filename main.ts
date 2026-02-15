@@ -61,9 +61,9 @@ export default class AbstractFolderPlugin extends Plugin {
 		this.indexer.initializeIndexer();
 
 		// Initialize SOVM Stack
-		this.contextEngine = new ContextEngine();
-		this.treeCoordinator = new TreeCoordinator(this.contextEngine);
-		this.localVaultProvider = new LocalVaultProvider(this.app, this.indexer);
+		this.contextEngine = new ContextEngine(undefined, this.settings.defaultSort);
+		this.treeCoordinator = new TreeCoordinator(this.app, this.contextEngine, this.settings, this.metricsManager);
+		this.localVaultProvider = new LocalVaultProvider(this.app, this.indexer, this.settings);
 		this.libraryTreeProvider = new LibraryTreeProvider(this.app, this.settings);
 		this.treeCoordinator.registerProvider(this.localVaultProvider);
 		this.treeCoordinator.registerProvider(this.libraryTreeProvider);
