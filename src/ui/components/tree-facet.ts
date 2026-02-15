@@ -118,9 +118,9 @@ export class TreeFacet extends BaseFacet {
         const depth = node.depth || 0;
         const state = this.contextEngine.getState();
         const serializedUri = URIUtils.toString(node.uri);
-        const isExpanded = state.expandedURIs.has(serializedUri) ||
-                          state.expandedURIs.has(node.uri.path);
-        const isSelected = state.selectedURIs.has(serializedUri) || state.selectedURIs.has(node.uri.path);
+        // URI Standardization: Strictly use serialized URIs for state lookups
+        const isExpanded = state.expandedURIs.has(serializedUri);
+        const isSelected = state.selectedURIs.has(serializedUri);
 
         const el = container.createDiv({
             cls: `abstract-folder-item nav-file ${node.isFolder ? 'nav-folder' : ''}`,
@@ -162,9 +162,6 @@ export class TreeFacet extends BaseFacet {
 
         el.addEventListener("click", (evt) => {
             evt.preventDefault();
-            const serialized = URIUtils.toString(node.uri);
-            Logger.debug(`TreeFacet: Item clicked: ${node.uri.path} (full: ${serialized}), isFolder: ${node.isFolder}`);
-            
             // Selection logic
             this.contextEngine.clearSelection();
             this.contextEngine.select(node.uri);

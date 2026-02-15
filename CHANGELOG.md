@@ -21,6 +21,9 @@
 - **Reliability**: Hardened discovery URL normalization for GitHub repositories.
 
 ### Fixed
+- **Folder Arrow Rotation**: Fixed a persistent issue where folder arrows (">") failed to rotate when expanded. Implemented correct mapping for "right-triangle" SVG paths (`0deg` expanded, `-90deg` collapsed) with high-specificity CSS overrides.
+- **Virtualization Sync**: Resolved a core bug in the `VirtualViewport` where recycled DOM elements failed to update upon state changes (expansion/selection). Items are now correctly replaced during re-renders.
+- **Selection Visuals**: Standardized tree item height to `24px` and fixed the selection highlight color to match the user's theme while maintaining text visibility.
 - **Read-Only Enforcement**: Disabled destructive context menu actions for community library files to prevent accidental data loss.
 - **Tree Interaction Consistency**: Unified the behavior between the Main View and Library Explorer. Settings like `autoExpandChildren` now apply correctly across all tree-based views.
 - **Virtualization Support**: Fixed a bug where virtualized nodes in the Main View failed to expand because they appeared to have no children. The system now uses the global Indexer as the source of truth for all interactions.

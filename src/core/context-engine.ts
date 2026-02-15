@@ -72,11 +72,14 @@ export class ContextEngine {
      */
     toggleExpansion(uri: ResourceURI) {
         const uriString = URIUtils.toString(uri);
-        if (this.state.expandedURIs.has(uriString)) {
-            this.state.expandedURIs.delete(uriString);
+        // Create a new set to ensure reactivity and prevent reference-sharing issues
+        const newExpanded = new Set(this.state.expandedURIs);
+        if (newExpanded.has(uriString)) {
+            newExpanded.delete(uriString);
         } else {
-            this.state.expandedURIs.add(uriString);
+            newExpanded.add(uriString);
         }
+        this.state.expandedURIs = newExpanded;
         this.notify();
     }
 

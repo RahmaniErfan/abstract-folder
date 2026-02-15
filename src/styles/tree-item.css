@@ -10,8 +10,9 @@
 	display: flex;
 	align-items: center;
 	cursor: pointer;
-	padding: 2px 6px 4px 6px; /* Increased bottom padding to replace margin */
-	margin-bottom: 0; /* Removed margin to fix broken indent lines */
+	padding: 0 6px; /* Reduced vertical padding to match native height (24px total) */
+	height: 24px;   /* Explicit height matching the virtualization engine's expectation */
+	margin-bottom: 0;
 	border-radius: var(--radius-s);
 	color: var(--text-normal);
 	transition: background-color 0.1s ease-in-out;
@@ -25,17 +26,15 @@
 	color: var(--nav-item-text-color-hover);
 }
 
-.abstract-folder-item-self.is-active {
-	background-color: var(--nav-item-background-active);
-	color: var(--nav-item-text-color-active);
+.abstract-folder-item.is-selected > .abstract-folder-item-self {
+	background-color: var(--nav-item-background-active) !important;
+	color: var(--text-normal) !important;
 	font-weight: var(--font-medium);
 }
 
 /* Style for multi-selected item */
 .abstract-folder-item-self.is-multi-selected {
-	background-color: var(
-		--nav-item-background-active
-	); /* Make it look like an active item */
+	background-color: var(--nav-item-background-active);
 	color: var(--nav-item-text-color-active);
 	font-weight: var(--font-medium);
 }

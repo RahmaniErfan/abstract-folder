@@ -66,7 +66,17 @@ export class VirtualViewport {
             visibleUris.add(uriString);
 
             let el = this.renderedItems.get(uriString);
-            if (!el) {
+            if (el) {
+                // IMPORTANT: Always re-render the existing element to reflect state changes (like expansion)
+                const temp = document.createElement("div");
+                this.delegate.renderItem({ node, index: i, top: i * itemHeight }, temp);
+                const newContent = temp.firstElementChild as HTMLElement;
+                if (newContent) {
+                    el.replaceWith(newContent);
+                    el = newContent;
+                    this.renderedItems.set(uriString, el);
+                }
+            } else {
                 const temp = document.createElement("div");
                 this.delegate.renderItem({ node, index: i, top: i * itemHeight }, temp);
                 el = temp.firstElementChild as HTMLElement;

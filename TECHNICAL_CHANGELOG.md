@@ -28,9 +28,12 @@
 *   **`ContextEngine.silent()`**: Utility to perform state updates (like selection resets) without triggering a notification avalanche.
 *   **View Lifecycle**: Updated `AbstractFolderView` and `LibraryExplorerView` to perform "Silent Resets" on `onOpen`.
 
-### UI/CSS
+### UI/CSS Hardening
+*   **Virtualization State Sync (`src/ui/components/virtual-viewport.ts`)**: Discovered that the `renderedItems` cache was bypassing re-renders for visible items when expansion state changed. Implemented `replaceWith` logic to force DOM updates on every data refresh.
+*   **URI Standardization**: Eliminated "Shadow States" caused by mixed usage of `uri.path` and serialized URIs. All state lookups in `ContextEngine` and `TreeFacet` are now strictly standardized on `URIUtils.toString()`.
+*   **Rotation Mapping**: Identified that the "right-triangle" SVG path is naturally oriented at `0deg` (DOWN). Adjusted mapping to `-90deg` for collapsed (RIGHT) to match native Obsidian behavior.
 *   **Indentation Fix**: Re-implemented hierarchical padding using `depth` tracking in the flattening algorithm.
-*   **Box Model**: Corrected `.abstract-folder-item` layout to prevent visual "hover overlap" between parents and children.
+*   **Box Model**: Standardized row height to `24px` and refined vertical padding to prevent the "Focus Box" overlap issue.
 
 ### 3. Unified Interaction Controller
 *   **Indexer as Source of Truth**: Refactored tree logic to use the `Indexer` as the absolute source of truth for node relationships, ensuring consistency between virtualized and recursive views.
