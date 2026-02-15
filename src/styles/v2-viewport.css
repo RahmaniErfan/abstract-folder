@@ -117,6 +117,17 @@
     box-sizing: border-box;
     
     --indent-width: 18px;
+    --guide-width: 1px;
+}
+
+.af-v2-item-guide {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: var(--guide-width);
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.3;
 }
 
 /* Clear background for the actual content area */

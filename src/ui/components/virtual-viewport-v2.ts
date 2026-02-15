@@ -154,6 +154,32 @@ export class VirtualViewportV2 {
     }
 
     private updateRowState(el: HTMLElement, node: AbstractNode, index: number, itemHeight: number) {
+        // Handle Indent Guides (Reddit style)
+        const existingGuides = el.querySelectorAll('.af-v2-item-guide');
+        const colors = [
+            'var(--text-accent)',
+            'var(--color-red)',
+            'var(--color-orange)',
+            'var(--color-yellow)',
+            'var(--color-green)',
+            'var(--color-cyan)',
+            'var(--color-blue)',
+            'var(--color-purple)',
+            'var(--color-pink)'
+        ];
+
+        // Ensure correct number of guides
+        if (existingGuides.length !== node.depth) {
+            existingGuides.forEach(g => g.remove());
+            for (let d = 0; d < node.depth; d++) {
+                const guide = document.createElement('div');
+                guide.className = 'af-v2-item-guide';
+                guide.style.left = `${24 + d * 18}px`; // Match padding math (24 base + d * 18)
+                guide.style.backgroundColor = colors[d % colors.length];
+                el.appendChild(guide);
+            }
+        }
+
         const isSelected = this.context.isSelected(node.id);
         const isExpanded = this.context.isExpanded(node.id);
         const isInScope = this.scope.isDescendant(node.id);
