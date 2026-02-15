@@ -1,6 +1,7 @@
-import { ItemView, WorkspaceLeaf, TFile, Notice, Platform, Menu, setIcon } from "obsidian";
+import { ItemView, WorkspaceLeaf, TFile, Notice, Platform, Menu } from "obsidian";
 import type AbstractFolderPlugin from "main";
 import { VirtualViewportV2, ViewportDelegateV2 } from "../components/virtual-viewport-v2";
+import { AbstractFolderViewToolbar } from "../toolbar/abstract-folder-view-toolbar";
 import { TreeSnapshot, AbstractNode } from "../../core/tree-builder";
 import { deleteAbstractFile, createAbstractChildFile, toggleHiddenStatus } from "../../utils/file-operations";
 import { Logger } from "../../utils/logger";
@@ -10,6 +11,7 @@ export const VIEW_TYPE_ABSTRACT_FOLDER = "abstract-folder-view";
 export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
     private plugin: AbstractFolderPlugin;
     private viewport: VirtualViewportV2;
+    private toolbar: AbstractFolderViewToolbar;
     private searchInput: HTMLInputElement;
     private currentSnapshot: TreeSnapshot | null = null;
     private isRefreshing = false;
@@ -41,27 +43,15 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
         
         // Toolbar
         const toolbarEl = headerEl.createDiv({ cls: "abstract-folder-toolbar" });
-        
-        toolbarEl.createEl("button", {
-            cls: "clickable-icon",
-            attr: { "aria-label": "Collapse all" }
-        }, (el) => {
-            setIcon(el, "chevrons-down-up");
-            el.onclick = () => {
-                this.plugin.contextEngineV2.collapseAll();
-            };
-        });
-
-        toolbarEl.createEl("button", {
-            cls: "clickable-icon",
-            attr: { "aria-label": "Refresh tree" }
-        }, (el) => {
-            setIcon(el, "refresh-cw");
-            el.onclick = async () => {
-                await this.plugin.graphEngine.forceReindex();
-                await this.refreshV2Tree();
-            };
-        });
+        this.toolbar = new AbstractFolderViewToolbar(
+            this.app,
+            this.plugin.settings,
+            this.plugin,
+            toolbarEl,
+            () => this.focusSearch(),
+            () => this.focusActiveFile()
+        );
+        this.toolbar.setupToolbarActions();
 
         this.searchInput = headerEl.createEl("input", {
             type: "text",
@@ -138,6 +128,34 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
     public focusSearch() {
         if (this.searchInput) {
             this.searchInput.focus();
+        }
+    }
+
+    public focusActiveFile() {
+        const activeFile = this.app.workspace.getActiveFile();
+        if (!activeFile) return;
+
+        // Reveal in tree logic
+        if (this.currentSnapshot?.locationMap) {
+            const uris = this.currentSnapshot.locationMap.get(activeFile.path);
+            if (uris && uris.length > 0) {
+                const firstUri = uris[0];
+                this.plugin.contextEngineV2.select(firstUri, { multi: false });
+                
+                // Ensure parents are expanded
+                const parts = firstUri.replace("view://", "").split("/");
+                let currentPath = "view://";
+                for (let i = 0; i < parts.length - 1; i++) {
+                    currentPath += (i === 0 ? "" : "/") + parts[i];
+                    if (!this.plugin.contextEngineV2.isExpanded(currentPath)) {
+                        this.plugin.contextEngineV2.toggleExpand(currentPath);
+                    }
+                }
+                
+                void this.refreshV2Tree().then(() => {
+                    this.viewport.scrollToItem(firstUri);
+                });
+            }
         }
     }
 

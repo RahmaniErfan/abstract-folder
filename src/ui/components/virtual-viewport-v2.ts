@@ -52,6 +52,19 @@ export class VirtualViewportV2 {
     }
 
     /**
+     * Scrolls the viewport to a specific item by URI.
+     */
+    public scrollToItem(uri: string) {
+        const index = this.items.findIndex(item => item.id === uri);
+        if (index === -1) return;
+
+        const itemHeight = this.delegate.isMobile() ? 32 : this.delegate.getItemHeight();
+        const scrollPos = index * itemHeight;
+        this.scrollContainer.scrollTop = scrollPos;
+        this.update();
+    }
+
+    /**
      * Performs the windowed rendering logic.
      */
     public update() {

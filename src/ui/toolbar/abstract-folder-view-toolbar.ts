@@ -1,7 +1,6 @@
 import { App, Menu, setIcon } from "obsidian";
 import { AbstractFolderPluginSettings } from "../../settings";
-import AbstractFolderPlugin from "../../../main";
-import { ViewState } from "../view-state";
+import type AbstractFolderPlugin from "main";
 import { CreateAbstractChildModal } from "../modals";
 import { createAbstractChildFile } from "../../utils/file-operations";
 import { ManageSortingModal } from "../modals/manage-sorting-modal";
@@ -19,12 +18,7 @@ export class AbstractFolderViewToolbar {
         private app: App,
         private settings: AbstractFolderPluginSettings,
         private plugin: AbstractFolderPlugin,
-        private viewState: ViewState,
         private containerEl: HTMLElement,
-        private renderView: () => void,
-        private expandAllView: () => void,
-        private collapseAllView: () => void,
-        private toggleSearch: () => void,
         private focusSearch: () => void,
         private focusActiveFile: () => void,
     ) {}
@@ -48,13 +42,9 @@ export class AbstractFolderViewToolbar {
         this.containerEl.addClass("abstract-folder-toolbar");
         
         // Clear references before rebuilding
-        this.viewStyleToggleAction = undefined;
         this.expandAllAction = undefined;
         this.collapseAllAction = undefined;
 
-        if (this.settings.showViewStyleToggle) {
-            this.viewStyleToggleAction = this.addAction("list", "Switch view style", () => this.viewState.toggleViewStyle());
-        }
         if (this.settings.showFocusActiveFileButton) {
             this.addAction("target", "Focus active file", () => this.focusActiveFile?.());
         }
@@ -64,13 +54,7 @@ export class AbstractFolderViewToolbar {
         if (this.settings.showCollapseAllButton) {
             this.collapseAllAction = this.addAction("chevrons-down-up", "Collapse all folders", () => {
                 Logger.debug("AbstractFolderViewToolbar: collapse all clicked");
-                this.collapseAllView();
-            });
-        }
-        if (this.settings.showExpandAllButton) {
-            this.expandAllAction = this.addAction("chevrons-up-down", "Expand all folders", () => {
-                Logger.debug("AbstractFolderViewToolbar: expand all clicked");
-                this.expandAllView();
+                this.plugin.contextEngineV2.collapseAll();
             });
         }
         if (this.settings.showSortButton) {
@@ -85,12 +69,11 @@ export class AbstractFolderViewToolbar {
         if (this.settings.showCreateNoteButton) {
             this.addAction("file-plus", "Create new root note", () => {
                 new CreateAbstractChildModal(this.app, this.settings, (name, type) => {
-                    createAbstractChildFile(this.app, this.settings, name, null, type, this.plugin.indexer).catch(Logger.error);
+                    createAbstractChildFile(this.app, this.settings, name, null, type, this.plugin.graphEngine).catch(Logger.error);
                 }, 'note').open();
             });
         }
 
-        this.updateViewStyleToggleButton();
         this.updateButtonStates();
     }
 
@@ -125,15 +108,16 @@ export class AbstractFolderViewToolbar {
                         const active = this.plugin.settings.groups.find(g => g.id === this.plugin.settings.activeGroupId);
                         if (active && active.sort) sortConfig = active.sort;
                     }
-                    this.viewState.setSort(sortConfig.sortBy, sortConfig.sortOrder);
+                    this.plugin.contextEngineV2.setSortConfig(sortConfig);
                 }).catch(Logger.error);
             }).open();
         }));
         menu.addSeparator();
+        const currentSort = this.plugin.contextEngineV2.getState().sortConfig;
         const addSortItem = (title: string, icon: string, sortBy: SortBy, sortOrder: 'asc' | 'desc') => {
             menu.addItem(item => item.setTitle(title)
-                .setIcon(this.viewState.sortBy === sortBy && this.viewState.sortOrder === sortOrder ? "check" : icon)
-                .onClick(() => this.viewState.setSort(sortBy, sortOrder)));
+                .setIcon(currentSort.sortBy === sortBy && currentSort.sortOrder === sortOrder ? "check" : icon)
+                .onClick(() => this.plugin.contextEngineV2.setSortConfig({ sortBy, sortOrder })));
         };
         addSortItem("Sort by name (ascending)", "sort-asc", 'name', 'asc');
         addSortItem("Sort by name (descending)", "sort-desc", 'name', 'desc');
@@ -161,37 +145,10 @@ export class AbstractFolderViewToolbar {
             new ManageFilteringModal(this.app, this.settings, (updated) => {
                 this.plugin.settings = updated;
                 this.plugin.saveSettings().then(() => {
-                    let filterConfig = this.plugin.settings.defaultFilter;
-                    if (this.plugin.settings.activeGroupId) {
-                        const active = this.plugin.settings.groups.find(g => g.id === this.plugin.settings.activeGroupId);
-                        if (active && active.filter) filterConfig = active.filter;
-                    }
-                    this.viewState.setFilter(filterConfig.excludeExtensions);
+                    this.plugin.app.workspace.trigger('abstract-folder:graph-updated');
                 }).catch(Logger.error);
             }).open();
         }));
-        menu.addSeparator();
-
-        const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'];
-        const isHidingImages = imageExtensions.every(ext => this.viewState.excludeExtensions.includes(ext));
-        menu.addItem(item => item.setTitle(isHidingImages ? "Show image files" : "Hide image files")
-            .setIcon(isHidingImages ? "check" : "image")
-            .onClick(() => {
-                const current = new Set(this.viewState.excludeExtensions);
-                if (isHidingImages) imageExtensions.forEach(ext => current.delete(ext));
-                else imageExtensions.forEach(ext => current.add(ext));
-                this.viewState.setFilter(Array.from(current));
-            }));
-
-        const isHidingCanvas = this.viewState.excludeExtensions.includes('canvas');
-        menu.addItem(item => item.setTitle(isHidingCanvas ? "Show canvas files" : "Hide canvas files")
-            .setIcon(isHidingCanvas ? "check" : "layout-dashboard")
-            .onClick(() => {
-                const current = new Set(this.viewState.excludeExtensions);
-                if (isHidingCanvas) current.delete('canvas');
-                else current.add('canvas');
-                this.viewState.setFilter(Array.from(current));
-            }));
 
         menu.showAtMouseEvent(event);
     }
@@ -207,10 +164,8 @@ export class AbstractFolderViewToolbar {
                     .onClick(async () => {
                         this.settings.activeGroupId = group.id;
                         await this.plugin.saveSettings();
-                        if (group.sort) this.viewState.setSort(group.sort.sortBy, group.sort.sortOrder);
-                        if (group.filter) this.viewState.setFilter(group.filter.excludeExtensions);
-                        else this.viewState.setFilter(this.settings.defaultFilter.excludeExtensions);
-                        this.app.workspace.trigger('abstract-folder:group-changed');
+                        if (group.sort) this.plugin.contextEngineV2.setSortConfig(group.sort);
+                        this.app.workspace.trigger('abstract-folder:graph-updated');
                     }));
             });
             menu.addSeparator();
@@ -221,18 +176,17 @@ export class AbstractFolderViewToolbar {
                 this.plugin.settings.groups = updatedGroups;
                 this.plugin.settings.activeGroupId = activeGroupId;
                 this.plugin.saveSettings().then(() => {
-                    this.plugin.app.workspace.trigger('abstract-folder:group-changed');
+                    this.plugin.app.workspace.trigger('abstract-folder:graph-updated');
                 }).catch(Logger.error);
-            }).open();
+            }, this.plugin).open();
         }));
 
         menu.addItem(item => item.setTitle("Clear active group").setIcon(this.settings.activeGroupId === null ? "check" : "cross").onClick(async () => {
             this.settings.activeGroupId = null;
             await this.plugin.saveSettings();
             const defaultSort = this.plugin.settings.defaultSort;
-            this.viewState.setSort(defaultSort.sortBy, defaultSort.sortOrder);
-            this.viewState.setFilter(this.plugin.settings.defaultFilter.excludeExtensions);
-            this.app.workspace.trigger('abstract-folder:group-changed');
+            this.plugin.contextEngineV2.setSortConfig(defaultSort);
+            this.app.workspace.trigger('abstract-folder:graph-updated');
         }));
 
         menu.showAtMouseEvent(event);
