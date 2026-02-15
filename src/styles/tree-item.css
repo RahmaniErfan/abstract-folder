@@ -50,9 +50,17 @@
 }
 
 .abstract-folder-item.is-selected > .abstract-folder-item-self {
-	background-color: var(--nav-item-background-active) !important;
-	color: var(--text-normal) !important;
-	font-weight: var(--font-medium);
+	background-color: var(--nav-item-background-hover) !important; /* Match hover color exactly */
+	color: var(--nav-item-text-color-hover) !important;
+	font-weight: var(--nav-item-weight);
+	border-radius: var(--nav-item-radius);
+}
+
+/* Scoped Highlight: Nested items under a selected folder (Logic currently disabled in TS) */
+.abstract-folder-item.is-child-of-selected > .abstract-folder-item-self {
+	background-color: var(--nav-item-background-hover) !important;
+	color: var(--nav-item-text-color-hover) !important;
+	border-radius: var(--nav-item-radius);
 }
 
 /* Style for multi-selected item */

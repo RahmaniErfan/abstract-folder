@@ -133,7 +133,7 @@
 }
 
 .abstract-folder-item.is-selected {
-    background-color: var(--background-modifier-active-hover);
+    background-color: transparent;
 }
 
 .abstract-folder-item-self.is-search-match::after {

@@ -135,6 +135,8 @@ export class TreeFacet extends BaseFacet {
             el.addClass("is-selected");
         }
 
+        // Removed: is-child-of-selected class application (disabled per request)
+
         // Add indentation guides (Reddit-style vertical lines)
         for (let i = 0; i < depth; i++) {
             const guide = el.createDiv({ cls: "abstract-folder-indent-guide" });
