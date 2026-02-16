@@ -22,7 +22,7 @@ export interface NodeMeta {
  * This allows for "Reference Counting" style logic where an edge exists
  * if EITHER the parent claims the child OR the child claims the parent.
  */
-interface FileDefinedRelationships {
+export interface FileDefinedRelationships {
     definedParents: Set<FileID>;
     definedChildren: Set<FileID>;
 }
@@ -71,6 +71,9 @@ export interface IGraphEngine {
     forceReindex(): Promise<void>; // For "Refresh" button
     suspend(): void; // For "Batch Transaction" mode
     resume(): void;
+
+    // Data Synchronization
+    seedRelationships(relationships: Map<FileID, FileDefinedRelationships>): void;
 
     // Diagnostics
     getDiagnosticDump(): GraphDiagnosticDump;
@@ -347,26 +350,54 @@ export class GraphEngine implements IGraphEngine {
         Logger.info(`[Abstract Folder] GraphEngine: getAllRoots called with activeGroupId: ${activeGroupId}`);
 
         if (activeGroupId) {
+            // 1. Check if activeGroupId is a Group ID in settings
             const group = this.settings.groups.find(g => g.id === activeGroupId);
             if (group) {
                 Logger.info(`[Abstract Folder] GraphEngine: Found group ${group.name}, resolving ${group.parentFolders.length} folders`);
                 for (const path of group.parentFolders) {
                     const resolved = this.resolveGroupRoot(path);
-                    Logger.info(`[Abstract Folder] GraphEngine: Path ${path} resolved to ${resolved}`);
-                    
-                    if (resolved) {
-                        processedRoots.add(resolved);
-                    } else {
-                        Logger.warn(`[Abstract Folder] GraphEngine: Path ${path} could not be resolved`);
+                    if (resolved) processedRoots.add(resolved);
+                }
+                return Array.from(processedRoots);
+            }
+
+            // 2. If not a group, treat it as a Path-Based Scope (Library Scoping)
+            // We search for nodes that:
+            // a) Reside within this path (physical prefix)
+            // b) Are roots within that scope (no parents defined WITHIN that same scope)
+            Logger.info(`[Abstract Folder] GraphEngine: Scoping graph to path: ${activeGroupId}`);
+            
+            // Normalize the scope path to ensure prefix matching works (e.g. folder/ vs folder)
+            const scopePrefix = activeGroupId.endsWith('/') ? activeGroupId : activeGroupId + '/';
+
+            for (const id of this.index.getAllFileIds()) {
+                // Only consider files inside the scoped path (or the path itself if it's a file)
+                if (id !== activeGroupId && !id.startsWith(scopePrefix)) continue;
+
+                const node = this.index.getNode(id);
+                
+                if (!node || node.meta.extension.toLowerCase() !== 'md') continue;
+
+                // Check if this node has any parents that are ALSO within the scoped path
+                let hasScopedParent = false;
+                for (const parentId of node.parents) {
+                    if (parentId === activeGroupId || parentId.startsWith(scopePrefix)) {
+                        hasScopedParent = true;
+                        break;
                     }
                 }
-                
-                const result = Array.from(processedRoots);
-                Logger.info(`[Abstract Folder] GraphEngine: Group roots resolved to:`, result);
-                return result;
-            } else {
-                Logger.warn(`[Abstract Folder] GraphEngine: Active group ${activeGroupId} not found in settings`);
+
+                // If no parent is within the scoped path, it's a root for this scope
+                if (!hasScopedParent) {
+                    processedRoots.add(id);
+                }
             }
+
+            if (processedRoots.size > 0) {
+                return Array.from(processedRoots);
+            }
+            
+            Logger.warn(`[Abstract Folder] GraphEngine: No roots found for scope ${activeGroupId}`);
         }
 
         // Default: Nodes with no parents
@@ -452,6 +483,41 @@ export class GraphEngine implements IGraphEngine {
     resume(): void {
         this.isSuspended = false;
         this.debouncedProcessQueue();
+    }
+
+    /**
+     * Seeds the GraphEngine with pre-verified relationships.
+     * Used by the LibraryBridge to provide data before Obsidian's indexer catches up.
+     */
+    seedRelationships(relationships: Map<FileID, FileDefinedRelationships>): void {
+        Logger.info(`[Abstract Folder] GraphEngine: Seeding ${relationships.size} relationships`);
+        
+        for (const [id, rels] of relationships) {
+            // Update internal relationship store
+            this.fileRelationships.set(id, rels);
+
+            // Update Adjacency Index immediately
+            const file = this.app.vault.getAbstractFileByPath(id);
+            if (file instanceof TFile) {
+                // Remove existing edges for this node to ensure clean state
+                const existing = this.index.getNode(id);
+                if (existing) {
+                    for (const p of existing.parents) this.index.removeEdge(p, id);
+                    for (const c of existing.children) this.index.removeEdge(id, c);
+                }
+
+                // Add new edges
+                for (const p of rels.definedParents) this.index.addEdge(p, id);
+                for (const c of rels.definedChildren) this.index.addEdge(id, c);
+
+                // Update node metadata
+                this.index.addNode(id, {
+                    extension: file.extension,
+                    mtime: file.stat.mtime,
+                    isOrphan: rels.definedParents.size === 0
+                });
+            }
+        }
     }
 
     getDiagnosticDump(): GraphDiagnosticDump {
@@ -564,6 +630,16 @@ export class GraphEngine implements IGraphEngine {
         };
 
         const metadata = this.app.metadataCache.getFileCache(file);
+        
+        // CRITICAL DEBUG: Full metadata dump for Library files
+        if (file.path.includes("Abstract Library")) {
+            Logger.debug(`[Abstract Folder] GraphEngine: CRITICAL CACHE DUMP for ${file.path}`, {
+                fullMetadata: metadata,
+                rawFrontmatter: metadata?.frontmatter,
+                fmLinks: metadata?.frontmatterLinks
+            });
+        }
+
         if (!metadata?.frontmatter) return relationships;
 
         let isHidden = false;

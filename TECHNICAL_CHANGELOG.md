@@ -1,5 +1,24 @@
 # Technical Changelog
 
+## [2026-02-16] V2 SOVM Architecture Enhancement (Pipeline & Scoping)
+
+### 1. Strategic Cache Ingestion (Bridge-to-Graph Sync)
+*   **The Discovery**: Using `GraphEngine: CRITICAL CACHE DUMP`, it was confirmed that Obsidian's `metadataCache` often returns `undefined` for library files (e.g. after Git sync), even when data exists on disk.
+*   **The Implementation**: Added `seedRelationships()` to `IGraphEngine`. This allows the `AbstractBridge` to push high-confidence relationships parsed manually from disk directly into the `AdjacencyIndex`.
+*   **Performance**: Bypasses the asynchronous metadata indexing queue, ensuring hierarchical integrity (chevrons/nesting) immediately upon library selection without redundant disk reads.
+
+### 2. Standardized V2 Filtering Pipeline
+*   **Authoritative Extension Check**: Refactored `StandardTreePipeline` to use `app.vault.getAbstractFileByPath` for extension detection, ensuring parity with the legacy filtering settings.
+*   **Pipeline Simplification**: Removed redundant traversal checks in `TreeBuilder`. The `Pipeline.matches()` is now the absolute judge of visibility, separating traversal logic from visualization rules.
+
+### 3. Concurrency & State Management
+*   **Refresh Semaphore**: Implemented `isRefreshing` lock in `AbstractFolderView` to prevent interleaved async tree builds during rapid filesystem events.
+*   **Viewport Cache Hardening**: Forced absolute `containerEl.empty()` and `renderedItems` cache purges in `VirtualViewportV2` to eliminate "Ghost DOM" artifacts after graph re-indexing.
+
+### 4. Library Explorer Activation Fixes
+*   **Constructor Integrity**: Fixed `TypeError` in `LibraryExplorerView` by passing plugin settings to `ContextEngineV2`.
+*   **Scoped Root Discovery**: Hardened `GraphEngine.getAllRoots` to support direct path-based scoping. Improved prefix matching logic to distinguish between library roots and global orphans.
+
 ## [2026-02-15] V2 SOVM Architecture (Phase 7-9)
 
 ### 1. High-Performance Graph & View Model

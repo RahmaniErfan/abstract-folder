@@ -2,6 +2,7 @@
 
 ## [Unreleased] - (V2 High-Performance Architecture)
 ### Added
+- **Strategic Cache Ingestion**: New synchronization bridge between proactive manual scans and reactive graph updates.
 - **V2 SOVM Architecture**: Complete architectural overhaul to a Service-Oriented View Model for massive vault support.
   - **GraphEngine**: High-speed, bidirectional adjacency index for link-based hierarchy.
   - **TreeBuilder**: Iterative DFS tree construction with time-slicing (AsyncGenerators) to prevent UI freezing.
@@ -36,6 +37,10 @@
 - **Reliability**: Hardened discovery URL normalization for GitHub repositories.
 
 ### Fixed
+- **Library Explorer Hierarchy**: Resolved "Flat Tree" issue in Library Explorer by seeding GraphEngine with pre-verified relationships from AbstractBridge.
+- **Extension Filtering**: Restored filtering parity for images and canvas files in V2 pipeline using authoritative Obsidian APIs.
+- **Race Conditions**: Implemented async semaphore locks in tree building to prevent UI clobbering during rapid file updates.
+- **Viewport Cache Leaks**: Fixed stale DOM elements in virtualized list by forcing container purges on every update.
 - **Folder Arrow Rotation**: Fixed a persistent issue where folder arrows (">") failed to rotate when expanded. Implemented correct mapping for "right-triangle" SVG paths (`0deg` expanded, `-90deg` collapsed) with high-specificity CSS overrides.
 - **Virtualization Sync**: Resolved a core bug in the `VirtualViewport` where recycled DOM elements failed to update upon state changes (expansion/selection). Items are now correctly replaced during re-renders.
 - **Selection Visuals**: Standardized tree item height to `24px` and fixed the selection highlight color to match the user's theme while maintaining text visibility.

@@ -29,13 +29,13 @@ export class TreeBuilder {
      * Builds a flattened tree view using a Depth-First Search (DFS).
      * Now uses a TreePipeline to handle filtering and sorting logic, separating traversal from transformation.
      */
-    async *buildTree(context: ContextEngineV2, filterQuery?: string | null, forceExpandAll = false): AsyncGenerator<void, TreeSnapshot, void> {
+    async *buildTree(context: ContextEngineV2, filterQuery?: string | null, forceExpandAll = false, overrideGroupId?: string | null): AsyncGenerator<void, TreeSnapshot, void> {
         const items: AbstractNode[] = [];
         const locationMap = new Map<FileID, string[]>();
         const state = context.getState();
 
         // 1. Resolve Roots via GraphEngine
-        const roots = this.graph.getAllRoots(state.activeGroupId);
+        const roots = this.graph.getAllRoots(overrideGroupId !== undefined ? overrideGroupId : state.activeGroupId);
         
         // 2. Initialize Pipeline
         const pipeline: TreePipeline = new StandardTreePipeline(this.app, this.graph, {

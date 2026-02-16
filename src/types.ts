@@ -1,5 +1,8 @@
 import { TAbstractFile } from "obsidian";
 
+/** Path-based unique identifier for a file */
+export type FileID = string;
+
 // Extend the App interface to include the 'commands' property,
 // which is available in Obsidian's internal API but might not be in default types.
 declare module "obsidian" {

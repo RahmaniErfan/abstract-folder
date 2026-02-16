@@ -19,7 +19,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegateV2 
 
     constructor(leaf: WorkspaceLeaf, private plugin: AbstractFolderPlugin) {
         super(leaf);
-        this.contextEngine = new ContextEngineV2();
+        this.contextEngine = new ContextEngineV2(plugin.settings);
     }
 
     getViewType(): string {
@@ -130,11 +130,24 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegateV2 
     }
 
     private async refreshLibraryTree() {
-        if (!this.viewport) return;
+        if (!this.viewport || !this.selectedLibrary) return;
 
-        // For now, we use the global tree builder but we need to filter for the library.
-        // TODO: Implement proper library scoping in TreeBuilder.
-        const generator = this.plugin.treeBuilder.buildTree(this.contextEngine);
+        const libraryFile = this.selectedLibrary.file;
+        const libraryPath = libraryFile ? libraryFile.path : null;
+        
+        // Strategic Cache Ingestion:
+        // Before building the tree, we seed the GraphEngine with relationships
+        // discovered by the Bridge's manual scan. This ensures the V2 Pipeline
+        // sees the correct hierarchy even if Obsidian's cache is stale.
+        if (libraryPath) {
+            const relationships = this.plugin.abstractBridge.getLibraryRelationships(libraryPath);
+            if (relationships) {
+                this.plugin.graphEngine.seedRelationships(relationships);
+            }
+        }
+
+        // Use the library's root folder as the active group to establish hierarchy
+        const generator = this.plugin.treeBuilder.buildTree(this.contextEngine, null, false, libraryPath);
         let result;
         while (true) {
             const next = await generator.next();
@@ -145,14 +158,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegateV2 
         }
 
         if (result) {
-            // Temporarily filter by path to simulate library scoping
-            const libraryFile = this.selectedLibrary ? this.selectedLibrary.file : null;
-            const libraryPath = libraryFile ? libraryFile.path : null;
-            const filteredList = libraryPath
-                ? result.flatList.filter(node => node.path.startsWith(libraryPath))
-                : result.flatList;
-
-            this.viewport.setItems(filteredList);
+            this.viewport.setItems(result.items);
             this.viewport.update();
         }
     }
@@ -168,7 +174,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegateV2 
 
     onItemClick(node: AbstractNode, event: MouseEvent): void {
         this.contextEngine.select(node.id, { multi: event.ctrlKey || event.metaKey });
-        const file = this.app.vault.getAbstractFileByPath(node.path);
+        const file = this.app.vault.getAbstractFileByPath(node.uri);
         if (file instanceof TFile) {
             void this.app.workspace.getLeaf(false).openFile(file);
         }

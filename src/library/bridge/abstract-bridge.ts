@@ -1,9 +1,10 @@
 import { App, TFolder, TFile } from "obsidian";
 import { LibraryNode, LibraryConfig } from "../types";
 import { Logger } from "../../utils/logger";
-import { FolderNode } from "../../types";
+import { FolderNode, FileID } from "../../types";
 import { DataService } from "../services/data-service";
 import { AbstractFolderPluginSettings } from "../../settings";
+import { FileDefinedRelationships } from "../../core/graph-engine";
 
 /**
  * AbstractBridge is responsible for merging physical library nodes
@@ -18,7 +19,7 @@ export class AbstractBridge {
     private DISCOVERY_TTL = 5000; // 5 seconds cache for discovery
 
     // Cache for built trees per library
-    private treeCache: Map<string, { nodes: FolderNode[], timestamp: number }> = new Map();
+    private treeCache: Map<string, { nodes: FolderNode[], relationships: Map<FileID, FileDefinedRelationships>, timestamp: number }> = new Map();
 
     constructor(private app: App, settings?: Partial<AbstractFolderPluginSettings>) {
         if (settings) {
@@ -241,8 +242,28 @@ export class AbstractBridge {
 
         Logger.debug(`[AbstractBridge] Tree building complete. Roots count: ${roots.length}`, roots.map(r => r.path));
         
-        this.treeCache.set(cacheKey, { nodes: roots, timestamp: now });
+        // Prepare the flat relationship map for seeding the GraphEngine
+        const relationshipMap = new Map<FileID, FileDefinedRelationships>();
+        for (const path of allPaths) {
+            relationshipMap.set(path, {
+                definedParents: childToParents[path] || new Set(),
+                definedChildren: parentToChildren[path] || new Set()
+            });
+        }
+
+        this.treeCache.set(cacheKey, {
+            nodes: roots,
+            relationships: relationshipMap,
+            timestamp: now
+        });
         return roots;
+    }
+
+    /**
+     * Returns the relationships for a specific library, if cached.
+     */
+    getLibraryRelationships(libraryRootPath: string): Map<FileID, FileDefinedRelationships> | null {
+        return this.treeCache.get(libraryRootPath)?.relationships || null;
     }
 
     /**
