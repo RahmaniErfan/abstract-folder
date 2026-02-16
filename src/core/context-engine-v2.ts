@@ -1,7 +1,8 @@
 import { EventEmitter } from 'events';
 import { SortConfig } from '../types';
+import { AbstractFolderPluginSettings } from '../settings';
 import { Logger } from 'src/utils/logger';
-import { NodeLocationMap } from './tree-builder';
+import { FileID } from './graph-engine';
 
 export interface ContextStateV2 {
     /** Currently selected Synthetic URIs */
@@ -12,6 +13,8 @@ export interface ContextStateV2 {
     focusedURI: string | null;
     /** Current fuzzy search/filter query */
     activeFilter: string | null;
+    /** Currently active group ID */
+    activeGroupId: string | null;
     /** Sorting preference */
     sortConfig: SortConfig;
 }
@@ -21,19 +24,22 @@ export interface ContextStateV2 {
  * It uses the Action-Reducer pattern to ensure atomic, reactive updates.
  */
 export class ContextEngineV2 extends EventEmitter {
+    public settings: AbstractFolderPluginSettings;
     private state: ContextStateV2;
     /** Stable reference to physical paths of selections for the Repair Cycle */
     private selectedPaths: Set<string> = new Set();
     /** Stable reference to physical paths of expansions for the Repair Cycle */
     private expandedPaths: Set<string> = new Set();
 
-    constructor(initialState?: Partial<ContextStateV2>) {
+    constructor(settings: AbstractFolderPluginSettings, initialState?: Partial<ContextStateV2>) {
         super();
+        this.settings = settings;
         this.state = {
             selectedURIs: initialState?.selectedURIs || new Set(),
             expandedURIs: initialState?.expandedURIs || new Set(),
             focusedURI: initialState?.focusedURI || null,
             activeFilter: initialState?.activeFilter || null,
+            activeGroupId: initialState?.activeGroupId || settings.activeGroupId || null,
             sortConfig: initialState?.sortConfig || { sortBy: 'name', sortOrder: 'asc' }
         };
     }
@@ -117,7 +123,15 @@ export class ContextEngineV2 extends EventEmitter {
     }
 
     setSortConfig(config: SortConfig): void {
+        Logger.debug(`[Abstract Folder] Context: Setting sort config`, config);
         this.state.sortConfig = config;
+        this.emit('changed', this.getState());
+    }
+
+    setActiveGroup(groupId: string | null): void {
+        Logger.debug(`[Abstract Folder] Context: Setting active group to ${groupId}`);
+        this.state.activeGroupId = groupId;
+        this.settings.activeGroupId = groupId;
         this.emit('changed', this.getState());
     }
 
@@ -150,7 +164,7 @@ export class ContextEngineV2 extends EventEmitter {
      * This must be called BEFORE a graph rebuild if we want to preserve state.
      * @param locationMap The map from the current (pre-rebuild) tree snapshot
      */
-    snapshotPhysicalPaths(locationMap: NodeLocationMap): void {
+    snapshotPhysicalPaths(locationMap: Map<FileID, string[]>): void {
         this.selectedPaths.clear();
         this.expandedPaths.clear();
 
@@ -175,7 +189,7 @@ export class ContextEngineV2 extends EventEmitter {
      * This is called AFTER a graph rebuild.
      * @param locationMap The map from the new (post-rebuild) tree snapshot
      */
-    repairState(locationMap: NodeLocationMap): void {
+    repairState(locationMap: Map<FileID, string[]>): void {
         const newSelectedURIs = new Set<string>();
         const newExpandedURIs = new Set<string>();
 

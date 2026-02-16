@@ -162,10 +162,9 @@ export class AbstractFolderViewToolbar {
                 menu.addItem(item => item.setTitle(group.name)
                     .setIcon(this.settings.activeGroupId === group.id ? "check" : "group")
                     .onClick(async () => {
-                        this.settings.activeGroupId = group.id;
+                        this.plugin.contextEngineV2.setActiveGroup(group.id);
                         await this.plugin.saveSettings();
                         if (group.sort) this.plugin.contextEngineV2.setSortConfig(group.sort);
-                        this.app.workspace.trigger('abstract-folder:graph-updated');
                     }));
             });
             menu.addSeparator();
@@ -175,18 +174,16 @@ export class AbstractFolderViewToolbar {
             new ManageGroupsModal(this.app, this.settings, (updatedGroups, activeGroupId) => {
                 this.plugin.settings.groups = updatedGroups;
                 this.plugin.settings.activeGroupId = activeGroupId;
-                this.plugin.saveSettings().then(() => {
-                    this.plugin.app.workspace.trigger('abstract-folder:graph-updated');
-                }).catch(Logger.error);
+                this.plugin.contextEngineV2.setActiveGroup(activeGroupId);
+                this.plugin.saveSettings().catch(Logger.error);
             }, this.plugin).open();
         }));
 
         menu.addItem(item => item.setTitle("Clear active group").setIcon(this.settings.activeGroupId === null ? "check" : "cross").onClick(async () => {
-            this.settings.activeGroupId = null;
+            this.plugin.contextEngineV2.setActiveGroup(null);
             await this.plugin.saveSettings();
             const defaultSort = this.plugin.settings.defaultSort;
             this.plugin.contextEngineV2.setSortConfig(defaultSort);
-            this.app.workspace.trigger('abstract-folder:graph-updated');
         }));
 
         menu.showAtMouseEvent(event);

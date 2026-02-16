@@ -59,12 +59,10 @@ export default class AbstractFolderPlugin extends Plugin {
 		
 		// Initialize Graph Engine
 		this.graphEngine = new GraphEngine(this.app, this.settings);
-		void this.graphEngine.initialize().then(() => {
-			void this.runShadowTreeBuild();
-		}).catch(error => Logger.error("Failed to initialize GraphEngine", error));
+		void this.graphEngine.initialize().catch(error => Logger.error("Failed to initialize GraphEngine", error));
 		
-		this.treeBuilder = new TreeBuilder(this.graphEngine);
-		this.contextEngineV2 = new ContextEngineV2();
+		this.treeBuilder = new TreeBuilder(this.app, this.graphEngine);
+		this.contextEngineV2 = new ContextEngineV2(this.settings);
 		this.scopeProjector = new ScopeProjector();
 		this.transactionManager = new TransactionManager(this.app, this.graphEngine, this.settings);
 
@@ -114,13 +112,6 @@ export default class AbstractFolderPlugin extends Plugin {
 			},
 		});
 
-		this.addCommand({
-			id: "debug-tree-build",
-			name: "Debug tree build (v2 shadow build)",
-			callback: () => {
-				this.runShadowTreeBuild().catch(console.error);
-			}
-		});
 
 		this.addCommand({
 			id: "focus-active-file",
@@ -433,23 +424,4 @@ this.addCommand({
 		}
 	}
 
-	private async runShadowTreeBuild() {
-		Logger.info("Starting v2 shadow tree build...");
-		const generator = this.treeBuilder.buildTree(this.contextEngineV2);
-		let result;
-
-		while (true) {
-			const next = await generator.next();
-			if (next.done) {
-				result = next.value;
-				break;
-			}
-		}
-
-		if (result) {
-			Logger.info(`V2 shadow tree build complete. Nodes: ${result.flatList.length}`);
-			// Log first 5 nodes for sanity check
-			Logger.debug("First 5 nodes:", result.flatList.slice(0, 5));
-		}
-	}
 }

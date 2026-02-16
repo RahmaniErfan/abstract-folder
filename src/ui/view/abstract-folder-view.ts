@@ -15,6 +15,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
     private searchInput: HTMLInputElement;
     private currentSnapshot: TreeSnapshot | null = null;
     private isRefreshing = false;
+    private nextRefreshScheduled = false;
 
     constructor(leaf: WorkspaceLeaf, plugin: AbstractFolderPlugin) {
         super(leaf);
@@ -60,7 +61,10 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
         });
 
         this.searchInput.addEventListener("input", () => {
-            this.plugin.contextEngineV2.setFilter(this.searchInput.value);
+            const query = this.searchInput.value;
+            Logger.debug(`[Abstract Folder] View: Search input changed to "${query}"`);
+            this.plugin.contextEngineV2.setFilter(query);
+            // The ContextEngine will emit 'changed', triggering refreshV2Tree()
         });
 
         // Viewport Container
@@ -136,24 +140,31 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
         if (!activeFile) return;
 
         // Reveal in tree logic
-        if (this.currentSnapshot?.locationMap) {
-            const uris = this.currentSnapshot.locationMap.get(activeFile.path);
-            if (uris && uris.length > 0) {
-                const firstUri = uris[0];
-                this.plugin.contextEngineV2.select(firstUri, { multi: false });
+        // Reveal in tree logic
+        const snapshot = this.currentSnapshot;
+        if (snapshot) {
+            // In V2, locationMap is URI -> Index, but for "Reveal in Tree"
+            // we need to find which URIs correspond to this physical FileID (activeFile.path).
+            // This is a reverse lookup.
+            const matchingNode = snapshot.items.find(item => item.id === activeFile.path);
+            
+            if (matchingNode) {
+                const targetUri = matchingNode.uri;
+                this.plugin.contextEngineV2.select(targetUri, { multi: false });
                 
-                // Ensure parents are expanded
-                const parts = firstUri.replace("view://", "").split("/");
-                let currentPath = "view://";
-                for (let i = 0; i < parts.length - 1; i++) {
-                    currentPath += (i === 0 ? "" : "/") + parts[i];
-                    if (!this.plugin.contextEngineV2.isExpanded(currentPath)) {
-                        this.plugin.contextEngineV2.toggleExpand(currentPath);
+                // Ensure parents are expanded in the ContextEngine
+                // URIs are constructed as root/child/grandchild
+                const segments = targetUri.split('/');
+                let cumulativeUri = '';
+                for (let i = 0; i < segments.length - 1; i++) {
+                    cumulativeUri += (i === 0 ? '' : '/') + segments[i];
+                    if (!this.plugin.contextEngineV2.isExpanded(cumulativeUri)) {
+                        this.plugin.contextEngineV2.toggleExpand(cumulativeUri);
                     }
                 }
                 
                 void this.refreshV2Tree().then(() => {
-                    this.viewport.scrollToItem(firstUri);
+                    this.viewport.scrollToItem(targetUri);
                 });
             }
         }
@@ -164,27 +175,27 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
         const isRange = event.shiftKey;
 
         // 1. Update Selection State
-        this.plugin.contextEngineV2.select(node.id, {
+        this.plugin.contextEngineV2.select(node.uri, {
             multi: isMulti,
             range: isRange,
-            flatList: this.currentSnapshot?.flatList.map(n => n.id)
+            flatList: this.currentSnapshot?.items.map(n => n.uri)
         });
 
         // 2. Open File if it's a single click (no modifier or just range)
-        const file = this.app.vault.getAbstractFileByPath(node.path);
+        const file = this.app.vault.getAbstractFileByPath(node.id);
         if (file instanceof TFile && !isMulti) {
             void this.app.workspace.getLeaf(false).openFile(file);
         }
     }
 
     onItemToggle(node: AbstractNode, event: MouseEvent): void {
-        this.plugin.contextEngineV2.toggleExpand(node.id);
+        this.plugin.contextEngineV2.toggleExpand(node.uri);
         void this.refreshV2Tree();
     }
 
     onItemContextMenu(node: AbstractNode, event: MouseEvent): void {
         const menu = new Menu();
-        const file = this.app.vault.getAbstractFileByPath(node.path);
+        const file = this.app.vault.getAbstractFileByPath(node.id);
 
         if (file instanceof TFile) {
             menu.addItem((item) =>
@@ -236,7 +247,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
         const draggedFile = this.app.vault.getAbstractFileByPath(draggedPath);
         if (!(draggedFile instanceof TFile)) return;
 
-        this.plugin.transactionManager.moveNode(draggedFile, targetNode.path)
+        this.plugin.transactionManager.moveNode(draggedFile, targetNode.id)
             .then(() => {
                 new Notice(`Moved ${draggedFile.basename} to ${targetNode.name}`);
                 return this.refreshV2Tree();
@@ -248,23 +259,25 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
     }
 
     private async refreshV2Tree() {
-        if (this.isRefreshing) return;
+        if (this.isRefreshing) {
+            this.nextRefreshScheduled = true;
+            return;
+        }
         this.isRefreshing = true;
+        this.nextRefreshScheduled = false;
 
         try {
             const state = this.plugin.contextEngineV2.getState();
+            // Use searchInput value directly if available for more immediate feedback
+            const filterQuery = this.searchInput ? this.searchInput.value : state.activeFilter;
             
-            Logger.debug(`[Abstract Folder] View: Refreshing tree...`, {
-                filter: state.activeFilter,
-                expandedCount: state.expandedURIs.size,
-                expandedURIs: Array.from(state.expandedURIs)
-            });
+            // Refresh logic is now silent and robust.
 
             // If we have a filter, we FORCE expansion during build
             const generator = this.plugin.treeBuilder.buildTree(
                 this.plugin.contextEngineV2,
-                state.activeFilter,
-                !!state.activeFilter // Force expand all if searching
+                filterQuery,
+                !!filterQuery // Force expand all if searching
             );
             while (true) {
                 const result = await generator.next();
@@ -275,15 +288,16 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
             }
 
             if (this.currentSnapshot) {
-                Logger.debug(`[Abstract Folder] View: Snapshot built. Flat list size: ${this.currentSnapshot.flatList.length}`, {
-                    nodes: this.currentSnapshot.flatList.map(n => ({ id: n.id, depth: n.depth }))
-                });
-                this.viewport.setItems(this.currentSnapshot.flatList);
+                this.viewport.setItems(this.currentSnapshot.items);
             }
         } catch (error) {
             console.error("Failed to refresh v2 tree", error);
         } finally {
             this.isRefreshing = false;
+            if (this.nextRefreshScheduled) {
+                this.nextRefreshScheduled = false;
+                void this.refreshV2Tree();
+            }
         }
     }
 }

@@ -2,8 +2,6 @@ import { setIcon } from 'obsidian';
 import { AbstractNode } from '../../core/tree-builder';
 import { ContextEngineV2 } from '../../core/context-engine-v2';
 import { ScopeProjector } from '../../core/scope-projector';
-import { Logger } from 'src/utils/logger';
-
 export interface ViewportDelegateV2 {
     /** Item height in pixels (default 24-28) */
     getItemHeight(): number;
@@ -45,6 +43,13 @@ export class VirtualViewportV2 {
      * Re-renders the viewport with a new flat list.
      */
     public setItems(items: AbstractNode[]) {
+        // CRITICAL: Clear cache and DOM when a new set of items is provided.
+        // This prevents "ghost" items from previous build cycles/race conditions
+        // from persisting in the absolute-positioned viewport.
+        this.renderedItems.forEach(el => el.remove());
+        this.renderedItems.clear();
+        this.containerEl.empty();
+
         this.items = items;
         const itemHeight = this.delegate.isMobile() ? 32 : this.delegate.getItemHeight();
         this.spacerEl.style.height = `${this.items.length * itemHeight}px`;
@@ -117,7 +122,7 @@ export class VirtualViewportV2 {
             setIcon(arrow, "right-triangle");
             arrow.addEventListener("click", (e) => {
                 e.stopPropagation();
-                Logger.debug(`[Abstract Folder] Viewport: Toggle clicked for ${node.id}`);
+                // Removed noisy toggle log
                 this.delegate.onItemToggle(node, e);
             });
         } else {
@@ -137,7 +142,7 @@ export class VirtualViewportV2 {
         row.draggable = true;
         row.addEventListener("dragstart", (e) => {
             if (e.dataTransfer) {
-                e.dataTransfer.setData("text/plain", node.path);
+                e.dataTransfer.setData("text/plain", node.id);
                 e.dataTransfer.effectAllowed = "move";
             }
         });
@@ -182,9 +187,9 @@ export class VirtualViewportV2 {
         ];
 
         // Ensure correct number of guides
-        if (existingGuides.length !== node.depth) {
+        if (existingGuides.length !== node.level) {
             existingGuides.forEach(g => g.remove());
-            for (let d = 0; d < node.depth; d++) {
+            for (let d = 0; d < node.level; d++) {
                 const guide = document.createElement('div');
                 guide.className = 'af-v2-item-guide';
                 guide.style.left = `${24 + d * 18}px`; // Match padding math (24 base + d * 18)
@@ -193,16 +198,10 @@ export class VirtualViewportV2 {
             }
         }
 
-        const isSelected = this.context.isSelected(node.id);
-        const isExpanded = this.context.isExpanded(node.id);
-        const isInScope = this.scope.isDescendant(node.id);
+        const isSelected = this.context.isSelected(node.uri);
+        const isExpanded = this.context.isExpanded(node.uri);
+        const isInScope = this.scope.isDescendant(node.uri);
 
-        Logger.debug(`[Abstract Folder] Viewport: Row state for ${node.name}`, {
-            id: node.id,
-            isExpanded,
-            isSelected,
-            depth: node.depth
-        });
 
         /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access */
         (el.style as any).position = 'absolute';
@@ -212,7 +211,7 @@ export class VirtualViewportV2 {
         /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access */
         
         // Indentation via CSS variable for guide logic
-        el.style.setProperty('--depth', node.depth.toString());
+        el.style.setProperty('--depth', node.level.toString());
 
         // State classes
         el.classList.toggle("is-selected", isSelected);

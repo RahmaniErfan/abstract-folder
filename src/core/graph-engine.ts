@@ -59,12 +59,12 @@ export interface GraphDiagnosticDump {
  */
 export interface IGraphEngine {
     // Queries
-    getChildren(id: FileID): FileID[]; // Returns sorted list
+    getChildren(id: FileID): FileID[]; // Returns unsorted list (TreeBuilder handles sorting)
     getParents(id: FileID): FileID[];
     getNodeMeta(id: FileID): NodeMeta | undefined;
     
     // Analysis
-    getAllRoots(): FileID[]; // Nodes with parents.size === 0
+    getAllRoots(activeGroupId?: string | null): FileID[];
     
     // Lifecycle
     initialize(): Promise<void>;
@@ -319,11 +319,8 @@ export class GraphEngine implements IGraphEngine {
             Logger.debug(`[Abstract Folder] GraphEngine: getChildren(${id}) - Node not found`);
             return [];
         }
-        const children = Array.from(node.children).sort();
-        if (children.length > 0) {
-            Logger.debug(`[Abstract Folder] GraphEngine: getChildren(${id}) -> [${children.join(', ')}]`);
-        }
-        return children;
+        // Return raw list; TreeBuilder will sort them based on Context state
+        return Array.from(node.children);
     }
 
     /**
@@ -345,17 +342,81 @@ export class GraphEngine implements IGraphEngine {
     /**
      * Returns all nodes that have no parents (roots of the graph)
      */
-    getAllRoots(): FileID[] {
-        const roots: FileID[] = [];
-        for (const id of this.index.getAllFileIds()) {
-            const node = this.index.getNode(id);
-            // A root MUST have zero parents.
-            if (node && node.parents.size === 0) {
-                roots.push(id);
+    getAllRoots(activeGroupId?: string | null): FileID[] {
+        const processedRoots = new Set<FileID>();
+        Logger.info(`[Abstract Folder] GraphEngine: getAllRoots called with activeGroupId: ${activeGroupId}`);
+
+        if (activeGroupId) {
+            const group = this.settings.groups.find(g => g.id === activeGroupId);
+            if (group) {
+                Logger.info(`[Abstract Folder] GraphEngine: Found group ${group.name}, resolving ${group.parentFolders.length} folders`);
+                for (const path of group.parentFolders) {
+                    const resolved = this.resolveGroupRoot(path);
+                    Logger.info(`[Abstract Folder] GraphEngine: Path ${path} resolved to ${resolved}`);
+                    
+                    if (resolved) {
+                        processedRoots.add(resolved);
+                    } else {
+                        Logger.warn(`[Abstract Folder] GraphEngine: Path ${path} could not be resolved`);
+                    }
+                }
+                
+                const result = Array.from(processedRoots);
+                Logger.info(`[Abstract Folder] GraphEngine: Group roots resolved to:`, result);
+                return result;
+            } else {
+                Logger.warn(`[Abstract Folder] GraphEngine: Active group ${activeGroupId} not found in settings`);
             }
         }
-        Logger.debug(`[Abstract Folder] GraphEngine: getAllRoots found ${roots.length} roots out of ${Array.from(this.index.getAllFileIds()).length} nodes`);
-        return roots.sort();
+
+        // Default: Nodes with no parents
+        for (const id of this.index.getAllFileIds()) {
+            const node = this.index.getNode(id);
+            if (node && node.parents.size === 0) {
+                // AUTHORITATIVE ROOT CHECK:
+                // Only allow Markdown files to be "Automatic Roots" of the tree.
+                // Images, Canvas files, etc. must be explicitly linked as children to appear.
+                if (node.meta.extension.toLowerCase() === 'md') {
+                    processedRoots.add(id);
+                } else {
+                    // Log orphan rejection if it's a known clutter type
+                    const ext = node.meta.extension.toLowerCase();
+                    if (ext === 'png' || ext === 'canvas' || ext === 'jpg' || ext === 'jpeg') {
+                        Logger.debug(`[Abstract Folder] GraphEngine: Rejecting non-markdown orphan from roots -> ${id}`);
+                    }
+                }
+            }
+        }
+        
+        return Array.from(processedRoots);
+    }
+
+    private resolveGroupRoot(includedPath: string): string | null {
+        // Ported resolution logic from V1 tree-utils
+        let targetPath = includedPath;
+        let file = this.app.vault.getAbstractFileByPath(targetPath);
+
+        if (!file) {
+            const folderName = includedPath.split('/').pop();
+            if (folderName) {
+                const insideNotePath = `${includedPath}/${folderName}.md`;
+                if (this.app.vault.getAbstractFileByPath(insideNotePath)) {
+                    targetPath = insideNotePath;
+                }
+            }
+        }
+
+        if (!this.app.vault.getAbstractFileByPath(targetPath)) {
+            if (!targetPath.endsWith('.md')) {
+                const siblingNotePath = `${targetPath}.md`;
+                if (this.app.vault.getAbstractFileByPath(siblingNotePath)) {
+                    targetPath = siblingNotePath;
+                }
+            }
+        }
+
+        const exists = this.app.vault.getAbstractFileByPath(targetPath);
+        return exists ? targetPath : null;
     }
 
     /**
@@ -419,8 +480,9 @@ export class GraphEngine implements IGraphEngine {
             }
         }
         
-        // TODO: Notify listeners that graph updated
-        // this.trigger('graph-updated');
+        // Notify listeners that graph updated
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        this.app.workspace.trigger('abstract-folder:graph-updated' as any);
     }
 
     private updateFileIncremental(file: TFile) {
