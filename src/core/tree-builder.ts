@@ -14,6 +14,7 @@ export interface AbstractNode {
     isFocused: boolean;
     hasChildren: boolean;
     extension?: string;
+    icon?: string;
 }
 
 export interface TreeSnapshot {
@@ -100,7 +101,8 @@ export class TreeBuilder {
                 isSelected: context.isSelected(uri),
                 isFocused: context.isFocused(uri),
                 hasChildren: rawChildren.length > 0,
-                extension: meta?.extension
+                extension: meta?.extension,
+                icon: meta?.icon
             });
             
             // Track physical -> synthetic mapping

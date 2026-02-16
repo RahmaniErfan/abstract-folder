@@ -89,8 +89,16 @@
     height: 14px !important;
 }
 
-.af-v2-item-icon.is-collapsed svg {
+.af-v2-collapse-icon svg {
+    transition: transform 0.1s ease;
+}
+
+.af-v2-collapse-icon.is-collapsed svg {
     transform: rotate(-90deg) !important;
+}
+
+.af-v2-collapse-icon:not(.is-collapsed) svg {
+    transform: rotate(0deg) !important;
 }
 
 .abstract-folder-viewport-spacer {
@@ -110,7 +118,6 @@
     display: flex;
     pointer-events: auto !important;
     align-items: center;
-    pointer-events: auto;
     cursor: var(--cursor-clickable);
     user-select: none;
     padding-right: 8px;
@@ -152,8 +159,11 @@
     background-color: var(--background-modifier-hover);
 }
 
-.af-v2-item.is-selected .af-v2-item-self {
+.af-v2-item.is-selected {
     background-color: var(--background-modifier-active-hover);
+}
+
+.af-v2-item.is-selected .af-v2-item-inner {
     color: var(--text-accent);
 }
 
@@ -178,15 +188,6 @@
    UI Elements
    ========================================================================================= */
 
-.af-v2-item .af-v2-collapse-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    color: var(--text-muted);
-    transition: transform 0.1s ease-in-out;
-}
 
 /* Mobile Compatibility via CSS Variables */
 
@@ -194,18 +195,11 @@ body.is-mobile .af-v2-item {
     --af-item-height: 32px; /* Taller touch targets for mobile */
 }
 
-.af-v2-item .af-v2-collapse-icon {
-    width: calc(var(--af-item-height, 24px) * 0.85);
-    height: calc(var(--af-item-height, 24px) * 0.85);
-}
 
 body.is-mobile .af-v2-item .af-v2-item-inner {
     font-size: var(--font-ui-medium);
 }
 
-.af-v2-item .af-v2-collapse-icon.is-collapsed {
-    transform: rotate(-90deg);
-}
 
 .af-v2-item .af-v2-item-tag {
     margin: 0 4px;

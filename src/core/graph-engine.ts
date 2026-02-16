@@ -15,6 +15,7 @@ export interface NodeMeta {
     extension: string;  // "md", "canvas"
     mtime: number;      // For sorting/invalidation
     isOrphan: boolean;  // True if no parents
+    icon?: string;      // Custom icon from frontmatter
 }
 
 /**
@@ -514,7 +515,8 @@ export class GraphEngine implements IGraphEngine {
                 this.index.addNode(id, {
                     extension: file.extension,
                     mtime: file.stat.mtime,
-                    isOrphan: rels.definedParents.size === 0
+                    isOrphan: rels.definedParents.size === 0,
+                    icon: this.app.metadataCache.getFileCache(file)?.frontmatter?.icon as string | undefined
                 });
             }
         }
@@ -587,7 +589,8 @@ export class GraphEngine implements IGraphEngine {
         this.index.addNode(file.path, {
             mtime: file.stat.mtime,
             extension: file.extension,
-            isOrphan: existingNode ? existingNode.parents.size === 0 : true
+            isOrphan: existingNode ? existingNode.parents.size === 0 : true,
+            icon: this.app.metadataCache.getFileCache(file)?.frontmatter?.icon as string | undefined
         });
     }
 

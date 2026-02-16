@@ -116,17 +116,30 @@ export class VirtualViewportV2 {
         
         const self = row.createDiv("af-v2-item-self is-clickable");
         
-        // Expansion Arrow (for folders)
+        // 1. Disclosure Arrow (Chevron) - ONLY for nodes with children
         if (node.hasChildren) {
             const arrow = self.createDiv("af-v2-item-icon af-v2-collapse-icon");
+            // Use 'right-triangle' for the chevron - this icon points right by default in Obsidian
             setIcon(arrow, "right-triangle");
             arrow.addEventListener("click", (e) => {
                 e.stopPropagation();
-                // Removed noisy toggle log
                 this.delegate.onItemToggle(node, e);
             });
         } else {
-            self.createDiv("tree-item-icon"); // Spacer
+            self.createDiv("tree-item-icon"); // Spacer to align with chevrons
+        }
+
+        // 2. Custom Icon (or Type Icon)
+        const iconEl = self.createDiv("af-v2-item-icon af-v2-type-icon");
+        if (node.icon) {
+            setIcon(iconEl, node.icon);
+        } else {
+            // Default icons based on state/type if no custom icon
+            if (node.hasChildren) {
+                setIcon(iconEl, "folder");
+            } else {
+                setIcon(iconEl, "file-text");
+            }
         }
 
         // Label
@@ -218,8 +231,10 @@ export class VirtualViewportV2 {
         el.classList.toggle("is-expanded", isExpanded);
         el.classList.toggle("is-in-scope", isInScope);
 
-        const arrow = el.querySelector(".af-v2-item-icon");
+        const arrow = el.querySelector(".af-v2-collapse-icon");
         if (arrow && arrow instanceof HTMLElement) {
+            // is-collapsed state: chevron points right (0deg rotation)
+            // !is-collapsed state: chevron points down (rotated 90deg)
             arrow.classList.toggle("is-collapsed", !isExpanded);
             arrow.style.setProperty('visibility', node.hasChildren ? 'visible' : 'hidden');
         }
