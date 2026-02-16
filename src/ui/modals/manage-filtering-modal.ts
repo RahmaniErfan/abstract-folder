@@ -80,12 +80,17 @@ export class ManageFilteringModal extends Modal {
   }
 
   saveSettings() {
-    this.settings.groups = this.groups;
-    this.settings.defaultFilter = this.defaultFilter;
-    
-    this.onSave(this.settings);
-    this.close();
-  }
+  this.settings.groups = this.groups;
+  this.settings.defaultFilter = this.defaultFilter;
+  
+  this.onSave(this.settings);
+
+  // Trigger a full re-build of the tree after saving filter settings
+  // @ts-ignore: Custom event
+  this.app.workspace.trigger('abstract-folder:graph-updated');
+
+  this.close();
+}
 
   onClose() {
     const { contentEl } = this;

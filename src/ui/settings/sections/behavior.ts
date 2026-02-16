@@ -77,4 +77,17 @@ export function renderBehaviorSettings(containerEl: HTMLElement, plugin: Abstrac
 				await plugin.saveSettings();
 			}),
 		);
+
+	new Setting(containerEl)
+		.setName("Hide non-markdown orphans")
+		.setDesc("Hide files (images, PDFs, etc.) that are not linked as children of any note. They will still be visible if they are explicitly linked.")
+		.addToggle((toggle) =>
+			toggle.setValue(plugin.settings.hideNonMarkdownOrphans).onChange(async (value) => {
+				plugin.settings.hideNonMarkdownOrphans = value;
+				await plugin.saveSettings();
+				// Trigger a full re-build of the tree
+				// @ts-ignore: Custom event
+				plugin.app.workspace.trigger('abstract-folder:graph-updated');
+			}),
+		);
 }

@@ -4,12 +4,20 @@ import { SortConfig } from "../types";
 import { Logger } from "../utils/logger";
 
 export interface TreePipeline {
-    /** 
-     * Determines if a node matches the active filters (search, extensions, etc.) 
+    /**
+     * Phase 1: Hard Filter.
+     * Determines if a node is explicitly excluded (e.g., by extension).
+     * Hard filters always take precedence over structural and search rules.
+     */
+    isExcluded(id: FileID, meta: NodeMeta | undefined): boolean;
+
+    /**
+     * Phase 2: Search/Query Match.
+     * Determines if a node matches the active search query.
      */
     matches(id: FileID, meta: NodeMeta | undefined): boolean;
 
-    /** 
+    /**
      * Determines if a node is structural (e.g., a group root or an expanded parent)
      * and should remain visible even if it doesn't match the search.
      */
@@ -22,6 +30,8 @@ export interface TreePipeline {
 }
 
 export class StandardTreePipeline implements TreePipeline {
+    private excludedExtensions: Set<string>;
+
     constructor(
         private app: App,
         private graph: IGraphEngine,
@@ -29,42 +39,62 @@ export class StandardTreePipeline implements TreePipeline {
             sortConfig: SortConfig;
             filterQuery: string | null;
             groupRoots: Set<FileID>;
-            hideImages: boolean;
-            hideCanvas: boolean;
+            excludeExtensions: string[];
         }
     ) {
+        this.excludedExtensions = new Set(
+            config.excludeExtensions
+                .map(ext => ext.toLowerCase().trim().replace(/^\./, ""))
+                .filter(ext => ext.length > 0)
+        );
+
+        Logger.debug(`[Abstract Folder] Pipeline: Processed excluded extensions:`, Array.from(this.excludedExtensions));
+
         Logger.debug(`[Abstract Folder] Pipeline: Initialized with config:`, {
-            hideImages: config.hideImages,
-            hideCanvas: config.hideCanvas,
+            excludedExtensions: Array.from(this.excludedExtensions),
             filterQuery: config.filterQuery
         });
     }
 
-    matches(id: FileID, meta: NodeMeta | undefined): boolean {
-        // 1. Extension Filtering (Authoritative check via Obsidian API)
-        const abstractFile = this.app.vault.getAbstractFileByPath(id);
+    /**
+     * Extracts and normalizes the extension from a file ID or metadata.
+     */
+    private getNormalizedExtension(id: FileID, meta: NodeMeta | undefined): string {
+        let extension = "";
         
-        if (abstractFile instanceof TFile) {
-            const ext = abstractFile.extension.toLowerCase();
-            const isImage = ext === "png" || ext === "jpg" || ext === "jpeg";
-            const isCanvas = ext === "canvas";
-
-            if (isImage && this.config.hideImages) {
-                return false;
-            }
-            if (isCanvas && this.config.hideCanvas) {
-                return false;
-            }
+        if (meta?.extension) {
+            extension = meta.extension;
         } else {
-            // If it's not a TFile (e.g. folder), but ends with an image extension (Obsidian ghost file?)
-            const pathLower = id.toLowerCase();
-            const isImage = pathLower.endsWith(".png") || pathLower.endsWith(".jpg") || pathLower.endsWith(".jpeg");
-            if (isImage && this.config.hideImages) {
-                return false;
+            const abstractFile = this.app.vault.getAbstractFileByPath(id);
+            if (abstractFile instanceof TFile) {
+                extension = abstractFile.extension;
+            } else {
+                // Fallback to path extension if it's a folder or ghost file
+                // Only treat it as an extension if it's not a hidden file (starts with dot)
+                // and has a dot later in the string.
+                const fileName = id.split('/').pop() || "";
+                if (fileName.includes('.') && !fileName.startsWith('.')) {
+                    extension = fileName.split('.').pop() || "";
+                }
             }
         }
 
-        // 2. Search Filtering (Recursive check: match if this node matches OR any descendant matches)
+        return extension.toLowerCase().replace(/^\./, "").trim();
+    }
+
+    isExcluded(id: FileID, meta: NodeMeta | undefined): boolean {
+        const cleanExt = this.getNormalizedExtension(id, meta);
+
+        if (cleanExt && this.excludedExtensions.has(cleanExt)) {
+            Logger.debug(`[Abstract Folder] Pipeline: MATCHED EXCLUSION for ${id} (ext: '${cleanExt}')`);
+            return true;
+        }
+        
+        return false;
+    }
+
+    matches(id: FileID, meta: NodeMeta | undefined): boolean {
+        // Search Filtering (Recursive check: match if this node matches OR any descendant matches)
         if (this.config.filterQuery && this.config.filterQuery.trim().length > 0) {
             const query = this.config.filterQuery.toLowerCase();
             return this.recursiveSearchMatch(id, query);
@@ -82,14 +112,11 @@ export class StandardTreePipeline implements TreePipeline {
         const children = this.graph.getChildren(id);
         for (const childId of children) {
             // Check extension filters for children during search to prevent "ghost matches"
-            const childFile = this.app.vault.getAbstractFileByPath(childId);
-            if (childFile instanceof TFile) {
-                const ext = childFile.extension.toLowerCase();
-                const isImage = ext === "png" || ext === "jpg" || ext === "jpeg";
-                const isCanvas = ext === "canvas";
-                
-                if (isImage && this.config.hideImages) continue;
-                if (isCanvas && this.config.hideCanvas) continue;
+            const childMeta = this.graph.getNodeMeta(childId);
+            const cleanChildExt = this.getNormalizedExtension(childId, childMeta);
+            
+            if (cleanChildExt && this.excludedExtensions.has(cleanChildExt)) {
+                continue;
             }
 
             if (this.recursiveSearchMatch(childId, query)) {

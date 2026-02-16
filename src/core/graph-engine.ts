@@ -56,6 +56,31 @@ export interface GraphDiagnosticDump {
 }
 
 /**
+ * Policy for determining which files appear at the top level of the view.
+ */
+export interface RootSelectionPolicy {
+    /**
+     * Returns true if a file with no parents should be considered a root of the tree.
+     */
+    shouldIncludeOrphan(id: FileID, meta: NodeMeta, settings: AbstractFolderPluginSettings): boolean;
+}
+
+/**
+ * Standard implementation that respects the 'hideNonMarkdownOrphans' setting.
+ */
+export class StandardRootPolicy implements RootSelectionPolicy {
+    shouldIncludeOrphan(id: FileID, meta: NodeMeta, settings: AbstractFolderPluginSettings): boolean {
+        // Markdown files are always eligible as automatic roots
+        if (meta.extension.toLowerCase() === 'md') {
+            return true;
+        }
+
+        // Non-markdown files are only roots if the user explicitly wants to see them
+        return !settings.hideNonMarkdownOrphans;
+    }
+}
+
+/**
  * Public API Surface for the GraphEngine
  */
 export interface IGraphEngine {
@@ -249,6 +274,7 @@ export class GraphEngine implements IGraphEngine {
     private app: App;
     private settings: AbstractFolderPluginSettings;
     private index: AdjacencyIndex;
+    private rootPolicy: RootSelectionPolicy;
     private isSuspended: boolean = false;
     
     // Relationship Tracking
@@ -261,10 +287,11 @@ export class GraphEngine implements IGraphEngine {
     private parentProperties: string[] = [];
     private childProperties: string[] = [];
 
-    constructor(app: App, settings: AbstractFolderPluginSettings) {
+    constructor(app: App, settings: AbstractFolderPluginSettings, rootPolicy?: RootSelectionPolicy) {
         this.app = app;
         this.settings = settings;
         this.index = new AdjacencyIndex();
+        this.rootPolicy = rootPolicy || new StandardRootPolicy();
         this.debouncedProcessQueue = debounce(() => this.processQueue(), 500, true);
         this.updatePropertyCache();
     }
@@ -376,8 +403,12 @@ export class GraphEngine implements IGraphEngine {
                 if (id !== activeGroupId && !id.startsWith(scopePrefix)) continue;
 
                 const node = this.index.getNode(id);
-                
-                if (!node || node.meta.extension.toLowerCase() !== 'md') continue;
+                if (!node) continue;
+
+                // MODULAR ROOT CHECK: Apply policy even for scoped roots
+                if (!this.rootPolicy.shouldIncludeOrphan(id, node.meta, this.settings)) {
+                    continue;
+                }
 
                 // Check if this node has any parents that are ALSO within the scoped path
                 let hasScopedParent = false;
@@ -405,17 +436,13 @@ export class GraphEngine implements IGraphEngine {
         for (const id of this.index.getAllFileIds()) {
             const node = this.index.getNode(id);
             if (node && node.parents.size === 0) {
-                // AUTHORITATIVE ROOT CHECK:
-                // Only allow Markdown files to be "Automatic Roots" of the tree.
-                // Images, Canvas files, etc. must be explicitly linked as children to appear.
-                if (node.meta.extension.toLowerCase() === 'md') {
+                // MODULAR ROOT CHECK:
+                // Decouple topology (no parents) from UI eligibility (Orphan Policy)
+                if (this.rootPolicy.shouldIncludeOrphan(id, node.meta, this.settings)) {
                     processedRoots.add(id);
                 } else {
-                    // Log orphan rejection if it's a known clutter type
-                    const ext = node.meta.extension.toLowerCase();
-                    if (ext === 'png' || ext === 'canvas' || ext === 'jpg' || ext === 'jpeg') {
-                        Logger.debug(`[Abstract Folder] GraphEngine: Rejecting non-markdown orphan from roots -> ${id}`);
-                    }
+                    // Log orphan rejection
+                    Logger.debug(`[Abstract Folder] GraphEngine: Rejecting orphan from roots based on policy -> ${id} (ext: ${node.meta.extension})`);
                 }
             }
         }
@@ -549,8 +576,8 @@ export class GraphEngine implements IGraphEngine {
         }
         
         // Notify listeners that graph updated
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        this.app.workspace.trigger('abstract-folder:graph-updated' as any);
+        // @ts-ignore: Custom event
+        this.app.workspace.trigger('abstract-folder:graph-updated');
     }
 
     private updateFileIncremental(file: TFile) {

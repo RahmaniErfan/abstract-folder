@@ -37,8 +37,11 @@
 - **Reliability**: Hardened discovery URL normalization for GitHub repositories.
 
 ### Fixed
+- **Filtering Logic**: Implemented a strict Filter Priority Stack where Hard Filters (excluded extensions) now take absolute precedence over Group membership and Search queries.
+- **Extension Normalization**: Resolved issues where `.PNG` vs `png` caused filtering mismatches.
+- **Root Leakage**: Fixed a bug where non-markdown roots were appearing in scoped views (Library Explorer) despite global filtering settings.
+- **UI Synchronization**: Filter changes now trigger an immediate tree rebuild.
 - **Library Explorer Hierarchy**: Resolved "Flat Tree" issue in Library Explorer by seeding GraphEngine with pre-verified relationships from AbstractBridge.
-- **Extension Filtering**: Restored filtering parity for images and canvas files in V2 pipeline using authoritative Obsidian APIs.
 - **Race Conditions**: Implemented async semaphore locks in tree building to prevent UI clobbering during rapid file updates.
 - **Viewport Cache Leaks**: Fixed stale DOM elements in virtualized list by forcing container purges on every update.
 - **Folder Arrow Rotation**: Fixed a persistent issue where folder arrows (">") failed to rotate when expanded. Implemented correct mapping for "right-triangle" SVG paths (`0deg` expanded, `-90deg` collapsed) with high-specificity CSS overrides.

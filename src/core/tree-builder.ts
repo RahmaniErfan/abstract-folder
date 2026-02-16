@@ -2,6 +2,7 @@ import { App } from "obsidian";
 import { FileID, IGraphEngine } from "./graph-engine";
 import { ContextEngineV2 } from "./context-engine-v2";
 import { TreePipeline, StandardTreePipeline } from "./tree-pipeline";
+import { Logger } from "src/utils/logger";
 export interface AbstractNode {
     /** The Physical Path (Obsidian Path) */
     id: FileID;
@@ -34,26 +35,56 @@ export class TreeBuilder {
         const items: AbstractNode[] = [];
         const locationMap = new Map<FileID, string[]>();
         const state = context.getState();
+        const activeGroupId = overrideGroupId !== undefined ? overrideGroupId : state.activeGroupId;
 
-        // 1. Resolve Roots via GraphEngine
-        const roots = this.graph.getAllRoots(overrideGroupId !== undefined ? overrideGroupId : state.activeGroupId);
+        Logger.debug(`[Abstract Folder] TreeBuilder: Starting build. activeGroupId: ${activeGroupId}`);
+
+        // 1. Resolve Active Filter Config (Group vs Default)
+        let activeFilterConfig = context.settings.defaultFilter;
+        if (activeGroupId) {
+            const group = context.settings.groups.find(g => g.id === activeGroupId);
+            if (group && group.filter) {
+                activeFilterConfig = group.filter;
+            }
+        }
+
+        // 2. Resolve Roots via GraphEngine
+        const roots = this.graph.getAllRoots(activeGroupId);
+        Logger.debug(`[Abstract Folder] TreeBuilder: Graph returned ${roots.length} roots`);
         
-        // 2. Initialize Pipeline
+        // 3. Initialize Pipeline
         const pipeline: TreePipeline = new StandardTreePipeline(this.app, this.graph, {
             sortConfig: state.sortConfig,
             filterQuery: filterQuery || state.activeFilter,
             groupRoots: new Set(roots),
-            hideImages: context.settings.defaultFilter.excludeExtensions.includes('png') || context.settings.defaultFilter.excludeExtensions.includes('jpg'),
-            hideCanvas: context.settings.defaultFilter.excludeExtensions.includes('canvas')
+            excludeExtensions: activeFilterConfig.excludeExtensions
         });
 
         // 3. Process Roots (Filtered & Sorted)
-        // Roots are only allowed if they are Structural (Active Group Roots) OR if they match filters
+        /**
+         * Architectural Rule: Filter Priority Stack
+         * In V2, we enforce a strict precedence to ensure that user-defined "Hard Filters" (excluded extensions)
+         * cannot be bypassed by structural rules or search matches.
+         *
+         * 1. HARD FILTER (isExcluded) -> Absolute rejection (e.g. user hides all PNGs)
+         * 2. STRUCTURAL (isStructural) -> Absolute inclusion (Node is an entry point for an active Group)
+         * 3. SEARCH (matches) -> Conditional inclusion (Node or descendants match query)
+         */
         const filteredRoots = roots.filter(id => {
-            const isStructural = pipeline.isStructural(id);
             const meta = this.graph.getNodeMeta?.(id);
-            const isMatch = pipeline.matches(id, meta);
-            return isStructural || isMatch;
+            
+            // Phase 1: Hard Exclusion (Extensions)
+            if (pipeline.isExcluded(id, meta)) {
+                return false;
+            }
+
+            // Phase 2: Structural Inclusion (Group Roots)
+            if (pipeline.isStructural(id)) {
+                return true;
+            }
+
+            // Phase 3: Search Matching
+            return pipeline.matches(id, meta);
         });
 
         const sortedRoots = pipeline.sort(filteredRoots);
@@ -80,14 +111,35 @@ export class TreeBuilder {
             
             const isExpanded = forceExpandAll || context.isExpanded(uri);
             
-            // 1. Authoritative Filter Check
-            const isMatch = pipeline.matches(id, meta);
-            const isStructural = pipeline.isStructural(id);
+            /**
+             * 1. Authoritative Filter Check (Filter Priority Stack)
+             * We re-validate every node (roots and children) through the priority stack.
+             */
             
-            // A node is only eligible for the tree if it matches filters OR is a group root
-            if (!isMatch && !isStructural) {
+            // Phase 1: Hard Exclusion (Extensions)
+            // This is the absolute authority. If the extension is in the excluded list,
+            // the node and its entire subtree are dropped immediately.
+            if (pipeline.isExcluded(id, meta)) {
+                Logger.debug(`[Abstract Folder] TreeBuilder: HARD EXCLUDED ${id}`);
                 continue;
             }
+
+            // Phase 2: Structural Inclusion (Group Roots)
+            const isStructural = pipeline.isStructural(id);
+            // Phase 3: Search Matching (Content/Name Query)
+            const isMatch = pipeline.matches(id, meta);
+            
+            /**
+             * Decision:
+             * A node is only shown if it is a structural entry point (Group Root)
+             * OR if it satisfies the active search/filter query.
+             */
+            if (!isStructural && !isMatch) {
+                Logger.debug(`[Abstract Folder] TreeBuilder: FILTERED OUT ${id} (Search No-Match)`);
+                continue;
+            }
+
+            Logger.debug(`[Abstract Folder] TreeBuilder: INCLUDING ${id} (isStructural: ${isStructural}, isMatch: ${isMatch})`);
 
             // 2. Rendering Decision
             // In V2, we render if it matches filters or is structural.
@@ -141,6 +193,7 @@ export class TreeBuilder {
             }
         }
 
+        Logger.debug(`[Abstract Folder] TreeBuilder: Build complete. Generated ${items.length} nodes`);
         return { items, locationMap };
     }
 

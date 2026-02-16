@@ -48,6 +48,7 @@ export interface AbstractFolderPluginSettings {
   namingConflictOrder: 'parent-first' | 'name-first'; // Order of parent and name
   defaultNewNotePath: string; // Default path for new notes
   anonymizeDebugExport: boolean;
+  hideNonMarkdownOrphans: boolean; // Whether to hide non-markdown files that have no parents
   librarySettings: LibrarySettings;
 }
 
@@ -98,6 +99,7 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   namingConflictOrder: 'parent-first',
   defaultNewNotePath: '',
   anonymizeDebugExport: true,
+  hideNonMarkdownOrphans: true,
   librarySettings: {
     librariesPath: "Abstract Library",
     registries: ["https://raw.githubusercontent.com/RahmaniErfan/abstract-registry/main/directory.json"],

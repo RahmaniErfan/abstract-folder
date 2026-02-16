@@ -7,9 +7,14 @@
 *   **The Implementation**: Added `seedRelationships()` to `IGraphEngine`. This allows the `AbstractBridge` to push high-confidence relationships parsed manually from disk directly into the `AdjacencyIndex`.
 *   **Performance**: Bypasses the asynchronous metadata indexing queue, ensuring hierarchical integrity (chevrons/nesting) immediately upon library selection without redundant disk reads.
 
-### 2. Standardized V2 Filtering Pipeline
-*   **Authoritative Extension Check**: Refactored `StandardTreePipeline` to use `app.vault.getAbstractFileByPath` for extension detection, ensuring parity with the legacy filtering settings.
-*   **Pipeline Simplification**: Removed redundant traversal checks in `TreeBuilder`. The `Pipeline.matches()` is now the absolute judge of visibility, separating traversal logic from visualization rules.
+### 2. Standardized V2 Filtering Pipeline & Priority Stack
+*   **The Bug**: Identified a logic leak where nodes were being included even if `MATCHED EXCLUSION` was logged. This was caused by an `OR` condition in `TreeBuilder` where `isStructural` (Group Roots) was overriding the Hard Filter.
+*   **Filter Priority Stack**: Implemented a strict multi-phase validation in `TreeBuilder`:
+    1.  **HARD FILTER (isExcluded)**: Extension-based exclusion (Precedence 1 - Absolute).
+    2.  **STRUCTURAL (isStructural)**: Group membership (Precedence 2).
+    3.  **SEARCH (matches)**: Query matching (Precedence 3).
+*   **Scoped Root Hardening**: Unified "Scoped Roots" (Library Scoping) in `GraphEngine` to use the modular `RootSelectionPolicy`, removing hardcoded `.md` checks that caused root leakage.
+*   **Extension Normalization**: Centralized extension extraction in `TreePipeline` to handle case-sensitivity (`.PNG` vs `png`) and edge cases for hidden files.
 
 ### 3. Concurrency & State Management
 *   **Refresh Semaphore**: Implemented `isRefreshing` lock in `AbstractFolderView` to prevent interleaved async tree builds during rapid filesystem events.
