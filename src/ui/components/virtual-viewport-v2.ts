@@ -25,6 +25,8 @@ export class VirtualViewportV2 {
     private items: AbstractNode[] = [];
     private renderedItems: Map<string, HTMLElement> = new Map();
     private resizeObserver: ResizeObserver;
+    private readonly HEADER_OFFSET = 24; // Match the group header height
+    private groupHeaderEl: HTMLElement;
     
     constructor(
         private containerEl: HTMLElement,
@@ -34,6 +36,7 @@ export class VirtualViewportV2 {
         private scope: ScopeProjector,
         private delegate: ViewportDelegateV2
     ) {
+        this.createHeaderOverlay();
         this.resizeObserver = new ResizeObserver(() => this.update());
         this.resizeObserver.observe(this.scrollContainer);
         this.scrollContainer.addEventListener("scroll", () => this.update());
@@ -52,7 +55,7 @@ export class VirtualViewportV2 {
 
         this.items = items;
         const itemHeight = this.delegate.isMobile() ? 32 : this.delegate.getItemHeight();
-        this.spacerEl.style.height = `${this.items.length * itemHeight}px`;
+        this.spacerEl.style.height = `${this.HEADER_OFFSET + (this.items.length * itemHeight)}px`;
         this.update();
     }
 
@@ -64,7 +67,7 @@ export class VirtualViewportV2 {
         if (index === -1) return;
 
         const itemHeight = this.delegate.isMobile() ? 32 : this.delegate.getItemHeight();
-        const scrollPos = index * itemHeight;
+        const scrollPos = this.HEADER_OFFSET + (index * itemHeight);
         this.scrollContainer.scrollTop = scrollPos;
         this.update();
     }
@@ -74,14 +77,16 @@ export class VirtualViewportV2 {
      */
     public update() {
         if (!this.scrollContainer || !this.containerEl) return;
+        this.updateGroupHeader();
 
         const scrollTop = this.scrollContainer.scrollTop;
         const clientHeight = this.scrollContainer.clientHeight;
         const itemHeight = this.delegate.isMobile() ? 32 : this.delegate.getItemHeight();
         
         const buffer = 5;
-        const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - buffer);
-        const endIndex = Math.min(this.items.length, Math.ceil((scrollTop + clientHeight) / itemHeight) + buffer);
+        const adjustedScrollTop = Math.max(0, scrollTop - this.HEADER_OFFSET);
+        const startIndex = Math.max(0, Math.floor(adjustedScrollTop / itemHeight) - buffer);
+        const endIndex = Math.min(this.items.length, Math.ceil((adjustedScrollTop + clientHeight) / itemHeight) + buffer);
 
         const visibleIds = new Set<string>();
 
@@ -218,7 +223,7 @@ export class VirtualViewportV2 {
 
         /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access */
         (el.style as any).position = 'absolute';
-        (el.style as any).top = `${index * itemHeight}px`;
+        (el.style as any).top = `${this.HEADER_OFFSET + (index * itemHeight)}px`;
         (el.style as any).width = '100%';
         (el.style as any).left = '0';
         /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access */
@@ -237,6 +242,25 @@ export class VirtualViewportV2 {
             // !is-collapsed state: chevron points down (rotated 90deg)
             arrow.classList.toggle("is-collapsed", !isExpanded);
             arrow.style.setProperty('visibility', node.hasChildren ? 'visible' : 'hidden');
+        }
+    }
+
+    private createHeaderOverlay() {
+        this.groupHeaderEl = this.scrollContainer.createDiv("af-v2-group-header");
+        this.updateGroupHeader();
+    }
+
+    private updateGroupHeader() {
+        if (!this.groupHeaderEl) return;
+        
+        const state = this.context.getState();
+        const activeGroupId = state.activeGroupId;
+        
+        if (activeGroupId) {
+            const group = this.context.settings.groups.find(g => g.id === activeGroupId);
+            this.groupHeaderEl.textContent = group ? group.name : "Unknown group";
+        } else {
+            this.groupHeaderEl.textContent = "All files";
         }
     }
 

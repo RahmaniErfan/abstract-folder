@@ -18,6 +18,7 @@
 
 ### Improved
 - **Indentation Guides**: Reddit-style vertical indentation guides for the tree view. Supports "Rainbow Indents" with multiple color palettes (Classic, Pastel, Neon) and hover highlighting.
+- **Virtualized Header Sync**: Fixed overlapping issues in V2 Viewport by introducing a coordinate-aware `HEADER_OFFSET`. The "Active Group" header is now pinned at the top and correctly synced with the virtualization engine's scroll math.
 - **Abstract Library System**: Integrated library management for shared knowledge structures.
   - **Physical Library Sync**: Replaced Lightning-FS with direct vault synchronization. Libraries now exist as real files in your vault, enabling native Obsidian features (Search, Graph View, Backlinks) to work out-of-the-box.
   - **Git Smart HTTP Handshake**: Custom `ObsidianHttpAdapter` with hardened header compliance and iterable body support to resolve `EmptyServerResponseError` and `401 Unauthorized` errors.

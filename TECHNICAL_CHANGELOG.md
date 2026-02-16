@@ -18,6 +18,14 @@
 
 ### 3. Concurrency & State Management
 *   **Refresh Semaphore**: Implemented `isRefreshing` lock in `AbstractFolderView` to prevent interleaved async tree builds during rapid filesystem events.
+
+### 4. Virtualization Math & Header Offset Support
+*   **Coordinate Synchronization**: Updated `VirtualViewportV2` to support a `HEADER_OFFSET` (24px) for the sticky group header.
+*   **Math Fixes**:
+    -   `setItems`: Total spacer height now calculates as `OFFSET + (N * ITEM_HEIGHT)`.
+    -   `update`: The windowing window indices now use `Math.floor((scrollTop - OFFSET) / ITEM_HEIGHT)`.
+    -   `scrollToItem`: Scroll target correctly lands at `OFFSET + (INDEX * ITEM_HEIGHT)`.
+*   **Active Group Binding**: Implemented `updateGroupHeader()` to reactively bind the sticky header text to the `ContextEngineV2` state, displaying either the specific active group name or "All files".
 *   **Viewport Cache Hardening**: Forced absolute `containerEl.empty()` and `renderedItems` cache purges in `VirtualViewportV2` to eliminate "Ghost DOM" artifacts after graph re-indexing.
 
 ### 4. Library Explorer Activation Fixes
