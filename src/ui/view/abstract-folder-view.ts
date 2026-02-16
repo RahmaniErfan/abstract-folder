@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, TFile, Notice, Platform, Menu } from "obsidian";
+import { ItemView, WorkspaceLeaf, TFile, Notice, Platform, Menu, setIcon } from "obsidian";
 import type AbstractFolderPlugin from "main";
 import { VirtualViewportV2, ViewportDelegateV2 } from "../components/virtual-viewport-v2";
 import { AbstractFolderViewToolbar } from "../toolbar/abstract-folder-view-toolbar";
@@ -58,6 +58,41 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
             type: "text",
             placeholder: "Search notes...",
             cls: "abstract-folder-search-input"
+        });
+
+        const searchContainer = headerEl.createDiv({ cls: "abstract-folder-search-container" });
+        searchContainer.appendChild(this.searchInput);
+
+        const showAncestorsBtn = searchContainer.createDiv({
+            cls: "clickable-icon ancestry-search-toggle",
+            attr: { "aria-label": "Show all ancestors in search" }
+        });
+        setIcon(showAncestorsBtn, "arrow-up-left");
+        if (this.plugin.settings.searchShowAncestors) showAncestorsBtn.addClass("is-active");
+
+        showAncestorsBtn.addEventListener("click", () => {
+            void (async () => {
+                this.plugin.settings.searchShowAncestors = !this.plugin.settings.searchShowAncestors;
+                showAncestorsBtn.toggleClass("is-active", this.plugin.settings.searchShowAncestors);
+                await this.plugin.saveSettings();
+                this.plugin.contextEngineV2.emit('changed', this.plugin.contextEngineV2.getState());
+            })();
+        });
+
+        const showDescendantsBtn = searchContainer.createDiv({
+            cls: "clickable-icon ancestry-search-toggle",
+            attr: { "aria-label": "Show all descendants in search" }
+        });
+        setIcon(showDescendantsBtn, "arrow-down-right");
+        if (this.plugin.settings.searchShowDescendants) showDescendantsBtn.addClass("is-active");
+
+        showDescendantsBtn.addEventListener("click", () => {
+            void (async () => {
+                this.plugin.settings.searchShowDescendants = !this.plugin.settings.searchShowDescendants;
+                showDescendantsBtn.toggleClass("is-active", this.plugin.settings.searchShowDescendants);
+                await this.plugin.saveSettings();
+                this.plugin.contextEngineV2.emit('changed', this.plugin.contextEngineV2.getState());
+            })();
         });
 
         this.searchInput.addEventListener("input", () => {

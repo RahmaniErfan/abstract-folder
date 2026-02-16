@@ -1,8 +1,26 @@
 # Technical Changelog
 
-## [2026-02-16] V2 SOVM Architecture Enhancement (Pipeline & Scoping)
+## [2026-02-16] V2 Search Experience & Poly-hierarchy Hardening
 
-### 1. Strategic Cache Ingestion (Bridge-to-Graph Sync)
+### 1. Path-Specific Poly-hierarchy Support
+*   **The Challenge**: In a graph-based hierarchy, a single node (e.g., `Commands.md`) can have multiple parents (e.g., `Work` and `Personal Projects`). Standard search implementations often "de-duplicate" these, causing the node to only appear under one branch, losing vital context for the other.
+*   **Synthetic URI Resolution**: Updated `TreeBuilder` and `VirtualViewportV2` to treat the **Synthetic URI** (the full path from root) as the primary identity instead of the physical `FileID`. This allows the same file to exist in multiple UI locations simultaneously, each with its own state.
+*   **Path-Aware Matching**: Refactored `TreePipeline` to accept a `parentId`. The "leads to match" check is now path-specific, ensuring that a folder only appears if it leads to a match *within that specific branch*, eliminating noise from unrelated ancestors.
+
+### 2. Search Feature Restoration (Ancestors & Descendants)
+*   **Show Ancestors (Upstream Expansion)**:
+    *   **ON**: Recursively identifies all folders leading to a match, preserving full context.
+    *   **OFF**: Implemented "Promote to Roots" logic. Direct matches are flattened and displayed as top-level roots for high-density information discovery.
+*   **Show Descendants (Downstream Expansion)**: Automatically steps into and expands the children of matching folders or files, providing immediate visibility into folder contents.
+*   **Ghost Match Elimination**: Implemented strict extension-based filtering within the recursive matching logic to ensure that excluded files (PNGs, PDFs) never trigger a "folder match" if they contain the search query in their name.
+
+### 3. Virtual Viewport & DFS Order Hardening
+*   **The "Jumping Item" Bug**: Identified a critical collision where the Virtual Viewport was using `FileID` as a DOM key. Because the same ID now appeared multiple times (Poly-hierarchy), the viewport would "steal" DOM elements from one branch to render another, causing visual flickering and missing nodes.
+*   **The Fix**: Standardized all Viewport caching on URIs.
+*   **Stack Order Inversion**: Corrected the Depth-First Search (DFS) stack processing in `TreeBuilder`. Children are now pushed in reverse sorted order, guaranteeing that the virtualized popping matches the intended top-to-bottom visual sequence.
+*   **Visual Gap Fix**: Resolved incorrect viewport heights by ensuring the build loop `continue`s immediately on filter-out without yielding or incrementing counters.
+
+### 4. Strategic Cache Ingestion (Bridge-to-Graph Sync)
 *   **The Discovery**: Using `GraphEngine: CRITICAL CACHE DUMP`, it was confirmed that Obsidian's `metadataCache` often returns `undefined` for library files (e.g. after Git sync), even when data exists on disk.
 *   **The Implementation**: Added `seedRelationships()` to `IGraphEngine`. This allows the `AbstractBridge` to push high-confidence relationships parsed manually from disk directly into the `AdjacencyIndex`.
 *   **Performance**: Bypasses the asynchronous metadata indexing queue, ensuring hierarchical integrity (chevrons/nesting) immediately upon library selection without redundant disk reads.

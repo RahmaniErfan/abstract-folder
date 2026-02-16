@@ -1,7 +1,6 @@
 import { App, TFile } from "obsidian";
 import { FileID, IGraphEngine, NodeMeta } from "./graph-engine";
 import { SortConfig } from "../types";
-import { Logger } from "../utils/logger";
 
 export interface TreePipeline {
     /**
@@ -15,13 +14,18 @@ export interface TreePipeline {
      * Phase 2: Search/Query Match.
      * Determines if a node matches the active search query.
      */
-    matches(id: FileID, meta: NodeMeta | undefined): boolean;
+    matches(id: FileID, meta: NodeMeta | undefined, parentId?: FileID): boolean;
 
     /**
      * Determines if a node is structural (e.g., a group root or an expanded parent)
      * and should remain visible even if it doesn't match the search.
      */
     isStructural(id: FileID): boolean;
+
+    /**
+     * Helper to check if a node directly matches the current query.
+     */
+    isDirectMatch(id: FileID, query: string): boolean;
 
     /** 
      * Sorts a list of sibling nodes.
@@ -35,11 +39,13 @@ export class StandardTreePipeline implements TreePipeline {
     constructor(
         private app: App,
         private graph: IGraphEngine,
-        private config: {
+        public config: {
             sortConfig: SortConfig;
             filterQuery: string | null;
             groupRoots: Set<FileID>;
             excludeExtensions: string[];
+            searchShowDescendants: boolean;
+            searchShowAncestors: boolean;
         }
     ) {
         this.excludedExtensions = new Set(
@@ -48,12 +54,6 @@ export class StandardTreePipeline implements TreePipeline {
                 .filter(ext => ext.length > 0)
         );
 
-        Logger.debug(`[Abstract Folder] Pipeline: Processed excluded extensions:`, Array.from(this.excludedExtensions));
-
-        Logger.debug(`[Abstract Folder] Pipeline: Initialized with config:`, {
-            excludedExtensions: Array.from(this.excludedExtensions),
-            filterQuery: config.filterQuery
-        });
     }
 
     /**
@@ -86,40 +86,106 @@ export class StandardTreePipeline implements TreePipeline {
         const cleanExt = this.getNormalizedExtension(id, meta);
 
         if (cleanExt && this.excludedExtensions.has(cleanExt)) {
-            Logger.debug(`[Abstract Folder] Pipeline: MATCHED EXCLUSION for ${id} (ext: '${cleanExt}')`);
             return true;
         }
         
         return false;
     }
 
-    matches(id: FileID, meta: NodeMeta | undefined): boolean {
-        // Search Filtering (Recursive check: match if this node matches OR any descendant matches)
+    matches(id: FileID, meta: NodeMeta | undefined, parentId?: FileID): boolean {
+        // Search Filtering
         if (this.config.filterQuery && this.config.filterQuery.trim().length > 0) {
             const query = this.config.filterQuery.toLowerCase();
-            return this.recursiveSearchMatch(id, query);
+
+            // Hard exclusion check before matching
+            if (this.isExcluded(id, meta)) {
+                return false;
+            }
+
+            // 1. Direct Match
+            if (this.isDirectMatch(id, query)) {
+                return true;
+            }
+
+            // 2. Ancestor Match (Show Descendants)
+            // If this node has an ancestor that matches, and Show Descendants is ON, we show it.
+            // We pass parentId to make the check path-aware if provided.
+            if (this.config.searchShowDescendants && this.hasMatchingAncestor(id, query, new Set(), parentId)) {
+                return true;
+            }
+
+            // 3. Descendant Match (Standard Search / Show Ancestors)
+            // If this node has a descendant that matches, and Show Ancestors is ON, we show it.
+            if (this.config.searchShowAncestors && this.hasMatchingDescendant(id, query)) {
+                return true;
+            }
+
+            return false;
         }
 
         return true;
     }
 
-    private recursiveSearchMatch(id: FileID, query: string): boolean {
+    public isDirectMatch(id: FileID, query: string): boolean {
         const name = this.getNodeName(id).toLowerCase();
-        if (name.includes(query)) {
-            return true;
+        return name.includes(query);
+    }
+
+    private hasMatchingAncestor(id: FileID, query: string, visited: Set<FileID> = new Set(), specificParentId?: FileID): boolean {
+        if (visited.has(id)) return false;
+        visited.add(id);
+
+        // If a specificParentId is provided, we ONLY check that parent to enforce path-specificity
+        const parents = specificParentId ? [specificParentId] : this.graph.getParents(id);
+
+        for (const parentId of parents) {
+            // Important: We must check if the parent itself is excluded
+            const parentMeta = this.graph.getNodeMeta(parentId);
+            if (this.isExcluded(parentId, parentMeta)) continue;
+
+            if (this.isDirectMatch(parentId, query) || this.hasMatchingAncestor(parentId, query, visited)) {
+                return true;
+            }
         }
+        return false;
+    }
+
+    private hasMatchingDirectChild(id: FileID, query: string): boolean {
+        const children = this.graph.getChildren(id);
+        for (const childId of children) {
+            const childMeta = this.graph.getNodeMeta(childId);
+            if (this.isExcluded(childId, childMeta)) continue;
+
+            if (this.isDirectMatch(childId, query)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private hasMatchingDescendant(id: FileID, query: string, visited: Set<FileID> = new Set()): boolean {
+        // Prevent infinite recursion in case of graph cycles
+        if (visited.has(id)) return false;
+        visited.add(id);
 
         const children = this.graph.getChildren(id);
         for (const childId of children) {
             // Check extension filters for children during search to prevent "ghost matches"
             const childMeta = this.graph.getNodeMeta(childId);
-            const cleanChildExt = this.getNormalizedExtension(childId, childMeta);
             
-            if (cleanChildExt && this.excludedExtensions.has(cleanChildExt)) {
+            if (this.isExcluded(childId, childMeta)) {
                 continue;
             }
 
-            if (this.recursiveSearchMatch(childId, query)) {
+            // [FIX] Recursive context check
+            // We only count a child as a matching descendant if it is actually reachable
+            // and not hidden by other filters.
+            if (this.isDirectMatch(childId, query)) {
+                return true;
+            }
+            
+            // Recurse
+            if (this.hasMatchingDescendant(childId, query, visited)) {
                 return true;
             }
         }
@@ -129,6 +195,10 @@ export class StandardTreePipeline implements TreePipeline {
 
     isStructural(id: FileID): boolean {
         return this.config.groupRoots.has(id);
+    }
+
+    updateGroupRoots(roots: Set<FileID>): void {
+        this.config.groupRoots = roots;
     }
 
     sort(ids: FileID[]): FileID[] {

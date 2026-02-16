@@ -2,7 +2,6 @@ import { App } from "obsidian";
 import { FileID, IGraphEngine } from "./graph-engine";
 import { ContextEngineV2 } from "./context-engine-v2";
 import { TreePipeline, StandardTreePipeline } from "./tree-pipeline";
-import { Logger } from "src/utils/logger";
 export interface AbstractNode {
     /** The Physical Path (Obsidian Path) */
     id: FileID;
@@ -37,7 +36,6 @@ export class TreeBuilder {
         const state = context.getState();
         const activeGroupId = overrideGroupId !== undefined ? overrideGroupId : state.activeGroupId;
 
-        Logger.debug(`[Abstract Folder] TreeBuilder: Starting build. activeGroupId: ${activeGroupId}`);
 
         // 1. Resolve Active Filter Config (Group vs Default)
         let activeFilterConfig = context.settings.defaultFilter;
@@ -49,16 +47,41 @@ export class TreeBuilder {
         }
 
         // 2. Resolve Roots via GraphEngine
-        const roots = this.graph.getAllRoots(activeGroupId);
-        Logger.debug(`[Abstract Folder] TreeBuilder: Graph returned ${roots.length} roots`);
-        
+        const isSearching = !!(filterQuery && filterQuery.trim().length > 0);
+        const searchShowAncestors = context.settings.searchShowAncestors;
+
         // 3. Initialize Pipeline
         const pipeline: TreePipeline = new StandardTreePipeline(this.app, this.graph, {
             sortConfig: state.sortConfig,
             filterQuery: filterQuery || state.activeFilter,
-            groupRoots: new Set(roots),
-            excludeExtensions: activeFilterConfig.excludeExtensions
+            groupRoots: new Set(), // Will be updated
+            excludeExtensions: activeFilterConfig.excludeExtensions,
+            searchShowDescendants: context.settings.searchShowDescendants,
+            searchShowAncestors: searchShowAncestors
         });
+
+        let roots = this.graph.getAllRoots(activeGroupId);
+
+        // 2b. If searching and NOT showing all ancestors, we want matches to appear as roots
+        if (isSearching && !searchShowAncestors) {
+            const query = (filterQuery || state.activeFilter)!.toLowerCase();
+            const matchingNodes: FileID[] = [];
+            
+            // We iterate over ALL files in the vault to find direct matches.
+            const allFiles = this.app.vault.getFiles();
+            for (const file of allFiles) {
+                if (file.name.toLowerCase().includes(query)) {
+                    // Important: Apply hard extension filter even when promoting to roots
+                    if (!pipeline.isExcluded(file.path, undefined)) {
+                        matchingNodes.push(file.path);
+                    }
+                }
+            }
+            roots = matchingNodes;
+        }
+        
+        // Update pipeline with resolved roots
+        (pipeline as StandardTreePipeline).updateGroupRoots(new Set(roots));
 
         // 3. Process Roots (Filtered & Sorted)
         /**
@@ -84,6 +107,7 @@ export class TreeBuilder {
             }
 
             // Phase 3: Search Matching
+            // In search mode, we prioritize direct matches or paths to matches.
             return pipeline.matches(id, meta);
         });
 
@@ -120,26 +144,36 @@ export class TreeBuilder {
             // This is the absolute authority. If the extension is in the excluded list,
             // the node and its entire subtree are dropped immediately.
             if (pipeline.isExcluded(id, meta)) {
-                Logger.debug(`[Abstract Folder] TreeBuilder: HARD EXCLUDED ${id}`);
                 continue;
             }
 
             // Phase 2: Structural Inclusion (Group Roots)
-            const isStructural = pipeline.isStructural(id);
+            // IN SEARCH MODE: We ignore structural rules to keep results clean.
+            const isStructural = !isSearching && pipeline.isStructural(id);
+
             // Phase 3: Search Matching (Content/Name Query)
-            const isMatch = pipeline.matches(id, meta);
-            
+            // In V2, we strictly follow the matches() result for search.
+            // We find the parent ID from the stack entry if it exists to allow path-aware matching
+            const parentId = uri.includes('/') ? uri.split('/').slice(-2, -1)[0] : undefined;
+            const isMatch = isSearching ? pipeline.matches(id, meta, parentId) : true;
+
             /**
              * Decision:
              * A node is only shown if it is a structural entry point (Group Root)
              * OR if it satisfies the active search/filter query.
              */
-            if (!isStructural && !isMatch) {
-                Logger.debug(`[Abstract Folder] TreeBuilder: FILTERED OUT ${id} (Search No-Match)`);
+            // [REFINED DECISION]
+            // We only show the node if:
+            // 1. It's a structural group root (not in search mode)
+            // 2. OR it's search mode AND the node itself matches OR leads to a match in this branch.
+            if (!isStructural && (isSearching && !isMatch)) {
                 continue;
             }
 
-            Logger.debug(`[Abstract Folder] TreeBuilder: INCLUDING ${id} (isStructural: ${isStructural}, isMatch: ${isMatch})`);
+            // [ADDITIONAL NOISE REDUCTION]
+            // If Show Ancestors is ON, we only show nodes that actually match or lead to a match.
+            // If it's OFF, the TreeBuilder has already promoted matches to roots, so we don't need to skip here.
+
 
             // 2. Rendering Decision
             // In V2, we render if it matches filters or is structural.
@@ -166,20 +200,33 @@ export class TreeBuilder {
             // We traverse children if:
             // - The node is expanded
             // - OR we are searching (to reveal children of a matching folder)
-            const isSearching = !!(filterQuery && filterQuery.trim().length > 0);
             
             // 3. Traversal Decision (Children)
             // We traverse children if:
             // - The node is expanded
             // - OR we are searching (to reveal matching descendants)
-            if (isExpanded || isSearching) {
+            // - OR Show Children is enabled and this node is a match (this is handled by matches() returning true for descendants, but we need to ensure we step into the match)
+            // We traverse children if:
+            // - The node is expanded (Standard Tree View)
+            // - OR we are searching AND (Show Ancestors is ON OR Show Descendants is ON OR the node is a Direct Match)
+            // [PATH-SPECIFIC TRAVERSAL]
+            // We only step into children if:
+            // 1. The node is explicitly expanded by the user
+            // 2. OR we are searching AND (Show Descendants is ON OR this SPECIFIC branch leads to a match)
+            // Note: isMatch already includes DESCENDANT MATCH check, so it correctly identifies if this branch leads to a match.
+            const shouldTraverseChildren = isExpanded || (isSearching && (context.settings.searchShowDescendants || isMatch));
+
+            if (shouldTraverseChildren) {
                 const sortedChildren = pipeline.sort(rawChildren);
+                // We MUST push children to the stack in REVERSE order to maintain
+                // the correct DFS visual order when popping.
                 for (let i = sortedChildren.length - 1; i >= 0; i--) {
                     const childId = sortedChildren[i];
                     if (!visitedPath.has(childId)) {
+                        const childURI = `${uri}/${childId}`;
                         stack.push({
                             id: childId,
-                            uri: `${uri}/${childId}`,
+                            uri: childURI,
                             level: level + 1,
                             visitedPath: new Set([...visitedPath, childId])
                         });
@@ -193,7 +240,6 @@ export class TreeBuilder {
             }
         }
 
-        Logger.debug(`[Abstract Folder] TreeBuilder: Build complete. Generated ${items.length} nodes`);
         return { items, locationMap };
     }
 

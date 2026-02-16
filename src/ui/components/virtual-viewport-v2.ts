@@ -88,18 +88,18 @@ export class VirtualViewportV2 {
         const startIndex = Math.max(0, Math.floor(adjustedScrollTop / itemHeight) - buffer);
         const endIndex = Math.min(this.items.length, Math.ceil((adjustedScrollTop + clientHeight) / itemHeight) + buffer);
 
-        const visibleIds = new Set<string>();
+        const visibleURIs = new Set<string>();
 
         // Render visible items
         for (let i = startIndex; i < endIndex; i++) {
             const node = this.items[i];
-            visibleIds.add(node.id);
+            visibleURIs.add(node.uri);
 
-            let el = this.renderedItems.get(node.id);
+            let el = this.renderedItems.get(node.uri);
             if (!el) {
                 el = this.createRow(node);
                 this.containerEl.appendChild(el);
-                this.renderedItems.set(node.id, el);
+                this.renderedItems.set(node.uri, el);
             }
 
             // Update state-based classes and position
@@ -107,10 +107,10 @@ export class VirtualViewportV2 {
         }
 
         // Cleanup out-of-bounds items
-        this.renderedItems.forEach((el, id) => {
-            if (!visibleIds.has(id)) {
+        this.renderedItems.forEach((el, uri) => {
+            if (!visibleURIs.has(uri)) {
                 el.remove();
-                this.renderedItems.delete(id);
+                this.renderedItems.delete(uri);
             }
         });
     }
@@ -160,7 +160,7 @@ export class VirtualViewportV2 {
         row.draggable = true;
         row.addEventListener("dragstart", (e) => {
             if (e.dataTransfer) {
-                e.dataTransfer.setData("text/plain", node.id);
+                e.dataTransfer.setData("text/plain", node.id); // We drag the physical path
                 e.dataTransfer.effectAllowed = "move";
             }
         });

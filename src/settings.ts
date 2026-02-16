@@ -29,8 +29,8 @@ export interface AbstractFolderPluginSettings {
   customCreatedDateProperties: string; // Comma-separated frontmatter property names for created date
   customModifiedDateProperties: string; // Comma-separated frontmatter property names for modified date
   displayNameOrder: string[]; // Ordered list of properties to check for display name
-  searchShowChildren: boolean; // Whether to show children in search results
-  searchShowParents: boolean; // Whether to show parents in search results
+  searchShowDescendants: boolean; // Whether to show descendants in search results
+  searchShowAncestors: boolean; // Whether to show ancestors in search results
   lastInteractionContextId: string | null; // The contextual ID of the most recently interacted folder/file
   showViewStyleToggle: boolean; // Whether to show the view style toggle button
   showFocusActiveFileButton: boolean; // Whether to show the focus active file button
@@ -80,8 +80,8 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   customCreatedDateProperties: '',
   customModifiedDateProperties: '',
   displayNameOrder: ['title', 'aliases', 'basename'],
-  searchShowChildren: false,
-  searchShowParents: false,
+  searchShowDescendants: false,
+  searchShowAncestors: false,
   lastInteractionContextId: null,
   showViewStyleToggle: true,
   showFocusActiveFileButton: true,
