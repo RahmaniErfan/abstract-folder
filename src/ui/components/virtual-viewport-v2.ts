@@ -130,8 +130,6 @@ export class VirtualViewportV2 {
                 e.stopPropagation();
                 this.delegate.onItemToggle(node, e);
             });
-        } else {
-            self.createDiv("tree-item-icon"); // Spacer to align with chevrons
         }
 
         // 2. Custom Icon (or Type Icon)
@@ -210,7 +208,10 @@ export class VirtualViewportV2 {
             for (let d = 0; d < node.level; d++) {
                 const guide = document.createElement('div');
                 guide.className = 'af-v2-item-guide';
-                guide.style.left = `${24 + d * 18}px`; // Match padding math (24 base + d * 18)
+                // Center under the chevron area (which is shifted by depth)
+                // Chevrons are at -24px relative to padding-left (which is 24 + d*18)
+                // So chevron is at d*18px absolute. Center of 24px width is +12px.
+                guide.style.left = `${d * 18 + 12}px`;
                 guide.style.backgroundColor = colors[d % colors.length];
                 el.appendChild(guide);
             }

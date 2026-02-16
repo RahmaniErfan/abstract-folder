@@ -35,7 +35,7 @@
     flex-direction: column !important;
     padding: 8px !important;
     gap: 8px !important;
-    border-bottom: 1px solid var(--background-modifier-border) !important;
+    border-bottom: none !important;
     background-color: var(--background-secondary) !important;
     z-index: 10 !important;
 }
@@ -43,11 +43,13 @@
 .abstract-folder-toolbar {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 4px;
 }
 
 .abstract-folder-search-input {
     width: 100%;
+    box-shadow: none !important;
 }
 
 .abstract-folder-viewport-scroll-container {
@@ -55,6 +57,7 @@
     position: relative !important;
     width: 100% !important;
     overflow-y: auto !important;
+    overflow-x: hidden !important;
     background-color: var(--background-primary) !important;
     min-height: 0 !important;
     padding: 0 !important;
@@ -76,11 +79,13 @@
     left: 0;
     width: 100%;
     height: 24px;
-    background-color: var(--background-secondary);
+    background-color: var(--background-primary);
+    border-top: 1px solid var(--background-modifier-border);
     border-bottom: 1px solid var(--background-modifier-border);
     z-index: 5;
     display: flex;
     align-items: center;
+    justify-content: center;
     padding: 0 8px;
     font-size: 10px;
     font-weight: bold;
@@ -108,6 +113,19 @@
 .af-v2-item-icon svg {
     width: 14px !important;
     height: 14px !important;
+}
+
+.af-v2-collapse-icon {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 24px !important;
+    height: 24px !important;
+    color: var(--text-muted);
+    pointer-events: auto !important;
+    cursor: pointer;
+    margin-left: -24px !important; /* Pull it to the left of the icon */
+    z-index: 5 !important;
 }
 
 .af-v2-collapse-icon svg {
@@ -166,10 +184,10 @@
     width: 100%;
     height: 100%;
     /* The core indentation logic */
-    /* Add an extra 24px base padding to ensure the first triangle at depth 0 is visible */
+    /* Padding holds the main content (icon/label).
+       The chevron uses negative margin to stick out to the left of this padding boundary. */
     padding-left: calc(24px + var(--depth, 0) * var(--indent-width)) !important;
     z-index: 3;
-    overflow: visible; /* Don't clip triangles */
     background: transparent !important;
     margin: 0 !important; /* Ensure no internal margins */
     box-sizing: border-box !important;

@@ -178,12 +178,12 @@
 /* Search bar styling */
 .abstract-folder-search-container {
     padding: 8px;
-    border-bottom: 1px solid var(--background-modifier-border);
+    border-bottom: none;
     display: flex;
     align-items: center;
     gap: 4px;
     position: relative;
-    background-color: var(--background-primary);
+    background-color: var(--background-secondary);
     width: 100%;
 }
 
@@ -193,6 +193,8 @@
     height: 30px !important;
     padding-right: 30px !important; /* Space for clear button */
     margin: 0 !important;
+    box-shadow: none !important;
+    border: 1px solid var(--background-modifier-border) !important;
 }
 
 .abstract-folder-search-clear {
