@@ -31,12 +31,15 @@ import { ContextEngineV2 } from './src/core/context-engine-v2';
 import { ScopeProjector } from './src/core/scope-projector';
 import { TransactionManager } from './src/core/transaction-manager';
 
+import { ContextMenuHandler } from './src/ui/context-menu';
+
 export default class AbstractFolderPlugin extends Plugin {
 	settings: AbstractFolderPluginSettings;
 	libraryManager: LibraryManager;
 	abstractBridge: AbstractBridge;
 	contributionEngine: ContributionEngine;
 	metricsManager: MetricsManager;
+	contextMenuHandler: ContextMenuHandler;
 	ribbonIconEl: HTMLElement | null = null;
 
 	// SOVM Singletons
@@ -65,6 +68,22 @@ export default class AbstractFolderPlugin extends Plugin {
 		this.contextEngineV2 = new ContextEngineV2(this.settings);
 		this.scopeProjector = new ScopeProjector();
 		this.transactionManager = new TransactionManager(this.app, this.graphEngine, this.settings);
+
+		this.contextMenuHandler = new ContextMenuHandler(
+			this.app,
+			this.settings,
+			this,
+			this.graphEngine,
+			(path) => {
+				const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_ABSTRACT_FOLDER);
+				if (leaves.length > 0) {
+					const view = leaves[0].view;
+					if (view instanceof AbstractFolderView) {
+						view.focusFile(path);
+					}
+				}
+			}
+		);
 
 		// Sync ScopeProjector with ContextEngineV2
 		this.contextEngineV2.on('selection-changed', (selections: Set<string>) => {

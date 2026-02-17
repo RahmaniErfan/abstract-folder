@@ -3,27 +3,63 @@ import { App, Menu, TFile } from "obsidian";
 import { FolderNode } from "../types";
 import { AbstractFolderPluginSettings } from "../settings";
 import AbstractFolderPlugin from "../../main";
+import { AbstractNode } from "../core/tree-builder";
 import { BatchDeleteConfirmModal, CreateAbstractChildModal, ChildFileType, DeleteConfirmModal, RenameModal } from './modals';
 import { IconModal } from './icon-modal';
 import { updateFileIcon, toggleHiddenStatus, createAbstractChildFile, deleteAbstractFile } from '../utils/file-operations';
-import { FolderIndexer } from "../indexer";
+import { IGraphEngine } from "../core/graph-engine";
 
 export class ContextMenuHandler {
     constructor(
         private app: App,
         private settings: AbstractFolderPluginSettings,
         private plugin: AbstractFolderPlugin,
-        private indexer: FolderIndexer,
-        private focusFile: (path: string) => void
+        private indexer: IGraphEngine,
+        private focusFile?: (path: string) => void
     ) {}
+
+    /**
+     * Shows a context menu for a node in the V2 Virtual Viewport.
+     * This method handles selection logic and maps AbstractNode to FolderNode.
+     */
+    showV2ContextMenu(event: MouseEvent, node: AbstractNode, selection: Set<string>, items: AbstractNode[]) {
+        event.preventDefault();
+
+        // 1. Ensure the right-clicked node is selected
+        if (!selection.has(node.uri)) {
+            this.plugin.contextEngineV2.select(node.uri, { multi: false });
+        }
+
+        // 2. Map URIs to physical paths for the context menu handler
+        const selectedPhysicalPaths = new Set<string>();
+        selection.forEach(uri => {
+            const item = items.find(i => i.uri === uri);
+            if (item) selectedPhysicalPaths.add(item.id);
+        });
+
+        // If the right-clicked node wasn't in the selection set yet, add it
+        selectedPhysicalPaths.add(node.id);
+
+        // 3. Convert AbstractNode to FolderNode for legacy compatibility within this handler
+        const file = this.app.vault.getAbstractFileByPath(node.id);
+        const folderNode: FolderNode = {
+            file,
+            path: node.id,
+            children: [],
+            isFolder: !file || !(file instanceof TFile),
+            isLibrary: false
+        };
+
+        this.showContextMenu(event, folderNode, selectedPhysicalPaths);
+    }
 
     showContextMenu(event: MouseEvent, node: FolderNode, multiSelectedPaths: Set<string>) {
         const menu = new Menu();
         menu.setUseNativeMenu(false);
 
         // If node.file is already provided (SOVM), use it, otherwise lookup by path
-        if (!(node as any).file && node.path) {
-            (node as any).file = this.app.vault.getAbstractFileByPath(node.path);
+        if (!node.file && node.path) {
+            node.file = this.app.vault.getAbstractFileByPath(node.path);
         }
 
         if (multiSelectedPaths.size > 1 && multiSelectedPaths.has(node.path)) {
@@ -73,7 +109,7 @@ export class ContextMenuHandler {
     }
 
     private addSingleItemItems(menu: Menu, node: FolderNode, multiSelectedPaths: Set<string>) {
-        const file = node.file || (node as any).file;
+        const file = node.file;
         if (!file || !(file instanceof TFile)) return;
 
         if (!multiSelectedPaths.has(node.path) && multiSelectedPaths.size > 0) {

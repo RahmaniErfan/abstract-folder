@@ -1,9 +1,8 @@
-import { ItemView, WorkspaceLeaf, TFile, Notice, Platform, Menu, setIcon } from "obsidian";
+import { ItemView, WorkspaceLeaf, TFile, Notice, Platform, setIcon } from "obsidian";
 import type AbstractFolderPlugin from "main";
 import { VirtualViewportV2, ViewportDelegateV2 } from "../components/virtual-viewport-v2";
 import { AbstractFolderViewToolbar } from "../toolbar/abstract-folder-view-toolbar";
 import { TreeSnapshot, AbstractNode } from "../../core/tree-builder";
-import { deleteAbstractFile, createAbstractChildFile, toggleHiddenStatus } from "../../utils/file-operations";
 import { Logger } from "../../utils/logger";
 
 export const VIEW_TYPE_ABSTRACT_FOLDER = "abstract-folder-view";
@@ -170,6 +169,18 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
         }
     }
 
+    public focusFile(path: string) {
+        // Logic to highlight/focus a specific path
+        const snapshot = this.currentSnapshot;
+        if (snapshot) {
+            const matchingNode = snapshot.items.find(item => item.id === path);
+            if (matchingNode) {
+                this.plugin.contextEngineV2.select(matchingNode.uri, { multi: false });
+                this.viewport.scrollToItem(matchingNode.uri);
+            }
+        }
+    }
+
     public focusActiveFile() {
         const activeFile = this.app.workspace.getActiveFile();
         if (!activeFile) return;
@@ -229,53 +240,13 @@ export class AbstractFolderView extends ItemView implements ViewportDelegateV2 {
     }
 
     onItemContextMenu(node: AbstractNode, event: MouseEvent): void {
-        const menu = new Menu();
-        const file = this.app.vault.getAbstractFileByPath(node.id);
-
-        if (file instanceof TFile) {
-            menu.addItem((item) =>
-                item
-                    .setTitle("Open in new tab")
-                    .setIcon("file-plus")
-                    .onClick(() => {
-                        void this.app.workspace.getLeaf(true).openFile(file);
-                    })
-            );
-
-            menu.addItem((item) =>
-                item
-                    .setTitle("Toggle hidden")
-                    .setIcon("eye-off")
-                    .onClick(async () => {
-                        await toggleHiddenStatus(this.app, file, this.plugin.settings);
-                    })
-            );
-
-            menu.addSeparator();
-
-            menu.addItem((item) =>
-                item
-                    .setTitle("Create child note")
-                    .setIcon("plus-circle")
-                    .onClick(() => {
-                        createAbstractChildFile(this.app, this.plugin.settings, "New Note", file, "note", this.plugin.graphEngine)
-                            .catch(console.error);
-                    })
-            );
-
-            menu.addSeparator();
-
-            menu.addItem((item) =>
-                item
-                    .setTitle("Delete")
-                    .setIcon("trash")
-                    .onClick(async () => {
-                        await deleteAbstractFile(this.app, file, false, this.plugin.graphEngine);
-                    })
-            );
-        }
-
-        menu.showAtMouseEvent(event);
+        if (!this.currentSnapshot) return;
+        this.plugin.contextMenuHandler.showV2ContextMenu(
+            event,
+            node,
+            this.plugin.contextEngineV2.getState().selectedURIs,
+            this.currentSnapshot.items
+        );
     }
 
     onItemDrop(draggedPath: string, targetNode: AbstractNode): void {
