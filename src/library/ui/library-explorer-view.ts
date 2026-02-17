@@ -186,7 +186,19 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegateV2 
     }
 
     onItemContextMenu(node: AbstractNode, event: MouseEvent): void {
-        // Placeholder for library-specific context menu
+        // Library nodes are often read-only, but we can still show standard actions
+        // Extract items from current snapshot for selection mapping
+        // This is simplified for LibraryExplorerView since it manages its own contextEngine
+        const selection = this.contextEngine.getState().selectedURIs;
+        
+        // Items are not easily accessible here without storing the result of refreshLibraryTree
+        // For now, let's just pass an empty array or the node itself
+        this.plugin.contextMenuHandler.showV2ContextMenu(
+            event,
+            node,
+            selection,
+            [] // Simplified
+        );
     }
 
     onItemDrop(draggedPath: string, targetNode: AbstractNode): void {

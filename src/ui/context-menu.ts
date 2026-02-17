@@ -1,6 +1,5 @@
 import { Logger } from "../utils/logger";
 import { App, Menu, TFile } from "obsidian";
-import { FolderNode } from "../types";
 import { AbstractFolderPluginSettings } from "../settings";
 import AbstractFolderPlugin from "../../main";
 import { AbstractNode } from "../core/tree-builder";
@@ -20,7 +19,6 @@ export class ContextMenuHandler {
 
     /**
      * Shows a context menu for a node in the V2 Virtual Viewport.
-     * This method handles selection logic and maps AbstractNode to FolderNode.
      */
     showV2ContextMenu(event: MouseEvent, node: AbstractNode, selection: Set<string>, items: AbstractNode[]) {
         event.preventDefault();
@@ -37,35 +35,16 @@ export class ContextMenuHandler {
             if (item) selectedPhysicalPaths.add(item.id);
         });
 
-        // If the right-clicked node wasn't in the selection set yet, add it
+        // Ensure the current node is included
         selectedPhysicalPaths.add(node.id);
 
-        // 3. Convert AbstractNode to FolderNode for legacy compatibility within this handler
-        const file = this.app.vault.getAbstractFileByPath(node.id);
-        const folderNode: FolderNode = {
-            file,
-            path: node.id,
-            children: [],
-            isFolder: !file || !(file instanceof TFile),
-            isLibrary: false
-        };
-
-        this.showContextMenu(event, folderNode, selectedPhysicalPaths);
-    }
-
-    showContextMenu(event: MouseEvent, node: FolderNode, multiSelectedPaths: Set<string>) {
         const menu = new Menu();
         menu.setUseNativeMenu(false);
 
-        // If node.file is already provided (SOVM), use it, otherwise lookup by path
-        if (!node.file && node.path) {
-            node.file = this.app.vault.getAbstractFileByPath(node.path);
-        }
-
-        if (multiSelectedPaths.size > 1 && multiSelectedPaths.has(node.path)) {
-            this.addMultiSelectItems(menu, multiSelectedPaths);
+        if (selectedPhysicalPaths.size > 1 && selectedPhysicalPaths.has(node.id)) {
+            this.addMultiSelectItems(menu, selectedPhysicalPaths);
         } else {
-            this.addSingleItemItems(menu, node, multiSelectedPaths);
+            this.addSingleItemItems(menu, node.id, selectedPhysicalPaths);
         }
 
         menu.showAtPosition({ x: event.clientX, y: event.clientY });
@@ -108,21 +87,13 @@ export class ContextMenuHandler {
         );
     }
 
-    private addSingleItemItems(menu: Menu, node: FolderNode, multiSelectedPaths: Set<string>) {
-        const file = node.file;
+    private addSingleItemItems(menu: Menu, path: string, multiSelectedPaths: Set<string>) {
+        const file = this.app.vault.getAbstractFileByPath(path);
         if (!file || !(file instanceof TFile)) return;
 
-        if (!multiSelectedPaths.has(node.path) && multiSelectedPaths.size > 0) {
+        if (!multiSelectedPaths.has(path) && multiSelectedPaths.size > 0) {
             multiSelectedPaths.clear();
             this.plugin.app.workspace.trigger('abstract-folder:graph-updated');
-        }
-
-        // If it's a library node, we restrict all modifications
-        if (node.isLibrary) {
-            this.addStandardFileActions(menu, file);
-            menu.addSeparator();
-            this.app.workspace.trigger("file-menu", menu, file, "abstract-folder-view");
-            return;
         }
 
         // Plugin-specific actions first
@@ -207,7 +178,6 @@ export class ContextMenuHandler {
                 }, 'base').open();
             })
         );
-        
     }
 
     private addPluginSpecificActions(menu: Menu, file: TFile) {
@@ -269,7 +239,6 @@ export class ContextMenuHandler {
                     }, currentIcon as string || "").open();
                 })
         );
-
     }
 
     private addStandardFileActions(menu: Menu, file: TFile) {
