@@ -109,6 +109,8 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
     githubToken: "",
     githubUsername: "",
     githubAvatar: "",
+    gitName: "",
+    gitEmail: "",
     deviceId: "",
     enableScheduledSync: false,
     syncIntervalValue: 1,

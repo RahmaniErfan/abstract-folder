@@ -31,7 +31,7 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 					await plugin.saveSettings();
 					
 					if (trimmed) {
-						const userInfo = await AuthService.getUserInfo(trimmed);
+						const userInfo = await plugin.libraryManager.refreshIdentity();
 						if (userInfo) {
 							new Notice(`Authenticated as ${userInfo.login}`);
 							renderLibrarySettings(containerEl, plugin); // Re-render to show username
@@ -44,31 +44,69 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 		.addButton((btn) => 
 			btn
 				.setButtonText("Generate Token")
-				.setTooltip("Generate a token on GitHub with 'repo' scope")
+				.setTooltip("Generate a token on GitHub with 'repo' and 'user' scope")
 				.onClick(() => {
-					window.open("https://github.com/settings/tokens/new?scopes=repo&description=Abstract%20Folder%20Token");
+					window.open("https://github.com/settings/tokens/new?scopes=repo,user&description=Abstract%20Folder%20Token");
 				})
 		);
 
-	if (plugin.settings.librarySettings.githubToken) {
-		void (async () => {
-			const token = plugin.settings.librarySettings.githubToken;
-			if (token) {
-				const userInfo = await AuthService.getUserInfo(token);
-				if (userInfo) {
-					new Setting(containerEl)
-						.setName("Authenticated as")
-						.setDesc(userInfo.login)
-						.addButton((btn) =>
-							btn.setButtonText("Logout").onClick(async () => {
-								plugin.settings.librarySettings.githubToken = "";
-								await plugin.saveSettings();
-								renderLibrarySettings(containerEl, plugin);
-							}),
-						);
-				}
-			}
-		} )();
+	// Use cached info for display instead of async fetch to ensure it shows up immediately
+	if (plugin.settings.librarySettings.githubToken && plugin.settings.librarySettings.githubUsername) {
+		const username = plugin.settings.librarySettings.githubUsername;
+		new Setting(containerEl)
+			.setName("Authenticated as")
+			.setDesc(username)
+			.addButton((btn) =>
+				btn
+					.setButtonText("Refresh Profile")
+					.setTooltip("Refresh your Git author details from GitHub")
+					.onClick(async () => {
+						const updated = await plugin.libraryManager.refreshIdentity();
+						if (updated) {
+							new Notice("Profile details refreshed!");
+							renderLibrarySettings(containerEl, plugin);
+						} else {
+							new Notice("Failed to refresh profile.");
+						}
+					})
+			)
+			.addButton((btn) =>
+				btn.setButtonText("Logout").onClick(async () => {
+					plugin.settings.librarySettings.githubToken = "";
+					plugin.settings.librarySettings.githubUsername = "";
+					plugin.settings.librarySettings.githubAvatar = "";
+					plugin.settings.librarySettings.gitName = "";
+					plugin.settings.librarySettings.gitEmail = "";
+					await plugin.saveSettings();
+					renderLibrarySettings(containerEl, plugin);
+				}),
+			);
+			
+		new Setting(containerEl)
+			.setName("Git author name")
+			.setDesc("Used for commits. Automatically fetched, but you can override it.")
+			.addText((text) =>
+				text
+					.setPlaceholder("Your Name")
+					.setValue(plugin.settings.librarySettings.gitName || "")
+					.onChange(async (value) => {
+						plugin.settings.librarySettings.gitName = value;
+						await plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Git author email")
+			.setDesc("Used for commits. Matches commits to your GitHub account.")
+			.addText((text) =>
+				text
+					.setPlaceholder("email@example.com")
+					.setValue(plugin.settings.librarySettings.gitEmail || "")
+					.onChange(async (value) => {
+						plugin.settings.librarySettings.gitEmail = value;
+						await plugin.saveSettings();
+					}),
+			);
 	}
 
 	containerEl.createEl("h3", { text: "Abstract library marketplace" });

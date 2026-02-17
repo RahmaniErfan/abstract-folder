@@ -18,7 +18,7 @@ export class LibraryManager {
     /**
      * Fetch and cache GitHub user info.
      */
-    async refreshIdentity(): Promise<{ login: string; avatar_url: string } | null> {
+    async refreshIdentity(): Promise<{ login: string; avatar_url: string; name: string | null; email: string | null } | null> {
         const token = this.getToken();
         if (!token) return null;
 
@@ -26,7 +26,25 @@ export class LibraryManager {
         if (userInfo) {
             this.settings.librarySettings.githubUsername = userInfo.login;
             this.settings.librarySettings.githubAvatar = userInfo.avatar_url;
-            await (this.app as any).plugins.getPlugin("abstract-folder").saveSettings();
+            
+            // Be very explicit about fallback
+            const name = userInfo.name || userInfo.login;
+            const email = userInfo.email || `${userInfo.login}@users.noreply.github.com`;
+            
+            this.settings.librarySettings.gitName = name;
+            this.settings.librarySettings.gitEmail = email;
+            
+            // Explicitly try to save settings
+            try {
+                const plugin = (this.app as any).plugins.getPlugin("abstract-folder");
+                if (plugin) {
+                    await plugin.saveSettings();
+                } else {
+                    console.error("[LibraryManager] Could not find plugin instance to save settings.");
+                }
+            } catch (e) {
+                console.error("[LibraryManager] Failed to save settings during refreshIdentity:", e);
+            }
         }
         return userInfo;
     }
@@ -136,6 +154,12 @@ export class LibraryManager {
             const absoluteDir = this.getAbsolutePath(vaultPath);
             const tokenToUse = token || this.getToken();
 
+            const gitSettings = this.settings.librarySettings;
+            const author = {
+                name: gitSettings.gitName || gitSettings.githubUsername || "Abstract Library Manager",
+                email: gitSettings.gitEmail || (gitSettings.githubUsername ? `${gitSettings.githubUsername}@users.noreply.github.com` : "manager@abstract.library")
+            };
+
             /* eslint-disable @typescript-eslint/no-unsafe-assignment */
             await git.pull({
                 fs: NodeFsAdapter,
@@ -143,10 +167,8 @@ export class LibraryManager {
                 dir: absoluteDir,
                 onAuth: tokenToUse ? () => ({ username: tokenToUse }) : undefined,
                 singleBranch: true,
-                author: {
-                    name: "Abstract Library Manager",
-                    email: "manager@abstract.library"
-                }
+                author: author,
+                committer: author
             });
             /* eslint-enable @typescript-eslint/no-unsafe-assignment */
 
@@ -361,6 +383,12 @@ export class LibraryManager {
         try {
             const absoluteDir = this.getAbsolutePath(vaultPath);
             const tokenToUse = token || this.getToken();
+            
+            const gitSettings = this.settings.librarySettings;
+            const author = { 
+                name: gitSettings.gitName || gitSettings.githubUsername || "Abstract Folder", 
+                email: gitSettings.gitEmail || (gitSettings.githubUsername ? `${gitSettings.githubUsername}@users.noreply.github.com` : "backup@abstract.folder")
+            };
 
             // 1. Pull changes
             try {
@@ -370,7 +398,8 @@ export class LibraryManager {
                     dir: absoluteDir,
                     onAuth: tokenToUse ? () => ({ username: tokenToUse }) : undefined,
                     singleBranch: true,
-                    author: { name: "Abstract Folder", email: "backup@abstract.folder" }
+                    author: author,
+                    committer: author
                 });
             } catch (e) {
                 console.warn("Pull failed (could be initial push)", e);
@@ -384,7 +413,8 @@ export class LibraryManager {
                 fs: NodeFsAdapter,
                 dir: absoluteDir,
                 message: message,
-                author: { name: "Abstract Folder", email: "backup@abstract.folder" }
+                author: author,
+                committer: author
             });
 
             // 4. Push

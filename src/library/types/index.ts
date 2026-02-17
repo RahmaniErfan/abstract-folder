@@ -41,6 +41,8 @@ export interface LibrarySettings {
     githubToken?: string;
     githubUsername?: string;
     githubAvatar?: string;
+    gitName?: string;
+    gitEmail?: string;
     deviceId?: string;
     enableScheduledSync: boolean;
     syncIntervalValue: number;

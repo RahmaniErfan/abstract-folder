@@ -26,7 +26,7 @@ export class AuthService {
     /**
      * Get basic user info (needed for determining ownership)
      */
-    static async getUserInfo(token: string): Promise<{ login: string; avatar_url: string } | null> {
+    static async getUserInfo(token: string): Promise<{ login: string; avatar_url: string; name: string | null; email: string | null } | null> {
         try {
             const response = await requestUrl({
                 url: "https://api.github.com/user",
@@ -37,8 +37,13 @@ export class AuthService {
                 },
             });
             if (response.status !== 200) return null;
-            const data = response.json as { login: string; avatar_url: string };
-            return { login: data.login, avatar_url: data.avatar_url };
+            const data = response.json as { login: string; avatar_url: string; name: string | null; email: string | null };
+            return { 
+                login: data.login, 
+                avatar_url: data.avatar_url,
+                name: data.name,
+                email: data.email
+            };
         } catch (error) {
             console.error("Failed to fetch user info", error);
             return null;
