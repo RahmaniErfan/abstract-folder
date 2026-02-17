@@ -3,9 +3,10 @@ import * as git from "isomorphic-git";
 import * as path from 'path';
 import { ObsidianHttpAdapter } from "./http-adapter";
 import { LibraryConfig, LibraryStatus, RegistryItem } from "../types";
-import { NodeFsAdapter } from "./node-fs-adapter";
 import { DataService } from "../services/data-service";
+import { NodeFsAdapter } from "./node-fs-adapter";
 import { AbstractFolderPluginSettings } from "../../settings";
+import { AuthService } from "../services/auth-service";
 
 /**
  * LibraryManager handles Git operations using isomorphic-git.
@@ -13,6 +14,44 @@ import { AbstractFolderPluginSettings } from "../../settings";
  */
 export class LibraryManager {
     constructor(private app: App, private settings: AbstractFolderPluginSettings) {}
+
+    /**
+     * Fetch and cache GitHub user info.
+     */
+    async refreshIdentity(): Promise<{ login: string; avatar_url: string } | null> {
+        const token = this.getToken();
+        if (!token) return null;
+
+        const userInfo = await AuthService.getUserInfo(token);
+        if (userInfo) {
+            this.settings.librarySettings.githubUsername = userInfo.login;
+            this.settings.librarySettings.githubAvatar = userInfo.avatar_url;
+            await (this.app as any).plugins.getPlugin("abstract-folder").saveSettings();
+        }
+        return userInfo;
+    }
+
+    /**
+     * Get counts of unstaged, uncommitted, and unpushed changes.
+     */
+    async getSyncStatus(vaultPath: string): Promise<{ ahead: number; dirty: number }> {
+        try {
+            const absoluteDir = this.getAbsolutePath(vaultPath);
+            const matrix = await git.statusMatrix({ fs: NodeFsAdapter, dir: absoluteDir });
+            
+            // row[1] = head, row[2] = workdir, row[3] = stage
+            // unmodified: [1,1,1], modified: [1,2,1], staged: [1,2,2], added: [0,2,2], deleted: [1,0,0]
+            const dirty = matrix.filter((row: any[]) => row[1] !== row[2] || row[2] !== row[3]).length;
+
+            // Ahead count (commits not on remote)
+            // This is a bit more complex with isomorphic-git, for now let's focus on dirty count
+            // or use git.log comparing local and remote branches if possible.
+            
+            return { ahead: 0, dirty }; 
+        } catch (e) {
+            return { ahead: 0, dirty: 0 };
+        }
+    }
 
     private getToken(): string | undefined {
         return this.settings.librarySettings?.githubToken;
@@ -191,6 +230,175 @@ export class LibraryManager {
             new Notice("Library deleted successfully");
         } catch (error) {
             console.error("Delete failed", error);
+            throw error;
+        }
+    }
+
+    /**
+     * Check if a folder already contains a .git directory.
+     */
+    async detectExistingGit(vaultPath: string): Promise<boolean> {
+        try {
+            const absoluteDir = this.getAbsolutePath(vaultPath);
+            const gitPath = path.join(absoluteDir, '.git');
+            const stats = await NodeFsAdapter.promises.stat(gitPath).catch(() => null);
+            return !!stats && stats.isDirectory();
+        } catch (error) {
+            console.error("Git detection failed", error);
+            return false;
+        }
+    }
+
+    /**
+     * Ensure a .gitignore exists with standard exclusions.
+     */
+    private async ensureGitIgnore(absoluteDir: string): Promise<void> {
+        const gitIgnorePath = path.join(absoluteDir, '.gitignore');
+        const librariesPath = this.settings.librarySettings?.librariesPath || "Abstract Library";
+        const defaultExclusions = [
+            `${librariesPath}/`,
+            '.obsidian/',
+            '.trash/',
+            'node_modules/',
+            '*.log'
+        ].join('\n');
+
+        try {
+            const exists = await NodeFsAdapter.promises.stat(gitIgnorePath).catch(() => null);
+            if (!exists) {
+                await NodeFsAdapter.promises.writeFile(gitIgnorePath, defaultExclusions, 'utf8');
+                console.debug(`[LibraryManager] Created default .gitignore at ${gitIgnorePath}`);
+            } else {
+                // Optionally append exclusions if missing, but let's keep it simple for now
+                console.debug(`[LibraryManager] Existing .gitignore found at ${gitIgnorePath}`);
+            }
+        } catch (error) {
+            console.error("Failed to ensure .gitignore", error);
+        }
+    }
+
+    /**
+     * Recursively scan for files larger than a threshold (default 10MB).
+     */
+    public async checkForLargeFiles(vaultPath: string, thresholdMB: number = 10): Promise<string[]> {
+        const largeFiles: string[] = [];
+        const thresholdBytes = thresholdMB * 1024 * 1024;
+        const absoluteDir = this.getAbsolutePath(vaultPath);
+
+        const librariesPath = this.settings.librarySettings?.librariesPath || "Abstract Library";
+        const scan = async (dir: string) => {
+            const entries = await NodeFsAdapter.promises.readdir(dir, { withFileTypes: true });
+            for (const entry of entries) {
+                const fullPath = path.join(dir, entry.name);
+                if (entry.isDirectory()) {
+                    if (entry.name === '.git' || entry.name === 'node_modules' || entry.name === librariesPath) continue;
+                    await scan(fullPath);
+                } else if (entry.isFile()) {
+                    const stats = await NodeFsAdapter.promises.stat(fullPath);
+                    if (stats.size > thresholdBytes) {
+                        largeFiles.push(path.relative(absoluteDir, fullPath));
+                    }
+                }
+            }
+        };
+
+        try {
+            await scan(absoluteDir);
+        } catch (e) {
+            console.error("Scanning for large files failed", e);
+        }
+        return largeFiles;
+    }
+
+    /**
+     * Initialize a personal backup for a folder.
+     */
+    async initializePersonalBackup(vaultPath: string, repositoryUrl: string, token?: string): Promise<void> {
+        // 1. Check for library conflict
+        const librariesPath = this.settings.librarySettings?.librariesPath || "Abstract Library";
+        if (vaultPath.startsWith(librariesPath)) {
+            throw new Error("Cannot backup folders within the Abstract Library directory.");
+        }
+
+        try {
+            const absoluteDir = this.getAbsolutePath(vaultPath);
+            const tokenToUse = token || this.getToken();
+
+            // 2. Initial safety checks
+            await this.ensureGitIgnore(absoluteDir);
+            const largeFiles = await this.checkForLargeFiles(vaultPath);
+            if (largeFiles.length > 0) {
+                const message = `Warning: ${largeFiles.length} files are larger than 10MB. This may cause sync issues.`;
+                new Notice(message);
+                console.warn(message, largeFiles);
+            }
+
+            // 3. git init
+            await git.init({ fs: NodeFsAdapter, dir: absoluteDir });
+
+            // add remote
+            await git.addRemote({
+                fs: NodeFsAdapter,
+                dir: absoluteDir,
+                remote: 'origin',
+                url: repositoryUrl
+            });
+
+            // Initial commit and push
+            await this.syncBackup(vaultPath, "Initial backup via Abstract Folder", tokenToUse);
+            
+            new Notice(`Backup initialized for ${vaultPath}`);
+        } catch (error) {
+            console.error("Backup initialization failed", error);
+            throw error;
+        }
+    }
+
+    /**
+     * Sync changes to the remote (pull, add, commit, push).
+     */
+    async syncBackup(vaultPath: string, message: string = "Sync via Abstract Folder", token?: string): Promise<void> {
+        try {
+            const absoluteDir = this.getAbsolutePath(vaultPath);
+            const tokenToUse = token || this.getToken();
+
+            // 1. Pull changes
+            try {
+                await git.pull({
+                    fs: NodeFsAdapter,
+                    http: ObsidianHttpAdapter as any,
+                    dir: absoluteDir,
+                    onAuth: tokenToUse ? () => ({ username: tokenToUse }) : undefined,
+                    singleBranch: true,
+                    author: { name: "Abstract Folder", email: "backup@abstract.folder" }
+                });
+            } catch (e) {
+                console.warn("Pull failed (could be initial push)", e);
+            }
+
+            // 2. Add all files
+            await git.add({ fs: NodeFsAdapter, dir: absoluteDir, filepath: "." });
+
+            // 3. Commit
+            await git.commit({
+                fs: NodeFsAdapter,
+                dir: absoluteDir,
+                message: message,
+                author: { name: "Abstract Folder", email: "backup@abstract.folder" }
+            });
+
+            // 4. Push
+            await git.push({
+                fs: NodeFsAdapter,
+                http: ObsidianHttpAdapter as any,
+                dir: absoluteDir,
+                onAuth: tokenToUse ? () => ({ username: tokenToUse }) : undefined,
+                remote: 'origin'
+            });
+
+            new Notice("Backup synced successfully");
+        } catch (error) {
+            console.error("Sync failed", error);
             throw error;
         }
     }

@@ -1,18 +1,21 @@
-import { App, Menu, setIcon } from "obsidian";
+import { App, Menu, setIcon, TFolder, Notice } from "obsidian";
 import { AbstractFolderPluginSettings } from "../../settings";
 import type AbstractFolderPlugin from "main";
-import { CreateAbstractChildModal } from "../modals";
+import { CreateAbstractChildModal, PersonalBackupModal } from "../modals";
 import { createAbstractChildFile } from "../../utils/file-operations";
 import { ManageSortingModal } from "../modals/manage-sorting-modal";
 import { ManageFilteringModal } from "../modals/manage-filtering-modal";
 import { Group, SortBy } from "../../types";
 import { ManageGroupsModal } from "../modals/manage-groups-modal";
+import { AuthService } from "../../library/services/auth-service";
 import { Logger } from "../../utils/logger";
 
 export class AbstractFolderViewToolbar {
     private viewStyleToggleAction: HTMLElement | undefined;
     private expandAllAction: HTMLElement | undefined;
     private collapseAllAction: HTMLElement | undefined;
+    private syncFacet: HTMLElement | undefined;
+    private identityBadge: HTMLElement | undefined;
 
     constructor(
         private app: App,
@@ -53,7 +56,6 @@ export class AbstractFolderViewToolbar {
         }
         if (this.settings.showCollapseAllButton) {
             this.collapseAllAction = this.addAction("chevrons-down-up", "Collapse all folders", () => {
-                Logger.debug("AbstractFolderViewToolbar: collapse all clicked");
                 this.plugin.contextEngine.collapseAll();
             });
         }

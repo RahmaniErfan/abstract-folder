@@ -1,5 +1,23 @@
 # Technical Changelog
 
+## [2026-02-17] VS Code-style Sync UI & Status Bar Implementation
+
+### 1. Abstract Status Bar Architecture
+*   **The Component**: Implemented `AbstractFolderStatusBar` as a decoupled, reactive UI component mounted directly to the bottom of the `AbstractFolderView`.
+*   **Reactive Lifecycle**: The status bar is synchronized with the `refreshTree` loop, ensuring that Git status (uncommitted change counts) and identity tokens are always current without redundant disk polling.
+*   **The Layout**: Adopted a classic VS Code-inspired dual-facet layout:
+    *   **Identity (Left)**: Renders the active GitHub session (avatar + username) with automatic refresh logic using the `AuthService`.
+    *   **Controls (Right)**: Separates the "Management" icon (Cloud) from the "Action" icon (Refresh-CW).
+
+### 2. High-Performance Sync Animation & Badging
+*   **Icon Partitioning**: Successfully separated the Backup Dashboard entry point from the Quick Sync action. This allows for a dedicated `sync` (arrows) icon that can provide a natural rotation animation without distorting the semantic `cloud` icon.
+*   **Performance Optimization**: Used GPU-accelerated CSS keyframe animations for the sync rotation to prevent layout thrashing during Git operations.
+*   **Notification Badge Overlays**: Implemented absolute-positioned badges with themed box-shadows to ensure high visibility of change counts against the primary background.
+
+### 3. UI/CSS Theme Hardening
+*   **Seamless Background Interp**: Enforced `var(--background-primary) !important` on the status bar and viewport scroll container to ensure a continuous visual plane, eliminating "floating" component artifacts.
+*   **Strict Viewport Constraints**: Applied strict flex and overflow constraints to the viewport container to prevent the new status bar from being pushed off-screen or causing scrollbar double-nesting.
+
 ## [2026-02-16] V2 Search Experience & Poly-hierarchy Hardening
 
 ### 1. Path-Specific Poly-hierarchy Support

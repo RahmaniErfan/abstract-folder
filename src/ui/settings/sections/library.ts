@@ -68,7 +68,7 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 						);
 				}
 			}
-		})();
+		} )();
 	}
 
 	containerEl.createEl("h3", { text: "Abstract library marketplace" });

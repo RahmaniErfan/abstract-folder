@@ -26,7 +26,7 @@ export class AuthService {
     /**
      * Get basic user info (needed for determining ownership)
      */
-    static async getUserInfo(token: string): Promise<{ login: string } | null> {
+    static async getUserInfo(token: string): Promise<{ login: string; avatar_url: string } | null> {
         try {
             const response = await requestUrl({
                 url: "https://api.github.com/user",
@@ -37,7 +37,8 @@ export class AuthService {
                 },
             });
             if (response.status !== 200) return null;
-            return response.json as { login: string };
+            const data = response.json as { login: string; avatar_url: string };
+            return { login: data.login, avatar_url: data.avatar_url };
         } catch (error) {
             console.error("Failed to fetch user info", error);
             return null;
@@ -62,6 +63,34 @@ export class AuthService {
             return data.permissions;
         } catch (error) {
             console.error("Failed to fetch repo permissions", error);
+            return null;
+        }
+    }
+    /**
+     * Create a new repository on GitHub
+     */
+    static async createRepository(token: string, name: string, isPrivate: boolean): Promise<{ url: string; name: string } | null> {
+        try {
+            const response = await requestUrl({
+                url: "https://api.github.com/user/repos",
+                method: "POST",
+                headers: {
+                    "Authorization": `token ${token}`,
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    name,
+                    private: isPrivate,
+                    description: "Backup via Abstract Folder",
+                    auto_init: false,
+                }),
+            });
+            if (response.status !== 201) return null;
+            const data = response.json as { clone_url: string; name: string };
+            return { url: data.clone_url, name: data.name };
+        } catch (error) {
+            console.error("Failed to create repository", error);
             return null;
         }
     }

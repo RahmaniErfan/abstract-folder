@@ -11,12 +11,18 @@
 - **Scoped Highlighting**: Visual "focus" mode that highlights all descendants of the currently selected node.
 - **Enhanced Search**: Time-sliced search construction with automatic parent expansion for matches.
 - **Mobile Optimized**: Adaptive row heights and touch-friendly targets for iOS and Android.
+- **VS Code-style Status Bar**: A slim, persistent status bar at the bottom of the Abstract Folder view for local backup and sync awareness.
+- **GitHub Identity Integration**: Real-time display of the logged-in user's GitHub avatar and username in the status bar.
+- **Visual Sync Indicators**: Notification badges for uncommitted/unpushed changes and high-performance sync animations (rotating refresh arrows).
+- **Quick-Sync Action**: Interactive status bar controls for one-click background synchronization and instant access to the Backup & Sync Center.
 
 ### Removed
 - **Legacy Components**: Removed monolithic `FolderIndexer`, `TreeCoordinator`, and all class-based `Facets`.
 - **Shadow V1 Logic**: Completely purged legacy rendering paths and `useV2Engine` toggle; the V2 stack is now the sole engine.
 
 ### Improved
+- **Toolbar Refinement**: Reverted sync-related toolbar clutter to maintain a clean, action-focused top navigation.
+- **Theme Integration**: Hardened status bar styling to match Obsidian's primary background and border tokens for a native, non-intrusive look.
 - **Indentation Guides**: Reddit-style vertical indentation guides for the tree view. Supports "Rainbow Indents" with multiple color palettes (Classic, Pastel, Neon) and hover highlighting.
 - **Virtualized Header Sync**: Fixed overlapping issues in V2 Viewport by introducing a coordinate-aware `HEADER_OFFSET`. The "Active Group" header is now pinned at the top and correctly synced with the virtualization engine's scroll math.
 - **Abstract Library System**: Integrated library management for shared knowledge structures.

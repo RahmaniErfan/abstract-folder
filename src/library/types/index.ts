@@ -39,5 +39,7 @@ export interface LibrarySettings {
     registries: string[];  // List of custom registry URLs
     standaloneLibraries: string[]; // List of direct repository URLs
     githubToken?: string;
+    githubUsername?: string;
+    githubAvatar?: string;
     deviceId?: string;
 }

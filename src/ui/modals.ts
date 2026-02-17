@@ -546,3 +546,4 @@ export class SimulationModal extends Modal {
 }
 
 export { CreateEditGroupModal } from "./modals/create-edit-group-modal";
+export { PersonalBackupModal } from "./modals/personal-backup-modal";

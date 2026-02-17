@@ -2,6 +2,7 @@ import { ItemView, WorkspaceLeaf, TFile, Notice, Platform, setIcon } from "obsid
 import type AbstractFolderPlugin from "main";
 import { VirtualViewport, ViewportDelegate } from "../components/virtual-viewport";
 import { AbstractFolderViewToolbar } from "../toolbar/abstract-folder-view-toolbar";
+import { AbstractFolderStatusBar } from "./abstract-folder-status-bar";
 import { TreeSnapshot, AbstractNode } from "../../core/tree-builder";
 import { Logger } from "../../utils/logger";
 
@@ -11,6 +12,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
     private plugin: AbstractFolderPlugin;
     private viewport: VirtualViewport;
     private toolbar: AbstractFolderViewToolbar;
+    private statusBar: AbstractFolderStatusBar;
     private searchInput: HTMLInputElement;
     private currentSnapshot: TreeSnapshot | null = null;
     private isRefreshing = false;
@@ -141,6 +143,9 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
 
         // Initial build
         await this.refreshTree();
+
+        // 3. Status Bar (Bottom)
+        this.statusBar = new AbstractFolderStatusBar(this.app, this.plugin.settings, this.plugin, contentEl);
     }
 
     async onClose() {
@@ -289,6 +294,9 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
 
             if (this.currentSnapshot) {
                 this.viewport.setItems(this.currentSnapshot.items);
+            }
+            if (this.statusBar) {
+                this.statusBar.refreshStatus();
             }
         } catch (error) {
             console.error("Failed to refresh tree", error);

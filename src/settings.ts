@@ -41,6 +41,7 @@ export interface AbstractFolderPluginSettings {
   showFilterButton: boolean; // Whether to show the filter button
   showGroupButton: boolean; // Whether to show the group button
   showCreateNoteButton: boolean; // Whether to show the create note button
+  showBackupButton: boolean; // Whether to show the backup button
   showSearchHeader: boolean; // Whether to show the search bar header
   maxMenuNameLength: number; // Maximum length of file names shown in menus/dropdowns
   namingConflictStrategy: 'parent' | 'ancestor' | 'none'; // Strategy to resolve name conflicts in flat structure
@@ -92,6 +93,7 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   showFilterButton: true,
   showGroupButton: true,
   showCreateNoteButton: true,
+  showBackupButton: true,
   showSearchHeader: true,
   maxMenuNameLength: 10,
   namingConflictStrategy: 'parent',
@@ -105,6 +107,8 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
     registries: ["https://raw.githubusercontent.com/RahmaniErfan/abstract-registry/main/directory.json"],
     standaloneLibraries: [],
     githubToken: "",
+    githubUsername: "",
+    githubAvatar: "",
     deviceId: "",
   },
 };
