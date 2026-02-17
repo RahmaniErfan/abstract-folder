@@ -199,11 +199,12 @@
 }
 
 .af-item.is-selected {
-    background-color: var(--background-modifier-active-hover);
+    background-color: var(--nav-item-background-active);
 }
 
 .af-item.is-selected .af-item-inner {
-    color: var(--text-accent);
+    color: var(--nav-item-text-color-active);
+    font-weight: var(--nav-item-weight-active, 600);
 }
 
 /* =========================================================================================
@@ -212,14 +213,14 @@
 
 /* When a row is IN SCOPE (descendant of selected), it gets a subtle background tint */
 .af-item.is-in-scope .af-item-self {
-    background-color: var(--background-modifier-success-soft, rgba(0, 255, 0, 0.05));
+    background-color: var(--nav-item-background-hover);
     border-left: 2px solid var(--interactive-accent);
 }
 
 /* Special icons or badges for scoped items */
 .af-item.is-in-scope .af-item-inner::after {
     content: " •";
-    opacity: 0.5;
+    opacity: 0.3;
     font-size: 0.8em;
 }
 

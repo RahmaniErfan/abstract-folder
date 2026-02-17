@@ -118,12 +118,6 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
             this
         );
 
-        // Subscribe to selection changes to update ScopeProjector
-        this.plugin.contextEngine.on('selection-changed', (selectedURIs: Set<string>) => {
-            this.plugin.scopeProjector.update(selectedURIs);
-            this.viewport.update(); // Fast repaint of visible rows
-        });
-
         // Subscribe to general context changes
         this.plugin.contextEngine.on('changed', () => {
             void this.refreshTree();

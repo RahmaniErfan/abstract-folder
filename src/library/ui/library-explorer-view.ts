@@ -173,15 +173,19 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     }
 
     onItemClick(node: AbstractNode, event: MouseEvent): void {
-        this.contextEngine.select(node.id, { multi: event.ctrlKey || event.metaKey });
-        const file = this.app.vault.getAbstractFileByPath(node.uri);
+        this.contextEngine.select(node.uri, { multi: event.ctrlKey || event.metaKey });
+        const file = this.app.vault.getAbstractFileByPath(node.id);
         if (file instanceof TFile) {
             void this.app.workspace.getLeaf(false).openFile(file);
         }
     }
 
     onItemToggle(node: AbstractNode, event: MouseEvent): void {
-        this.contextEngine.toggleExpand(node.id);
+        this.contextEngine.toggleExpand(node.uri);
+        // Tree rebuild is handled by ContextEngine 'changed' listener in the future,
+        // but for now, the LibraryExplorerView needs to manually rebuild the tree
+        // because its tree structure depends on the expansion state which might
+        // change the flat list length.
         void this.refreshLibraryTree();
     }
 

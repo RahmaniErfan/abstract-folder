@@ -27,6 +27,8 @@ export class VirtualViewport {
     private resizeObserver: ResizeObserver;
     private readonly HEADER_OFFSET = 24; // Match the group header height
     private groupHeaderEl: HTMLElement;
+    private contextListener: () => void;
+    private selectionListener: () => void;
     
     constructor(
         private containerEl: HTMLElement,
@@ -40,6 +42,20 @@ export class VirtualViewport {
         this.resizeObserver = new ResizeObserver(() => this.update());
         this.resizeObserver.observe(this.scrollContainer);
         this.scrollContainer.addEventListener("scroll", () => this.update());
+
+        // Setup Reactive Listeners
+        this.contextListener = () => this.update();
+        this.selectionListener = () => {
+            // Update ScopeProjector before repainting
+            if (this.scope) {
+                const state = this.context.getState();
+                this.scope.update(state.selectedURIs);
+            }
+            this.update();
+        };
+
+        this.context.on('changed', this.contextListener);
+        this.context.on('selection-changed', this.selectionListener);
     }
 
     /**
@@ -266,6 +282,8 @@ export class VirtualViewport {
     }
 
     public destroy() {
+        this.context.off('changed', this.contextListener);
+        this.context.off('selection-changed', this.selectionListener);
         this.resizeObserver.disconnect();
         this.renderedItems.clear();
         this.containerEl.empty();
