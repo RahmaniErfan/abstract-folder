@@ -14,6 +14,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
     private toolbar: AbstractFolderViewToolbar;
     private statusBar: AbstractFolderStatusBar;
     private searchInput: HTMLInputElement;
+    private clearSearchBtn: HTMLElement;
     private showAncestorsBtn: HTMLElement;
     private showDescendantsBtn: HTMLElement;
     private currentSnapshot: TreeSnapshot | null = null;
@@ -57,14 +58,27 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
         );
         this.toolbar.setupToolbarActions();
 
-        this.searchInput = headerEl.createEl("input", {
+        const searchContainer = headerEl.createDiv({ cls: "abstract-folder-search-container" });
+        
+        const searchInputWrapper = searchContainer.createDiv({ cls: "abstract-folder-search-input-wrapper" });
+        this.searchInput = searchInputWrapper.createEl("input", {
             type: "text",
             placeholder: "Search notes...",
             cls: "abstract-folder-search-input"
         });
 
-        const searchContainer = headerEl.createDiv({ cls: "abstract-folder-search-container" });
-        searchContainer.appendChild(this.searchInput);
+        this.clearSearchBtn = searchInputWrapper.createDiv({
+            cls: "abstract-folder-search-clear",
+            attr: { "aria-label": "Clear search" }
+        });
+        setIcon(this.clearSearchBtn, "x");
+        
+        this.clearSearchBtn.addEventListener("click", () => {
+            this.searchInput.value = "";
+            this.plugin.contextEngine.setFilter("");
+            this.updateClearButtonState();
+            this.searchInput.focus();
+        });
 
         const showAncestorsBtn = searchContainer.createDiv({
             cls: "clickable-icon ancestry-search-toggle",
@@ -104,6 +118,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
             const query = this.searchInput.value;
             Logger.debug(`[Abstract Folder] View: Search input changed to "${query}"`);
             this.plugin.contextEngine.setFilter(query);
+            this.updateClearButtonState();
             // The ContextEngine will emit 'changed', triggering refreshTree()
         });
 
@@ -172,6 +187,12 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
         }
     }
 
+    private updateClearButtonState() {
+        if (!this.clearSearchBtn || !this.searchInput) return;
+        const hasQuery = this.searchInput.value.length > 0;
+        this.clearSearchBtn.toggleClass("is-active", hasQuery);
+    }
+
     public focusFile(path: string) {
         // Logic to highlight/focus a specific path
         const snapshot = this.currentSnapshot;
@@ -200,6 +221,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
 
         // 3. Trigger Search & Save
         this.plugin.contextEngine.setFilter(activeFile.basename);
+        this.updateClearButtonState();
         await this.plugin.saveSettings();
 
         // Reveal in tree logic (V2 migration)

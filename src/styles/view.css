@@ -187,6 +187,13 @@
     width: 100%;
 }
 
+.abstract-folder-search-input-wrapper {
+    position: relative;
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+}
+
 .abstract-folder-search-input {
     flex: 1 1 auto;
     width: 100%;
@@ -199,7 +206,7 @@
 
 .abstract-folder-search-clear {
     position: absolute;
-    right: 12px;
+    right: 5px; /* Relative to wrapper */
     top: 50%;
     transform: translateY(-50%);
     cursor: pointer;
@@ -209,11 +216,20 @@
     justify-content: center;
     padding: 4px;
     border-radius: 4px;
+    opacity: 0.2;
+    pointer-events: none;
+    transition: opacity 0.2s ease, background-color 0.2s ease;
+}
+
+.abstract-folder-search-clear.is-active {
+    opacity: 0.6;
+    pointer-events: auto;
 }
 
 .abstract-folder-search-clear:hover {
     color: var(--text-normal);
     background-color: var(--background-modifier-hover);
+    opacity: 1 !important;
 }
 
 /* Toolbar and Group Header */
