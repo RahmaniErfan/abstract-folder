@@ -6,7 +6,7 @@
 }
 
 .library-shelf, .library-tree-header {
-    padding: 10px;
+    padding: 4px 8px;
 }
 
 .abstract-library-explorer .abstract-folder-viewport-scroll-container {
@@ -29,11 +29,11 @@
     align-items: center;
     gap: 8px;
     padding: 0 8px;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
 }
 
 .library-shelf-search-row .abstract-folder-search-container {
-    padding: 0;
+    padding: 2px 0;
     margin-bottom: 0;
     flex-grow: 1;
 }
@@ -49,6 +49,10 @@
 
 .abstract-library-explorer .abstract-folder-search-input-wrapper {
     flex: 1;
+}
+
+.abstract-library-explorer .abstract-folder-search-container {
+    padding: 4px 8px;
 }
 
 .abstract-library-explorer .search-options-container {
@@ -137,9 +141,9 @@
 .library-tree-header {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
+    gap: 4px;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
     border-bottom: 1px solid var(--background-modifier-border);
 }
 
@@ -179,4 +183,90 @@
 
 .abstract-library-explorer .empty-state + button {
     align-self: center;
+}
+
+/* Toolbars */
+.library-header-divider {
+    border-top: 1px solid var(--background-modifier-border);
+    opacity: 0.5;
+    margin: 0 12px;
+}
+
+.library-tree-toolbar {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    padding: 2px 0;
+    margin-bottom: 0;
+}
+
+.library-tree-toolbar .clickable-icon {
+    color: var(--text-muted);
+    transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.library-tree-toolbar .clickable-icon:hover {
+    color: var(--text-normal);
+    transform: translateY(-1px);
+}
+
+.library-tree-bottom-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background-color: var(--background-secondary-alt);
+    border-top: 1px solid var(--background-modifier-border);
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    margin-top: auto;
+}
+
+.library-bottom-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+}
+
+.library-access-badge {
+    font-size: 0.75em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.library-access-badge.is-owner {
+    background-color: var(--color-green);
+    color: white;
+}
+
+.library-access-badge.is-readonly {
+    background-color: var(--background-modifier-border);
+    color: var(--text-muted);
+}
+
+.library-name-info {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.library-bottom-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.library-bottom-actions .clickable-icon {
+    color: var(--text-muted);
+    transition: color 0.15s ease;
+}
+
+.library-bottom-actions .clickable-icon:hover {
+    color: var(--interactive-accent);
 }

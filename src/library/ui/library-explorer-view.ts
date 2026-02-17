@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, setIcon, TFolder, TFile, Platform } from "obsidian";
+import { ItemView, WorkspaceLeaf, setIcon, TFolder, TFile, Platform, Notice } from "obsidian";
 import type AbstractFolderPlugin from "../../../main";
 import { LibraryNode } from "../types";
 import { Logger } from "../../utils/logger";
@@ -22,6 +22,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     private clearSearchBtn: HTMLElement;
     private isRefreshing = false;
     private nextRefreshScheduled = false;
+    private isOwner = false;
 
     // Search Options
     private showAncestors = true;
@@ -239,6 +240,10 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             titleRow.createEl("h3", { text: this.selectedLibrary.file.name });
         }
 
+        header.createDiv({ cls: "library-header-divider" });
+
+        this.renderTopToolbar(header);
+
         const searchRow = header.createDiv({ cls: "library-tree-search-row" });
         this.renderSearch(searchRow, "Search in library...", () => {
             void this.refreshLibraryTree();
@@ -248,6 +253,8 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         const scrollContainer = treeContainer.createDiv({ cls: "abstract-folder-viewport-scroll-container nav-files-container" });
         const spacerEl = scrollContainer.createDiv({ cls: "abstract-folder-viewport-spacer" });
         const contentEl = scrollContainer.createDiv({ cls: "abstract-folder-viewport-rows" });
+
+        await this.renderBottomToolbar(container);
 
         Logger.debug("LibraryExplorerView: Mounting Viewport for selected library.");
 
@@ -321,6 +328,81 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         }
     }
 
+    private renderTopToolbar(container: HTMLElement) {
+        const toolbar = container.createDiv({ cls: "library-tree-toolbar" });
+        
+        const forkBtn = toolbar.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Fork library (Coming soon)" } });
+        setIcon(forkBtn, "git-fork");
+        
+        const prBtn = toolbar.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Create PR (Coming soon)" } });
+        setIcon(prBtn, "git-pull-request");
+
+        const issueBtn = toolbar.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Open Issue (Coming soon)" } });
+        setIcon(issueBtn, "alert-circle");
+
+        const starBtn = toolbar.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Star library (Coming soon)" } });
+        setIcon(starBtn, "star");
+    }
+
+    private async renderBottomToolbar(container: HTMLElement) {
+        const toolbar = container.createDiv({ cls: "library-tree-bottom-toolbar" });
+        
+        const infoArea = toolbar.createDiv({ cls: "library-bottom-info" });
+        
+        // Ownership check
+        this.isOwner = false;
+        let author = "Unknown";
+        if (this.selectedLibrary?.file instanceof TFolder) {
+            try {
+                const config = await this.plugin.libraryManager.validateLibrary(this.selectedLibrary.file.path);
+                author = config.author;
+                this.isOwner = this.plugin.settings.librarySettings.githubUsername === author;
+            } catch (e) {
+                Logger.error("Failed to check ownership", e);
+            }
+        }
+
+        const accessBadge = infoArea.createDiv({ 
+            cls: `library-access-badge ${this.isOwner ? 'is-owner' : 'is-readonly'}`,
+            text: this.isOwner ? "Owner" : "Read-only"
+        });
+
+        if (this.selectedLibrary?.file instanceof TFolder) {
+            infoArea.createSpan({ cls: "library-name-info", text: this.selectedLibrary.file.name });
+        }
+
+        const actionsArea = toolbar.createDiv({ cls: "library-bottom-actions" });
+
+        if (this.isOwner) {
+            const pushBtn = actionsArea.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Push changes" } });
+            setIcon(pushBtn, "arrow-up-circle");
+            pushBtn.addEventListener("click", async () => {
+                if (!this.selectedLibrary?.file) return;
+                try {
+                    new Notice("Pushing changes...");
+                    await this.plugin.libraryManager.syncBackup(this.selectedLibrary.file.path, "Update library");
+                    new Notice("Successfully pushed changes");
+                } catch (e) {
+                    new Notice(`Push failed: ${e.message}`);
+                }
+            });
+        }
+
+        const pullBtn = actionsArea.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Pull updates" } });
+        setIcon(pullBtn, "refresh-cw");
+        pullBtn.addEventListener("click", async () => {
+            if (!this.selectedLibrary?.file) return;
+            try {
+                new Notice("Updating library...");
+                await this.plugin.libraryManager.updateLibrary(this.selectedLibrary.file.path);
+                new Notice("Library updated");
+                void this.refreshLibraryTree();
+            } catch (e) {
+                new Notice(`Update failed: ${e.message}`);
+            }
+        });
+    }
+
     // ViewportDelegateV2 implementation
     getItemHeight(): number {
         return 24;
@@ -340,28 +422,21 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
 
     onItemToggle(node: AbstractNode, event: MouseEvent): void {
         this.contextEngine.toggleExpand(node.uri);
-        // Tree rebuild is handled by ContextEngine 'changed' listener in the future,
-        // but for now, the LibraryExplorerView needs to manually rebuild the tree
-        // because its tree structure depends on the expansion state which might
-        // change the flat list length.
         void this.refreshLibraryTree();
     }
 
     onItemContextMenu(node: AbstractNode, event: MouseEvent): void {
-        // Library nodes are often read-only, but we can still show standard actions
-        // Extract items from current snapshot for selection mapping
-        // This is simplified for LibraryExplorerView since it manages its own contextEngine
         const selection = this.contextEngine.getState().selectedURIs;
-        
-        // Items are not easily accessible here without storing the result of refreshLibraryTree
-        // For now, let's just pass an empty array or the node itself
+
         this.plugin.contextMenuHandler.showV2ContextMenu(
             event,
             node,
             selection,
-            this.currentItems
+            this.currentItems,
+            { isReadOnly: !this.isOwner }
         );
     }
+
 
     onItemDrop(draggedPath: string, targetNode: AbstractNode): void {
         // Library view might be read-only or have different D&D rules

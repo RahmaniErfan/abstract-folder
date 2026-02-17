@@ -20,7 +20,7 @@ export class ContextMenuHandler {
     /**
      * Shows a context menu for a node in the V2 Virtual Viewport.
      */
-    showV2ContextMenu(event: MouseEvent, node: AbstractNode, selection: Set<string>, items: AbstractNode[]) {
+    showV2ContextMenu(event: MouseEvent, node: AbstractNode, selection: Set<string>, items: AbstractNode[], options: { isReadOnly?: boolean } = {}) {
         event.preventDefault();
 
         let activeSelection = selection;
@@ -46,9 +46,9 @@ export class ContextMenuHandler {
         menu.setUseNativeMenu(false);
 
         if (selectedPhysicalPaths.size > 1 && selectedPhysicalPaths.has(node.id)) {
-            this.addMultiSelectItems(menu, selectedPhysicalPaths);
+            this.addMultiSelectItems(menu, selectedPhysicalPaths, options.isReadOnly);
         } else {
-            this.addSingleItemItems(menu, node.id, selectedPhysicalPaths);
+            this.addSingleItemItems(menu, node.id, selectedPhysicalPaths, options.isReadOnly);
         }
 
         menu.showAtPosition({ x: event.clientX, y: event.clientY });
@@ -61,7 +61,7 @@ export class ContextMenuHandler {
         menu.showAtPosition({ x: event.clientX, y: event.clientY });
     }
 
-    private addMultiSelectItems(menu: Menu, multiSelectedPaths: Set<string>) {
+    private addMultiSelectItems(menu: Menu, multiSelectedPaths: Set<string>, isReadOnly = false) {
         const selectedFiles: TFile[] = [];
         const selectedFolders: TFolder[] = [];
 
@@ -76,6 +76,8 @@ export class ContextMenuHandler {
 
         this.app.workspace.trigger("files-menu", menu, selectedFiles, "abstract-folder-view");
         
+        if (isReadOnly) return;
+
         menu.addSeparator();
         menu.addItem((item) =>
             item
@@ -95,7 +97,7 @@ export class ContextMenuHandler {
         );
     }
 
-    private addSingleItemItems(menu: Menu, path: string, multiSelectedPaths: Set<string>) {
+    private addSingleItemItems(menu: Menu, path: string, multiSelectedPaths: Set<string>, isReadOnly = false) {
         const file = this.app.vault.getAbstractFileByPath(path);
         if (!file || !(file instanceof TAbstractFile)) return;
 
@@ -106,41 +108,40 @@ export class ContextMenuHandler {
 
         // Plugin-specific actions first
         if (file instanceof TFile) {
-            this.addCreationItems(menu, file);
-            this.addPluginSpecificActions(menu, file);
+            if (!isReadOnly) this.addCreationItems(menu, file);
+            this.addPluginSpecificActions(menu, file, isReadOnly);
         } else if (file instanceof TFolder) {
-            this.addCreationItems(menu, null); // Creation in a folder is like creation in root for now, or we could support it better
+            if (!isReadOnly) this.addCreationItems(menu, null); 
         }
 
-        menu.addItem((item) =>
-            item
-            .setTitle("Rename")
-            .setIcon("pencil")
-            .setSection('abstract-folder')
-            .onClick(() => {
-                new RenameModal(this.app, file).open();
-            })
-        );
+        if (!isReadOnly) {
+            menu.addItem((item) =>
+                item
+                .setTitle("Rename")
+                .setIcon("pencil")
+                .setSection('abstract-folder')
+                .onClick(() => {
+                    new RenameModal(this.app, file).open();
+                })
+            );
 
-        menu.addItem((item) =>
-            item
-            .setTitle(file instanceof TFolder ? "Delete folder" : "Delete file")
-            .setIcon("trash")
-            .setSection('abstract-folder')
-            .onClick(() => {
-                if (file instanceof TFile) {
-                    new DeleteConfirmModal(this.app, file, (deleteChildren: boolean) => {
-                        deleteAbstractFile(this.app, file, deleteChildren, this.indexer)
-                            .catch(Logger.error);
-                    }).open();
-                } else if (file instanceof TFolder) {
-                    // Folders are always deleted recursively in standard Obsidian, 
-                    // but we can just use the standard notice/modal if we want.
-                    // For now, let's just use the vault delete if it's a folder.
-                    void this.app.vault.trash(file, true);
-                }
-            })
-        );
+            menu.addItem((item) =>
+                item
+                .setTitle(file instanceof TFolder ? "Delete folder" : "Delete file")
+                .setIcon("trash")
+                .setSection('abstract-folder')
+                .onClick(() => {
+                    if (file instanceof TFile) {
+                        new DeleteConfirmModal(this.app, file, (deleteChildren: boolean) => {
+                            deleteAbstractFile(this.app, file, deleteChildren, this.indexer)
+                                .catch(Logger.error);
+                        }).open();
+                    } else if (file instanceof TFolder) {
+                        void this.app.vault.trash(file, true);
+                    }
+                })
+            );
+        }
         menu.addSeparator();
 
         menu.addSeparator();
@@ -202,7 +203,7 @@ export class ContextMenuHandler {
         );
     }
 
-    private addPluginSpecificActions(menu: Menu, file: TFile) {
+    private addPluginSpecificActions(menu: Menu, file: TFile, isReadOnly = false) {
         menu.addItem((item) =>
             item
                 .setTitle("Focus this file")
@@ -248,6 +249,8 @@ export class ContextMenuHandler {
                     })
             );
         }
+
+        if (isReadOnly) return;
 
         menu.addItem((item) =>
             item
