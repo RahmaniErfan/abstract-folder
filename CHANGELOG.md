@@ -25,7 +25,7 @@
   - **Library Center**: Dedicated view for browsing, installing, and updating libraries.
   - **Abstract Bridge**: Integrates physical library files directly into the Abstract Folder graph.
   - **Contribution Engine**: Secure state machine for drafting and submitting changes to remote repositories.
-  - **GitHub Device Flow**: Passwordless OAuth integration for secure library access.
+  - **GitHub PAT Authentication**: Replaced the failing Device Flow with a robust Personal Access Token (PAT) system. Includes automatic validation, username detection, and secure credential handling for private repository access.
   - **Registry Service**: Support for official and custom library registries with automatic placeholder filtering.
   - **Modular Settings**: Fully refactored settings tab with specialized sections for Appearance, Library, Groups, and Debugging.
 

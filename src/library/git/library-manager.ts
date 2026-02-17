@@ -5,13 +5,18 @@ import { ObsidianHttpAdapter } from "./http-adapter";
 import { LibraryConfig, LibraryStatus, RegistryItem } from "../types";
 import { NodeFsAdapter } from "./node-fs-adapter";
 import { DataService } from "../services/data-service";
+import { AbstractFolderPluginSettings } from "../../settings";
 
 /**
  * LibraryManager handles Git operations using isomorphic-git.
  * It uses a physical Node FS adapter to sync files directly to the vault.
  */
 export class LibraryManager {
-    constructor(private app: App) {}
+    constructor(private app: App, private settings: AbstractFolderPluginSettings) {}
+
+    private getToken(): string | undefined {
+        return this.settings.librarySettings?.githubToken;
+    }
 
     /**
      * Helper to get absolute path on disk from vault path.
@@ -32,13 +37,15 @@ export class LibraryManager {
             
             console.debug(`[LibraryManager] Cloning library from ${repositoryUrl} to ${absoluteDir}`);
 
+            const tokenToUse = token || this.getToken();
+            
             /* eslint-disable @typescript-eslint/no-unsafe-assignment */
             await git.clone({
                 fs: NodeFsAdapter,
                 http: ObsidianHttpAdapter as any,
                 dir: absoluteDir,
                 url: repositoryUrl,
-                onAuth: token ? () => ({ username: token }) : undefined,
+                onAuth: tokenToUse ? () => ({ username: tokenToUse }) : undefined,
                 singleBranch: true,
                 depth: 1
             });
@@ -88,12 +95,14 @@ export class LibraryManager {
     async updateLibrary(vaultPath: string, token?: string): Promise<void> {
         try {
             const absoluteDir = this.getAbsolutePath(vaultPath);
+            const tokenToUse = token || this.getToken();
+
             /* eslint-disable @typescript-eslint/no-unsafe-assignment */
             await git.pull({
                 fs: NodeFsAdapter,
                 http: ObsidianHttpAdapter as any,
                 dir: absoluteDir,
-                onAuth: token ? () => ({ username: token }) : undefined,
+                onAuth: tokenToUse ? () => ({ username: tokenToUse }) : undefined,
                 singleBranch: true,
                 author: {
                     name: "Abstract Library Manager",
