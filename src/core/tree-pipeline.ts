@@ -53,8 +53,12 @@ export class StandardTreePipeline implements TreePipeline {
                 .map(ext => ext.toLowerCase().trim().replace(/^\./, ""))
                 .filter(ext => ext.length > 0)
         );
-
+        this.matchCache = new Map();
+        this.ancestorMatchCache = new Map();
     }
+
+    private matchCache: Map<FileID, boolean>;
+    private ancestorMatchCache: Map<FileID, boolean>;
 
     /**
      * Extracts and normalizes the extension from a file ID or metadata.
@@ -96,31 +100,37 @@ export class StandardTreePipeline implements TreePipeline {
         // Search Filtering
         if (this.config.filterQuery && this.config.filterQuery.trim().length > 0) {
             const query = this.config.filterQuery.toLowerCase();
+            const cacheKey = `${id}:${parentId || ""}`;
+            
+            if (this.matchCache.has(cacheKey)) {
+                return this.matchCache.get(cacheKey)!;
+            }
 
             // Hard exclusion check before matching
             if (this.isExcluded(id, meta)) {
+                this.matchCache.set(cacheKey, false);
                 return false;
             }
 
+            let isMatch = false;
+
             // 1. Direct Match
             if (this.isDirectMatch(id, query)) {
-                return true;
+                isMatch = true;
             }
 
             // 2. Ancestor Match (Show Descendants)
-            // If this node has an ancestor that matches, and Show Descendants is ON, we show it.
-            // We pass parentId to make the check path-aware if provided.
-            if (this.config.searchShowDescendants && this.hasMatchingAncestor(id, query, new Set(), parentId)) {
-                return true;
+            if (!isMatch && this.config.searchShowDescendants && this.hasMatchingAncestor(id, query, new Set(), parentId)) {
+                isMatch = true;
             }
 
             // 3. Descendant Match (Standard Search / Show Ancestors)
-            // If this node has a descendant that matches, and Show Ancestors is ON, we show it.
-            if (this.config.searchShowAncestors && this.hasMatchingDescendant(id, query)) {
-                return true;
+            if (!isMatch && this.config.searchShowAncestors && this.hasMatchingDescendant(id, query)) {
+                isMatch = true;
             }
 
-            return false;
+            this.matchCache.set(cacheKey, isMatch);
+            return isMatch;
         }
 
         return true;
@@ -135,19 +145,28 @@ export class StandardTreePipeline implements TreePipeline {
         if (visited.has(id)) return false;
         visited.add(id);
 
+        const cacheKey = `${id}:${specificParentId || ""}`;
+        if (this.ancestorMatchCache.has(cacheKey)) {
+            return this.ancestorMatchCache.get(cacheKey)!;
+        }
+
         // If a specificParentId is provided, we ONLY check that parent to enforce path-specificity
         const parents = specificParentId ? [specificParentId] : this.graph.getParents(id);
 
+        let match = false;
         for (const parentId of parents) {
             // Important: We must check if the parent itself is excluded
             const parentMeta = this.graph.getNodeMeta(parentId);
             if (this.isExcluded(parentId, parentMeta)) continue;
 
             if (this.isDirectMatch(parentId, query) || this.hasMatchingAncestor(parentId, query, visited)) {
-                return true;
+                match = true;
+                break;
             }
         }
-        return false;
+
+        this.ancestorMatchCache.set(cacheKey, match);
+        return match;
     }
 
     private hasMatchingDirectChild(id: FileID, query: string): boolean {
@@ -199,6 +218,8 @@ export class StandardTreePipeline implements TreePipeline {
 
     updateGroupRoots(roots: Set<FileID>): void {
         this.config.groupRoots = roots;
+        this.matchCache.clear();
+        this.ancestorMatchCache.clear();
     }
 
     sort(ids: FileID[]): FileID[] {

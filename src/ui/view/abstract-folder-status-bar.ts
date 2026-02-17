@@ -1,5 +1,6 @@
 import { App, setIcon, Notice } from "obsidian";
 import type AbstractFolderPlugin from "main";
+import { Logger } from "../../utils/logger";
 import { AbstractFolderPluginSettings } from "../../settings";
 import { PersonalBackupModal } from "../modals";
 
@@ -66,10 +67,11 @@ export class AbstractFolderStatusBar {
             }
         });
 
-        // Initial refresh
-        this.refreshStatus();
+        // Initial refresh - deferred to View.refreshTree or manual trigger
+        // this.refreshStatus();
     }
 
+    private isRefreshingIdentity = false;
     public async updateIdentity() {
         this.identityArea.empty();
         if (!this.settings.librarySettings.githubToken) {
@@ -95,10 +97,23 @@ export class AbstractFolderStatusBar {
 
         this.identityArea.createSpan({ text: `@${username}`, cls: "af-status-username" });
 
-        // Auto-refresh if missing
-        if (!this.settings.librarySettings.githubUsername) {
-            await this.plugin.libraryManager.refreshIdentity();
-            this.updateIdentity();
+        // Auto-refresh if missing (with guard)
+        if (!this.settings.librarySettings.githubUsername && !this.isRefreshingIdentity) {
+            this.isRefreshingIdentity = true;
+            try {
+                Logger.debug("[Abstract Folder] StatusBar: Refreshing identity...");
+                await this.plugin.libraryManager.refreshIdentity();
+                // After refresh, update the UI once more
+                const newUsername = this.settings.librarySettings.githubUsername || "GitHub";
+                const usernameSpan = this.identityArea.querySelector(".af-status-username");
+                if (usernameSpan) usernameSpan.textContent = `@${newUsername}`;
+                
+                if (this.settings.librarySettings.githubAvatar) {
+                    this.updateIdentity(); // One-time re-render if avatar appearing
+                }
+            } finally {
+                this.isRefreshingIdentity = false;
+            }
         }
     }
 
@@ -109,7 +124,10 @@ export class AbstractFolderStatusBar {
         }
         this.syncArea.removeClass("is-hidden");
 
+        Logger.debug("[Abstract Folder] StatusBar: refreshStatus started (calling getSyncStatus)");
         const status = await this.plugin.libraryManager.getSyncStatus("");
+        Logger.debug(`[Abstract Folder] StatusBar: refreshStatus complete, dirty: ${status.dirty}`);
+        
         if (status.dirty > 0) {
             this.syncBadge.textContent = status.dirty > 9 ? "9+" : String(status.dirty);
             this.syncBadge.removeClass("is-hidden");

@@ -158,7 +158,9 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
         }));
 
         // Initial build
+        Logger.debug("[Abstract Folder] View: Initial refreshTree starting during onOpen...");
         await this.refreshTree();
+        Logger.debug("[Abstract Folder] View: Initial refreshTree complete.");
 
         // 3. Status Bar (Bottom)
         this.statusBar = new AbstractFolderStatusBar(this.app, this.plugin.settings, this.plugin, contentEl);
@@ -312,16 +314,20 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
             }
 
             if (this.currentSnapshot) {
+                Logger.debug(`[Abstract Folder] View: Updating viewport with ${this.currentSnapshot.items.length} items`);
                 this.viewport.setItems(this.currentSnapshot.items);
             }
             if (this.statusBar) {
+                Logger.debug("[Abstract Folder] View: Refreshing status bar");
                 this.statusBar.refreshStatus();
             }
         } catch (error) {
             console.error("Failed to refresh tree", error);
         } finally {
             this.isRefreshing = false;
+            Logger.debug("[Abstract Folder] View: refreshTree finished");
             if (this.nextRefreshScheduled) {
+                Logger.debug("[Abstract Folder] View: Next refresh was scheduled, re-triggering...");
                 this.nextRefreshScheduled = false;
                 void this.refreshTree(options);
             }

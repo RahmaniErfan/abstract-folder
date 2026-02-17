@@ -59,11 +59,11 @@ export default class AbstractFolderPlugin extends Plugin {
 		this.contributionEngine = new ContributionEngine(this.app);
 		this.libraryManager = new LibraryManager(this.app, this.settings);
 
-		this.metricsManager = new MetricsManager(this.app, this.graphEngine, this);
-		
 		// Initialize Graph Engine
 		this.graphEngine = new GraphEngine(this.app, this.settings);
-		void this.graphEngine.initialize().catch(error => Logger.error("Failed to initialize GraphEngine", error));
+		this.graphEngine.initialize(); // Registers events, indexing deferred
+		
+		this.metricsManager = new MetricsManager(this.app, this.graphEngine, this);
 		
 		this.treeBuilder = new TreeBuilder(this.app, this.graphEngine);
 		this.contextEngine = new ContextEngine(this.settings);
@@ -288,6 +288,9 @@ this.addCommand({
 		this.addSettingTab(new AbstractFolderSettingTab(this.app, this));
 
 		this.app.workspace.onLayoutReady(async () => {
+			Logger.debug("[Abstract Folder] Workspace layout ready. Performing full re-index...");
+			await this.graphEngine.forceReindex();
+			
 			this.metricsManager.applyDecay();
 			
 			if (this.settings.startupOpen) {

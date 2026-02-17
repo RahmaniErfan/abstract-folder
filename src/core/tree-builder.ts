@@ -2,6 +2,7 @@ import { App } from "obsidian";
 import { FileID, IGraphEngine } from "./graph-engine";
 import { ContextEngine } from "./context-engine";
 import { TreePipeline, StandardTreePipeline } from "./tree-pipeline";
+import { Logger } from "../utils/logger";
 export interface AbstractNode {
     /** The Physical Path (Obsidian Path) */
     id: FileID;
@@ -41,6 +42,8 @@ export class TreeBuilder {
         const locationMap = new Map<FileID, string[]>();
         const state = context.getState();
         const activeGroupId = overrideGroupId !== undefined ? overrideGroupId : state.activeGroupId;
+        const stateStr = JSON.stringify({ activeGroupId, filterQuery, forceExpandAll });
+        Logger.debug(`[Abstract Folder] TreeBuilder: buildTree started with state: ${stateStr}`);
 
 
         // 1. Resolve Active Filter Config (Group vs Default)
@@ -292,11 +295,13 @@ export class TreeBuilder {
             }
 
             // Yield control back to prevent UI freeze on large vaults
-            if (++yieldCounter % 100 === 0) {
+            if (++yieldCounter % 50 === 0) {
+                Logger.debug(`[Abstract Folder] TreeBuilder: Processing... reached ${items.length} items`);
                 yield;
             }
         }
 
+        Logger.debug(`[Abstract Folder] TreeBuilder: buildTree complete, total items: ${items.length}`);
         return { items, locationMap };
     }
 
