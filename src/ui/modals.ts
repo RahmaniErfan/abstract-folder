@@ -1,5 +1,5 @@
 import { Logger } from "../utils/logger";
-import { App, Modal, Setting, TFile, TFolder, Notice, FuzzySuggestModal, normalizePath } from "obsidian";
+import { App, Modal, Setting, TFile, TFolder, TAbstractFile, Notice, FuzzySuggestModal, normalizePath } from "obsidian";
 import { ConversionOptions, FileConflict } from "../utils/conversion";
 import { AbstractFolderPluginSettings } from "../settings";
 
@@ -100,13 +100,13 @@ export class CreateAbstractChildModal extends Modal {
 
 
 export class RenameModal extends Modal {
-    private file: TFile;
+    private file: TAbstractFile;
     private newName: string;
 
-    constructor(app: App, file: TFile) {
+    constructor(app: App, file: TAbstractFile) {
         super(app);
         this.file = file;
-        this.newName = file.basename;
+        this.newName = file instanceof TFile ? file.basename : file.name;
     }
 
     onOpen() {
@@ -146,7 +146,8 @@ export class RenameModal extends Modal {
             return;
         }
 
-        if (this.newName === this.file.basename) {
+        const currentName = this.file instanceof TFile ? this.file.basename : this.file.name;
+        if (this.newName === currentName) {
              this.close();
              return;
         }
@@ -154,7 +155,13 @@ export class RenameModal extends Modal {
         const parentPath = this.file.parent?.path || "";
         // Handle root directory where parent.path is '/'
         const directory = parentPath === "/" ? "" : parentPath;
-        const newPath = (directory ? directory + "/" : "") + this.newName + "." + this.file.extension;
+        
+        let newPath: string;
+        if (this.file instanceof TFile) {
+            newPath = (directory ? directory + "/" : "") + this.newName + "." + this.file.extension;
+        } else {
+            newPath = (directory ? directory + "/" : "") + this.newName;
+        }
 
         try {
             await this.app.fileManager.renameFile(this.file, newPath);
@@ -173,16 +180,16 @@ export class RenameModal extends Modal {
 }
 
 export class DeleteConfirmModal extends Modal {
-    private file: TFile;
+    private file: TAbstractFile;
     private onConfirm: (deleteChildren: boolean) => void;
     private deleteChildren: boolean = true;
-    private isMarkdownFile: boolean;
+    private isMarkdownNote: boolean;
 
-    constructor(app: App, file: TFile, onConfirm: (deleteChildren: boolean) => void) {
+    constructor(app: App, file: TAbstractFile, onConfirm: (deleteChildren: boolean) => void) {
         super(app);
         this.file = file;
         this.onConfirm = onConfirm;
-        this.isMarkdownFile = file.extension === 'md';
+        this.isMarkdownNote = file instanceof TFile && file.extension === 'md';
     }
 
     onOpen() {
@@ -191,7 +198,7 @@ export class DeleteConfirmModal extends Modal {
         contentEl.createEl("p", { text: `Are you sure you want to delete "${this.file.name}"?` });
 
         // Only show the option to delete children if the file is a markdown file, as only markdown files can be abstract parents.
-        if (this.isMarkdownFile) {
+        if (this.isMarkdownNote) {
             new Setting(contentEl)
                 .setName("Delete children as well?")
                 .setDesc("If enabled, all notes and folders directly linked as children to this file will also be deleted.")

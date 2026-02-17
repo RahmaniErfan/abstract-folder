@@ -1,5 +1,5 @@
 import { Logger } from "../utils/logger";
-import { App, Menu, TFile } from "obsidian";
+import { App, Menu, TFile, TFolder, TAbstractFile } from "obsidian";
 import { AbstractFolderPluginSettings } from "../settings";
 import AbstractFolderPlugin from "../../main";
 import { AbstractNode } from "../core/tree-builder";
@@ -23,19 +23,23 @@ export class ContextMenuHandler {
     showV2ContextMenu(event: MouseEvent, node: AbstractNode, selection: Set<string>, items: AbstractNode[]) {
         event.preventDefault();
 
-        // 1. Ensure the right-clicked node is selected
+        let activeSelection = selection;
+
+        // 1. Ensure the right-clicked node is selected. 
+        // If not, it becomes the ONLY selection (standard explorer behavior).
         if (!selection.has(node.uri)) {
             this.plugin.contextEngine.select(node.uri, { multi: false });
+            activeSelection = this.plugin.contextEngine.getState().selectedURIs;
         }
 
         // 2. Map URIs to physical paths for the context menu handler
         const selectedPhysicalPaths = new Set<string>();
-        selection.forEach(uri => {
+        activeSelection.forEach(uri => {
             const item = items.find(i => i.uri === uri);
             if (item) selectedPhysicalPaths.add(item.id);
         });
 
-        // Ensure the current node is included
+        // Ensure the current node is included (fallback for missing items mapping)
         selectedPhysicalPaths.add(node.id);
 
         const menu = new Menu();
@@ -59,10 +63,14 @@ export class ContextMenuHandler {
 
     private addMultiSelectItems(menu: Menu, multiSelectedPaths: Set<string>) {
         const selectedFiles: TFile[] = [];
+        const selectedFolders: TFolder[] = [];
+
         multiSelectedPaths.forEach(path => {
             const abstractFile = this.app.vault.getAbstractFileByPath(path);
             if (abstractFile instanceof TFile) {
                 selectedFiles.push(abstractFile);
+            } else if (abstractFile instanceof TFolder) {
+                selectedFolders.push(abstractFile);
             }
         });
 
@@ -89,7 +97,7 @@ export class ContextMenuHandler {
 
     private addSingleItemItems(menu: Menu, path: string, multiSelectedPaths: Set<string>) {
         const file = this.app.vault.getAbstractFileByPath(path);
-        if (!file || !(file instanceof TFile)) return;
+        if (!file || !(file instanceof TAbstractFile)) return;
 
         if (!multiSelectedPaths.has(path) && multiSelectedPaths.size > 0) {
             multiSelectedPaths.clear();
@@ -97,8 +105,12 @@ export class ContextMenuHandler {
         }
 
         // Plugin-specific actions first
-        this.addCreationItems(menu, file);
-        this.addPluginSpecificActions(menu, file);
+        if (file instanceof TFile) {
+            this.addCreationItems(menu, file);
+            this.addPluginSpecificActions(menu, file);
+        } else if (file instanceof TFolder) {
+            this.addCreationItems(menu, null); // Creation in a folder is like creation in root for now, or we could support it better
+        }
 
         menu.addItem((item) =>
             item
@@ -112,24 +124,34 @@ export class ContextMenuHandler {
 
         menu.addItem((item) =>
             item
-            .setTitle("Delete file")
+            .setTitle(file instanceof TFolder ? "Delete folder" : "Delete file")
             .setIcon("trash")
             .setSection('abstract-folder')
             .onClick(() => {
-                new DeleteConfirmModal(this.app, file, (deleteChildren: boolean) => {
-                    deleteAbstractFile(this.app, file, deleteChildren, this.indexer)
-                        .catch(Logger.error);
-                }).open();
+                if (file instanceof TFile) {
+                    new DeleteConfirmModal(this.app, file, (deleteChildren: boolean) => {
+                        deleteAbstractFile(this.app, file, deleteChildren, this.indexer)
+                            .catch(Logger.error);
+                    }).open();
+                } else if (file instanceof TFolder) {
+                    // Folders are always deleted recursively in standard Obsidian, 
+                    // but we can just use the standard notice/modal if we want.
+                    // For now, let's just use the vault delete if it's a folder.
+                    void this.app.vault.trash(file, true);
+                }
             })
         );
         menu.addSeparator();
 
-        // Standard file actions
-        this.addStandardFileActions(menu, file);
         menu.addSeparator();
 
-        // Trigger file-menu after adding our primary items
-        this.app.workspace.trigger("file-menu", menu, file, "abstract-folder-view");
+        // Standard file actions
+        if (file instanceof TFile) {
+            this.addStandardFileActions(menu, file);
+            menu.addSeparator();
+            // Trigger file-menu after adding our primary items
+            this.app.workspace.trigger("file-menu", menu, file, "abstract-folder-view");
+        }
     }
 
     private truncate(text: string): string {

@@ -16,6 +16,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     private viewport: VirtualViewport | null = null;
     private contextEngine: ContextEngine;
     private selectedLibrary: LibraryNode | null = null;
+    private currentItems: AbstractNode[] = [];
 
     constructor(leaf: WorkspaceLeaf, private plugin: AbstractFolderPlugin) {
         super(leaf);
@@ -158,6 +159,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         }
 
         if (result) {
+            this.currentItems = result.items;
             this.viewport.setItems(result.items);
             this.viewport.update();
         }
@@ -201,7 +203,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             event,
             node,
             selection,
-            [] // Simplified
+            this.currentItems
         );
     }
 
@@ -214,5 +216,6 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             this.viewport.destroy();
             this.viewport = null;
         }
+        this.currentItems = [];
     }
 }
