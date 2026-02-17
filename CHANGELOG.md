@@ -82,5 +82,15 @@
 - **Infinite Refresh Loops**: Resolved circular triggers between `ContextEngine` and `TreeFacet`.
 - **Redundant Disk Scans**: Eliminated expensive recursive vault scans during every tree expansion.
 
+### Improved
+- **Creation Speed**: Implemented "Active Seeding" for immediate child node visualization, bypassing indexing delays.
+- **Graph Optimization**: Deduplicated relationship processing in `GraphEngine` to eliminate redundant cycles.
+- **Console Hygiene**: Significantly reduced log noise during file operations.
+- **Render Efficiency**: Consolidated "double-refresh" cycles into a single, optimized render pass.
+
+### Fixed
+- **Root Node Visibility**: Resolved an issue where new root notes (orphans) failed to trigger a UI update until manual refresh.
+- **Deletion Feedback**: Files now disappear instantly from the view upon deletion.
+
 ---
 *For versions 1.0.0 through 1.14.0, see [CHANGELOG_ARCHIVE.md](./CHANGELOG_ARCHIVE.md)*

@@ -177,7 +177,7 @@ export default class AbstractFolderPlugin extends Plugin {
 			callback: () => {
 				new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
 					new ParentPickerModal(this.app, (parentFile) => {
-						createAbstractChildFile(this.app, this.settings, childName, parentFile, childType, this.graphEngine)
+						createAbstractChildFile(this.app, this.settings, childName, parentFile, childType, this.graphEngine, this.contextEngine)
 							.catch(console.error);
 					}).open();
 				}).open();

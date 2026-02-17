@@ -146,18 +146,15 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
 
         // Subscribe to graph changes
         // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+        // Subscribe to graph changes
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
         this.registerEvent(this.app.workspace.on('abstract-folder:graph-updated' as any, () => {
             // 1. Snapshot physical paths BEFORE rebuilding the tree
             if (this.currentSnapshot?.locationMap) {
                 this.plugin.contextEngine.snapshotPhysicalPaths(this.currentSnapshot.locationMap);
             }
-            // 2. Refresh the tree (this generates a NEW locationMap)
-            void this.refreshTree().then(() => {
-                // 3. Repair the state based on the NEW locationMap
-                if (this.currentSnapshot?.locationMap) {
-                    this.plugin.contextEngine.repairState(this.currentSnapshot.locationMap);
-                }
-            });
+            // 2. Refresh the tree with silent repair
+            void this.refreshTree({ repair: true });
         }));
 
         // Initial build
@@ -276,7 +273,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
         this.plugin.transactionManager.moveNode(draggedFile, targetNode.id)
             .then(() => {
                 new Notice(`Moved ${draggedFile.basename} to ${targetNode.name}`);
-                return this.refreshTree();
+                return this.refreshTree({ repair: true });
             })
             .catch((error) => {
                 console.error("Failed to move node", error);
@@ -284,7 +281,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
             });
     }
 
-    private async refreshTree() {
+    private async refreshTree(options: { repair?: boolean } = {}) {
         if (this.isRefreshing) {
             this.nextRefreshScheduled = true;
             return;
@@ -294,12 +291,8 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
 
         try {
             const state = this.plugin.contextEngine.getState();
-            // Use searchInput value directly if available for more immediate feedback
             const filterQuery = this.searchInput ? this.searchInput.value : state.activeFilter;
             
-            // Refresh logic is now silent and robust.
-
-            // If we have a filter, we FORCE expansion during build
             const generator = this.plugin.treeBuilder.buildTree(
                 this.plugin.contextEngine,
                 filterQuery,
@@ -311,6 +304,11 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
                     this.currentSnapshot = result.value;
                     break;
                 }
+            }
+
+            // Silent Repair IF requested BEFORE updating viewport
+            if (options.repair && this.currentSnapshot) {
+                this.plugin.contextEngine.repairState(this.currentSnapshot.locationMap, { silent: true });
             }
 
             if (this.currentSnapshot) {
@@ -325,7 +323,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
             this.isRefreshing = false;
             if (this.nextRefreshScheduled) {
                 this.nextRefreshScheduled = false;
-                void this.refreshTree();
+                void this.refreshTree(options);
             }
         }
     }

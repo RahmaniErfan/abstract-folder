@@ -130,6 +130,8 @@ export async function updateGroupsOnRename(app: App, plugin: AbstractFolderPlugi
     }
 }
 
+import { ContextEngine } from "../core/context-engine";
+
 /**
  * Creates a new abstract child file (note, canvas, or base) with appropriate frontmatter and content.
  * @param app The Obsidian App instance.
@@ -138,8 +140,17 @@ export async function updateGroupsOnRename(app: App, plugin: AbstractFolderPlugi
  * @param parentFile The parent TFile, if creating a child for an existing parent.
  * @param childType The type of child file to create ('note', 'canvas', 'base').
  * @param graphEngine The IGraphEngine instance.
+ * @param contextEngine Optional ContextEngine to expand the parent node.
  */
-export async function createAbstractChildFile(app: App, settings: AbstractFolderPluginSettings, childName: string, parentFile: TFile | null, childType: ChildFileType, graphEngine: IGraphEngine) {
+export async function createAbstractChildFile(
+    app: App, 
+    settings: AbstractFolderPluginSettings, 
+    childName: string, 
+    parentFile: TFile | null, 
+    childType: ChildFileType, 
+    graphEngine: IGraphEngine,
+    contextEngine?: ContextEngine
+) {
     let fileExtension: string;
     let initialContent: string;
 
@@ -213,7 +224,22 @@ aliases:
             });
         }
 
-        app.workspace.getLeaf(true).openFile(file).catch(Logger.error);
+        if (parentFile && contextEngine) {
+            contextEngine.setExpanded(parentFile.path, true);
+        }
+
+        // ACTIVE SEEDING: Tell the graph engine about the relationship immediately.
+        // Don't wait for Obsidian's metadata cache to catch up.
+        if (parentFile) {
+            const rels = new Map();
+            rels.set(file.path, {
+                definedParents: new Set([parentFile.path]),
+                definedChildren: new Set()
+            });
+            graphEngine.seedRelationships(rels);
+        }
+
+        await app.workspace.getLeaf(true).openFile(file).catch(Logger.error);
         app.workspace.trigger('abstract-folder:graph-updated');
     } catch (error) {
         new Notice(`Failed to create file: ${error}`);
@@ -342,6 +368,7 @@ export async function deleteAbstractFile(app: App, file: TFile, deleteChildren: 
         }
         await app.fileManager.trashFile(file);
         new Notice(`Deleted file: ${file.name}`);
+        app.workspace.trigger('abstract-folder:graph-updated');
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         new Notice(`Failed to delete file ${file.name}: ${errorMessage}`);
@@ -368,6 +395,7 @@ async function deleteFolderRecursive(app: App, folder: TFolder, deleteChildren: 
         }
         await app.fileManager.trashFile(folder);
         new Notice(`Deleted folder: ${folder.name}`);
+        app.workspace.trigger('abstract-folder:graph-updated');
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         new Notice(`Failed to delete folder ${folder.name}: ${errorMessage}`);

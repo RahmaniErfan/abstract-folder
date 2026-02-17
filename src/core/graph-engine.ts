@@ -159,12 +159,16 @@ export class AdjacencyIndex {
     }
 
     /**
-     * Adds a directed edge from Parent -> Child
+     * Adds a directed edge from Parent -> Child.
+     * @returns true if the edge was newly added, false if it already existed.
      */
-    addEdge(parentId: FileID, childId: FileID): void {
-        Logger.debug(`[Abstract Folder] AdjacencyIndex: Adding Edge ${parentId} -> ${childId}`);
+    addEdge(parentId: FileID, childId: FileID): boolean {
         const parent = this.addNode(parentId);
         const child = this.addNode(childId);
+
+        if (parent.children.has(childId) && child.parents.has(parentId)) {
+            return false;
+        }
 
         parent.children.add(childId);
         child.parents.add(parentId);
@@ -172,31 +176,38 @@ export class AdjacencyIndex {
         // Update orphan status
         child.meta.isOrphan = child.parents.size === 0;
         Logger.debug(`[Abstract Folder] AdjacencyIndex: Edge confirmed ${parentId} -> ${childId}. Parent children: ${parent.children.size}, Child parents: ${child.parents.size}`);
+        return true;
     }
 
     /**
      * Removes a directed edge from Parent -> Child
+     * @returns true if the edge was actually removed, false if it didn't exist.
      */
-    removeEdge(parentId: FileID, childId: FileID): void {
+    removeEdge(parentId: FileID, childId: FileID): boolean {
         const parent = this.nodes.get(parentId);
         const child = this.nodes.get(childId);
 
-        if (parent) {
+        let changed = false;
+        if (parent && parent.children.has(childId)) {
             parent.children.delete(childId);
+            changed = true;
         }
-        if (child) {
+        if (child && child.parents.has(parentId)) {
             child.parents.delete(parentId);
             // Update orphan status for child
             child.meta.isOrphan = child.parents.size === 0;
+            changed = true;
         }
+        return changed;
     }
 
     /**
      * Removes a node and cleans up all connected edges
+     * @returns true if the node was actually removed.
      */
-    removeNode(id: FileID): void {
+    removeNode(id: FileID): boolean {
         const node = this.nodes.get(id);
-        if (!node) return;
+        if (!node) return false;
 
         // Remove this node from all its parents' children lists
         for (const parentId of node.parents) {
@@ -218,6 +229,7 @@ export class AdjacencyIndex {
 
         this.nodes.delete(id);
         this.dirtyQueue.delete(id);
+        return true;
     }
 
     /**
@@ -375,7 +387,7 @@ export class GraphEngine implements IGraphEngine {
      */
     getAllRoots(activeGroupId?: string | null): FileID[] {
         const processedRoots = new Set<FileID>();
-        Logger.info(`[Abstract Folder] GraphEngine: getAllRoots called with activeGroupId: ${activeGroupId}`);
+        Logger.debug(`[Abstract Folder] GraphEngine: getAllRoots called with activeGroupId: ${activeGroupId}`);
 
         if (activeGroupId) {
             // 1. Check if activeGroupId is a Group ID in settings
@@ -518,7 +530,7 @@ export class GraphEngine implements IGraphEngine {
      * Used by the LibraryBridge to provide data before Obsidian's indexer catches up.
      */
     seedRelationships(relationships: Map<FileID, FileDefinedRelationships>): void {
-        Logger.info(`[Abstract Folder] GraphEngine: Seeding ${relationships.size} relationships`);
+        Logger.debug(`[Abstract Folder] GraphEngine: Seeding ${relationships.size} relationships`);
         
         for (const [id, rels] of relationships) {
             // Update internal relationship store
@@ -565,63 +577,99 @@ export class GraphEngine implements IGraphEngine {
 
         Logger.debug(`[Abstract Folder] GraphEngine: Processing ${dirtyFiles.size} dirty files...`);
 
+        let topologyChanged = false;
         for (const id of dirtyFiles) {
             const file = this.app.vault.getAbstractFileByPath(id);
             if (file instanceof TFile) {
-                this.updateFileIncremental(file);
+                if (this.updateFileIncremental(file)) {
+                    topologyChanged = true;
+                }
             } else {
                 // File no longer exists, ensure it's removed
-                this.removeFileFromGraph(id);
+                if (this.removeFileFromGraph(id)) {
+                    topologyChanged = true;
+                }
             }
         }
         
-        // Notify listeners that graph updated
-        // @ts-ignore: Custom event
-        this.app.workspace.trigger('abstract-folder:graph-updated');
+        // Notify listeners that graph updated ONLY if structure changed
+        if (topologyChanged) {
+            // @ts-ignore: Custom event
+            this.app.workspace.trigger('abstract-folder:graph-updated');
+        }
     }
 
-    private updateFileIncremental(file: TFile) {
-        if (this.isExcluded(file.path)) return;
+    private updateFileIncremental(file: TFile): boolean {
+        if (this.isExcluded(file.path)) return false;
+
+        const oldRelationships = this.fileRelationships.get(file.path);
+        const newRelationships = this.getFileRelationships(file);
+        
+        // Skip topology processing if relationships are identical
+        if (oldRelationships && this.areRelationshipsEqual(oldRelationships, newRelationships)) {
+            // Still update metadata (mtime/icon) but skip structure changes
+            this.index.addNode(file.path, {
+                mtime: file.stat.mtime,
+                extension: file.extension,
+                icon: this.app.metadataCache.getFileCache(file)?.frontmatter?.icon as string | undefined
+            });
+            return false;
+        }
 
         Logger.debug(`[Abstract Folder] GraphEngine: Incremental update for ${file.path}`);
-        const oldRelationships = this.fileRelationships.get(file.path) || { definedParents: new Set(), definedChildren: new Set() };
-        const newRelationships = this.getFileRelationships(file);
         
         // Update Source of Truth
         this.fileRelationships.set(file.path, newRelationships);
 
+        let changed = false;
+
         // 1. Handle Removed Relationships
-        for (const parent of oldRelationships.definedParents) {
-            if (!newRelationships.definedParents.has(parent)) {
-                this.removeEdgeIfUnsupported(parent, file.path);
+        if (oldRelationships) {
+            for (const parent of oldRelationships.definedParents) {
+                if (!newRelationships.definedParents.has(parent)) {
+                    if (this.removeEdgeIfUnsupported(parent, file.path)) changed = true;
+                }
             }
-        }
-        for (const child of oldRelationships.definedChildren) {
-            if (!newRelationships.definedChildren.has(child)) {
-                this.removeEdgeIfUnsupported(file.path, child);
+            for (const child of oldRelationships.definedChildren) {
+                if (!newRelationships.definedChildren.has(child)) {
+                    if (this.removeEdgeIfUnsupported(file.path, child)) changed = true;
+                }
             }
         }
 
         // 2. Handle Added Relationships
         for (const parent of newRelationships.definedParents) {
-            this.index.addEdge(parent, file.path);
-            Logger.debug(`GraphEngine: Added edge ${parent} -> ${file.path}`);
+            if (this.index.addEdge(parent, file.path)) changed = true;
         }
         for (const child of newRelationships.definedChildren) {
-            this.index.addEdge(file.path, child);
-            Logger.debug(`GraphEngine: Added edge ${file.path} -> ${child}`);
+            if (this.index.addEdge(file.path, child)) changed = true;
         }
 
         const existingNode = this.index.getNode(file.path);
+        
+        if (!existingNode) {
+            changed = true;
+        }
+
         this.index.addNode(file.path, {
             mtime: file.stat.mtime,
             extension: file.extension,
             isOrphan: existingNode ? existingNode.parents.size === 0 : true,
             icon: this.app.metadataCache.getFileCache(file)?.frontmatter?.icon as string | undefined
         });
+
+        return changed;
     }
 
-    private removeEdgeIfUnsupported(parent: FileID, child: FileID) {
+    private areRelationshipsEqual(a: FileDefinedRelationships, b: FileDefinedRelationships): boolean {
+        if (a.definedParents.size !== b.definedParents.size) return false;
+        if (a.definedChildren.size !== b.definedChildren.size) return false;
+        for (const p of a.definedParents) if (!b.definedParents.has(p)) return false;
+        for (const c of a.definedChildren) if (!b.definedChildren.has(c)) return false;
+        return true;
+    }
+
+    private removeEdgeIfUnsupported(parent: FileID, child: FileID): boolean {
         const parentDefs = this.fileRelationships.get(parent);
         const childDefs = this.fileRelationships.get(child);
 
@@ -629,15 +677,15 @@ export class GraphEngine implements IGraphEngine {
         const definedByChild = childDefs?.definedParents.has(parent);
 
         if (!definedByParent && !definedByChild) {
-            this.index.removeEdge(parent, child);
-            Logger.debug(`GraphEngine: Removed edge ${parent} -> ${child}`);
+            return this.index.removeEdge(parent, child);
         }
+        return false;
     }
 
-    private removeFileFromGraph(id: FileID) {
+    private removeFileFromGraph(id: FileID): boolean {
         Logger.debug(`GraphEngine: Removing node ${id}`);
         this.fileRelationships.delete(id);
-        this.index.removeNode(id);
+        return this.index.removeNode(id);
         
         // We also need to check neighbors to see if any edges should be removed
         // (This is implicitly handled by removeNode which cleans up adjacency lists,

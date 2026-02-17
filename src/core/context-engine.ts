@@ -107,6 +107,21 @@ export class ContextEngine extends EventEmitter {
         this.emit('changed', this.getState());
     }
 
+    /**
+     * Sets explicit expansion state
+     */
+    setExpanded(uri: string, expanded: boolean): void {
+        const currentlyExpanded = this.state.expandedURIs.has(uri);
+        if (expanded === currentlyExpanded) return;
+
+        if (expanded) {
+            this.state.expandedURIs.add(uri);
+        } else {
+            this.state.expandedURIs.delete(uri);
+        }
+        this.emit('changed', this.getState());
+    }
+
     setFilter(query: string): void {
         this.state.activeFilter = query.trim() || null;
         this.emit('changed', this.getState());
@@ -144,11 +159,7 @@ export class ContextEngine extends EventEmitter {
     }
 
     isExpanded(uri: string): boolean {
-        const expanded = this.state.expandedURIs.has(uri);
-        if (expanded) {
-            Logger.debug(`[Abstract Folder] Context: URI ${uri} is EXPANDED`);
-        }
-        return expanded;
+        return this.state.expandedURIs.has(uri);
     }
 
     isFocused(uri: string): boolean {
@@ -189,7 +200,7 @@ export class ContextEngine extends EventEmitter {
      * This is called AFTER a graph rebuild.
      * @param locationMap The map from the new (post-rebuild) tree snapshot
      */
-    repairState(locationMap: Map<FileID, string[]>): void {
+    repairState(locationMap: Map<FileID, string[]>, options: { silent?: boolean } = {}): void {
         const newSelectedURIs = new Set<string>();
         const newExpandedURIs = new Set<string>();
 
@@ -208,8 +219,9 @@ export class ContextEngine extends EventEmitter {
 
         Logger.debug(`[Abstract Folder] Context: State repaired. URIs - Selected: ${this.state.selectedURIs.size}, Expanded: ${this.state.expandedURIs.size}`);
         
-        // Notify projector and viewport if selection changed
-        this.emit('selection-changed', this.state.selectedURIs);
-        this.emit('changed', this.getState());
+        if (!options.silent) {
+            this.emit('selection-changed', this.state.selectedURIs);
+            this.emit('changed', this.getState());
+        }
     }
 }

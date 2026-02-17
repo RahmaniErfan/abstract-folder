@@ -73,13 +73,6 @@ export class VirtualViewport {
      * Re-renders the viewport with a new flat list.
      */
     public setItems(items: AbstractNode[]) {
-        // CRITICAL: Clear cache and DOM when a new set of items is provided.
-        // This prevents "ghost" items from previous build cycles/race conditions
-        // from persisting in the absolute-positioned viewport.
-        this.renderedItems.forEach(el => el.remove());
-        this.renderedItems.clear();
-        this.containerEl.empty();
-
         this.items = items;
         const itemHeight = this.delegate.isMobile() ? 32 : this.delegate.getItemHeight();
         this.spacerEl.style.height = `${this.HEADER_OFFSET + (this.items.length * itemHeight)}px`;
@@ -148,35 +141,15 @@ export class VirtualViewport {
         
         const self = row.createDiv("af-item-self is-clickable");
         
-        // 1. Disclosure Arrow (Chevron) - ONLY for nodes with children
-        if (node.hasChildren) {
-            const arrow = self.createDiv("af-item-icon af-collapse-icon");
-            // Use 'right-triangle' for the chevron - this icon points right by default in Obsidian
-            setIcon(arrow, "right-triangle");
-            arrow.addEventListener("click", (e) => {
-                e.stopPropagation();
-                this.delegate.onItemToggle(node, e);
-            });
-        }
+        // 1. Disclosure Arrow Container
+        self.createDiv("af-item-icon af-collapse-icon");
 
-        // 2. Custom Icon (or Type Icon)
-        const iconEl = self.createDiv("af-item-icon af-type-icon");
-        if (node.icon) {
-            setIcon(iconEl, node.icon);
-        } else {
-            // Default icons based on state/type if no custom icon
-            if (node.hasChildren) {
-                setIcon(iconEl, "folder");
-            } else {
-                setIcon(iconEl, "file-text");
-            }
-        }
+        // 2. Custom Icon Container
+        self.createDiv("af-item-icon af-type-icon");
 
-        // Label
-        const label = self.createDiv("af-item-inner");
-        label.textContent = node.name;
+        // 3. Label Container
+        self.createDiv("af-item-inner");
 
-        // Events
         // Events
         row.addEventListener("click", (e) => this.delegate.onItemClick(node, e));
         row.addEventListener("contextmenu", (e) => this.delegate.onItemContextMenu(node, e));
@@ -185,7 +158,7 @@ export class VirtualViewport {
         row.draggable = true;
         row.addEventListener("dragstart", (e) => {
             if (e.dataTransfer) {
-                e.dataTransfer.setData("text/plain", node.id); // We drag the physical path
+                e.dataTransfer.setData("text/plain", node.id); 
                 e.dataTransfer.effectAllowed = "move";
             }
         });
@@ -214,7 +187,51 @@ export class VirtualViewport {
         return row;
     }
 
+    private updateRowContent(el: HTMLElement, node: AbstractNode) {
+        const self = el.querySelector(".af-item-self") as HTMLElement;
+        if (!self) return;
+
+        // 1. Disclosure Arrow (Chevron)
+        const arrow = self.querySelector(".af-collapse-icon") as HTMLElement;
+        if (arrow) {
+            if (node.hasChildren) {
+                // We check if it already has an svg child to avoid redundant setIcon calls
+                if (arrow.children.length === 0) {
+                    setIcon(arrow, "right-triangle");
+                    arrow.onclick = (e) => {
+                        e.stopPropagation();
+                        this.delegate.onItemToggle(node, e);
+                    };
+                }
+                arrow.style.visibility = 'visible';
+            } else {
+                arrow.style.visibility = 'hidden';
+                arrow.onclick = null;
+            }
+        }
+
+        // 2. Icon
+        const iconEl = self.querySelector(".af-type-icon") as HTMLElement;
+        if (iconEl) {
+            iconEl.empty();
+            if (node.icon) {
+                setIcon(iconEl, node.icon);
+            } else {
+                setIcon(iconEl, node.hasChildren ? "folder" : "file-text");
+            }
+        }
+
+        // 3. Label
+        const label = self.querySelector(".af-item-inner") as HTMLElement;
+        if (label) {
+            label.textContent = node.name;
+        }
+    }
+
     private updateRowState(el: HTMLElement, node: AbstractNode, index: number, itemHeight: number) {
+        // Sync dynamic content (Label, Icon, Arrow) first
+        this.updateRowContent(el, node);
+
         // Handle Indent Guides (Reddit style)
         const existingGuides = el.querySelectorAll('.af-item-guide');
         const colors = [
