@@ -1,21 +1,71 @@
 .abstract-library-explorer {
-    padding: 10px;
     height: 100%;
     display: flex;
     flex-direction: column;
+    padding: 0;
+}
+
+.library-shelf, .library-tree-header {
+    padding: 10px;
+}
+
+.abstract-library-explorer .abstract-folder-viewport-scroll-container {
+    background-color: transparent !important;
 }
 
 .abstract-library-explorer h2 {
-    margin: 10px 0 20px 0;
-    font-size: 1.2em;
+    margin: 8px 0;
+    font-size: 1.1em;
     font-weight: 600;
     color: var(--text-normal);
+}
+
+.abstract-library-explorer .shelf-title {
+    text-align: center;
+}
+
+.abstract-library-explorer .abstract-folder-search-container {
+    padding-left: 0;
+    padding-right: 0;
+    margin-bottom: 12px;
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.abstract-library-explorer .abstract-folder-search-input-wrapper {
+    flex: 1;
+}
+
+.abstract-library-explorer .search-options-container {
+    display: flex;
+    gap: 2px;
+}
+
+.abstract-library-explorer .ancestry-search-toggle {
+    color: var(--text-muted);
+    opacity: 0.5;
+    transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.abstract-library-explorer .ancestry-search-toggle:hover {
+    opacity: 0.8;
+    color: var(--text-normal);
+}
+
+.abstract-library-explorer .ancestry-search-toggle.is-active {
+    opacity: 1;
+    color: var(--interactive-accent);
 }
 
 .library-shelf {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    position: relative;
+    z-index: 1;
 }
 
 .library-card-container {
@@ -74,20 +124,38 @@
 
 .library-tree-header {
     display: flex;
-    align-items: center;
-    gap: 10px;
+    flex-direction: column;
+    gap: 8px;
     margin-bottom: 12px;
     padding-bottom: 8px;
     border-bottom: 1px solid var(--background-modifier-border);
 }
 
+.library-tree-title-row {
+    display: flex;
+    align-items: center;
+    position: relative;
+    width: 100%;
+}
+
+.library-tree-title-row .clickable-icon {
+    position: absolute;
+    left: 0;
+    z-index: 1;
+}
+
 .library-tree-header h3 {
     margin: 0;
     font-size: 1.05em;
-    flex-grow: 1;
+    width: 100%;
+    text-align: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.library-tree-search-row {
+    width: 100%;
 }
 
 .empty-state {

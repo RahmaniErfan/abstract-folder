@@ -30,7 +30,13 @@ export class TreeBuilder {
      * Builds a flattened tree view using a Depth-First Search (DFS).
      * Now uses a TreePipeline to handle filtering and sorting logic, separating traversal from transformation.
      */
-    async *buildTree(context: ContextEngine, filterQuery?: string | null, forceExpandAll = false, overrideGroupId?: string | null): AsyncGenerator<void, TreeSnapshot, void> {
+    async *buildTree(
+        context: ContextEngine, 
+        filterQuery?: string | null, 
+        forceExpandAll = false, 
+        overrideGroupId?: string | null,
+        searchOptions?: { showAncestors?: boolean, showDescendants?: boolean }
+    ): AsyncGenerator<void, TreeSnapshot, void> {
         const items: AbstractNode[] = [];
         const locationMap = new Map<FileID, string[]>();
         const state = context.getState();
@@ -48,7 +54,14 @@ export class TreeBuilder {
 
         // 2. Resolve Roots via GraphEngine
         const isSearching = !!(filterQuery && filterQuery.trim().length > 0);
-        const searchShowAncestors = context.settings.searchShowAncestors;
+        const searchShowAncestors = searchOptions?.showAncestors ?? context.settings.searchShowAncestors;
+        const searchShowDescendants = searchOptions?.showDescendants ?? context.settings.searchShowDescendants;
+
+        // Path-based scoping (useful for Library View)
+        const isGroupMeta = context.settings.groups.some(g => g.id === activeGroupId);
+        const scopePrefix = (activeGroupId && !isGroupMeta) 
+            ? (activeGroupId.endsWith('/') ? activeGroupId : activeGroupId + '/') 
+            : null;
 
         // 3. Initialize Pipeline
         const pipeline: TreePipeline = new StandardTreePipeline(this.app, this.graph, {
@@ -56,7 +69,7 @@ export class TreeBuilder {
             filterQuery: filterQuery || state.activeFilter,
             groupRoots: new Set(), // Will be updated
             excludeExtensions: activeFilterConfig.excludeExtensions,
-            searchShowDescendants: context.settings.searchShowDescendants,
+            searchShowDescendants: searchShowDescendants,
             searchShowAncestors: searchShowAncestors
         });
 
@@ -67,9 +80,14 @@ export class TreeBuilder {
             const query = (filterQuery || state.activeFilter)!.toLowerCase();
             const matchingNodes: FileID[] = [];
             
-            // We iterate over ALL files in the vault to find direct matches.
+            // We iterate over ONLY files in the vault that are within the scoped path if a path-based scope is active.
             const allFiles = this.app.vault.getFiles();
             for (const file of allFiles) {
+                // Scoping fix: Ensure file is within the active group path if searching in a scoped view (like Library)
+                if (scopePrefix && file.path !== activeGroupId && !file.path.startsWith(scopePrefix)) {
+                    continue;
+                }
+
                 if (file.name.toLowerCase().includes(query)) {
                     // Important: Apply hard extension filter even when promoting to roots
                     if (!pipeline.isExcluded(file.path, undefined)) {
@@ -114,21 +132,22 @@ export class TreeBuilder {
         const sortedRoots = pipeline.sort(filteredRoots);
         
         // Use a reverse stack for DFS processing if pushing children in order
-        const stack: Array<{ id: FileID, uri: string, level: number, visitedPath: Set<FileID> }> = [];
+        const stack: Array<{ id: FileID, uri: string, level: number, visitedPath: Set<FileID>, parentId?: FileID }> = [];
         for (let i = sortedRoots.length - 1; i >= 0; i--) {
             const r = sortedRoots[i];
             stack.push({
                 id: r,
                 uri: r,
                 level: 0,
-                visitedPath: new Set([r])
+                visitedPath: new Set([r]),
+                parentId: undefined // Roots have no parent in this context
             });
         }
 
         let yieldCounter = 0;
 
         while (stack.length > 0) {
-            const { id, uri, level, visitedPath } = stack.pop()!;
+            const { id, uri, level, visitedPath, parentId } = stack.pop()!;
             
             const meta = this.graph.getNodeMeta?.(id);
             const rawChildren = this.graph.getChildren(id);
@@ -147,6 +166,12 @@ export class TreeBuilder {
                 continue;
             }
 
+            // [STRICT SCOPE CHECK]
+            // Ensure no nodes leak from outside the defined scope (important for Library View)
+            if (scopePrefix && id !== activeGroupId && !id.startsWith(scopePrefix)) {
+                continue;
+            }
+
             // Phase 2: Structural Inclusion (Group Roots)
             // IN SEARCH MODE: We ignore structural rules to keep results clean.
             const isStructural = !isSearching && pipeline.isStructural(id);
@@ -154,7 +179,6 @@ export class TreeBuilder {
             // Phase 3: Search Matching (Content/Name Query)
             // In V2, we strictly follow the matches() result for search.
             // We find the parent ID from the stack entry if it exists to allow path-aware matching
-            const parentId = uri.includes('/') ? uri.split('/').slice(-2, -1)[0] : undefined;
             const isMatch = isSearching ? pipeline.matches(id, meta, parentId) : true;
 
             /**
@@ -214,7 +238,9 @@ export class TreeBuilder {
             // 1. The node is explicitly expanded by the user
             // 2. OR we are searching AND (Show Descendants is ON OR this SPECIFIC branch leads to a match)
             // Note: isMatch already includes DESCENDANT MATCH check, so it correctly identifies if this branch leads to a match.
-            const shouldTraverseChildren = isExpanded || (isSearching && (context.settings.searchShowDescendants || isMatch));
+            // 2. OR we are searching AND (Show Descendants is ON OR this SPECIFIC branch leads to a match)
+            // Note: isMatch already includes DESCENDANT MATCH check, so it correctly identifies if this branch leads to a match.
+            const shouldTraverseChildren = isExpanded || (isSearching && (searchShowDescendants || isMatch));
 
             if (shouldTraverseChildren) {
                 const sortedChildren = pipeline.sort(rawChildren);
@@ -228,7 +254,8 @@ export class TreeBuilder {
                             id: childId,
                             uri: childURI,
                             level: level + 1,
-                            visitedPath: new Set([...visitedPath, childId])
+                            visitedPath: new Set([...visitedPath, childId]),
+                            parentId: id // Pass current ID as parent for the next level
                         });
                     }
                 }

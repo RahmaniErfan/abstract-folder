@@ -4,7 +4,8 @@
  */
 
 /* Force clean container on the view leaf itself */
-.workspace-leaf-content[data-type=abstract-folder-view] .view-content {
+.workspace-leaf-content[data-type=abstract-folder-view] .view-content,
+.workspace-leaf-content[data-type=abstract-library-explorer] .view-content {
     padding: 0 !important;
     margin: 0 !important;
     overflow: hidden !important;
@@ -58,7 +59,7 @@
     width: 100% !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
-    background-color: var(--background-primary) !important;
+    background-color: var(--background-secondary) !important;
     min-height: 0 !important;
     padding: 0 !important;
     margin: 0 !important;
@@ -79,7 +80,7 @@
     left: 0;
     width: 100%;
     height: 24px;
-    background-color: var(--background-primary);
+    background-color: var(--background-secondary);
     border-top: 1px solid var(--background-modifier-border);
     border-bottom: 1px solid var(--background-modifier-border);
     z-index: 5;
@@ -251,6 +252,7 @@ body.is-mobile .af-item .af-item-inner {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: var(--font-ui-small);
+    font-size: var(--nav-item-size, 13px);
+    line-height: var(--line-height-tight, 1.2);
 }
 

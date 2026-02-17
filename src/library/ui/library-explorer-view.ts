@@ -17,6 +17,15 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     private contextEngine: ContextEngine;
     private selectedLibrary: LibraryNode | null = null;
     private currentItems: AbstractNode[] = [];
+    private searchQuery: string = "";
+    private searchInput: HTMLInputElement;
+    private clearSearchBtn: HTMLElement;
+    private isRefreshing = false;
+    private nextRefreshScheduled = false;
+
+    // Search Options
+    private showAncestors = true;
+    private showDescendants = true;
 
     constructor(leaf: WorkspaceLeaf, private plugin: AbstractFolderPlugin) {
         super(leaf);
@@ -55,25 +64,120 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         }
     }
 
+    private renderSearch(container: HTMLElement, placeholder: string, onSearch: () => void, includeOptions = false) {
+        const searchContainer = container.createDiv({ cls: "abstract-folder-search-container" });
+        const wrapper = searchContainer.createDiv({ cls: "abstract-folder-search-input-wrapper" });
+        
+        this.searchInput = wrapper.createEl("input", {
+            type: "text",
+            placeholder: placeholder,
+            cls: "abstract-folder-search-input",
+            value: this.searchQuery
+        });
+
+        this.clearSearchBtn = wrapper.createDiv({
+            cls: "abstract-folder-search-clear",
+            attr: { "aria-label": "Clear search" }
+        });
+        setIcon(this.clearSearchBtn, "x");
+        this.updateClearButtonState();
+
+        this.searchInput.addEventListener("input", () => {
+            this.searchQuery = this.searchInput.value;
+            this.updateClearButtonState();
+            onSearch();
+        });
+
+        this.clearSearchBtn.addEventListener("click", () => {
+            this.searchQuery = "";
+            this.searchInput.value = "";
+            this.updateClearButtonState();
+            this.searchInput.focus();
+            onSearch();
+        });
+
+        if (includeOptions) {
+            const optionsContainer = searchContainer.createDiv({ cls: "search-options-container" });
+
+            const showAncestorsBtn = optionsContainer.createDiv({
+                cls: "clickable-icon ancestry-search-toggle",
+                attr: { "aria-label": "Show all ancestors in search" }
+            });
+            setIcon(showAncestorsBtn, "arrow-up-left");
+            if (this.showAncestors) showAncestorsBtn.addClass("is-active");
+
+            showAncestorsBtn.addEventListener("click", () => {
+                this.showAncestors = !this.showAncestors;
+                showAncestorsBtn.toggleClass("is-active", this.showAncestors);
+                onSearch();
+            });
+
+            const showDescendantsBtn = optionsContainer.createDiv({
+                cls: "clickable-icon ancestry-search-toggle",
+                attr: { "aria-label": "Show all descendants in search" }
+            });
+            setIcon(showDescendantsBtn, "arrow-down-right");
+            if (this.showDescendants) showDescendantsBtn.addClass("is-active");
+
+            showDescendantsBtn.addEventListener("click", () => {
+                this.showDescendants = !this.showDescendants;
+                showDescendantsBtn.toggleClass("is-active", this.showDescendants);
+                onSearch();
+            });
+        }
+    }
+
+    private updateClearButtonState() {
+        if (!this.clearSearchBtn) return;
+        this.clearSearchBtn.toggleClass("is-active", this.searchQuery.length > 0);
+    }
+
     private async renderShelf(container: HTMLElement) {
-        container.createEl("h2", { text: "Libraries" });
+        container.createEl("h2", { text: "Libraries", cls: "shelf-title" });
+
+        this.renderSearch(container, "Search libraries...", () => {
+            void this.refreshShelf(shelfContainer);
+        });
 
         const shelfContainer = container.createDiv({ cls: "library-shelf" });
-        const libraries = await this.plugin.abstractBridge.discoverLibraries(this.plugin.settings.librarySettings.librariesPath);
+        await this.refreshShelf(shelfContainer);
+    }
+
+    private async refreshShelf(container: HTMLElement) {
+        if (this.isRefreshing) {
+            this.nextRefreshScheduled = true;
+            return;
+        }
+        this.isRefreshing = true;
+        this.nextRefreshScheduled = false;
+
+        try {
+            container.empty();
+            const rawLibraries = await this.plugin.abstractBridge.discoverLibraries(this.plugin.settings.librarySettings.librariesPath);
+        
+        const libraries = rawLibraries.filter(lib => {
+            if (!this.searchQuery) return true;
+            const name = (lib.file instanceof TFolder) ? lib.file.name : "";
+            return name.toLowerCase().includes(this.searchQuery.toLowerCase());
+        });
 
         if (libraries.length === 0) {
-            shelfContainer.createEl("p", {
-                text: "No libraries installed. Visit the library center to discover and install libraries.",
-                cls: "empty-state"
-            });
-            const openCenterBtn = shelfContainer.createEl("button", { text: "Open library center" });
-            openCenterBtn.addEventListener("click", () => {
-                void this.plugin.activateLibraryCenter();
-            });
+            if (this.searchQuery) {
+                container.createEl("p", { text: "No matching libraries found.", cls: "empty-state" });
+            } else {
+                container.createEl("p", {
+                    text: "No libraries installed. Visit the library center to discover and install libraries.",
+                    cls: "empty-state"
+                });
+                const openCenterBtn = container.createEl("button", { text: "Open library center" });
+                openCenterBtn.addEventListener("click", () => {
+                    void this.plugin.activateLibraryCenter();
+                });
+            }
             return;
         }
 
-        const cardContainer = shelfContainer.createDiv({ cls: "library-card-container" });
+        const cardContainer = container.createDiv({ cls: "library-card-container" });
 
         libraries.forEach(lib => {
             const card = cardContainer.createDiv({ cls: "library-explorer-card" });
@@ -87,9 +191,19 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             
             card.addEventListener("click", () => {
                 this.selectedLibrary = lib;
+                this.searchQuery = ""; // Reset search when entering a library
                 this.renderView();
             });
         });
+        } catch (error) {
+            Logger.error("LibraryExplorerView: Failed to refresh shelf", error);
+        } finally {
+            this.isRefreshing = false;
+            if (this.nextRefreshScheduled) {
+                this.nextRefreshScheduled = false;
+                void this.refreshShelf(container);
+            }
+        }
     }
 
     private async renderLibraryTree(container: HTMLElement) {
@@ -97,7 +211,8 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
 
         const header = container.createDiv({ cls: "library-tree-header" });
         
-        const backBtn = header.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Back to shelf" } });
+        const titleRow = header.createDiv({ cls: "library-tree-title-row" });
+        const backBtn = titleRow.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Back to shelf" } });
         setIcon(backBtn, "arrow-left");
         backBtn.addEventListener("click", () => {
             if (this.viewport) {
@@ -105,17 +220,23 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
                 this.viewport = null;
             }
             this.selectedLibrary = null;
+            this.searchQuery = ""; // Reset search when going back to shelf
             this.renderView();
         });
 
         if (this.selectedLibrary.file instanceof TFolder) {
-            header.createEl("h3", { text: this.selectedLibrary.file.name });
+            titleRow.createEl("h3", { text: this.selectedLibrary.file.name });
         }
 
+        const searchRow = header.createDiv({ cls: "library-tree-search-row" });
+        this.renderSearch(searchRow, "Search in library...", () => {
+            void this.refreshLibraryTree();
+        }, true); // Enable options for tree view
+
         const treeContainer = container.createDiv({ cls: "abstract-folder-tree-container" });
-        const scrollContainer = treeContainer.createDiv({ cls: "abstract-folder-viewport-scroll" });
+        const scrollContainer = treeContainer.createDiv({ cls: "abstract-folder-viewport-scroll-container nav-files-container" });
         const spacerEl = scrollContainer.createDiv({ cls: "abstract-folder-viewport-spacer" });
-        const contentEl = scrollContainer.createDiv({ cls: "abstract-folder-viewport-content" });
+        const contentEl = scrollContainer.createDiv({ cls: "abstract-folder-viewport-rows" });
 
         Logger.debug("LibraryExplorerView: Mounting Viewport for selected library.");
 
@@ -126,15 +247,24 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             this.contextEngine,
             this.plugin.scopeProjector,
             this,
+            { showGroupHeader: false }
         );
         await this.refreshLibraryTree();
     }
 
     private async refreshLibraryTree() {
         if (!this.viewport || !this.selectedLibrary) return;
+        
+        if (this.isRefreshing) {
+            this.nextRefreshScheduled = true;
+            return;
+        }
+        this.isRefreshing = true;
+        this.nextRefreshScheduled = false;
 
-        const libraryFile = this.selectedLibrary.file;
-        const libraryPath = libraryFile ? libraryFile.path : null;
+        try {
+            const libraryFile = this.selectedLibrary.file;
+            const libraryPath = libraryFile ? libraryFile.path : null;
         
         // Strategic Cache Ingestion:
         // Before building the tree, we seed the GraphEngine with relationships
@@ -148,7 +278,13 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         }
 
         // Use the library's root folder as the active group to establish hierarchy
-        const generator = this.plugin.treeBuilder.buildTree(this.contextEngine, null, false, libraryPath);
+            const generator = this.plugin.treeBuilder.buildTree(
+                this.contextEngine, 
+                this.searchQuery, 
+                !!this.searchQuery, 
+                libraryPath,
+                { showAncestors: this.showAncestors, showDescendants: this.showDescendants }
+            );
         let result;
         while (true) {
             const next = await generator.next();
@@ -158,10 +294,19 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             }
         }
 
-        if (result) {
-            this.currentItems = result.items;
-            this.viewport.setItems(result.items);
-            this.viewport.update();
+            if (result) {
+                this.currentItems = result.items;
+                this.viewport.setItems(result.items);
+                this.viewport.update();
+            }
+        } catch (error) {
+            Logger.error("LibraryExplorerView: Failed to refresh library tree", error);
+        } finally {
+            this.isRefreshing = false;
+            if (this.nextRefreshScheduled) {
+                this.nextRefreshScheduled = false;
+                void this.refreshLibraryTree();
+            }
         }
     }
 

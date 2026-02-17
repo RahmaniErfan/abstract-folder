@@ -16,6 +16,7 @@
 - **GitHub Identity Integration**: Real-time display of the logged-in user's GitHub avatar and username in the status bar.
 - **Visual Sync Indicators**: Notification badges for uncommitted/unpushed changes and high-performance sync animations (rotating refresh arrows).
 - **Quick-Sync Action**: Interactive status bar controls for one-click background synchronization and instant access to the Backup & Sync Center.
+- **Library Search Toggles**: Integrated "Show Ancestors" and "Show Descendants" toggles directly into the Library Tree search bar.
 
 ### Removed
 - **Legacy Components**: Removed monolithic `FolderIndexer`, `TreeCoordinator`, and all class-based `Facets`.
@@ -43,6 +44,9 @@
 - **Stability**: Enforced leading-slash pathing for virtual filesystem operations.
 - **Resilience**: Defensive rendering in Settings UI to prevent crashes on corrupted `data.json`.
 - **Reliability**: Hardened discovery URL normalization for GitHub repositories.
+- **UI Consistency**: Standardized Library Tree to use native Obsidian classes (`nav-files-container`), ensuring consistent fonts, indentation, and hover states.
+- **Visual Polish**: Unified background colors across all views to `var(--background-secondary)` and resolved "box in a box" layout artifacts.
+- **Header Refinement**: Centered titles in the Library Explorer and optimized the search layout by stacking it below the library name.
 
 ### Fixed
 - **Filtering Logic**: Implemented a strict Filter Priority Stack where Hard Filters (excluded extensions) now take absolute precedence over Group membership and Search queries.
@@ -57,6 +61,8 @@
 - **Selection Visuals**: Standardized tree item height to `24px` and fixed the selection highlight color to match the user's theme while maintaining text visibility.
 - **Read-Only Enforcement**: Disabled destructive context menu actions for community library files to prevent accidental data loss.
 - **Tree Interaction Consistency**: Unified the behavior between the Main View and Library Explorer. Settings like `autoExpandChildren` now apply correctly across all tree-based views.
+- **Search Logic Fix**: Resolved a critical bug in `TreeBuilder` where descendant matching failed due to incorrect parent ID extraction from synthetic URIs.
+- **UI Clutter Reduction**: Removed redundant group headers from the Library View to provide more vertical space for file navigation.
 - **Virtualization Support**: Fixed a bug where virtualized nodes in the Main View failed to expand because they appeared to have no children. The system now uses the global Indexer as the source of truth for all interactions.
 - **SOVM Architecture Migration**: Completed the major architectural shift to Service-Oriented View Model.
   - **High Performance Rendering**: Switched to a virtualized tree system that can handle thousands of nodes with minimal memory footprint.

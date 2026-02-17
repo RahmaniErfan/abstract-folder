@@ -17,6 +17,10 @@ export interface ViewportDelegate {
     onItemDrop(draggedPath: string, targetNode: AbstractNode): void;
 }
 
+export interface ViewportOptions {
+    showGroupHeader?: boolean;
+}
+
 /**
  * VirtualViewportV2 is the Presentation Layer for the v2 Architecture.
  * It uses absolute positioning and background-gradients for depth lines.
@@ -25,10 +29,11 @@ export class VirtualViewport {
     private items: AbstractNode[] = [];
     private renderedItems: Map<string, HTMLElement> = new Map();
     private resizeObserver: ResizeObserver;
-    private readonly HEADER_OFFSET = 24; // Match the group header height
-    private groupHeaderEl: HTMLElement;
+    private HEADER_OFFSET = 24; 
+    private groupHeaderEl: HTMLElement | null = null;
     private contextListener: () => void;
     private selectionListener: () => void;
+    private options: ViewportOptions;
     
     constructor(
         private containerEl: HTMLElement,
@@ -36,9 +41,15 @@ export class VirtualViewport {
         private spacerEl: HTMLElement,
         private context: ContextEngine,
         private scope: ScopeProjector,
-        private delegate: ViewportDelegate
+        private delegate: ViewportDelegate,
+        options: ViewportOptions = {}
     ) {
-        this.createHeaderOverlay();
+        this.options = { showGroupHeader: true, ...options };
+        this.HEADER_OFFSET = this.options.showGroupHeader ? 24 : 0;
+        
+        if (this.options.showGroupHeader) {
+            this.createHeaderOverlay();
+        }
         this.resizeObserver = new ResizeObserver(() => this.update());
         this.resizeObserver.observe(this.scrollContainer);
         this.scrollContainer.addEventListener("scroll", () => this.update());
@@ -263,6 +274,7 @@ export class VirtualViewport {
     }
 
     private createHeaderOverlay() {
+        if (!this.options.showGroupHeader) return;
         this.groupHeaderEl = this.scrollContainer.createDiv("af-group-header");
         this.updateGroupHeader();
     }
