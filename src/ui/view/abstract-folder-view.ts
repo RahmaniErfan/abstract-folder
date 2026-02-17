@@ -14,6 +14,8 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
     private toolbar: AbstractFolderViewToolbar;
     private statusBar: AbstractFolderStatusBar;
     private searchInput: HTMLInputElement;
+    private showAncestorsBtn: HTMLElement;
+    private showDescendantsBtn: HTMLElement;
     private currentSnapshot: TreeSnapshot | null = null;
     private isRefreshing = false;
     private nextRefreshScheduled = false;
@@ -68,6 +70,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
             cls: "clickable-icon ancestry-search-toggle",
             attr: { "aria-label": "Show all ancestors in search" }
         });
+        this.showAncestorsBtn = showAncestorsBtn;
         setIcon(showAncestorsBtn, "arrow-up-left");
         if (this.plugin.settings.searchShowAncestors) showAncestorsBtn.addClass("is-active");
 
@@ -84,6 +87,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
             cls: "clickable-icon ancestry-search-toggle",
             attr: { "aria-label": "Show all descendants in search" }
         });
+        this.showDescendantsBtn = showDescendantsBtn;
         setIcon(showDescendantsBtn, "arrow-down-right");
         if (this.plugin.settings.searchShowDescendants) showDescendantsBtn.addClass("is-active");
 
@@ -180,37 +184,32 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
         }
     }
 
-    public focusActiveFile() {
+    public async focusActiveFile() {
         const activeFile = this.app.workspace.getActiveFile();
         if (!activeFile) return;
 
-        // Reveal in tree logic
-        // Reveal in tree logic
+        // 1. Update Search Input
+        this.searchInput.value = activeFile.basename;
+        
+        // 2. Enable Ancestry Toggles
+        this.plugin.settings.searchShowAncestors = true;
+        this.plugin.settings.searchShowDescendants = true;
+        
+        if (this.showAncestorsBtn) this.showAncestorsBtn.addClass("is-active");
+        if (this.showDescendantsBtn) this.showDescendantsBtn.addClass("is-active");
+
+        // 3. Trigger Search & Save
+        this.plugin.contextEngine.setFilter(activeFile.basename);
+        await this.plugin.saveSettings();
+
+        // Reveal in tree logic (V2 migration)
         const snapshot = this.currentSnapshot;
         if (snapshot) {
-            // In V2, locationMap is URI -> Index, but for "Reveal in Tree"
-            // we need to find which URIs correspond to this physical FileID (activeFile.path).
-            // This is a reverse lookup.
             const matchingNode = snapshot.items.find(item => item.id === activeFile.path);
-            
             if (matchingNode) {
                 const targetUri = matchingNode.uri;
                 this.plugin.contextEngine.select(targetUri, { multi: false });
-                
-                // Ensure parents are expanded in the ContextEngine
-                // URIs are constructed as root/child/grandchild
-                const segments = targetUri.split('/');
-                let cumulativeUri = '';
-                for (let i = 0; i < segments.length - 1; i++) {
-                    cumulativeUri += (i === 0 ? '' : '/') + segments[i];
-                    if (!this.plugin.contextEngine.isExpanded(cumulativeUri)) {
-                        this.plugin.contextEngine.toggleExpand(cumulativeUri);
-                    }
-                }
-                
-                void this.refreshTree().then(() => {
-                    this.viewport.scrollToItem(targetUri);
-                });
+                this.viewport.scrollToItem(targetUri);
             }
         }
     }

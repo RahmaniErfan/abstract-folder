@@ -148,8 +148,7 @@ export default class AbstractFolderPlugin extends Plugin {
 					if (leaves.length > 0) {
 						const view = leaves[0].view;
 						if (view instanceof AbstractFolderView) {
-							// TODO: Re-implement focusFile in SOVM
-							// view.focusFile(activeFile.path);
+							void view.focusActiveFile();
 						}
 					}
 				}).catch(console.error);
