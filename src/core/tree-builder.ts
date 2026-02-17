@@ -1,6 +1,6 @@
 import { App } from "obsidian";
 import { FileID, IGraphEngine } from "./graph-engine";
-import { ContextEngineV2 } from "./context-engine-v2";
+import { ContextEngine } from "./context-engine";
 import { TreePipeline, StandardTreePipeline } from "./tree-pipeline";
 export interface AbstractNode {
     /** The Physical Path (Obsidian Path) */
@@ -30,7 +30,7 @@ export class TreeBuilder {
      * Builds a flattened tree view using a Depth-First Search (DFS).
      * Now uses a TreePipeline to handle filtering and sorting logic, separating traversal from transformation.
      */
-    async *buildTree(context: ContextEngineV2, filterQuery?: string | null, forceExpandAll = false, overrideGroupId?: string | null): AsyncGenerator<void, TreeSnapshot, void> {
+    async *buildTree(context: ContextEngine, filterQuery?: string | null, forceExpandAll = false, overrideGroupId?: string | null): AsyncGenerator<void, TreeSnapshot, void> {
         const items: AbstractNode[] = [];
         const locationMap = new Map<FileID, string[]>();
         const state = context.getState();
@@ -86,7 +86,7 @@ export class TreeBuilder {
         // 3. Process Roots (Filtered & Sorted)
         /**
          * Architectural Rule: Filter Priority Stack
-         * In V2, we enforce a strict precedence to ensure that user-defined "Hard Filters" (excluded extensions)
+         * In the new architecture, we enforce a strict precedence to ensure that user-defined "Hard Filters" (excluded extensions)
          * cannot be bypassed by structural rules or search matches.
          *
          * 1. HARD FILTER (isExcluded) -> Absolute rejection (e.g. user hides all PNGs)

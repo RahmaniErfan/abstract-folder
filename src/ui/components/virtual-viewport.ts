@@ -1,8 +1,8 @@
 import { setIcon } from 'obsidian';
 import { AbstractNode } from '../../core/tree-builder';
-import { ContextEngineV2 } from '../../core/context-engine-v2';
+import { ContextEngine } from '../../core/context-engine';
 import { ScopeProjector } from '../../core/scope-projector';
-export interface ViewportDelegateV2 {
+export interface ViewportDelegate {
     /** Item height in pixels (default 24-28) */
     getItemHeight(): number;
     /** Returns the platform state */
@@ -21,7 +21,7 @@ export interface ViewportDelegateV2 {
  * VirtualViewportV2 is the Presentation Layer for the v2 Architecture.
  * It uses absolute positioning and background-gradients for depth lines.
  */
-export class VirtualViewportV2 {
+export class VirtualViewport {
     private items: AbstractNode[] = [];
     private renderedItems: Map<string, HTMLElement> = new Map();
     private resizeObserver: ResizeObserver;
@@ -32,9 +32,9 @@ export class VirtualViewportV2 {
         private containerEl: HTMLElement,
         private scrollContainer: HTMLElement,
         private spacerEl: HTMLElement,
-        private context: ContextEngineV2,
+        private context: ContextEngine,
         private scope: ScopeProjector,
-        private delegate: ViewportDelegateV2
+        private delegate: ViewportDelegate
     ) {
         this.createHeaderOverlay();
         this.resizeObserver = new ResizeObserver(() => this.update());
@@ -117,13 +117,13 @@ export class VirtualViewportV2 {
 
     private createRow(node: AbstractNode): HTMLElement {
         const row = document.createElement("div");
-        row.className = "af-v2-item";
+        row.className = "af-item";
         
-        const self = row.createDiv("af-v2-item-self is-clickable");
+        const self = row.createDiv("af-item-self is-clickable");
         
         // 1. Disclosure Arrow (Chevron) - ONLY for nodes with children
         if (node.hasChildren) {
-            const arrow = self.createDiv("af-v2-item-icon af-v2-collapse-icon");
+            const arrow = self.createDiv("af-item-icon af-collapse-icon");
             // Use 'right-triangle' for the chevron - this icon points right by default in Obsidian
             setIcon(arrow, "right-triangle");
             arrow.addEventListener("click", (e) => {
@@ -133,7 +133,7 @@ export class VirtualViewportV2 {
         }
 
         // 2. Custom Icon (or Type Icon)
-        const iconEl = self.createDiv("af-v2-item-icon af-v2-type-icon");
+        const iconEl = self.createDiv("af-item-icon af-type-icon");
         if (node.icon) {
             setIcon(iconEl, node.icon);
         } else {
@@ -146,7 +146,7 @@ export class VirtualViewportV2 {
         }
 
         // Label
-        const label = self.createDiv("af-v2-item-inner");
+        const label = self.createDiv("af-item-inner");
         label.textContent = node.name;
 
         // Events
@@ -189,7 +189,7 @@ export class VirtualViewportV2 {
 
     private updateRowState(el: HTMLElement, node: AbstractNode, index: number, itemHeight: number) {
         // Handle Indent Guides (Reddit style)
-        const existingGuides = el.querySelectorAll('.af-v2-item-guide');
+        const existingGuides = el.querySelectorAll('.af-item-guide');
         const colors = [
             'var(--text-accent)',
             'var(--color-red)',
@@ -207,7 +207,7 @@ export class VirtualViewportV2 {
             existingGuides.forEach(g => g.remove());
             for (let d = 0; d < node.level; d++) {
                 const guide = document.createElement('div');
-                guide.className = 'af-v2-item-guide';
+                guide.className = 'af-item-guide';
                 // Center under the chevron area (which is shifted by depth)
                 // Chevrons are at -24px relative to padding-left (which is 24 + d*18)
                 // So chevron is at d*18px absolute. Center of 24px width is +12px.
@@ -237,7 +237,7 @@ export class VirtualViewportV2 {
         el.classList.toggle("is-expanded", isExpanded);
         el.classList.toggle("is-in-scope", isInScope);
 
-        const arrow = el.querySelector(".af-v2-collapse-icon");
+        const arrow = el.querySelector(".af-collapse-icon");
         if (arrow && arrow instanceof HTMLElement) {
             // is-collapsed state: chevron points right (0deg rotation)
             // !is-collapsed state: chevron points down (rotated 90deg)
@@ -247,7 +247,7 @@ export class VirtualViewportV2 {
     }
 
     private createHeaderOverlay() {
-        this.groupHeaderEl = this.scrollContainer.createDiv("af-v2-group-header");
+        this.groupHeaderEl = this.scrollContainer.createDiv("af-group-header");
         this.updateGroupHeader();
     }
 

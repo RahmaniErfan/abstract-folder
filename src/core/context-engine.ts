@@ -4,7 +4,7 @@ import { AbstractFolderPluginSettings } from '../settings';
 import { Logger } from 'src/utils/logger';
 import { FileID } from './graph-engine';
 
-export interface ContextStateV2 {
+export interface ContextState {
     /** Currently selected Synthetic URIs */
     selectedURIs: Set<string>;
     /** Visually expanded folders (Synthetic URIs) */
@@ -23,15 +23,15 @@ export interface ContextStateV2 {
  * ContextEngineV2 is the Single Source of Truth for transient UI state.
  * It uses the Action-Reducer pattern to ensure atomic, reactive updates.
  */
-export class ContextEngineV2 extends EventEmitter {
+export class ContextEngine extends EventEmitter {
     public settings: AbstractFolderPluginSettings;
-    private state: ContextStateV2;
+    private state: ContextState;
     /** Stable reference to physical paths of selections for the Repair Cycle */
     private selectedPaths: Set<string> = new Set();
     /** Stable reference to physical paths of expansions for the Repair Cycle */
     private expandedPaths: Set<string> = new Set();
 
-    constructor(settings: AbstractFolderPluginSettings, initialState?: Partial<ContextStateV2>) {
+    constructor(settings: AbstractFolderPluginSettings, initialState?: Partial<ContextState>) {
         super();
         this.settings = settings;
         this.state = {
@@ -44,7 +44,7 @@ export class ContextEngineV2 extends EventEmitter {
         };
     }
 
-    getState(): ContextStateV2 {
+    getState(): ContextState {
         return {
             ...this.state,
             selectedURIs: new Set(this.state.selectedURIs),

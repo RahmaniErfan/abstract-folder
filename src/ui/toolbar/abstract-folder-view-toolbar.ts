@@ -54,7 +54,7 @@ export class AbstractFolderViewToolbar {
         if (this.settings.showCollapseAllButton) {
             this.collapseAllAction = this.addAction("chevrons-down-up", "Collapse all folders", () => {
                 Logger.debug("AbstractFolderViewToolbar: collapse all clicked");
-                this.plugin.contextEngineV2.collapseAll();
+                this.plugin.contextEngine.collapseAll();
             });
         }
         if (this.settings.showSortButton) {
@@ -108,16 +108,16 @@ export class AbstractFolderViewToolbar {
                         const active = this.plugin.settings.groups.find(g => g.id === this.plugin.settings.activeGroupId);
                         if (active && active.sort) sortConfig = active.sort;
                     }
-                    this.plugin.contextEngineV2.setSortConfig(sortConfig);
+                    this.plugin.contextEngine.setSortConfig(sortConfig);
                 }).catch(Logger.error);
             }).open();
         }));
         menu.addSeparator();
-        const currentSort = this.plugin.contextEngineV2.getState().sortConfig;
+        const currentSort = this.plugin.contextEngine.getState().sortConfig;
         const addSortItem = (title: string, icon: string, sortBy: SortBy, sortOrder: 'asc' | 'desc') => {
             menu.addItem(item => item.setTitle(title)
                 .setIcon(currentSort.sortBy === sortBy && currentSort.sortOrder === sortOrder ? "check" : icon)
-                .onClick(() => this.plugin.contextEngineV2.setSortConfig({ sortBy, sortOrder })));
+                .onClick(() => this.plugin.contextEngine.setSortConfig({ sortBy, sortOrder })));
         };
         addSortItem("Sort by name (ascending)", "sort-asc", 'name', 'asc');
         addSortItem("Sort by name (descending)", "sort-desc", 'name', 'desc');
@@ -162,9 +162,9 @@ export class AbstractFolderViewToolbar {
                 menu.addItem(item => item.setTitle(group.name)
                     .setIcon(this.settings.activeGroupId === group.id ? "check" : "group")
                     .onClick(async () => {
-                        this.plugin.contextEngineV2.setActiveGroup(group.id);
+                        this.plugin.contextEngine.setActiveGroup(group.id);
                         await this.plugin.saveSettings();
-                        if (group.sort) this.plugin.contextEngineV2.setSortConfig(group.sort);
+                        if (group.sort) this.plugin.contextEngine.setSortConfig(group.sort);
                     }));
             });
             menu.addSeparator();
@@ -174,16 +174,16 @@ export class AbstractFolderViewToolbar {
             new ManageGroupsModal(this.app, this.settings, (updatedGroups, activeGroupId) => {
                 this.plugin.settings.groups = updatedGroups;
                 this.plugin.settings.activeGroupId = activeGroupId;
-                this.plugin.contextEngineV2.setActiveGroup(activeGroupId);
+                this.plugin.contextEngine.setActiveGroup(activeGroupId);
                 this.plugin.saveSettings().catch(Logger.error);
             }, this.plugin).open();
         }));
 
         menu.addItem(item => item.setTitle("Clear active group").setIcon(this.settings.activeGroupId === null ? "check" : "cross").onClick(async () => {
-            this.plugin.contextEngineV2.setActiveGroup(null);
+            this.plugin.contextEngine.setActiveGroup(null);
             await this.plugin.saveSettings();
             const defaultSort = this.plugin.settings.defaultSort;
-            this.plugin.contextEngineV2.setSortConfig(defaultSort);
+            this.plugin.contextEngine.setSortConfig(defaultSort);
         }));
 
         menu.showAtMouseEvent(event);

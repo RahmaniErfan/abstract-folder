@@ -27,7 +27,7 @@ import { LibraryExplorerView, VIEW_TYPE_LIBRARY_EXPLORER } from './src/library/u
 import './src/styles/index.css';
 import './src/styles/library-explorer.css';
 import { TreeBuilder } from './src/core/tree-builder';
-import { ContextEngineV2 } from './src/core/context-engine-v2';
+import { ContextEngine } from './src/core/context-engine';
 import { ScopeProjector } from './src/core/scope-projector';
 import { TransactionManager } from './src/core/transaction-manager';
 
@@ -45,7 +45,7 @@ export default class AbstractFolderPlugin extends Plugin {
 	// SOVM Singletons
 	graphEngine: GraphEngine;
 	treeBuilder: TreeBuilder;
-	contextEngineV2: ContextEngineV2;
+	contextEngine: ContextEngine;
 	scopeProjector: ScopeProjector;
 	transactionManager: TransactionManager;
 
@@ -65,7 +65,7 @@ export default class AbstractFolderPlugin extends Plugin {
 		void this.graphEngine.initialize().catch(error => Logger.error("Failed to initialize GraphEngine", error));
 		
 		this.treeBuilder = new TreeBuilder(this.app, this.graphEngine);
-		this.contextEngineV2 = new ContextEngineV2(this.settings);
+		this.contextEngine = new ContextEngine(this.settings);
 		this.scopeProjector = new ScopeProjector();
 		this.transactionManager = new TransactionManager(this.app, this.graphEngine, this.settings);
 
@@ -86,7 +86,7 @@ export default class AbstractFolderPlugin extends Plugin {
 		);
 
 		// Sync ScopeProjector with ContextEngineV2
-		this.contextEngineV2.on('selection-changed', (selections: Set<string>) => {
+		this.contextEngine.on('selection-changed', (selections: Set<string>) => {
 			this.scopeProjector.update(selections);
 		});
 
@@ -404,23 +404,6 @@ this.addCommand({
 
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, (await this.loadData()) as AbstractFolderPluginSettings);
-
-		// Migration: Ensure multiple property name arrays are initialized from legacy settings
-		if (this.settings.propertyName && (!this.settings.parentPropertyNames || this.settings.parentPropertyNames.length === 0)) {
-			this.settings.parentPropertyNames = [this.settings.propertyName];
-		}
-		if (this.settings.childrenPropertyName && (!this.settings.childrenPropertyNames || this.settings.childrenPropertyNames.length === 0)) {
-			this.settings.childrenPropertyNames = [this.settings.childrenPropertyName];
-		}
-
-		// Cleanup: Remove legacy "views" field if it exists in the data.json as it causes issues in newer versions
-		// and is no longer part of the settings interface.
-		const settingsRecord = this.settings as unknown as Record<string, unknown>;
-		if (settingsRecord.views) {
-			Logger.debug("Found legacy 'views' field in settings, removing it.");
-			delete settingsRecord.views;
-			await this.saveSettings();
-		}
 	}
 
 	async saveSettings() {

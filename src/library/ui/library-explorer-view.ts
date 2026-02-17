@@ -2,8 +2,8 @@ import { ItemView, WorkspaceLeaf, setIcon, TFolder, TFile, Platform } from "obsi
 import type AbstractFolderPlugin from "../../../main";
 import { LibraryNode } from "../types";
 import { Logger } from "../../utils/logger";
-import { VirtualViewportV2, ViewportDelegateV2 } from "../../ui/components/virtual-viewport-v2";
-import { ContextEngineV2 } from "../../core/context-engine-v2";
+import { VirtualViewport, ViewportDelegate } from "../../ui/components/virtual-viewport";
+import { ContextEngine } from "../../core/context-engine";
 import { AbstractNode } from "../../core/tree-builder";
 
 export const VIEW_TYPE_LIBRARY_EXPLORER = "abstract-library-explorer";
@@ -12,14 +12,14 @@ export const VIEW_TYPE_LIBRARY_EXPLORER = "abstract-library-explorer";
  * LibraryExplorerView provides a dedicated interface for browsing installed libraries.
  * It features a "Shelf" view with pill-shaped selection and a scoped "Tree" view for the selected library.
  */
-export class LibraryExplorerView extends ItemView implements ViewportDelegateV2 {
-    private viewport: VirtualViewportV2 | null = null;
-    private contextEngine: ContextEngineV2;
+export class LibraryExplorerView extends ItemView implements ViewportDelegate {
+    private viewport: VirtualViewport | null = null;
+    private contextEngine: ContextEngine;
     private selectedLibrary: LibraryNode | null = null;
 
     constructor(leaf: WorkspaceLeaf, private plugin: AbstractFolderPlugin) {
         super(leaf);
-        this.contextEngine = new ContextEngineV2(plugin.settings);
+        this.contextEngine = new ContextEngine(plugin.settings);
     }
 
     getViewType(): string {
@@ -116,9 +116,9 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegateV2 
         const spacerEl = scrollContainer.createDiv({ cls: "abstract-folder-viewport-spacer" });
         const contentEl = scrollContainer.createDiv({ cls: "abstract-folder-viewport-content" });
 
-        Logger.debug("LibraryExplorerView: Mounting V2 Viewport for selected library.");
+        Logger.debug("LibraryExplorerView: Mounting Viewport for selected library.");
 
-        this.viewport = new VirtualViewportV2(
+        this.viewport = new VirtualViewport(
             contentEl,
             scrollContainer,
             spacerEl,

@@ -1,5 +1,5 @@
 /**
- * Virtual Viewport v2 Styles
+ * Virtual Viewport Styles
  * Optimized for performance and scoped highlighting.
  */
 
@@ -11,7 +11,7 @@
 }
 
 /* Main View Container */
-.abstract-folder-view-v2 {
+.abstract-folder-view {
     display: flex !important;
     flex-direction: column !important;
     height: 100% !important;
@@ -20,7 +20,7 @@
     margin: 0 !important;
 }
 
-.abstract-folder-view-v2 .view-content {
+.abstract-folder-view .view-content {
     display: flex !important;
     flex-direction: column !important;
     height: 100% !important;
@@ -72,8 +72,8 @@
     pointer-events: none;
 }
 
-/* Active Group Header Overlay (V2) */
-.af-v2-group-header {
+/* Active Group Header Overlay */
+.af-group-header {
     position: sticky;
     top: 0;
     left: 0;
@@ -95,7 +95,7 @@
     pointer-events: auto;
 }
 
-.af-v2-item-icon {
+.af-item-icon {
     display: flex !important;
     align-items: center;
     justify-content: center;
@@ -106,16 +106,16 @@
     flex-shrink: 0 !important; /* Prevent collapsing in flex layouts */
 }
 
-.af-v2-item-icon:hover {
+.af-item-icon:hover {
     color: var(--text-normal);
 }
 
-.af-v2-item-icon svg {
+.af-item-icon svg {
     width: 14px !important;
     height: 14px !important;
 }
 
-.af-v2-collapse-icon {
+.af-collapse-icon {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -128,15 +128,15 @@
     z-index: 5 !important;
 }
 
-.af-v2-collapse-icon svg {
+.af-collapse-icon svg {
     transition: transform 0.1s ease;
 }
 
-.af-v2-collapse-icon.is-collapsed svg {
+.af-collapse-icon.is-collapsed svg {
     transform: rotate(-90deg) !important;
 }
 
-.af-v2-collapse-icon:not(.is-collapsed) svg {
+.af-collapse-icon:not(.is-collapsed) svg {
     transform: rotate(0deg) !important;
 }
 
@@ -150,7 +150,7 @@
 }
 
 /* Base row styling using Obsidian nav-file classes */
-.af-v2-item {
+.af-item {
     position: absolute;
     width: 100%;
     height: var(--af-item-height, 24px);
@@ -166,7 +166,7 @@
     --guide-width: 1px;
 }
 
-.af-v2-item-guide {
+.af-item-guide {
     position: absolute;
     top: 0;
     bottom: 0;
@@ -177,7 +177,7 @@
 }
 
 /* Clear background for the actual content area */
-.af-v2-item-self {
+.af-item-self {
     position: relative;
     display: flex;
     align-items: center;
@@ -194,15 +194,15 @@
     left: 0 !important; /* Ensure it stays docked to the left */
 }
 
-.af-v2-item:hover {
+.af-item:hover {
     background-color: var(--background-modifier-hover);
 }
 
-.af-v2-item.is-selected {
+.af-item.is-selected {
     background-color: var(--background-modifier-active-hover);
 }
 
-.af-v2-item.is-selected .af-v2-item-inner {
+.af-item.is-selected .af-item-inner {
     color: var(--text-accent);
 }
 
@@ -211,13 +211,13 @@
    ========================================================================================= */
 
 /* When a row is IN SCOPE (descendant of selected), it gets a subtle background tint */
-.af-v2-item.is-in-scope .af-v2-item-self {
+.af-item.is-in-scope .af-item-self {
     background-color: var(--background-modifier-success-soft, rgba(0, 255, 0, 0.05));
     border-left: 2px solid var(--interactive-accent);
 }
 
 /* Special icons or badges for scoped items */
-.af-v2-item.is-in-scope .af-v2-item-inner::after {
+.af-item.is-in-scope .af-item-inner::after {
     content: " •";
     opacity: 0.5;
     font-size: 0.8em;
@@ -230,25 +230,26 @@
 
 /* Mobile Compatibility via CSS Variables */
 
-body.is-mobile .af-v2-item {
+body.is-mobile .af-item {
     --af-item-height: 32px; /* Taller touch targets for mobile */
 }
 
 
-body.is-mobile .af-v2-item .af-v2-item-inner {
+body.is-mobile .af-item .af-item-inner {
     font-size: var(--font-ui-medium);
 }
 
 
-.af-v2-item .af-v2-item-tag {
+.af-item .af-item-tag {
     margin: 0 4px;
     font-size: 14px;
 }
 
-.af-v2-item .af-v2-item-inner {
+.af-item .af-item-inner {
     flex-grow: 1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: var(--font-ui-small);
 }
+

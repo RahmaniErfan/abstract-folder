@@ -25,7 +25,7 @@ export class ContextMenuHandler {
 
         // 1. Ensure the right-clicked node is selected
         if (!selection.has(node.uri)) {
-            this.plugin.contextEngineV2.select(node.uri, { multi: false });
+            this.plugin.contextEngine.select(node.uri, { multi: false });
         }
 
         // 2. Map URIs to physical paths for the context menu handler
