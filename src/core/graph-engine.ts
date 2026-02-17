@@ -445,11 +445,18 @@ export class GraphEngine implements IGraphEngine {
         }
 
         // Default: Nodes with no parents
+        const libraryPath = this.settings.librarySettings.librariesPath;
+
         for (const id of this.index.getAllFileIds()) {
             const node = this.index.getNode(id);
             if (node && node.parents.size === 0) {
                 // MODULAR ROOT CHECK:
-                // Decouple topology (no parents) from UI eligibility (Orphan Policy)
+                // 1. Scoping Check: Exclude libraries from main view roots
+                if (libraryPath && (id === libraryPath || id.startsWith(libraryPath + '/'))) {
+                    continue;
+                }
+
+                // 2. Policy Check: Decouple topology (no parents) from UI eligibility (Orphan Policy)
                 if (this.rootPolicy.shouldIncludeOrphan(id, node.meta, this.settings)) {
                     processedRoots.add(id);
                 } else {

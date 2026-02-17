@@ -76,6 +76,12 @@ export class TreeBuilder {
         let roots = this.graph.getAllRoots(activeGroupId);
 
         // 2b. If searching and NOT showing all ancestors, we want matches to appear as roots
+        const libraryPath = context.settings.librarySettings.librariesPath;
+        const groupFolders = activeGroupId ? context.settings.groups.find(g => g.id === activeGroupId)?.parentFolders : null;
+        
+        // Capture structural roots for abstract ancestry check
+        const structuralRoots = new Set(roots); 
+
         if (isSearching && !searchShowAncestors) {
             const query = (filterQuery || state.activeFilter)!.toLowerCase();
             const matchingNodes: FileID[] = [];
@@ -83,16 +89,34 @@ export class TreeBuilder {
             // We iterate over ONLY files in the vault that are within the scoped path if a path-based scope is active.
             const allFiles = this.app.vault.getFiles();
             for (const file of allFiles) {
-                // Scoping fix: Ensure file is within the active group path if searching in a scoped view (like Library)
+                // 1. Group Scoping
+                // Physical Check OR Abstract Ancestry Check
+                let isInGroup = false;
+                if (groupFolders) {
+                    // A. Physical Check
+                    if (groupFolders.some(folder => file.path.startsWith(folder))) {
+                        isInGroup = true;
+                    }
+                    // B. Abstract Ancestry Check (if not physically in group)
+                    else if (structuralRoots.size > 0 && this.isDescendantOf(file.path, structuralRoots)) {
+                        isInGroup = true;
+                    }
+                    
+                    if (!isInGroup) continue;
+                }
+
+                // 2. Path-based Scoping (Library/Folders)
                 if (scopePrefix && file.path !== activeGroupId && !file.path.startsWith(scopePrefix)) {
                     continue;
                 }
 
+                // 3. Main View Scoping: Exclude libraries
+                if (!activeGroupId && libraryPath && (file.path === libraryPath || file.path.startsWith(libraryPath + '/'))) {
+                    continue;
+                }
+
                 if (file.name.toLowerCase().includes(query)) {
-                    // Important: Apply hard extension filter even when promoting to roots
-                    if (!pipeline.isExcluded(file.path, undefined)) {
-                        matchingNodes.push(file.path);
-                    }
+                    matchingNodes.push(file.path);
                 }
             }
             roots = matchingNodes;
@@ -169,6 +193,12 @@ export class TreeBuilder {
             // [STRICT SCOPE CHECK]
             // Ensure no nodes leak from outside the defined scope (important for Library View)
             if (scopePrefix && id !== activeGroupId && !id.startsWith(scopePrefix)) {
+                continue;
+            }
+
+            // [MAIN VIEW SCOPE CHECK]
+            // Ensure library files don't leak into the main view
+            if (!activeGroupId && libraryPath && (id === libraryPath || id.startsWith(libraryPath + '/'))) {
                 continue;
             }
 
@@ -272,5 +302,24 @@ export class TreeBuilder {
 
     private getNodeName(path: string): string {
         return path.split('/').pop() || path;
+    }
+
+    private isDescendantOf(childId: FileID, distinctAncestors: Set<FileID>): boolean {
+        // BFS upstream to see if we hit any of the ancestors
+        const visited = new Set<FileID>();
+        const queue = [childId];
+
+        while (queue.length > 0) {
+            const current = queue.shift()!;
+            if (visited.has(current)) continue;
+            visited.add(current);
+
+            const parents = this.graph.getParents(current);
+            for (const parent of parents) {
+                if (distinctAncestors.has(parent)) return true;
+                queue.push(parent);
+            }
+        }
+        return false;
     }
 }
