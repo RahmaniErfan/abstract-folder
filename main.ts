@@ -40,7 +40,8 @@ export default class AbstractFolderPlugin extends Plugin {
 	contributionEngine: ContributionEngine;
 	metricsManager: MetricsManager;
 	contextMenuHandler: ContextMenuHandler;
-	ribbonIconEl: HTMLElement | null = null;
+	abstractRibbonIconEl: HTMLElement | null = null;
+	libraryRibbonIconEl: HTMLElement | null = null;
 	syncInterval: number | null = null;
 
 	// SOVM Singletons
@@ -357,9 +358,13 @@ this.addCommand({
 		Logger.debug("Starting onunload...");
 		Logger.debug("Saving metrics...");
 		void this.metricsManager.saveMetrics();
-		if (this.ribbonIconEl) {
-			this.ribbonIconEl.remove();
-			this.ribbonIconEl = null;
+		if (this.abstractRibbonIconEl) {
+			this.abstractRibbonIconEl.remove();
+			this.abstractRibbonIconEl = null;
+		}
+		if (this.libraryRibbonIconEl) {
+			this.libraryRibbonIconEl.remove();
+			this.libraryRibbonIconEl = null;
 		}
 	}
 
@@ -465,15 +470,24 @@ this.addCommand({
 
 	updateRibbonIconVisibility() {
 		if (this.settings.showRibbonIcon) {
-			if (!this.ribbonIconEl) {
-				this.ribbonIconEl = this.addRibbonIcon("folder-tree", "Open abstract folders", () => {
+			if (!this.abstractRibbonIconEl) {
+				this.abstractRibbonIconEl = this.addRibbonIcon("folder-tree", "Open abstract folders", () => {
 					this.activateView().catch(console.error);
 				});
 			}
+			if (!this.libraryRibbonIconEl) {
+				this.libraryRibbonIconEl = this.addRibbonIcon("library", "Open library explorer", () => {
+					this.activateLibraryExplorer().catch(console.error);
+				});
+			}
 		} else {
-			if (this.ribbonIconEl) {
-				this.ribbonIconEl.remove();
-				this.ribbonIconEl = null;
+			if (this.abstractRibbonIconEl) {
+				this.abstractRibbonIconEl.remove();
+				this.abstractRibbonIconEl = null;
+			}
+			if (this.libraryRibbonIconEl) {
+				this.libraryRibbonIconEl.remove();
+				this.libraryRibbonIconEl = null;
 			}
 		}
 	}

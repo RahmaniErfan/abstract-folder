@@ -64,7 +64,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         }
     }
 
-    private renderSearch(container: HTMLElement, placeholder: string, onSearch: () => void, includeOptions = false) {
+    private renderSearch(container: HTMLElement, placeholder: string, onSearch: () => void, includeOptions = false): HTMLElement {
         const searchContainer = container.createDiv({ cls: "abstract-folder-search-container" });
         const wrapper = searchContainer.createDiv({ cls: "abstract-folder-search-input-wrapper" });
         
@@ -125,6 +125,8 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
                 onSearch();
             });
         }
+
+        return searchContainer;
     }
 
     private updateClearButtonState() {
@@ -135,8 +137,17 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     private async renderShelf(container: HTMLElement) {
         container.createEl("h2", { text: "Libraries", cls: "shelf-title" });
 
-        this.renderSearch(container, "Search libraries...", () => {
+        const searchRow = container.createDiv({ cls: "library-shelf-search-row" });
+        this.renderSearch(searchRow, "Search libraries...", () => {
             void this.refreshShelf(shelfContainer);
+        });
+
+        const openCenterBtn = searchRow.createEl("button", {
+            text: "Library center",
+            cls: "library-open-center-btn"
+        });
+        openCenterBtn.addEventListener("click", () => {
+            void this.plugin.activateLibraryCenter();
         });
 
         const shelfContainer = container.createDiv({ cls: "library-shelf" });

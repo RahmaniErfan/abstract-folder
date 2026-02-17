@@ -24,15 +24,27 @@
     text-align: center;
 }
 
-.abstract-library-explorer .abstract-folder-search-container {
-    padding-left: 0;
-    padding-right: 0;
-    margin-bottom: 12px;
-    position: relative;
-    z-index: 10;
+.library-shelf-search-row {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    padding: 0 8px;
+    margin-bottom: 12px;
+}
+
+.library-shelf-search-row .abstract-folder-search-container {
+    padding: 0;
+    margin-bottom: 0;
+    flex-grow: 1;
+}
+
+.library-open-center-btn {
+    white-space: nowrap;
+    height: 30px;
+    padding: 0 12px;
+    box-shadow: none !important;
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-secondary);
 }
 
 .abstract-library-explorer .abstract-folder-search-input-wrapper {
