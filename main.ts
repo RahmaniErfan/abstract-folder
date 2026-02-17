@@ -41,6 +41,7 @@ export default class AbstractFolderPlugin extends Plugin {
 	metricsManager: MetricsManager;
 	contextMenuHandler: ContextMenuHandler;
 	ribbonIconEl: HTMLElement | null = null;
+	syncInterval: number | null = null;
 
 	// SOVM Singletons
 	graphEngine: GraphEngine;
@@ -304,6 +305,45 @@ this.addCommand({
 				}
 			}
 		});
+
+		this.setupSyncScheduler();
+	}
+
+	setupSyncScheduler() {
+		if (this.syncInterval) {
+			window.clearInterval(this.syncInterval);
+			this.syncInterval = null;
+		}
+
+		if (this.settings.librarySettings.enableScheduledSync) {
+			const { syncIntervalValue, syncIntervalUnit } = this.settings.librarySettings;
+			let intervalMs = syncIntervalValue * 60 * 1000; // Default to minutes
+
+			switch (syncIntervalUnit) {
+				case 'hours':
+					intervalMs *= 60;
+					break;
+				case 'days':
+					intervalMs *= 60 * 24;
+					break;
+				case 'weeks':
+					intervalMs *= 60 * 24 * 7;
+					break;
+			}
+
+			Logger.debug(`Setting up sync scheduler: every ${syncIntervalValue} ${syncIntervalUnit} (${intervalMs}ms)`);
+			
+			this.syncInterval = window.setInterval(async () => {
+				Logger.debug("Triggering scheduled sync...");
+				try {
+					await this.libraryManager.syncBackup("", "Scheduled sync via Abstract Folder", undefined, true);
+				} catch (e) {
+					Logger.error("Scheduled sync failed", e);
+				}
+			}, intervalMs);
+
+			this.registerInterval(this.syncInterval as any);
+		}
 	}
 
 	onunload() {
@@ -403,7 +443,12 @@ this.addCommand({
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, (await this.loadData()) as AbstractFolderPluginSettings);
+		const loadedData = await this.loadData();
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData);
+		// Ensure nested librarySettings have defaults
+		if (this.settings.librarySettings) {
+			this.settings.librarySettings = Object.assign({}, DEFAULT_SETTINGS.librarySettings, loadedData?.librarySettings);
+		}
 	}
 
 	async saveSettings() {

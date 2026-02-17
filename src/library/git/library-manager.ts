@@ -357,7 +357,7 @@ export class LibraryManager {
     /**
      * Sync changes to the remote (pull, add, commit, push).
      */
-    async syncBackup(vaultPath: string, message: string = "Sync via Abstract Folder", token?: string): Promise<void> {
+    async syncBackup(vaultPath: string, message: string = "Sync via Abstract Folder", token?: string, silent: boolean = false): Promise<void> {
         try {
             const absoluteDir = this.getAbsolutePath(vaultPath);
             const tokenToUse = token || this.getToken();
@@ -396,7 +396,7 @@ export class LibraryManager {
                 remote: 'origin'
             });
 
-            new Notice("Backup synced successfully");
+            if (!silent) new Notice("Backup synced successfully");
         } catch (error) {
             console.error("Sync failed", error);
             throw error;

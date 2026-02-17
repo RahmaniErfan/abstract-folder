@@ -110,5 +110,8 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
     githubUsername: "",
     githubAvatar: "",
     deviceId: "",
+    enableScheduledSync: false,
+    syncIntervalValue: 1,
+    syncIntervalUnit: 'hours',
   },
 };

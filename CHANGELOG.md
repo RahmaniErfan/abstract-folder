@@ -12,6 +12,7 @@
 - **Enhanced Search**: Time-sliced search construction with automatic parent expansion for matches.
 - **Mobile Optimized**: Adaptive row heights and touch-friendly targets for iOS and Android.
 - **VS Code-style Status Bar**: A slim, persistent status bar at the bottom of the Abstract Folder view for local backup and sync awareness.
+- **Scheduled Sync**: Automated, interval-based synchronization for personal backups. Configurable frequency (minutes to weeks) within the Backup & Sync Center.
 - **GitHub Identity Integration**: Real-time display of the logged-in user's GitHub avatar and username in the status bar.
 - **Visual Sync Indicators**: Notification badges for uncommitted/unpushed changes and high-performance sync animations (rotating refresh arrows).
 - **Quick-Sync Action**: Interactive status bar controls for one-click background synchronization and instant access to the Backup & Sync Center.

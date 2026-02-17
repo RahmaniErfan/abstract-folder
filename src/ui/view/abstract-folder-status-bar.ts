@@ -81,9 +81,13 @@ export class AbstractFolderStatusBar {
         const username = this.settings.librarySettings.githubUsername || "GitHub";
         
         if (this.settings.librarySettings.githubAvatar) {
-            this.identityArea.createEl("img", {
-                cls: "af-status-avatar",
-                attr: { src: this.settings.librarySettings.githubAvatar }
+            const avatarContainer = this.identityArea.createDiv({ cls: "af-status-avatar" });
+            avatarContainer.createEl("img", {
+                attr: { 
+                    src: this.settings.librarySettings.githubAvatar,
+                    width: "18",
+                    height: "18"
+                }
             });
         } else {
             setIcon(this.identityArea.createDiv({ cls: "af-status-avatar-placeholder" }), "user");

@@ -42,4 +42,7 @@ export interface LibrarySettings {
     githubUsername?: string;
     githubAvatar?: string;
     deviceId?: string;
+    enableScheduledSync: boolean;
+    syncIntervalValue: number;
+    syncIntervalUnit: 'minutes' | 'hours' | 'days' | 'weeks';
 }

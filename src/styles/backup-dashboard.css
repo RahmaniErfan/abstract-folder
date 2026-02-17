@@ -2,6 +2,10 @@
 .abstract-folder-backup-center {
   padding: 10px;
 }
+.af-backup-modal {
+  width: 600px;
+  max-width: 90vw;
+}
 .abstract-folder-status-box {
   background-color: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
