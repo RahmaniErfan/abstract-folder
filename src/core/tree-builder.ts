@@ -126,6 +126,14 @@ export class TreeBuilder {
                 }
             }
             roots = matchingNodes;
+
+            // [FIX] Avoid duplication when showAncestors is OFF but showDescendants is ON.
+            // If a node matches and one of its ancestors also matches, we don't want to promote 
+            // the child to a root, because it will already be rendered as a descendant of that matching ancestor.
+            if (searchShowDescendants) {
+                const matchingSet = new Set(matchingNodes);
+                roots = matchingNodes.filter(id => !this.isDescendantOf(id, matchingSet));
+            }
         }
         
         // Update pipeline with resolved roots

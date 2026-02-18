@@ -1,0 +1,203 @@
+/* Space Dashboard Styles */
+
+.af-space-dashboard {
+    width: 800px;
+    max-width: 95vw;
+}
+
+.af-dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 10px;
+}
+
+.af-dashboard-title {
+    margin-bottom: 0 !important;
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+}
+
+.af-dashboard-refresh-btn {
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+
+.af-dashboard-refresh-btn:hover {
+    opacity: 1;
+}
+
+.af-dashboard-section {
+    margin-bottom: 30px;
+}
+
+.af-dashboard-section h3 {
+    font-size: 1.1em;
+    margin-bottom: 15px;
+    color: var(--text-accent);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 5px;
+}
+
+.af-sub-heading {
+    font-size: 0.9em;
+    margin: 20px 0 10px 0;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.af-collaborator-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.af-collaborator-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    background: var(--background-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--background-modifier-border);
+}
+
+.af-collab-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+}
+
+.af-pending-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.af-collab-avatar {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--background-primary);
+    border-radius: 50%;
+    color: var(--text-muted);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.af-collab-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.af-collab-info {
+    flex: 1;
+    overflow: hidden;
+}
+
+.af-collab-name {
+    font-weight: 600;
+    font-size: 0.9em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.af-collab-remove-btn {
+    opacity: 0.4;
+    transition: opacity 0.2s ease, color 0.2s ease;
+    padding: 4px;
+    height: 28px;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+
+.af-collab-remove-btn:hover {
+    opacity: 1;
+    color: var(--text-error);
+    background: var(--background-modifier-hover) !important;
+}
+
+.af-collab-email {
+    font-size: 0.75em;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.af-activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border-left: 2px solid var(--background-modifier-border);
+    margin-left: 10px;
+    padding-left: 20px;
+}
+
+.af-activity-item {
+    position: relative;
+    padding-bottom: 20px;
+}
+
+.af-activity-dot {
+    position: absolute;
+    left: -27px;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    background: var(--background-modifier-border);
+    border-radius: 50%;
+    border: 2px solid var(--background-primary);
+}
+
+.af-activity-item:first-child .af-activity-dot {
+    background: var(--text-accent);
+}
+
+.af-activity-content {
+    background: var(--background-secondary-alt);
+    padding: 12px;
+    border-radius: 8px;
+}
+
+.af-activity-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+}
+
+.af-activity-author {
+    font-weight: 600;
+    font-size: 0.85em;
+}
+
+.af-activity-date {
+    font-size: 0.75em;
+    color: var(--text-muted);
+}
+
+.af-activity-msg {
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+
+.af-dashboard-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.af-empty-state {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 0.9em;
+}

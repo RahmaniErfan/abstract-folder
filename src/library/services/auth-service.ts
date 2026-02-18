@@ -99,4 +99,125 @@ export class AuthService {
             return null;
         }
     }
+    /**
+     * Invite a collaborator to a specific repository
+     */
+    static async inviteCollaborator(
+        token: string, 
+        owner: string, 
+        repo: string, 
+        username: string,
+        permission: 'pull' | 'push' | 'admin' | 'maintain' | 'triage' = 'push'
+    ): Promise<{ success: boolean; error?: string }> {
+        try {
+            const response = await requestUrl({
+                url: `https://api.github.com/repos/${owner}/${repo}/collaborators/${username}`,
+                method: "PUT",
+                headers: {
+                    "Authorization": `token ${token}`,
+                    "Accept": "application/json",
+                },
+                body: JSON.stringify({ permission }),
+                throw: false
+            });
+
+            if (response.status === 201 || response.status === 204) {
+                return { success: true };
+            }
+
+            if (response.status === 422) {
+                return { success: false, error: "User is already a collaborator or you cannot invite yourself." };
+            }
+
+            return { success: false, error: `GitHub error: ${response.status}` };
+        } catch (error) {
+            console.error("Failed to invite collaborator", error);
+            return { success: false, error: error.message || "Unknown error" };
+        }
+    }
+
+    /**
+     * List pending invitations for a repository
+     */
+    static async listInvitations(token: string, owner: string, repo: string): Promise<any[]> {
+        try {
+            const response = await requestUrl({
+                url: `https://api.github.com/repos/${owner}/${repo}/invitations?t=${Date.now()}`,
+                method: "GET",
+                headers: {
+                    "Authorization": `token ${token}`,
+                    "Accept": "application/json",
+                },
+            });
+            return response.json;
+        } catch (error) {
+            console.error("Failed to list invitations", error);
+            return [];
+        }
+    }
+
+    /**
+     * List active collaborators for a repository
+     */
+    static async listCollaborators(token: string, owner: string, repo: string): Promise<any[]> {
+        try {
+            const response = await requestUrl({
+                url: `https://api.github.com/repos/${owner}/${repo}/collaborators?t=${Date.now()}`,
+                method: "GET",
+                headers: {
+                    "Authorization": `token ${token}`,
+                    "Accept": "application/json",
+                },
+            });
+            return response.json;
+        } catch (error) {
+            console.error("Failed to list collaborators", error);
+            return [];
+        }
+    }
+
+    /**
+     * Delete a pending invitation
+     */
+    static async deleteInvitation(token: string, owner: string, repo: string, invitationId: number): Promise<boolean> {
+        try {
+            const response = await requestUrl({
+                url: `https://api.github.com/repos/${owner}/${repo}/invitations/${invitationId}`,
+                method: "DELETE",
+                headers: {
+                    "Authorization": `token ${token}`,
+                    "Accept": "application/json",
+                },
+                throw: false
+            });
+            if (response.status !== 204) {
+                console.error(`Failed to delete invitation ${invitationId} on ${owner}/${repo}. Status: ${response.status}`, response.text);
+            }
+            return response.status === 204;
+        } catch (error) {
+            console.error("Failed to delete invitation due to request error", error);
+            return false;
+        }
+    }
+
+    /**
+     * Remove a collaborator from a repository
+     */
+    static async removeCollaborator(token: string, owner: string, repo: string, username: string): Promise<boolean> {
+        try {
+            const response = await requestUrl({
+                url: `https://api.github.com/repos/${owner}/${repo}/collaborators/${username}`,
+                method: "DELETE",
+                headers: {
+                    "Authorization": `token ${token}`,
+                    "Accept": "application/json",
+                },
+                throw: false
+            });
+            return response.status === 204;
+        } catch (error) {
+            console.error("Failed to remove collaborator", error);
+            return false;
+        }
+    }
 }

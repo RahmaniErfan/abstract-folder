@@ -341,35 +341,60 @@ this.addCommand({
 			this.syncInterval = null;
 		}
 
-		if (this.settings.librarySettings.enableScheduledSync) {
-			const { syncIntervalValue, syncIntervalUnit } = this.settings.librarySettings;
-			let intervalMs = syncIntervalValue * 60 * 1000; // Default to minutes
+		const checkSync = async () => {
+			const now = Date.now();
+			const libSettings = this.settings.librarySettings;
 
-			switch (syncIntervalUnit) {
-				case 'hours':
-					intervalMs *= 60;
-					break;
-				case 'days':
-					intervalMs *= 60 * 24;
-					break;
-				case 'weeks':
-					intervalMs *= 60 * 24 * 7;
-					break;
+			// 1. Check Root Personal Backup
+			if (libSettings.enableScheduledSync) {
+				const intervalMs = this.getIntervalMs(libSettings.syncIntervalValue, libSettings.syncIntervalUnit);
+				const lastSync = libSettings.lastScheduledSync || 0;
+				if (now - lastSync >= intervalMs) {
+					Logger.debug("Triggering root scheduled sync...");
+					try {
+						await this.libraryManager.syncBackup("", "Scheduled sync via Abstract Folder", undefined, true);
+						libSettings.lastScheduledSync = Date.now();
+						await this.saveSettings();
+					} catch (e) {
+						Logger.error("Root scheduled sync failed", e);
+					}
+				}
 			}
 
-			Logger.debug(`Setting up sync scheduler: every ${syncIntervalValue} ${syncIntervalUnit} (${intervalMs}ms)`);
-			
-			this.syncInterval = window.setInterval(async () => {
-				Logger.debug("Triggering scheduled sync...");
-				try {
-					await this.libraryManager.syncBackup("", "Scheduled sync via Abstract Folder", undefined, true);
-				} catch (e) {
-					Logger.error("Scheduled sync failed", e);
+			// 2. Check each Shared Space
+			if (libSettings.spaceConfigs) {
+				for (const [path, config] of Object.entries(libSettings.spaceConfigs)) {
+					if (config.enableScheduledSync) {
+						const intervalMs = this.getIntervalMs(config.syncIntervalValue, config.syncIntervalUnit);
+						const lastSync = config.lastSync || 0;
+						if (now - lastSync >= intervalMs) {
+							Logger.debug(`Triggering scheduled sync for space: ${path}`);
+							try {
+								await this.libraryManager.syncBackup(path, "Scheduled sync via Abstract Folder", undefined, true);
+								config.lastSync = Date.now();
+								await this.saveSettings();
+							} catch (e) {
+								Logger.error(`Scheduled sync failed for space ${path}`, e);
+							}
+						}
+					}
 				}
-			}, intervalMs);
+			}
+		};
 
-			this.registerInterval(this.syncInterval as any);
+		// Run every 1 minute to check if any sync is due
+		this.syncInterval = window.setInterval(checkSync, 60 * 1000);
+		this.registerInterval(this.syncInterval as any);
+	}
+
+	private getIntervalMs(value: number, unit: 'minutes' | 'hours' | 'days' | 'weeks'): number {
+		let ms = value * 60 * 1000;
+		switch (unit) {
+			case 'hours': ms *= 60; break;
+			case 'days': ms *= 60 * 24; break;
+			case 'weeks': ms *= 60 * 24 * 7; break;
 		}
+		return ms;
 	}
 
 	onunload() {

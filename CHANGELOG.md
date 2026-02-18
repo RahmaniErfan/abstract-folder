@@ -96,6 +96,14 @@
 - **Console Hygiene**: Significantly reduced log noise during file operations.
 - **Render Efficiency**: Consolidated "double-refresh" cycles into a single, optimized render pass.
 
+### Improved
+- **Space Dashboard Experience**:
+  - **Live Collaborator Management**: Switched to real-time GitHub API fetching for the "Collaborators" list, ensuring new invitations and removed members are reflected immediately.
+  - **Active Collaborator Removal**: Owners can now remove active collaborators (not just pending invites) via a subtle trash icon in the dashboard.
+  - **Instant UI Refresh**: Refactored the dashboard to update lists in-place without refreshing the entire modal, eliminating UI jitter/flash.
+  - **Manual Refresh**: Added a refresh button to the Space Dashboard header for on-demand data updates.
+  - **Visual Polish**: Constrained collaborator avatars to prevent layout breakage and improved button styling.
+
 ### Fixed
 - **Root Node Visibility**: Resolved an issue where new root notes (orphans) failed to trigger a UI update until manual refresh.
 - **Deletion Feedback**: Files now disappear instantly from the view upon deletion.

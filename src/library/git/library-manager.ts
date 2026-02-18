@@ -261,13 +261,17 @@ export class LibraryManager {
      * Validate library.config.json in the library folder.
      */
     async validateLibrary(vaultPath: string): Promise<LibraryConfig> {
+        const absoluteDir = this.getAbsolutePath(vaultPath);
+        const configPath = path.join(absoluteDir, 'library.config.json');
+        
         try {
-            const absoluteDir = this.getAbsolutePath(vaultPath);
-            const configPath = path.join(absoluteDir, 'library.config.json');
             const configContent = await NodeFsAdapter.promises.readFile(configPath, "utf8");
             return DataService.parseLibraryConfig(configContent);
         } catch (error) {
-            console.error("Validation failed", error);
+            // Only alert if the file exists but we failed to parse it
+            if (error.code !== 'ENOENT') {
+                console.error(`Validation failed for ${vaultPath}:`, error);
+            }
             const message = error instanceof Error ? error.message : String(error);
             throw new Error(`Failed to validate library at ${vaultPath}: ${message}`);
         }
@@ -316,19 +320,20 @@ export class LibraryManager {
      */
     async isLibraryOwner(vaultPath: string): Promise<{ isOwner: boolean; author: string; repositoryUrl: string | null }> {
         try {
-            const config = await this.validateLibrary(vaultPath);
-            const author = config.author || "Unknown";
+            // Shared Spaces might not have library.config.json, so we make this resilient
+            const config = await this.validateLibrary(vaultPath).catch(() => null);
+            const author = config?.author || "Unknown";
             
             const username = this.settings.librarySettings.githubUsername;
             const gitName = this.settings.librarySettings.gitName;
             
-            // 1. Check Author Name (Display/Legacy)
-            const nameMatch = (username?.toLowerCase() === author.toLowerCase()) || 
-                             (gitName?.toLowerCase() === author.toLowerCase());
+            // 1. Check Author Name (Display/Legacy) - Only possible if config exists
+            const nameMatch = config ? ((username?.toLowerCase() === author.toLowerCase()) || 
+                             (gitName?.toLowerCase() === author.toLowerCase())) : false;
             
-            // 2. Check Actual Git Remote (Most robust)
+            // 2. Check Actual Git Remote (Most robust source of truth)
             const actualRemote = await this.getRemoteUrl(vaultPath);
-            const manifestRemote = config.repositoryUrl;
+            const manifestRemote = config?.repositoryUrl;
             
             let repoMatch = false;
             const checkUrl = actualRemote || manifestRemote;
@@ -339,7 +344,7 @@ export class LibraryManager {
                            lowerRepo.includes(`github.com:${lowerUser}/`);
             }
 
-            return { isOwner: nameMatch || repoMatch, author, repositoryUrl: checkUrl };
+            return { isOwner: nameMatch || repoMatch, author, repositoryUrl: checkUrl ?? null };
         } catch (error) {
             console.error("[LibraryManager] Failed to determine library ownership", error);
             return { isOwner: false, author: "Unknown", repositoryUrl: null };
@@ -697,6 +702,50 @@ export class LibraryManager {
             console.error("[LibraryManager] Failed to finalize merge:", error);
             new Notice("Failed to finalize merge. Check console for details.");
             throw error;
+        }
+    }
+    /**
+     * Fetches the commit history for a space.
+     */
+    async getHistory(vaultPath: string, depth = 10): Promise<any[]> {
+        try {
+            const absoluteDir = this.getAbsolutePath(vaultPath);
+            const log = await git.log({
+                fs: NodeFsAdapter,
+                dir: absoluteDir,
+                depth,
+            });
+            return log.map(commit => ({
+                oid: commit.oid,
+                message: commit.commit.message,
+                author: commit.commit.author.name,
+                email: commit.commit.author.email,
+                timestamp: commit.commit.author.timestamp * 1000, // Convert to ms
+            }));
+        } catch (error) {
+            console.error("[LibraryManager] Failed to fetch history", error);
+            return [];
+        }
+    }
+
+    /**
+     * Derives a list of collaborators from Git history.
+     */
+    async getCollaborators(vaultPath: string): Promise<{ name: string; email: string; avatar?: string }[]> {
+        try {
+            const history = await this.getHistory(vaultPath, 50);
+            const collaborators = new Map<string, { name: string; email: string }>();
+            
+            for (const entry of history) {
+                if (!collaborators.has(entry.email)) {
+                    collaborators.set(entry.email, { name: entry.author, email: entry.email });
+                }
+            }
+
+            return Array.from(collaborators.values());
+        } catch (error) {
+            console.error("[LibraryManager] Failed to fetch collaborators", error);
+            return [];
         }
     }
 }

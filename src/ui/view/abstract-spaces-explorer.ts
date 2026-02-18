@@ -3,6 +3,7 @@ import AbstractFolderPlugin from "main";
 import { CreateSharedSpaceModal } from "../modals/create-shared-space-modal";
 import { JoinSharedSpaceModal } from "../modals/join-shared-space-modal";
 import { LinkSharedSpaceModal } from "../modals/link-shared-space-modal";
+import { SpaceDashboardModal } from "../modals/space-dashboard-modal";
 import { VirtualViewport, ViewportDelegate } from "../components/virtual-viewport";
 import { ContextEngine } from "../../core/context-engine";
 import { AbstractNode } from "../../core/tree-builder";
@@ -17,6 +18,9 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
     private currentItems: AbstractNode[] = [];
     private isRefreshing = false;
     private nextRefreshScheduled = false;
+    private repositoryUrl: string | null = null;
+    private authorName = "Unknown";
+    private isOwner = false;
 
     // Search Options
     private showAncestors = true;
@@ -193,6 +197,12 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
 
         titleRow.createEl("h3", { text: this.selectedSpace.name, cls: "abstract-folder-header-title" });
 
+        // Pre-fetch ownership and repo info for toolbars
+        const status = await this.plugin.libraryManager.isLibraryOwner(this.selectedSpace.path);
+        this.isOwner = status.isOwner;
+        this.authorName = status.author;
+        this.repositoryUrl = status.repositoryUrl;
+
         this.renderTopToolbar(header);
         this.renderSearch(header);
 
@@ -351,8 +361,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
     private async renderSpaceStatusBar(container: HTMLElement) {
         if (!this.selectedSpace) return;
         
-        const remoteUrl = await this.plugin.libraryManager.getRemoteUrl(this.selectedSpace.path);
-        const isLinked = !!remoteUrl;
+        const isLinked = !!this.repositoryUrl;
 
         const toolbar = container.createDiv({ cls: "af-status-bar" });
         const identityArea = toolbar.createDiv({ cls: "af-status-identity" });
@@ -370,6 +379,11 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
                 text: "Local Only",
                 attr: { "aria-label": "This space is not linked to a remote repository" }
             });
+        } else {
+            infoArea.createDiv({ 
+                cls: `library-access-badge-pill ${this.isOwner ? 'is-owner' : 'is-readonly'}`,
+                text: this.isOwner ? "Owner" : "Read-only"
+            });
         }
 
         const controlsArea = toolbar.createDiv({ cls: "af-status-controls" });
@@ -381,21 +395,18 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         });
         setIcon(dashboardBtn, "cloud");
         dashboardBtn.addEventListener("click", () => {
-            new Notice(`${this.selectedSpace?.name} settings coming soon`);
-        });
-
-        const syncArea = controlsArea.createDiv({ 
-            cls: "af-status-control af-status-sync-btn clickable-icon", 
-            attr: { "aria-label": isLinked ? "Sync Space Now" : "Link & Publish Space" } 
-        });
-        
-        const syncIconContainer = syncArea.createDiv({ cls: "af-status-sync-icon" });
-        setIcon(syncIconContainer, isLinked ? "refresh-cw" : "upload-cloud");
-
-        syncArea.addEventListener("click", async () => {
             if (!this.selectedSpace) return;
+            new SpaceDashboardModal(this.app, this.plugin, this.selectedSpace, this.isOwner).open();
+        });
 
-            if (!isLinked) {
+        if (!isLinked) {
+            const linkArea = controlsArea.createDiv({ 
+                cls: "af-status-control af-status-sync-btn clickable-icon", 
+                attr: { "aria-label": "Link & Publish Space" } 
+            });
+            setIcon(linkArea, "upload-cloud");
+            linkArea.addEventListener("click", () => {
+                if (!this.selectedSpace) return;
                 new LinkSharedSpaceModal(
                     this.app, 
                     this.plugin, 
@@ -405,18 +416,55 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
                         this.renderView();
                     }
                 ).open();
-                return;
-            }
+            });
+            return;
+        }
 
-            syncArea.addClass("is-syncing");
+        // Push Button (Owners only)
+        if (this.isOwner) {
+            const pushArea = controlsArea.createDiv({ 
+                cls: "af-status-control af-status-sync-btn clickable-icon", 
+                attr: { "aria-label": "Push changes" } 
+            });
+            const pushIconContainer = pushArea.createDiv({ cls: "af-status-sync-icon" });
+            setIcon(pushIconContainer, "arrow-up-circle");
+
+            pushArea.addEventListener("click", async () => {
+                if (!this.selectedSpace) return;
+                pushArea.addClass("is-syncing");
+                try {
+                    new Notice(`Pushing ${this.selectedSpace.name}...`);
+                    await this.plugin.libraryManager.syncBackup(this.selectedSpace.path, "Update space", undefined, true);
+                    new Notice("Successfully pushed changes");
+                    void this.refreshSpaceTree();
+                } catch (e) {
+                    new Notice(`Push failed: ${e.message}`);
+                } finally {
+                    pushArea.removeClass("is-syncing");
+                }
+            });
+        }
+
+        // Pull Button
+        const pullArea = controlsArea.createDiv({ 
+            cls: "af-status-control af-status-sync-btn clickable-icon", 
+            attr: { "aria-label": "Pull updates" } 
+        });
+        const pullIconContainer = pullArea.createDiv({ cls: "af-status-sync-icon" });
+        setIcon(pullIconContainer, "refresh-cw");
+
+        pullArea.addEventListener("click", async () => {
+            if (!this.selectedSpace) return;
+            pullArea.addClass("is-syncing");
             try {
-                new Notice(`Syncing ${this.selectedSpace.name}...`);
-                await this.plugin.libraryManager.syncBackup(this.selectedSpace.path, "Manual sync from Space Explorer");
-                new Notice("Sync complete");
+                new Notice(`Updating ${this.selectedSpace.name}...`);
+                await this.plugin.libraryManager.updateLibrary(this.selectedSpace.path);
+                new Notice("Space updated");
+                void this.refreshSpaceTree();
             } catch (e) {
-                new Notice(`Sync failed: ${e.message}`);
+                new Notice(`Update failed: ${e.message}`);
             } finally {
-                syncArea.removeClass("is-syncing");
+                pullArea.removeClass("is-syncing");
             }
         });
     }

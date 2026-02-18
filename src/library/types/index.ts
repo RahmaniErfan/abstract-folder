@@ -2,6 +2,14 @@ import { FolderNode } from "../../types";
 
 export type LibraryStatus = 'up-to-date' | 'update-available' | 'dirty' | 'syncing' | 'error';
 
+export interface SharedSpaceConfig {
+    path: string;
+    enableScheduledSync: boolean;
+    syncIntervalValue: number;
+    syncIntervalUnit: 'minutes' | 'hours' | 'days' | 'weeks';
+    lastSync?: number;
+}
+
 export interface LibraryConfig {
     id: string;
     name: string;
@@ -40,6 +48,7 @@ export interface LibrarySettings {
     registries: string[];  // List of custom registry URLs
     standaloneLibraries: string[]; // List of direct repository URLs
     sharedSpaces: string[]; // List of paths that are Shared Spaces (Collaborative)
+    spaceConfigs: Record<string, SharedSpaceConfig>; // Per-space configuration
     personalBackups: string[]; // List of paths that are Personal Backups
     githubToken?: string;
     githubUsername?: string;
@@ -50,5 +59,6 @@ export interface LibrarySettings {
     enableScheduledSync: boolean;
     syncIntervalValue: number;
     syncIntervalUnit: 'minutes' | 'hours' | 'days' | 'weeks';
+    lastScheduledSync?: number;
     securityExclusions: string[]; // Patterns for files to exclude from sync
 }

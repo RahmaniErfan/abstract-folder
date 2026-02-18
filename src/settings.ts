@@ -108,6 +108,7 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
     registries: ["https://raw.githubusercontent.com/RahmaniErfan/abstract-registry/main/directory.json"],
     standaloneLibraries: [],
     sharedSpaces: [],
+    spaceConfigs: {},
     personalBackups: [],
     githubToken: "",
     githubUsername: "",
