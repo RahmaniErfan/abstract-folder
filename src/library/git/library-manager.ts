@@ -447,7 +447,7 @@ export class LibraryManager {
                 return;
             }
 
-            await git.init({ fs: NodeFsAdapter, dir: absoluteDir });
+            await git.init({ fs: NodeFsAdapter, dir: absoluteDir, defaultBranch: 'main' });
             
             const gitSettings = this.settings.librarySettings;
             const author = { 
@@ -499,7 +499,7 @@ export class LibraryManager {
             }
 
             // 3. git init
-            await git.init({ fs: NodeFsAdapter, dir: absoluteDir });
+            await git.init({ fs: NodeFsAdapter, dir: absoluteDir, defaultBranch: 'main' });
 
             // add remote
             await git.addRemote({
@@ -551,32 +551,42 @@ export class LibraryManager {
             });
 
             // 3. Pull changes (which will now perform a merge if needed)
+            // We use the current branch name for pulling
+            let currentBranch = "main";
             try {
+                currentBranch = await git.currentBranch({ fs: NodeFsAdapter, dir: absoluteDir }) || "main";
+                
                 await git.pull({
                     fs: NodeFsAdapter,
                     http: ObsidianHttpAdapter as any,
                     dir: absoluteDir,
                     onAuth: tokenToUse ? () => ({ username: tokenToUse }) : undefined,
                     singleBranch: true,
+                    ref: currentBranch,
                     author: author,
                     committer: author
                 });
             } catch (e: any) {
-                // Ignore "no remote branch" errors (common on initial push)
-                if (e.code === 'NotFoundError' || e.message?.includes('could not find')) {
-                    console.debug("[LibraryManager] No remote branch found to pull from.");
+                // Handle various "new repo" edge cases
+                const isNotFoundError = e.code === 'NotFoundError' || e.message?.includes('could not find');
+                const isTypeError = e instanceof TypeError;
+                
+                if (isNotFoundError || isTypeError) {
+                    console.debug("[LibraryManager] Skipping pull: Remote branch likely does not exist yet (Empty Repository).", e);
                 } else {
                     throw e;
                 }
             }
 
             // 4. Push
+            // We push the current local branch to the remote branch of the same name
             await git.push({
                 fs: NodeFsAdapter,
                 http: ObsidianHttpAdapter as any,
                 dir: absoluteDir,
                 onAuth: tokenToUse ? () => ({ username: tokenToUse }) : undefined,
-                remote: 'origin'
+                remote: 'origin',
+                ref: currentBranch
             });
 
             if (!silent) new Notice("Backup synced successfully");
@@ -607,6 +617,25 @@ export class LibraryManager {
         }
     }
 
+
+    /**
+     * Set the remote URL for a repository.
+     */
+    async addRemote(vaultPath: string, url: string): Promise<void> {
+        try {
+            const absoluteDir = this.getAbsolutePath(vaultPath);
+            await git.addRemote({
+                fs: NodeFsAdapter,
+                dir: absoluteDir,
+                remote: 'origin',
+                url: url
+            });
+            console.log(`[LibraryManager] Added remote 'origin' -> ${url} for ${vaultPath}`);
+        } catch (error) {
+            console.error("Failed to add remote", error);
+            throw error;
+        }
+    }
     /**
      * Finalizes a merge by committing the resolution and pushing to remote.
      * This skips the 'pull' step to avoid re-triggering conflict errors.

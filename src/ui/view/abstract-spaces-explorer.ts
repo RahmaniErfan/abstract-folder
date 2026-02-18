@@ -2,6 +2,7 @@ import { ItemView, WorkspaceLeaf, Menu, Notice, TFile, setIcon, Plugin, TFolder,
 import AbstractFolderPlugin from "main";
 import { CreateSharedSpaceModal } from "../modals/create-shared-space-modal";
 import { JoinSharedSpaceModal } from "../modals/join-shared-space-modal";
+import { LinkSharedSpaceModal } from "../modals/link-shared-space-modal";
 import { VirtualViewport, ViewportDelegate } from "../components/virtual-viewport";
 import { ContextEngine } from "../../core/context-engine";
 import { AbstractNode } from "../../core/tree-builder";
@@ -16,6 +17,13 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
     private currentItems: AbstractNode[] = [];
     private isRefreshing = false;
     private nextRefreshScheduled = false;
+
+    // Search Options
+    private showAncestors = true;
+    private showDescendants = true;
+    private searchQuery = "";
+    private searchInput: HTMLInputElement;
+    private clearSearchBtn: HTMLElement;
 
     constructor(leaf: WorkspaceLeaf, plugin: AbstractFolderPlugin) {
         super(leaf);
@@ -44,12 +52,23 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
                 this.renderView();
             })
         );
+        
+        // Listen for graph updates (e.g. new files) to refresh the tree
+        this.registerEvent(
+            (this.app.workspace as any).on("abstract-folder:graph-updated", () => {
+                if (this.selectedSpace) {
+                    void this.refreshSpaceTree();
+                } else {
+                    this.renderView();
+                }
+            })
+        );
     }
 
     private renderView() {
         const container = this.containerEl.children[1] as HTMLElement;
         container.empty();
-        container.addClass("abstract-folder-library-explorer");
+        container.addClass("abstract-library-explorer");
 
         if (this.selectedSpace) {
             void this.renderSpaceTree(container);
@@ -174,29 +193,36 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
 
         titleRow.createEl("h3", { text: this.selectedSpace.name, cls: "abstract-folder-header-title" });
 
+        this.renderTopToolbar(header);
+        this.renderSearch(header);
+
         header.createDiv({ cls: "library-header-divider" });
 
-        // Toolbar Action Row (Search + Actions)
-        const actionRow = header.createDiv({ cls: "library-shelf-search-row" });
-        
-        // Search Input
-        const searchContainer = actionRow.createDiv({ cls: "abstract-folder-search-container" });
-        const searchWrapper = searchContainer.createDiv({ cls: "abstract-folder-search-input-wrapper" });
-        const searchInput = searchWrapper.createEl("input", {
-            type: "text",
-            placeholder: "Search in space...",
-            cls: "abstract-folder-search-input"
-        });
-        
-        searchInput.addEventListener("input", (e) => {
-            const query = (e.target as HTMLInputElement).value;
-            this.contextEngine.setFilter(query);
-            void this.refreshSpaceTree();
-        });
+        const treeContainer = container.createDiv({ cls: "abstract-folder-tree-container" });
+        const scrollContainer = treeContainer.createDiv({ cls: "abstract-folder-viewport-scroll-container nav-files-container" });
+        const spacerEl = scrollContainer.createDiv({ cls: "abstract-folder-viewport-spacer" });
+        const contentEl = scrollContainer.createDiv({ cls: "abstract-folder-viewport-rows" });
+
+        await this.renderSpaceStatusBar(container);
+
+        this.viewport = new VirtualViewport(
+            contentEl,
+            scrollContainer,
+            spacerEl,
+            this.contextEngine,
+            this.plugin.scopeProjector,
+            this,
+            { showGroupHeader: false }
+        );
+        await this.refreshSpaceTree();
+    }
+
+    private renderTopToolbar(container: HTMLElement) {
+        const toolbar = container.createDiv({ cls: "abstract-folder-toolbar" });
 
         // Sort Button
-        const sortBtn = actionRow.createDiv({ 
-            cls: "clickable-icon nav-action-button", 
+        const sortBtn = toolbar.createDiv({ 
+            cls: "abstract-folder-toolbar-action clickable-icon", 
             attr: { "aria-label": "Change sort order" } 
         });
         setIcon(sortBtn, "arrow-up-down");
@@ -230,8 +256,8 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         });
 
         // New Note Button
-        const newNoteBtn = actionRow.createDiv({ 
-            cls: "clickable-icon nav-action-button", 
+        const newNoteBtn = toolbar.createDiv({ 
+            cls: "abstract-folder-toolbar-action clickable-icon", 
             attr: { "aria-label": "New note" } 
         });
         setIcon(newNoteBtn, "file-plus");
@@ -245,8 +271,8 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         });
 
         // New Folder Button
-        const newFolderBtn = actionRow.createDiv({ 
-            cls: "clickable-icon nav-action-button", 
+        const newFolderBtn = toolbar.createDiv({ 
+            cls: "abstract-folder-toolbar-action clickable-icon", 
             attr: { "aria-label": "New folder" } 
         });
         setIcon(newFolderBtn, "folder-plus");
@@ -254,29 +280,80 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             if (!this.selectedSpace) return;
             await this.app.vault.createFolder(`${this.selectedSpace.path}/New Folder`);
         });
-
-        header.createDiv({ cls: "library-header-divider" });
-
-        const treeContainer = container.createDiv({ cls: "abstract-folder-tree-container" });
-        const scrollContainer = treeContainer.createDiv({ cls: "abstract-folder-viewport-scroll-container nav-files-container" });
-        const spacerEl = scrollContainer.createDiv({ cls: "abstract-folder-viewport-spacer" });
-        const contentEl = scrollContainer.createDiv({ cls: "abstract-folder-viewport-rows" });
-
-        this.renderSpaceStatusBar(container);
-
-        this.viewport = new VirtualViewport(
-            contentEl,
-            scrollContainer,
-            spacerEl,
-            this.contextEngine,
-            this.plugin.scopeProjector,
-            this,
-            { showGroupHeader: false }
-        );
-        await this.refreshSpaceTree();
     }
 
-    private renderSpaceStatusBar(container: HTMLElement) {
+    private renderSearch(container: HTMLElement) {
+        const searchContainer = container.createDiv({ cls: "abstract-folder-search-container" });
+        const wrapper = searchContainer.createDiv({ cls: "abstract-folder-search-input-wrapper" });
+        
+        this.searchInput = wrapper.createEl("input", {
+            type: "text",
+            placeholder: "Search in space...",
+            cls: "abstract-folder-search-input",
+            value: this.searchQuery
+        });
+
+        this.clearSearchBtn = wrapper.createDiv({
+            cls: "abstract-folder-search-clear",
+            attr: { "aria-label": "Clear search" }
+        });
+        setIcon(this.clearSearchBtn, "x");
+        this.updateClearButtonState();
+
+        this.searchInput.addEventListener("input", () => {
+            this.searchQuery = this.searchInput.value;
+            this.contextEngine.setFilter(this.searchQuery);
+            this.updateClearButtonState();
+            void this.refreshSpaceTree();
+        });
+
+        this.clearSearchBtn.addEventListener("click", () => {
+            this.searchQuery = "";
+            this.searchInput.value = "";
+            this.contextEngine.setFilter("");
+            this.updateClearButtonState();
+            this.searchInput.focus();
+            void this.refreshSpaceTree();
+        });
+
+        const showAncestorsBtn = searchContainer.createDiv({
+            cls: "clickable-icon ancestry-search-toggle",
+            attr: { "aria-label": "Show all ancestors in search" }
+        });
+        setIcon(showAncestorsBtn, "arrow-up-left");
+        if (this.showAncestors) showAncestorsBtn.addClass("is-active");
+
+        showAncestorsBtn.addEventListener("click", () => {
+            this.showAncestors = !this.showAncestors;
+            showAncestorsBtn.toggleClass("is-active", this.showAncestors);
+            void this.refreshSpaceTree();
+        });
+
+        const showDescendantsBtn = searchContainer.createDiv({
+            cls: "clickable-icon ancestry-search-toggle",
+            attr: { "aria-label": "Show all descendants in search" }
+        });
+        setIcon(showDescendantsBtn, "arrow-down-right");
+        if (this.showDescendants) showDescendantsBtn.addClass("is-active");
+
+        showDescendantsBtn.addEventListener("click", () => {
+            this.showDescendants = !this.showDescendants;
+            showDescendantsBtn.toggleClass("is-active", this.showDescendants);
+            void this.refreshSpaceTree();
+        });
+    }
+
+    private updateClearButtonState() {
+        if (!this.clearSearchBtn) return;
+        this.clearSearchBtn.toggleClass("is-active", this.searchQuery.length > 0);
+    }
+
+    private async renderSpaceStatusBar(container: HTMLElement) {
+        if (!this.selectedSpace) return;
+        
+        const remoteUrl = await this.plugin.libraryManager.getRemoteUrl(this.selectedSpace.path);
+        const isLinked = !!remoteUrl;
+
         const toolbar = container.createDiv({ cls: "af-status-bar" });
         const identityArea = toolbar.createDiv({ cls: "af-status-identity" });
         
@@ -285,23 +362,61 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         spaceIcon.style.color = "var(--color-purple)";
 
         const infoArea = identityArea.createDiv({ cls: "library-bottom-info-row" });
-        infoArea.createSpan({ cls: "af-status-username", text: this.selectedSpace?.name || "" });
+        infoArea.createSpan({ cls: "af-status-username", text: this.selectedSpace.name });
+
+        if (!isLinked) {
+            infoArea.createDiv({ 
+                cls: "library-access-badge-pill is-readonly", 
+                text: "Local Only",
+                attr: { "aria-label": "This space is not linked to a remote repository" }
+            });
+        }
 
         const controlsArea = toolbar.createDiv({ cls: "af-status-controls" });
 
-        const syncBtn = controlsArea.createDiv({ 
+        // Cloud icon for dashboard/settings
+        const dashboardBtn = controlsArea.createDiv({ 
             cls: "af-status-control clickable-icon", 
-            attr: { "aria-label": "Sync Space Now" } 
+            attr: { "aria-label": "Space Info & Settings" } 
         });
-        setIcon(syncBtn, "refresh-cw");
-        syncBtn.addEventListener("click", async () => {
+        setIcon(dashboardBtn, "cloud");
+        dashboardBtn.addEventListener("click", () => {
+            new Notice(`${this.selectedSpace?.name} settings coming soon`);
+        });
+
+        const syncArea = controlsArea.createDiv({ 
+            cls: "af-status-control af-status-sync-btn clickable-icon", 
+            attr: { "aria-label": isLinked ? "Sync Space Now" : "Link & Publish Space" } 
+        });
+        
+        const syncIconContainer = syncArea.createDiv({ cls: "af-status-sync-icon" });
+        setIcon(syncIconContainer, isLinked ? "refresh-cw" : "upload-cloud");
+
+        syncArea.addEventListener("click", async () => {
             if (!this.selectedSpace) return;
+
+            if (!isLinked) {
+                new LinkSharedSpaceModal(
+                    this.app, 
+                    this.plugin, 
+                    this.selectedSpace.path, 
+                    this.selectedSpace.name, 
+                    () => {
+                        this.renderView();
+                    }
+                ).open();
+                return;
+            }
+
+            syncArea.addClass("is-syncing");
             try {
                 new Notice(`Syncing ${this.selectedSpace.name}...`);
                 await this.plugin.libraryManager.syncBackup(this.selectedSpace.path, "Manual sync from Space Explorer");
                 new Notice("Sync complete");
             } catch (e) {
                 new Notice(`Sync failed: ${e.message}`);
+            } finally {
+                syncArea.removeClass("is-syncing");
             }
         });
     }
@@ -320,9 +435,10 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             const scopePath = this.selectedSpace.path;
             const generator = this.plugin.treeBuilder.buildTree(
                 this.contextEngine, 
-                null, 
-                false, 
-                scopePath
+                this.searchQuery, 
+                !!this.searchQuery, 
+                scopePath,
+                { showAncestors: this.showAncestors, showDescendants: this.showDescendants }
             );
             
             let result;

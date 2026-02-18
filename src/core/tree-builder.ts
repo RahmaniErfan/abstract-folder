@@ -203,9 +203,15 @@ export class TreeBuilder {
             }
 
             // [MAIN VIEW SCOPE CHECK]
-            // Ensure library files don't leak into the main view
-            if (!activeGroupId && libraryPath && (id === libraryPath || id.startsWith(libraryPath + '/'))) {
-                continue;
+            // Ensure library files AND shared spaces don't leak into the main view
+            if (!activeGroupId) {
+                if (libraryPath && (id === libraryPath || id.startsWith(libraryPath + '/'))) {
+                    continue;
+                }
+                const sharedSpacesRoot = context.settings.librarySettings.sharedSpacesRoot || "Abstract Spaces";
+                if (id === sharedSpacesRoot || id.startsWith(sharedSpacesRoot + '/')) {
+                    continue;
+                }
             }
 
             // Phase 2: Structural Inclusion (Group Roots)

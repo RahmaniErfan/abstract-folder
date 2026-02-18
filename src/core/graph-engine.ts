@@ -457,8 +457,13 @@ export class GraphEngine implements IGraphEngine {
             const node = this.index.getNode(id);
             if (node && node.parents.size === 0) {
                 // MODULAR ROOT CHECK:
-                // 1. Scoping Check: Exclude libraries from main view roots
+                // 1. Scoping Check: Exclude libraries AND shared spaces from main view roots
                 if (libraryPath && (id === libraryPath || id.startsWith(libraryPath + '/'))) {
+                    continue;
+                }
+                
+                const sharedSpacesRoot = this.settings.librarySettings.sharedSpacesRoot || "Abstract Spaces";
+                if (id === sharedSpacesRoot || id.startsWith(sharedSpacesRoot + '/')) {
                     continue;
                 }
 

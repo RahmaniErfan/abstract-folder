@@ -1,8 +1,8 @@
 .abstract-library-explorer {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    padding: 0;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 0 !important;
 }
 
 .library-shelf {
