@@ -20,15 +20,6 @@
     padding-bottom: 0 !important;
 }
 
-.af-dashboard-refresh-btn {
-    opacity: 0.6;
-    transition: opacity 0.2s ease;
-}
-
-.af-dashboard-refresh-btn:hover {
-    opacity: 1;
-}
-
 .af-dashboard-section {
     margin-bottom: 30px;
 }

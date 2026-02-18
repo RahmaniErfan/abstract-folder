@@ -50,14 +50,6 @@ export class SpaceDashboardModal extends Modal {
             // I'll add the pipe in CSS or as an element.
         }
         
-        new ButtonComponent(titleContainer)
-            .setIcon("refresh-cw")
-            .setTooltip("Refresh Data")
-            .onClick(async () => {
-                await this.refreshLists();
-            })
-            .buttonEl.addClass("af-dashboard-refresh-btn");
-
         const container = contentEl.createDiv({ cls: "af-dashboard-container" });
 
         // Dynamic Sections (Containers only)
@@ -363,18 +355,6 @@ export class SpaceDashboardModal extends Modal {
         section.createEl("h3", { text: "Actions" });
 
         const actions = section.createDiv({ cls: "af-dashboard-actions" });
-
-        new ButtonComponent(actions)
-            .setButtonText("Copy Invite Link")
-            .onClick(async () => {
-                const url = await this.plugin.libraryManager.getRemoteUrl(this.folder.path);
-                if (url) {
-                    await navigator.clipboard.writeText(url);
-                    new Notice("Invite link (Repo URL) copied to clipboard");
-                } else {
-                    new Notice("Space is not linked to GitHub");
-                }
-            });
 
         if (this.isOwner) {
             new ButtonComponent(actions)
