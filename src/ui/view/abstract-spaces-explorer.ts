@@ -7,6 +7,8 @@ import { SpaceDashboardModal } from "../modals/space-dashboard-modal";
 import { VirtualViewport, ViewportDelegate } from "../components/virtual-viewport";
 import { ContextEngine } from "../../core/context-engine";
 import { AbstractNode } from "../../core/tree-builder";
+import { AbstractFolderToolbar } from "../toolbar/abstract-folder-toolbar";
+import { AbstractSearch } from "../search/abstract-search";
 
 export const ABSTRACT_SPACES_VIEW_TYPE = "abstract-spaces-explorer";
 
@@ -23,11 +25,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
     private isOwner = false;
 
     // Search Options
-    private showAncestors = true;
-    private showDescendants = true;
     private searchQuery = "";
-    private searchInput: HTMLInputElement;
-    private clearSearchBtn: HTMLElement;
 
     constructor(leaf: WorkspaceLeaf, plugin: AbstractFolderPlugin) {
         super(leaf);
@@ -228,135 +226,32 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
     }
 
     private renderTopToolbar(container: HTMLElement) {
-        const toolbar = container.createDiv({ cls: "abstract-folder-toolbar" });
-
-        // Sort Button
-        const sortBtn = toolbar.createDiv({ 
-            cls: "abstract-folder-toolbar-action clickable-icon", 
-            attr: { "aria-label": "Change sort order" } 
-        });
-        setIcon(sortBtn, "arrow-up-down");
-        sortBtn.addEventListener("click", (evt) => {
-            const menu = new Menu();
-            const currentSort = this.contextEngine.getState().sortConfig;
-            
-            const sortOptions = [
-                { label: "File name (A to Z)", sortBy: "name", sortOrder: "asc" },
-                { label: "File name (Z to A)", sortBy: "name", sortOrder: "desc" },
-                { label: "Modified time (new to old)", sortBy: "modified", sortOrder: "desc" },
-                { label: "Modified time (old to new)", sortBy: "modified", sortOrder: "asc" },
-                { label: "Created time (new to old)", sortBy: "created", sortOrder: "desc" },
-                { label: "Created time (old to new)", sortBy: "created", sortOrder: "asc" }
-            ];
-
-            sortOptions.forEach(opt => {
-                menu.addItem((item) => {
-                    item.setTitle(opt.label)
-                        .setChecked(currentSort.sortBy === opt.sortBy && currentSort.sortOrder === opt.sortOrder)
-                        .onClick(() => {
-                            this.contextEngine.setSortConfig({
-                                sortBy: opt.sortBy as any, 
-                                sortOrder: opt.sortOrder as any
-                            });
-                            void this.refreshSpaceTree();
-                        });
-                });
-            });
-            menu.showAtMouseEvent(evt);
-        });
-
-        // New Note Button
-        const newNoteBtn = toolbar.createDiv({ 
-            cls: "abstract-folder-toolbar-action clickable-icon", 
-            attr: { "aria-label": "New note" } 
-        });
-        setIcon(newNoteBtn, "file-plus");
-        newNoteBtn.addEventListener("click", async () => {
-            if (!this.selectedSpace) return;
-            const newFile = await this.app.vault.create(
-                `${this.selectedSpace.path}/Untitled.md`, 
-                ""
-            );
-            await this.app.workspace.getLeaf(false).openFile(newFile);
-        });
-
-        // New Folder Button
-        const newFolderBtn = toolbar.createDiv({ 
-            cls: "abstract-folder-toolbar-action clickable-icon", 
-            attr: { "aria-label": "New folder" } 
-        });
-        setIcon(newFolderBtn, "folder-plus");
-        newFolderBtn.addEventListener("click", async () => {
-            if (!this.selectedSpace) return;
-            await this.app.vault.createFolder(`${this.selectedSpace.path}/New Folder`);
-        });
+        // Create container for toolbar
+        const toolbarContainer = container.createDiv();
+        
+        new AbstractFolderToolbar(this.app, this.plugin.settings, this.plugin, this.contextEngine, {
+            containerEl: toolbarContainer,
+            fileCreationRoot: this.selectedSpace?.path || "",
+            showSortButton: true,
+            showCreateNoteButton: true,
+            showCreateFolderButton: true,
+        }).render();
     }
 
     private renderSearch(container: HTMLElement) {
-        const searchContainer = container.createDiv({ cls: "abstract-folder-search-container" });
-        const wrapper = searchContainer.createDiv({ cls: "abstract-folder-search-input-wrapper" });
-        
-        this.searchInput = wrapper.createEl("input", {
-            type: "text",
+        const searchContainer = container.createDiv();
+        new AbstractSearch(this.app, this.plugin, this.plugin.settings, this.contextEngine, {
+            containerEl: searchContainer,
             placeholder: "Search in space...",
-            cls: "abstract-folder-search-input",
-            value: this.searchQuery
-        });
-
-        this.clearSearchBtn = wrapper.createDiv({
-            cls: "abstract-folder-search-clear",
-            attr: { "aria-label": "Clear search" }
-        });
-        setIcon(this.clearSearchBtn, "x");
-        this.updateClearButtonState();
-
-        this.searchInput.addEventListener("input", () => {
-            this.searchQuery = this.searchInput.value;
-            this.contextEngine.setFilter(this.searchQuery);
-            this.updateClearButtonState();
-            void this.refreshSpaceTree();
-        });
-
-        this.clearSearchBtn.addEventListener("click", () => {
-            this.searchQuery = "";
-            this.searchInput.value = "";
-            this.contextEngine.setFilter("");
-            this.updateClearButtonState();
-            this.searchInput.focus();
-            void this.refreshSpaceTree();
-        });
-
-        const showAncestorsBtn = searchContainer.createDiv({
-            cls: "clickable-icon ancestry-search-toggle",
-            attr: { "aria-label": "Show all ancestors in search" }
-        });
-        setIcon(showAncestorsBtn, "arrow-up-left");
-        if (this.showAncestors) showAncestorsBtn.addClass("is-active");
-
-        showAncestorsBtn.addEventListener("click", () => {
-            this.showAncestors = !this.showAncestors;
-            showAncestorsBtn.toggleClass("is-active", this.showAncestors);
-            void this.refreshSpaceTree();
-        });
-
-        const showDescendantsBtn = searchContainer.createDiv({
-            cls: "clickable-icon ancestry-search-toggle",
-            attr: { "aria-label": "Show all descendants in search" }
-        });
-        setIcon(showDescendantsBtn, "arrow-down-right");
-        if (this.showDescendants) showDescendantsBtn.addClass("is-active");
-
-        showDescendantsBtn.addEventListener("click", () => {
-            this.showDescendants = !this.showDescendants;
-            showDescendantsBtn.toggleClass("is-active", this.showDescendants);
-            void this.refreshSpaceTree();
-        });
+            onSearch: (query) => {
+                this.searchQuery = query;
+                void this.refreshSpaceTree();
+            },
+            showAncestryToggles: true
+        }).render();
     }
 
-    private updateClearButtonState() {
-        if (!this.clearSearchBtn) return;
-        this.clearSearchBtn.toggleClass("is-active", this.searchQuery.length > 0);
-    }
+
 
     private async renderSpaceStatusBar(container: HTMLElement) {
         if (!this.selectedSpace) return;
@@ -482,13 +377,15 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         try {
             const scopePath = this.selectedSpace.path;
             const generator = this.plugin.treeBuilder.buildTree(
-                this.contextEngine, 
-                this.searchQuery, 
-                !!this.searchQuery, 
-                scopePath,
-                { showAncestors: this.showAncestors, showDescendants: this.showDescendants }
-            );
-            
+            this.contextEngine,
+            this.searchQuery,
+            !!this.searchQuery, // Force expand all if searching
+            this.selectedSpace.path,
+            {
+                showAncestors: this.plugin.settings.searchShowAncestors,
+                showDescendants: this.plugin.settings.searchShowDescendants
+            }
+        );    
             let result;
             while (true) {
                 const next = await generator.next();

@@ -4,18 +4,10 @@ import type AbstractFolderPlugin from "main";
 import { CreateAbstractChildModal, PersonalBackupModal } from "../modals";
 import { createAbstractChildFile } from "../../utils/file-operations";
 import { ManageSortingModal } from "../modals/manage-sorting-modal";
-import { ManageFilteringModal } from "../modals/manage-filtering-modal";
-import { Group, SortBy } from "../../types";
-import { ManageGroupsModal } from "../modals/manage-groups-modal";
-import { AuthService } from "../../library/services/auth-service";
-import { Logger } from "../../utils/logger";
+import { AbstractFolderToolbar } from "./abstract-folder-toolbar";
 
 export class AbstractFolderViewToolbar {
-    private viewStyleToggleAction: HTMLElement | undefined;
-    private expandAllAction: HTMLElement | undefined;
-    private collapseAllAction: HTMLElement | undefined;
-    private syncFacet: HTMLElement | undefined;
-    private identityBadge: HTMLElement | undefined;
+    private abstractFolderToolbar: AbstractFolderToolbar;
 
     constructor(
         private app: App,
@@ -24,179 +16,40 @@ export class AbstractFolderViewToolbar {
         private containerEl: HTMLElement,
         private focusSearch: () => void,
         private focusActiveFile: () => void,
-    ) {}
-
-    private addAction(icon: string, title: string, onclick: (evt: MouseEvent) => void): HTMLElement {
-        const actionEl = this.containerEl.createDiv({
-            cls: "abstract-folder-toolbar-action clickable-icon",
-            attr: { "aria-label": title, "title": title }
-        });
-        setIcon(actionEl, icon);
-        actionEl.addEventListener("click", (evt: MouseEvent) => {
-            evt.preventDefault();
-            evt.stopPropagation();
-            onclick(evt);
-        });
-        return actionEl;
+    ) {
+        this.abstractFolderToolbar = new AbstractFolderToolbar(
+            app,
+            settings,
+            plugin,
+            plugin.contextEngine,
+            {
+                containerEl: containerEl,
+                showFocusButton: settings.showFocusActiveFileButton,
+                showConversionButton: settings.showConversionButton,
+                showCollapseButton: settings.showCollapseAllButton,
+                showExpandButton: true, // Always show if we want to support it, or check settings if we add it
+                showViewStyleButton: true, // Always show for personal view
+                showSortButton: settings.showSortButton,
+                showFilterButton: settings.showFilterButton,
+                showGroupButton: settings.showGroupButton,
+                showCreateNoteButton: settings.showCreateNoteButton,
+                // Personal view doesn't typically have "create folder" button in toolbar, usually via modal or context menu
+                // But if we want it, we can enable it. The original didn't seem to have it in the main toolbar.
+                showCreateFolderButton: false, 
+                focusActiveFile: focusActiveFile
+            }
+        );
     }
 
     public setupToolbarActions(): void {
-        this.containerEl.empty();
-        this.containerEl.addClass("abstract-folder-toolbar");
-        
-        // Clear references before rebuilding
-        this.expandAllAction = undefined;
-        this.collapseAllAction = undefined;
-
-        if (this.settings.showFocusActiveFileButton) {
-            this.addAction("target", "Focus active file", () => this.focusActiveFile?.());
-        }
-        if (this.settings.showConversionButton) {
-            this.addAction("lucide-folder-sync", "Convert folder structure", (evt) => this.showConversionMenu(evt));
-        }
-        if (this.settings.showCollapseAllButton) {
-            this.collapseAllAction = this.addAction("chevrons-down-up", "Collapse all folders", () => {
-                this.plugin.contextEngine.collapseAll();
-            });
-        }
-        if (this.settings.showSortButton) {
-            this.addAction("arrow-up-down", "Sort order", (evt) => this.showSortMenu(evt));
-        }
-        if (this.settings.showFilterButton) {
-            this.addAction("filter", "Filter", (evt) => this.showFilterMenu(evt));
-        }
-        if (this.settings.showGroupButton) {
-            this.addAction("group", "Select group", (evt) => this.showGroupMenu(evt));
-        }
-        if (this.settings.showCreateNoteButton) {
-            this.addAction("file-plus", "Create new root note", () => {
-                new CreateAbstractChildModal(this.app, this.settings, (name, type) => {
-                    createAbstractChildFile(this.app, this.settings, name, null, type, this.plugin.graphEngine).catch(Logger.error);
-                }, 'note').open();
-            });
-        }
-
-        this.updateButtonStates();
+        this.abstractFolderToolbar.render();
     }
 
     public updateButtonStates(): void {
-        const isTreeView = this.settings.viewStyle === 'tree';
-        if (this.expandAllAction) {
-            this.expandAllAction.ariaDisabled = String(!isTreeView);
-            this.expandAllAction.toggleClass('is-disabled', !isTreeView);
-        }
-        if (this.collapseAllAction) {
-            this.collapseAllAction.ariaDisabled = String(!isTreeView);
-            this.collapseAllAction.toggleClass('is-disabled', !isTreeView);
-        }
+        this.abstractFolderToolbar.updateButtonStates();
     }
 
     public updateViewStyleToggleButton(): void {
-        if (!this.viewStyleToggleAction) return;
-        const isColumnView = this.settings.viewStyle === 'column';
-        setIcon(this.viewStyleToggleAction, isColumnView ? "folder-tree" : "rows-2");
-        this.viewStyleToggleAction.ariaLabel = isColumnView ? "Switch to tree view" : "Switch to column view";
-        this.viewStyleToggleAction.title = isColumnView ? "Switch to tree view" : "Switch to column view";
-    }
-
-    private showSortMenu(event: MouseEvent): void {
-        const menu = new Menu();
-        menu.addItem(item => item.setTitle("Manage default sorting").setIcon("gear").onClick(() => {
-            new ManageSortingModal(this.app, this.settings, (updated) => {
-                this.plugin.settings = updated;
-                this.plugin.saveSettings().then(() => {
-                    let sortConfig = this.plugin.settings.defaultSort;
-                    if (this.plugin.settings.activeGroupId) {
-                        const active = this.plugin.settings.groups.find(g => g.id === this.plugin.settings.activeGroupId);
-                        if (active && active.sort) sortConfig = active.sort;
-                    }
-                    this.plugin.contextEngine.setSortConfig(sortConfig);
-                }).catch(Logger.error);
-            }).open();
-        }));
-        menu.addSeparator();
-        const currentSort = this.plugin.contextEngine.getState().sortConfig;
-        const addSortItem = (title: string, icon: string, sortBy: SortBy, sortOrder: 'asc' | 'desc') => {
-            menu.addItem(item => item.setTitle(title)
-                .setIcon(currentSort.sortBy === sortBy && currentSort.sortOrder === sortOrder ? "check" : icon)
-                .onClick(() => this.plugin.contextEngine.setSortConfig({ sortBy, sortOrder })));
-        };
-        addSortItem("Sort by name (ascending)", "sort-asc", 'name', 'asc');
-        addSortItem("Sort by name (descending)", "sort-desc", 'name', 'desc');
-        menu.addSeparator();
-        addSortItem("Sort by modified (old to new)", "sort-asc", 'mtime', 'asc');
-        addSortItem("Sort by modified (new to old)", "sort-desc", 'mtime', 'desc');
-        menu.addSeparator();
-        addSortItem("Sort by created (old to new)", "sort-asc", 'ctime', 'asc');
-        addSortItem("Sort by created (new to old)", "sort-desc", 'ctime', 'desc');
-        menu.addSeparator();
-        addSortItem("Sort by thermal (most to least)", "flame", 'thermal', 'desc');
-        addSortItem("Sort by thermal (least to most)", "flame", 'thermal', 'asc');
-        menu.addSeparator();
-        addSortItem("Sort by stale rot (most to least)", "skull", 'rot', 'desc');
-        addSortItem("Sort by stale rot (least to most)", "skull", 'rot', 'asc');
-        menu.addSeparator();
-        addSortItem("Sort by gravity (heaviest to lightest)", "weight", 'gravity', 'desc');
-        addSortItem("Sort by gravity (lightest to heaviest)", "weight", 'gravity', 'asc');
-        menu.showAtMouseEvent(event);
-    }
-
-    private showFilterMenu(event: MouseEvent): void {
-        const menu = new Menu();
-        menu.addItem(item => item.setTitle("Manage default filtering").setIcon("gear").onClick(() => {
-            new ManageFilteringModal(this.app, this.settings, (updated) => {
-                this.plugin.settings = updated;
-                this.plugin.saveSettings().then(() => {
-                    this.plugin.app.workspace.trigger('abstract-folder:graph-updated');
-                }).catch(Logger.error);
-            }).open();
-        }));
-
-        menu.showAtMouseEvent(event);
-    }
-
-    private showGroupMenu(event: MouseEvent): void {
-        const menu = new Menu();
-        if (this.settings.groups.length === 0) {
-            menu.addItem(item => item.setTitle("No groups defined").setDisabled(true));
-        } else {
-            this.settings.groups.forEach((group: Group) => {
-                menu.addItem(item => item.setTitle(group.name)
-                    .setIcon(this.settings.activeGroupId === group.id ? "check" : "group")
-                    .onClick(async () => {
-                        this.plugin.contextEngine.setActiveGroup(group.id);
-                        await this.plugin.saveSettings();
-                        if (group.sort) this.plugin.contextEngine.setSortConfig(group.sort);
-                    }));
-            });
-            menu.addSeparator();
-        }
-
-        menu.addItem(item => item.setTitle("Manage groups").setIcon("gear").onClick(() => {
-            new ManageGroupsModal(this.app, this.settings, (updatedGroups, activeGroupId) => {
-                this.plugin.settings.groups = updatedGroups;
-                this.plugin.settings.activeGroupId = activeGroupId;
-                this.plugin.contextEngine.setActiveGroup(activeGroupId);
-                this.plugin.saveSettings().catch(Logger.error);
-            }, this.plugin).open();
-        }));
-
-        menu.addItem(item => item.setTitle("Clear active group").setIcon(this.settings.activeGroupId === null ? "check" : "cross").onClick(async () => {
-            this.plugin.contextEngine.setActiveGroup(null);
-            await this.plugin.saveSettings();
-            const defaultSort = this.plugin.settings.defaultSort;
-            this.plugin.contextEngine.setSortConfig(defaultSort);
-        }));
-
-        menu.showAtMouseEvent(event);
-    }
-
-    private showConversionMenu(event: MouseEvent): void {
-        const menu = new Menu();
-        menu.addItem(item => item.setTitle("Convert physical folder to abstract folder").setIcon("folder-symlink")
-            .onClick(() => this.plugin.app.commands.executeCommandById("abstract-folder:convert-folder-to-plugin")));
-        menu.addItem(item => item.setTitle("Create folder structure from plugin format").setIcon("folder-plus")
-            .onClick(() => this.plugin.app.commands.executeCommandById("abstract-folder:create-folders-from-plugin")));
-        menu.showAtMouseEvent(event);
+        this.abstractFolderToolbar.updateViewStyleToggleButton();
     }
 }

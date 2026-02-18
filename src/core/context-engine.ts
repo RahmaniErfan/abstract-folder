@@ -137,6 +137,25 @@ export class ContextEngine extends EventEmitter {
         this.emit('changed', this.getState());
     }
 
+    expandAll(): void {
+        // We can't easily validly expand "ALL" because we don't know all IDs without traversing the graph.
+        // However, usually "Expand All" in these views might mean "Expand everything currently loaded" or "Set a flag".
+        // If we want to truly expand all, we might need a flag `expandAll: true` in state or let the TreeBuilder handle it.
+        // TreeBuilder has `forceExpandAll` argument.
+        // Let's add a transient flag or just emit an event that View listens to?
+        // OR we can change `expandedURIs` to a special set or handle it in TreeBuilder.
+        // For now, let's trigger a special state change or use the `forceExpandAll` mechanism via buildTree.
+        // But context state should reflect it.
+        // Let's defer to the view to handle "Expand All" logic via TreeBuilder, OR update all known URIs.
+        // Since we don't track all URIs here, we can't populate `expandedURIs` exhaustively without GraphEngine.
+        //
+        // However, `AbstractFolderView` calls `treeBuilder.buildTree` with `forceExpandAll`.
+        // Maybe we expose a way to set `forceExpandAll` in context?
+        // But `ContextState` doesn't have it.
+        // Let's emit a special event 'expand-all' that the View listens to.
+        this.emit('expand-all');
+    }
+
     setSortConfig(config: SortConfig): void {
         Logger.debug(`[Abstract Folder] Context: Setting sort config`, config);
         this.state.sortConfig = config;
