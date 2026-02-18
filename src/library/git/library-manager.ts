@@ -262,7 +262,7 @@ export class LibraryManager {
      * 1. Manifest author name (case-insensitive)
      * 2. Actual Git Remote URL (source of truth)
      */
-    async isLibraryOwner(vaultPath: string): Promise<{ isOwner: boolean; author: string }> {
+    async isLibraryOwner(vaultPath: string): Promise<{ isOwner: boolean; author: string; repositoryUrl: string | null }> {
         try {
             const config = await this.validateLibrary(vaultPath);
             const author = config.author || "Unknown";
@@ -287,10 +287,10 @@ export class LibraryManager {
                            lowerRepo.includes(`github.com:${lowerUser}/`);
             }
 
-            return { isOwner: nameMatch || repoMatch, author };
+            return { isOwner: nameMatch || repoMatch, author, repositoryUrl: checkUrl };
         } catch (error) {
             console.error("[LibraryManager] Failed to determine library ownership", error);
-            return { isOwner: false, author: "Unknown" };
+            return { isOwner: false, author: "Unknown", repositoryUrl: null };
         }
     }
 

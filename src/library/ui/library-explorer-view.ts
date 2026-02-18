@@ -23,6 +23,9 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     private isRefreshing = false;
     private nextRefreshScheduled = false;
     private isOwner = false;
+    private repositoryUrl: string | null = null;
+    private authorName = "Unknown";
+
 
     // Search Options
     private showAncestors = true;
@@ -222,7 +225,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         const header = container.createDiv({ cls: "abstract-folder-header" });
         
         const titleRow = header.createDiv({ cls: "abstract-folder-header-title-container" });
-        const backBtn = titleRow.createDiv({ cls: "abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Back to shelf" } });
+        const backBtn = titleRow.createDiv({ cls: "af-header-back-button abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Back to shelf" } });
         setIcon(backBtn, "arrow-left");
         backBtn.addEventListener("click", () => {
             if (this.viewport) {
@@ -235,7 +238,13 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         });
 
         if (this.selectedLibrary.file instanceof TFolder) {
-            header.createEl("h3", { text: this.selectedLibrary.file.name, cls: "abstract-folder-header-title" });
+            titleRow.createEl("h3", { text: this.selectedLibrary.file.name, cls: "abstract-folder-header-title" });
+            
+            // Pre-fetch ownership and repo info for toolbars
+            const status = await this.plugin.libraryManager.isLibraryOwner(this.selectedLibrary.file.path);
+            this.isOwner = status.isOwner;
+            this.authorName = status.author;
+            this.repositoryUrl = status.repositoryUrl;
         }
 
         this.renderTopToolbar(header);
@@ -325,6 +334,17 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
 
     private renderTopToolbar(container: HTMLElement) {
         const toolbar = container.createDiv({ cls: "abstract-folder-toolbar" });
+
+        if (this.repositoryUrl) {
+            const githubBtn = toolbar.createDiv({ 
+                cls: "abstract-folder-toolbar-action clickable-icon", 
+                attr: { "aria-label": "View on GitHub" } 
+            });
+            setIcon(githubBtn, "github");
+            githubBtn.addEventListener("click", () => {
+                window.open(this.repositoryUrl!, "_blank");
+            });
+        }
         
         const forkBtn = toolbar.createDiv({ cls: "abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Fork library (Coming soon)" } });
         setIcon(forkBtn, "git-fork");
@@ -345,13 +365,8 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         const identityArea = toolbar.createDiv({ cls: "af-status-identity" });
         
         // Ownership check
-        this.isOwner = false;
-        let author = "Unknown";
-        if (this.selectedLibrary?.file instanceof TFolder) {
-            const status = await this.plugin.libraryManager.isLibraryOwner(this.selectedLibrary.file.path);
-            this.isOwner = status.isOwner;
-            author = status.author;
-        }
+        // Handled by renderLibraryTree pre-fetch
+        const author = this.authorName;
 
         const libraryIcon = identityArea.createDiv({ cls: "af-status-library-icon" });
         setIcon(libraryIcon, "library");
