@@ -35,7 +35,20 @@ export class SpaceDashboardModal extends Modal {
         contentEl.empty();
 
         const titleContainer = contentEl.createDiv({ cls: "af-dashboard-header" });
-        titleContainer.createEl("h2", { text: `Space: ${this.folder.name}`, cls: "af-dashboard-title" });
+        
+        const leftHeader = titleContainer.createDiv({ cls: "af-dashboard-header-left" });
+        leftHeader.createEl("h2", { text: `Space: ${this.folder.name}`, cls: "af-dashboard-title" });
+
+        const remoteUrl = await this.plugin.libraryManager.getRemoteUrl(this.folder.path);
+        if (remoteUrl) {
+            const repoLink = leftHeader.createEl("a", { cls: "af-dashboard-repo-link", href: remoteUrl });
+            repoLink.target = "_blank";
+            setIcon(repoLink, "github");
+            // Add a pipe separator visually if needed, but flex gap is often better. 
+            // The user requested a pipe, let's stick to CSS for that or add a span.
+            // Actually, "replace it with a pipe and a github icon" -> Title | <Icon>
+            // I'll add the pipe in CSS or as an element.
+        }
         
         new ButtonComponent(titleContainer)
             .setIcon("refresh-cw")
@@ -47,17 +60,19 @@ export class SpaceDashboardModal extends Modal {
 
         const container = contentEl.createDiv({ cls: "af-dashboard-container" });
 
-        // Build Static Layout
-        await this.renderRepoSection(container);
-        this.renderSyncSection(container);
-        
         // Dynamic Sections (Containers only)
         this.buildCollaboratorsSection(container);
         if (this.isOwner) {
             this.buildPendingSection(container);
         }
+
+        // Sync Section
+        this.renderSyncSection(container);
         
+        // Activity Section
         await this.renderActivitySection(container);
+        
+        // Actions
         this.renderActionsSection(container);
 
         // Fetch Initial Data
@@ -257,28 +272,8 @@ export class SpaceDashboardModal extends Modal {
             );
     }
 
-    private async renderRepoSection(container: HTMLElement) {
-        const section = container.createDiv({ cls: "af-dashboard-section" });
-        section.createEl("h3", { text: "Repository Details" });
+    // Repository Section Removed
 
-        const remoteUrl = await this.plugin.libraryManager.getRemoteUrl(this.folder.path);
-
-        new Setting(section)
-            .setName("Remote URL")
-            .setDesc(remoteUrl || "No remote linked")
-            .addButton(btn => 
-                btn
-                    .setButtonText("Open GitHub")
-                    .setDisabled(!remoteUrl)
-                    .onClick(() => {
-                        window.open(remoteUrl!, "_blank");
-                    })
-            );
-        
-        new Setting(section)
-            .setName("Access Level")
-            .setDesc(this.isOwner ? "Owner (Full Read/Write)" : "Collaborator (Read-only/Pull only)");
-    }
 
     private renderSyncSection(container: HTMLElement) {
         const section = container.createDiv({ cls: "af-dashboard-section" });
@@ -334,7 +329,8 @@ export class SpaceDashboardModal extends Modal {
         const section = container.createDiv({ cls: "af-dashboard-section" });
         section.createEl("h3", { text: "Recent Activity" });
 
-        const history = await this.plugin.libraryManager.getHistory(this.folder.path, 5);
+        // Fetch 6 items to show 5 and blur the 6th
+        const history = await this.plugin.libraryManager.getHistory(this.folder.path, 6);
         
         if (history.length === 0) {
             section.createEl("p", { text: "No recent activity recorded.", cls: "af-empty-state" });
@@ -342,8 +338,15 @@ export class SpaceDashboardModal extends Modal {
         }
 
         const events = section.createDiv({ cls: "af-activity-list" });
-        for (const commit of history) {
+        // Iterate through all fetched history items (up to 6)
+        history.forEach((commit, index) => {
+            const isBlurred = index === 5; // 6th item (0-indexed)
+            
             const event = events.createDiv({ cls: "af-activity-item" });
+            if (isBlurred) {
+                event.addClass("af-activity-blurred");
+            }
+            
             event.createDiv({ cls: "af-activity-dot" });
             
             const content = event.createDiv({ cls: "af-activity-content" });
@@ -352,7 +355,7 @@ export class SpaceDashboardModal extends Modal {
             header.createSpan({ cls: "af-activity-date", text: moment(commit.timestamp).fromNow() });
             
             content.createDiv({ cls: "af-activity-msg", text: commit.message });
-        }
+        });
     }
 
     private renderActionsSection(container: HTMLElement) {

@@ -201,3 +201,54 @@
     font-style: italic;
     font-size: 0.9em;
 }
+
+/* Header Refactor */
+.af-dashboard-header-left {
+    display: flex;
+    align-items: center; /* Critical for vertical centering */
+    gap: 12px;
+}
+
+.af-dashboard-title {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    line-height: 1 !important; /* Ensure no extra height */
+    display: flex; /* Helps with some themes */
+    align-items: center;
+}
+
+.af-dashboard-repo-link {
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+    transition: color 0.2s ease;
+    text-decoration: none !important;
+    height: 24px; /* Explicit height to match icon */
+    line-height: 1; 
+}
+
+.af-dashboard-repo-link:hover {
+    color: var(--text-normal);
+}
+
+.af-dashboard-repo-link::before {
+    content: "|";
+    margin-right: 12px;
+    color: var(--text-faint);
+    font-weight: 300;
+    font-size: 1.2em; /* Slightly larger pipe looks better aligned usually */
+    line-height: 1;
+    position: relative;
+    top: -1px; /* Micro-adjustment for visual center */
+}
+
+/* Activity Section */
+.af-activity-blurred {
+    filter: blur(4px);
+    opacity: 0.4;
+    pointer-events: none; /* Prevent interaction */
+    user-select: none;
+    transition: filter 0.3s ease, opacity 0.3s ease;
+}
+
