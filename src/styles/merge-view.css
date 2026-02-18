@@ -1,0 +1,101 @@
+/* Main modal content wrapper */
+.abstract-folder-merge-modal {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    min-height: 500px;
+    padding: 0 !important;
+    overflow: hidden;
+}
+
+/* Ensure the modal container itself matches our desired dimensions */
+.modal:has(.abstract-folder-merge-modal) {
+    width: 90vw;
+    max-width: 1400px;
+    height: 90vh;
+    max-height: 90vh;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.abstract-folder-merge-modal .merge-main-container {
+    display: flex;
+    flex: 1; /* Take remaining height */
+    overflow: hidden; /* Prevent container scroll */
+    border: 1px solid var(--background-modifier-border);
+    margin: 10px 0;
+}
+
+.abstract-folder-merge-modal .merge-sidebar {
+    width: 250px;
+    border-right: 1px solid var(--background-modifier-border);
+    overflow-y: auto;
+    background-color: var(--background-secondary);
+}
+
+.abstract-folder-merge-modal .merge-sidebar-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 0.9em;
+    border-bottom: 1px solid var(--background-modifier-border);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.abstract-folder-merge-modal .merge-sidebar-item:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.abstract-folder-merge-modal .merge-sidebar-item.is-active {
+    background-color: var(--background-primary-alt);
+    color: var(--text-accent);
+    font-weight: bold;
+}
+
+.abstract-folder-merge-modal .merge-editor-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 10px;
+}
+
+.abstract-folder-merge-modal .merge-editor-actions {
+    display: flex;
+    gap: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.abstract-folder-merge-modal .merge-diff-display {
+    display: flex;
+    flex: 1;
+    gap: 1px;
+    background-color: var(--background-modifier-border);
+    margin-top: 10px;
+    overflow: hidden;
+}
+
+.abstract-folder-merge-modal .diff-col {
+    flex: 1;
+    background-color: var(--background-primary);
+    padding: 10px;
+    overflow: auto;
+}
+
+.abstract-folder-merge-modal .diff-col pre {
+    font-family: var(--font-monospace);
+    font-size: 0.85em;
+    white-space: pre-wrap;
+    margin: 0;
+}
+
+.abstract-folder-merge-modal .merge-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 10px;
+}

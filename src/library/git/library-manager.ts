@@ -7,6 +7,8 @@ import { DataService } from "../services/data-service";
 import { NodeFsAdapter } from "./node-fs-adapter";
 import { AbstractFolderPluginSettings } from "../../settings";
 import { AuthService } from "../services/auth-service";
+import { ConflictManager } from "./conflict-manager";
+import { MergeModal } from "../../ui/modals/merge/merge-modal";
 
 /**
  * LibraryManager handles Git operations using isomorphic-git.
@@ -176,7 +178,19 @@ export class LibraryManager {
             await this.app.vault.adapter.list(vaultPath);
 
             new Notice("Library updated successfully");
-        } catch (error) {
+        } catch (error: any) {
+            if (error.code === 'MergeConflictError' || error.name === 'MergeConflictError' || error.name === 'CheckoutConflictError') {
+                const absoluteDir = this.getAbsolutePath(vaultPath);
+                const conflicts = await ConflictManager.detectConflicts(absoluteDir);
+                if (conflicts.length > 0) {
+                    new Notice("Merge conflicts detected. Opening Merge UI...");
+                    new MergeModal(this.app, absoluteDir, conflicts, async () => {
+                        await this.app.vault.adapter.list(vaultPath);
+                        new Notice("Merge resolved and updated.");
+                    }).open();
+                    return;
+                }
+            }
             console.error("Update failed", error);
             throw error;
         }
@@ -446,7 +460,24 @@ export class LibraryManager {
                 email: gitSettings.gitEmail || (gitSettings.githubUsername ? `${gitSettings.githubUsername}@users.noreply.github.com` : "backup@abstract.folder")
             };
 
-            // 1. Pull changes
+            // 1. Add all files
+            await git.add({ fs: NodeFsAdapter, dir: absoluteDir, filepath: "." });
+
+            // 2. Commit local changes first
+            // This prevents CheckoutConflictError and turns it into a MergeConflictError
+            await git.commit({
+                fs: NodeFsAdapter,
+                dir: absoluteDir,
+                message: message,
+                author: author,
+                committer: author
+            }).catch(e => {
+                // If there's nothing to commit, commit throws an error. We can safely ignore it.
+                if (e.code === 'NothingToCommitError') return;
+                throw e;
+            });
+
+            // 3. Pull changes (which will now perform a merge if needed)
             try {
                 await git.pull({
                     fs: NodeFsAdapter,
@@ -457,21 +488,14 @@ export class LibraryManager {
                     author: author,
                     committer: author
                 });
-            } catch (e) {
-                console.warn("Pull failed (could be initial push)", e);
+            } catch (e: any) {
+                // Ignore "no remote branch" errors (common on initial push)
+                if (e.code === 'NotFoundError' || e.message?.includes('could not find')) {
+                    console.debug("[LibraryManager] No remote branch found to pull from.");
+                } else {
+                    throw e;
+                }
             }
-
-            // 2. Add all files
-            await git.add({ fs: NodeFsAdapter, dir: absoluteDir, filepath: "." });
-
-            // 3. Commit
-            await git.commit({
-                fs: NodeFsAdapter,
-                dir: absoluteDir,
-                message: message,
-                author: author,
-                committer: author
-            });
 
             // 4. Push
             await git.push({
@@ -483,8 +507,93 @@ export class LibraryManager {
             });
 
             if (!silent) new Notice("Backup synced successfully");
-        } catch (error) {
+        } catch (error: any) {
+            console.log("[LibraryManager] Sync failed with error:", error);
+            console.log("[LibraryManager] Error code:", error.code);
+            console.log("[LibraryManager] Error name:", error.name);
+
+            if (error.code === 'MergeConflictError' || error.name === 'MergeConflictError' || error.name === 'CheckoutConflictError') {
+                const absoluteDir = this.getAbsolutePath(vaultPath);
+                console.log("[LibraryManager] Attempting to detect conflicts in:", absoluteDir);
+                const conflicts = await ConflictManager.detectConflicts(absoluteDir, error);
+                console.log("[LibraryManager] Detected conflicts:", conflicts);
+                
+                if (conflicts.length > 0) {
+                    new Notice("Merge conflicts detected during backup. Opening Merge UI...");
+                    new MergeModal(this.app, absoluteDir, conflicts, async () => {
+                        // After resolution, we must COMMIT the merge to clear the conflict state, then push.
+                        await this.finalizeMerge(absoluteDir, vaultPath, token || this.getToken(), silent);
+                    }).open();
+                    return;
+                } else {
+                    console.warn("[LibraryManager] MergeConflictError caught but no conflicts detected by ConflictManager.");
+                }
+            }
             console.error("Sync failed", error);
+            throw error;
+        }
+    }
+
+    /**
+     * Finalizes a merge by committing the resolution and pushing to remote.
+     * This skips the 'pull' step to avoid re-triggering conflict errors.
+     */
+    async finalizeMerge(absoluteDir: string, vaultPath: string, token: string | undefined, silent: boolean = false): Promise<void> {
+        try {
+            console.log("[LibraryManager] Finalizing merge...");
+            const gitSettings = this.settings.librarySettings;
+            const author = { 
+                name: gitSettings.gitName || gitSettings.githubUsername || "Abstract Folder", 
+                email: gitSettings.gitEmail || (gitSettings.githubUsername ? `${gitSettings.githubUsername}@users.noreply.github.com` : "backup@abstract.folder")
+            };
+
+            // Resolve parents for the merge commit
+            // We need to explicitly link the remote commit we just merged with, 
+            // otherwise the push will be rejected as non-fast-forward.
+            const headOid = await git.resolveRef({ fs: NodeFsAdapter, dir: absoluteDir, ref: 'HEAD' });
+            let mergeParentOid: string | null = null;
+            
+            try {
+                mergeParentOid = await git.resolveRef({ fs: NodeFsAdapter, dir: absoluteDir, ref: 'FETCH_HEAD' });
+            } catch (e) {
+                console.warn("[LibraryManager] Could not resolve FETCH_HEAD, trying origin/main");
+                try {
+                     mergeParentOid = await git.resolveRef({ fs: NodeFsAdapter, dir: absoluteDir, ref: 'refs/remotes/origin/main' });
+                } catch (e2) {
+                    console.warn("[LibraryManager] Could not resolve origin/main either. Proceeding with single parent commit (may cause fast-forward issues).");
+                }
+            }
+            
+            const parents = [headOid];
+            if (mergeParentOid) {
+                parents.push(mergeParentOid);
+                console.log(`[LibraryManager] Creating merge commit with parents: ${parents.join(', ')}`);
+            }
+
+            // 1. Commit the merge
+            await git.commit({
+                fs: NodeFsAdapter,
+                dir: absoluteDir,
+                message: `Merge branch 'origin/main' into main`,
+                author: author,
+                committer: author,
+                parent: parents 
+            });
+
+            // 2. Push the result
+            await git.push({
+                fs: NodeFsAdapter,
+                http: ObsidianHttpAdapter as any,
+                dir: absoluteDir,
+                onAuth: token ? () => ({ username: token }) : undefined,
+                remote: 'origin'
+            });
+
+            console.log("[LibraryManager] Merge finalized and pushed successfully.");
+            new Notice("Merge resolved and synced successfully!");
+        } catch (error) {
+            console.error("[LibraryManager] Failed to finalize merge:", error);
+            new Notice("Failed to finalize merge. Check console for details.");
             throw error;
         }
     }

@@ -2,6 +2,9 @@
 
 ## [Unreleased] - (V2 High-Performance Architecture)
 ### Added
+- **Git Merge Conflict Resolution**: A full UI for detecting and resolving Git merge conflicts directly within Obsidian. Includes a 2-pane comparison view and intelligent conflict parsing.
+- **Robust Sync Recovery**: The sync engine now gracefully handles interruption and merge states, preventing infinite loops during complex updates.
+
 - **Strategic Cache Ingestion**: New synchronization bridge between proactive manual scans and reactive graph updates.
 - **V2 SOVM Architecture**: Complete architectural overhaul to a Service-Oriented View Model for massive vault support.
   - **GraphEngine**: High-speed, bidirectional adjacency index for link-based hierarchy.

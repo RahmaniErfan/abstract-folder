@@ -1,5 +1,23 @@
 # Technical Changelog
 
+## [2026-02-18] Git Merge Conflict Resolution System
+
+### 1. Conflict Logic Layer (`ConflictManager`)
+*   **Hybrid Detection**: Implemented a multi-strategy approach to retrieve conflict content.
+    *   **Strategy A (Disk)**: Parses standard Git conflict markers (`<<<<<<< HEAD`) directly from the file.
+    *   **Strategy B (Git Blobs)**: Falls back to resolving `HEAD` and `FETCH_HEAD` OIDs and reading raw blobs if markers are missing or malformed.
+*   **Error Trapping**: Updated `LibraryManager` to catch and propagate `MergeConflictError` instead of swallowing it, enabling the UI trigger.
+
+### 2. Interactive UI (`MergeController` & `MergeModal`)
+*   **State Management**: Created `MergeController` to track the state of multiple conflicting files and their resolution status.
+*   **Modal View**: Implemented a 3-pane layout (Local, Remote, Result) with syntax highlighting (via `MarkdownRenderer`) for clear comparison.
+
+### 3. Sync Flow & Commit Hardening
+*   **The "Sync Loop" Fix**: Identified and resolved a critical bug where `syncBackup` would blindly re-trigger `git.pull` after resolution, failing because the repo was in a merge state.
+*   **Manual Merge Commit**: Implemented `finalizeMerge` to bypass the pull and explicitly create a merge commit.
+    *   **Dual Parents**: Manually resolves `HEAD` and the remote tip (e.g., `origin/main`) to pass as `parent` OIDs to `git.commit`. This creates a true topological merge, preventing `PushRejectedError` (non-fast-forward).
+    *   **Author Identity**: Ensures the merge commit uses the user's configured identity from settings, falling back effectively.
+
 ## [2026-02-17] VS Code-style Sync UI & Status Bar Implementation
 
 ### 1. Abstract Status Bar Architecture

@@ -26,6 +26,7 @@ import { LibraryCenterView, VIEW_TYPE_LIBRARY_CENTER } from './src/library/ui/li
 import { LibraryExplorerView, VIEW_TYPE_LIBRARY_EXPLORER } from './src/library/ui/library-explorer-view';
 import './src/styles/index.css';
 import './src/styles/library-explorer.css';
+import './src/styles/merge-view.css';
 import { TreeBuilder } from './src/core/tree-builder';
 import { ContextEngine } from './src/core/context-engine';
 import { ScopeProjector } from './src/core/scope-projector';
