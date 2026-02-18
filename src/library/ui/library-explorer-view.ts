@@ -348,13 +348,9 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         this.isOwner = false;
         let author = "Unknown";
         if (this.selectedLibrary?.file instanceof TFolder) {
-            try {
-                const config = await this.plugin.libraryManager.validateLibrary(this.selectedLibrary.file.path);
-                author = config.author;
-                this.isOwner = this.plugin.settings.librarySettings.githubUsername === author;
-            } catch (e) {
-                Logger.error("Failed to check ownership", e);
-            }
+            const status = await this.plugin.libraryManager.isLibraryOwner(this.selectedLibrary.file.path);
+            this.isOwner = status.isOwner;
+            author = status.author;
         }
 
         const libraryIcon = identityArea.createDiv({ cls: "af-status-library-icon" });

@@ -257,6 +257,62 @@ export class LibraryManager {
     }
 
     /**
+     * Determine if the current user is the owner of the library.
+     * Uses a multi-layered check:
+     * 1. Manifest author name (case-insensitive)
+     * 2. Actual Git Remote URL (source of truth)
+     */
+    async isLibraryOwner(vaultPath: string): Promise<{ isOwner: boolean; author: string }> {
+        try {
+            const config = await this.validateLibrary(vaultPath);
+            const author = config.author || "Unknown";
+            
+            const username = this.settings.librarySettings.githubUsername;
+            const gitName = this.settings.librarySettings.gitName;
+            
+            // 1. Check Author Name (Display/Legacy)
+            const nameMatch = (username?.toLowerCase() === author.toLowerCase()) || 
+                             (gitName?.toLowerCase() === author.toLowerCase());
+            
+            // 2. Check Actual Git Remote (Most robust)
+            const actualRemote = await this.getRemoteUrl(vaultPath);
+            const manifestRemote = config.repositoryUrl;
+            
+            let repoMatch = false;
+            const checkUrl = actualRemote || manifestRemote;
+            if (username && checkUrl) {
+                const lowerRepo = checkUrl.toLowerCase();
+                const lowerUser = username.toLowerCase();
+                repoMatch = lowerRepo.includes(`github.com/${lowerUser}/`) || 
+                           lowerRepo.includes(`github.com:${lowerUser}/`);
+            }
+
+            return { isOwner: nameMatch || repoMatch, author };
+        } catch (error) {
+            console.error("[LibraryManager] Failed to determine library ownership", error);
+            return { isOwner: false, author: "Unknown" };
+        }
+    }
+
+    /**
+     * Get the remote URL for the library.
+     */
+    async getRemoteUrl(vaultPath: string): Promise<string | null> {
+        try {
+            const absoluteDir = this.getAbsolutePath(vaultPath);
+            const url = await git.getConfig({
+                fs: NodeFsAdapter,
+                dir: absoluteDir,
+                path: 'remote.origin.url'
+            });
+            return url as string;
+        } catch (error) {
+            // This is expected for non-git folders
+            return null;
+        }
+    }
+
+    /**
      * Check if a folder already contains a .git directory.
      */
     async detectExistingGit(vaultPath: string): Promise<boolean> {
