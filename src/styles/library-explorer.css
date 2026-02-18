@@ -5,7 +5,7 @@
     padding: 0;
 }
 
-.library-shelf, .library-tree-header {
+.library-shelf {
     padding: 4px 8px;
 }
 
@@ -55,26 +55,6 @@
     padding: 4px 8px;
 }
 
-.abstract-library-explorer .search-options-container {
-    display: flex;
-    gap: 2px;
-}
-
-.abstract-library-explorer .ancestry-search-toggle {
-    color: var(--text-muted);
-    opacity: 0.5;
-    transition: opacity 0.15s ease, color 0.15s ease;
-}
-
-.abstract-library-explorer .ancestry-search-toggle:hover {
-    opacity: 0.8;
-    color: var(--text-normal);
-}
-
-.abstract-library-explorer .ancestry-search-toggle.is-active {
-    opacity: 1;
-    color: var(--interactive-accent);
-}
 
 .library-shelf {
     display: flex;
@@ -138,29 +118,15 @@
     text-overflow: ellipsis;
 }
 
-.library-tree-header {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-bottom: 8px;
-    padding-bottom: 4px;
-    border-bottom: 1px solid var(--background-modifier-border);
-}
-
-.library-tree-title-row {
+.abstract-folder-header-title-container {
     display: flex;
     align-items: center;
     position: relative;
     width: 100%;
+    padding: 2px 8px;
 }
 
-.library-tree-title-row .clickable-icon {
-    position: absolute;
-    left: 0;
-    z-index: 1;
-}
-
-.library-tree-header h3 {
+.abstract-folder-header-title {
     margin: 0;
     font-size: 1.05em;
     width: 100%;
@@ -168,10 +134,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-.library-tree-search-row {
-    width: 100%;
 }
 
 .empty-state {
@@ -185,88 +147,67 @@
     align-self: center;
 }
 
-/* Toolbars */
 .library-header-divider {
     border-top: 1px solid var(--background-modifier-border);
     opacity: 0.5;
     margin: 0 12px;
 }
 
-.library-tree-toolbar {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    padding: 2px 0;
-    margin-bottom: 0;
-}
-
-.library-tree-toolbar .clickable-icon {
-    color: var(--text-muted);
-    transition: color 0.15s ease, transform 0.15s ease;
-}
-
-.library-tree-toolbar .clickable-icon:hover {
-    color: var(--text-normal);
-    transform: translateY(-1px);
-}
-
-.library-tree-bottom-toolbar {
+/* Library Access Badge Pill */
+.library-bottom-info-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 8px 12px;
-    background-color: var(--background-secondary-alt);
-    border-top: 1px solid var(--background-modifier-border);
-    border-bottom-left-radius: 8px;
-    border-bottom-right-radius: 8px;
-    margin-top: auto;
-}
-
-.library-bottom-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    gap: 6px;
     overflow: hidden;
+    flex: 1;
+    line-height: 1; /* Reset line-height for better alignment */
 }
 
-.library-access-badge {
-    font-size: 0.75em;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.library-access-badge.is-owner {
-    background-color: var(--color-green);
-    color: white;
-}
-
-.library-access-badge.is-readonly {
-    background-color: var(--background-modifier-border);
-    color: var(--text-muted);
-}
-
-.library-name-info {
-    font-size: 0.85em;
-    color: var(--text-muted);
+.library-bottom-info-row .af-status-username {
+    flex-shrink: 1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.library-bottom-actions {
+.abstract-library-explorer .af-status-identity {
+    max-width: 250px;
+    gap: 4px; /* Tighter gap for better alignment */
+}
+
+.af-status-library-icon {
     display: flex;
     align-items: center;
-    gap: 8px;
-}
-
-.library-bottom-actions .clickable-icon {
+    justify-content: center;
     color: var(--text-muted);
-    transition: color 0.15s ease;
 }
 
-.library-bottom-actions .clickable-icon:hover {
-    color: var(--interactive-accent);
+.af-status-library-icon svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 2.5px; /* Slightly thicker for better visibility */
+}
+
+.library-access-badge-pill {
+    font-size: 8px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    width: fit-content;
+    white-space: nowrap;
+    line-height: 1;
+    border: 1px solid transparent;
+    flex-shrink: 0;
+}
+
+.library-access-badge-pill.is-owner {
+    background-color: var(--color-green);
+    color: white;
+}
+
+.library-access-badge-pill.is-readonly {
+    background-color: var(--background-modifier-border);
+    color: var(--text-muted);
 }

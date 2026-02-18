@@ -98,9 +98,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         });
 
         if (includeOptions) {
-            const optionsContainer = searchContainer.createDiv({ cls: "search-options-container" });
-
-            const showAncestorsBtn = optionsContainer.createDiv({
+            const showAncestorsBtn = searchContainer.createDiv({
                 cls: "clickable-icon ancestry-search-toggle",
                 attr: { "aria-label": "Show all ancestors in search" }
             });
@@ -113,7 +111,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
                 onSearch();
             });
 
-            const showDescendantsBtn = optionsContainer.createDiv({
+            const showDescendantsBtn = searchContainer.createDiv({
                 cls: "clickable-icon ancestry-search-toggle",
                 attr: { "aria-label": "Show all descendants in search" }
             });
@@ -221,10 +219,10 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     private async renderLibraryTree(container: HTMLElement) {
         if (!this.selectedLibrary) return;
 
-        const header = container.createDiv({ cls: "library-tree-header" });
+        const header = container.createDiv({ cls: "abstract-folder-header" });
         
-        const titleRow = header.createDiv({ cls: "library-tree-title-row" });
-        const backBtn = titleRow.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Back to shelf" } });
+        const titleRow = header.createDiv({ cls: "abstract-folder-header-title-container" });
+        const backBtn = titleRow.createDiv({ cls: "abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Back to shelf" } });
         setIcon(backBtn, "arrow-left");
         backBtn.addEventListener("click", () => {
             if (this.viewport) {
@@ -237,15 +235,12 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         });
 
         if (this.selectedLibrary.file instanceof TFolder) {
-            titleRow.createEl("h3", { text: this.selectedLibrary.file.name });
+            header.createEl("h3", { text: this.selectedLibrary.file.name, cls: "abstract-folder-header-title" });
         }
-
-        header.createDiv({ cls: "library-header-divider" });
 
         this.renderTopToolbar(header);
 
-        const searchRow = header.createDiv({ cls: "library-tree-search-row" });
-        this.renderSearch(searchRow, "Search in library...", () => {
+        this.renderSearch(header, "Search in library...", () => {
             void this.refreshLibraryTree();
         }, true); // Enable options for tree view
 
@@ -329,25 +324,25 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     }
 
     private renderTopToolbar(container: HTMLElement) {
-        const toolbar = container.createDiv({ cls: "library-tree-toolbar" });
+        const toolbar = container.createDiv({ cls: "abstract-folder-toolbar" });
         
-        const forkBtn = toolbar.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Fork library (Coming soon)" } });
+        const forkBtn = toolbar.createDiv({ cls: "abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Fork library (Coming soon)" } });
         setIcon(forkBtn, "git-fork");
         
-        const prBtn = toolbar.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Create PR (Coming soon)" } });
+        const prBtn = toolbar.createDiv({ cls: "abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Create PR (Coming soon)" } });
         setIcon(prBtn, "git-pull-request");
 
-        const issueBtn = toolbar.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Open Issue (Coming soon)" } });
+        const issueBtn = toolbar.createDiv({ cls: "abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Open Issue (Coming soon)" } });
         setIcon(issueBtn, "alert-circle");
 
-        const starBtn = toolbar.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Star library (Coming soon)" } });
+        const starBtn = toolbar.createDiv({ cls: "abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Star library (Coming soon)" } });
         setIcon(starBtn, "star");
     }
 
     private async renderBottomToolbar(container: HTMLElement) {
-        const toolbar = container.createDiv({ cls: "library-tree-bottom-toolbar" });
+        const toolbar = container.createDiv({ cls: "af-status-bar" });
         
-        const infoArea = toolbar.createDiv({ cls: "library-bottom-info" });
+        const identityArea = toolbar.createDiv({ cls: "af-status-identity" });
         
         // Ownership check
         this.isOwner = false;
@@ -362,19 +357,26 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             }
         }
 
-        const accessBadge = infoArea.createDiv({ 
-            cls: `library-access-badge ${this.isOwner ? 'is-owner' : 'is-readonly'}`,
+        const libraryIcon = identityArea.createDiv({ cls: "af-status-library-icon" });
+        setIcon(libraryIcon, "library");
+
+        const infoArea = identityArea.createDiv({ cls: "library-bottom-info-row" });
+        if (this.selectedLibrary?.file instanceof TFolder) {
+            infoArea.createSpan({ cls: "af-status-username", text: this.selectedLibrary.file.name });
+        }
+
+        infoArea.createDiv({ 
+            cls: `library-access-badge-pill ${this.isOwner ? 'is-owner' : 'is-readonly'}`,
             text: this.isOwner ? "Owner" : "Read-only"
         });
 
-        if (this.selectedLibrary?.file instanceof TFolder) {
-            infoArea.createSpan({ cls: "library-name-info", text: this.selectedLibrary.file.name });
-        }
-
-        const actionsArea = toolbar.createDiv({ cls: "library-bottom-actions" });
+        const controlsArea = toolbar.createDiv({ cls: "af-status-controls" });
 
         if (this.isOwner) {
-            const pushBtn = actionsArea.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Push changes" } });
+            const pushBtn = controlsArea.createDiv({ 
+                cls: "af-status-control clickable-icon", 
+                attr: { "aria-label": "Push changes" } 
+            });
             setIcon(pushBtn, "arrow-up-circle");
             pushBtn.addEventListener("click", async () => {
                 if (!this.selectedLibrary?.file) return;
@@ -388,7 +390,10 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             });
         }
 
-        const pullBtn = actionsArea.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Pull updates" } });
+        const pullBtn = controlsArea.createDiv({ 
+            cls: "af-status-control clickable-icon", 
+            attr: { "aria-label": "Pull updates" } 
+        });
         setIcon(pullBtn, "refresh-cw");
         pullBtn.addEventListener("click", async () => {
             if (!this.selectedLibrary?.file) return;
