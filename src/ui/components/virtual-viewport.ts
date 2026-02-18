@@ -214,7 +214,16 @@ export class VirtualViewport {
         const iconEl = self.querySelector(".af-type-icon") as HTMLElement;
         if (iconEl) {
             iconEl.empty();
-            if (node.icon) {
+            if (node.isShared) {
+                setIcon(iconEl, "users");
+                iconEl.classList.add("af-icon-shared");
+            } else if (node.isBackup) {
+                setIcon(iconEl, "cloud");
+                iconEl.classList.add("af-icon-backup");
+            } else if (node.isLibrary) {
+                setIcon(iconEl, "library");
+                iconEl.classList.add("af-icon-library");
+            } else if (node.icon) {
                 setIcon(iconEl, node.icon);
             } else {
                 setIcon(iconEl, node.hasChildren ? "folder" : "file-text");

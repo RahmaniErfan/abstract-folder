@@ -3,8 +3,8 @@
   padding: 10px;
 }
 .af-backup-modal {
-  width: 600px;
-  max-width: 90vw;
+  width: 800px;
+  max-width: 95vw;
 }
 .abstract-folder-status-box {
   background-color: var(--background-secondary);
@@ -71,4 +71,54 @@
   margin: 4px 0 0 16px;
   padding: 0;
   color: var(--text-normal);
+}
+.af-share-box {
+  background-color: var(--background-primary-alt);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  padding: 16px;
+  margin: 12px 0;
+}
+.af-share-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.af-share-link-container {
+  background-color: var(--background-secondary);
+  padding: 10px;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--background-modifier-border);
+  overflow-x: auto;
+}
+.af-share-link-code {
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+  color: var(--text-accent);
+}
+.af-share-flow-info {
+  margin-top: 16px;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+.af-share-flow-info p {
+  margin: 4px 0;
+}
+button.is-success {
+  background-color: var(--background-modifier-success) !important;
+  color: var(--text-on-accent) !important;
+}
+
+.af-icon-shared {
+    color: var(--color-purple);
+}
+
+.af-icon-backup {
+    color: var(--color-blue);
+}
+
+.af-icon-library {
+    color: var(--color-orange);
 }

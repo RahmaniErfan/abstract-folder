@@ -16,6 +16,9 @@ export interface NodeMeta {
     mtime: number;      // For sorting/invalidation
     isOrphan: boolean;  // True if no parents
     icon?: string;      // Custom icon from frontmatter
+    isLibrary?: boolean;
+    isShared?: boolean;
+    isBackup?: boolean;
 }
 
 /**
@@ -571,11 +574,33 @@ export class GraphEngine implements IGraphEngine {
                     extension: file.extension,
                     mtime: file.stat.mtime,
                     isOrphan: rels.definedParents.size === 0,
-                    icon: this.app.metadataCache.getFileCache(file)?.frontmatter?.icon as string | undefined
+                    icon: this.app.metadataCache.getFileCache(file)?.frontmatter?.icon as string | undefined,
+                    isLibrary: this.isLibraryPath(id),
+                    isShared: this.isSharedSpacePath(id),
+                    isBackup: this.isPersonalBackupPath(id)
                 });
             }
         }
         Logger.debug(`[Abstract Folder] GraphEngine: Seeding complete`);
+    }
+
+    private isLibraryPath(path: string): boolean {
+        const libraryPath = this.settings.librarySettings?.librariesPath;
+        return !!libraryPath && (path === libraryPath || path.startsWith(libraryPath + '/'));
+    }
+
+    private isSharedSpacePath(path: string): boolean {
+        // Check if the path is a root shared space or inside one
+        return (this.settings.librarySettings?.sharedSpaces || []).some(space => 
+            path === space || path.startsWith(space + '/')
+        );
+    }
+
+    private isPersonalBackupPath(path: string): boolean {
+        // Check if the path is a root backup or inside one
+        return (this.settings.librarySettings?.personalBackups || []).some(backup => 
+            path === backup || path.startsWith(backup + '/')
+        );
     }
 
     getDiagnosticDump(): GraphDiagnosticDump {
@@ -649,7 +674,10 @@ export class GraphEngine implements IGraphEngine {
             this.index.addNode(file.path, {
                 mtime: file.stat.mtime,
                 extension: file.extension,
-                icon: this.app.metadataCache.getFileCache(file)?.frontmatter?.icon as string | undefined
+                icon: this.app.metadataCache.getFileCache(file)?.frontmatter?.icon as string | undefined,
+                isLibrary: this.isLibraryPath(file.path),
+                isShared: this.isSharedSpacePath(file.path),
+                isBackup: this.isPersonalBackupPath(file.path)
             });
             Logger.debug(`[Abstract Folder] GraphEngine: ${file.path} relationships unchanged, only metadata updated`);
             return false;
@@ -694,7 +722,10 @@ export class GraphEngine implements IGraphEngine {
             mtime: file.stat.mtime,
             extension: file.extension,
             isOrphan: existingNode ? existingNode.parents.size === 0 : true,
-            icon: this.app.metadataCache.getFileCache(file)?.frontmatter?.icon as string | undefined
+            icon: this.app.metadataCache.getFileCache(file)?.frontmatter?.icon as string | undefined,
+            isLibrary: this.isLibraryPath(file.path),
+            isShared: this.isSharedSpacePath(file.path),
+            isBackup: this.isPersonalBackupPath(file.path)
         });
         Logger.debug(`[Abstract Folder] GraphEngine: updateFileIncremental finished for ${file.path}, changed: ${changed}`);
         return changed;

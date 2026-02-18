@@ -40,6 +40,8 @@ export interface FolderNode {
   icon?: string; // Optional icon or emoji from frontmatter
   isHidden?: boolean; // Whether this node should be considered "hidden" from the main tree
   isLibrary?: boolean; // Whether this node belongs to a library (read-only)
+  isShared?: boolean; // Whether this node is a Shared Space (Collaborative)
+  isBackup?: boolean; // Whether this node is a Personal Backup
 }
 
 export interface Group {

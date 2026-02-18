@@ -28,10 +28,11 @@ export class PersonalBackupModal extends Modal {
         contentEl.empty();
         contentEl.addClass("abstract-folder-backup-center");
 
-        contentEl.createEl("h2", { text: "Backup & Sync Center" });
+        contentEl.createEl("h2", { text: "Vault Sharing & Sync Center" });
 
         if (this.hasGit) {
             this.renderSyncDashboard(contentEl);
+            this.renderSharingSection(contentEl);
         } else {
             this.renderSetupGuide(contentEl);
         }
@@ -40,7 +41,7 @@ export class PersonalBackupModal extends Modal {
     }
 
     private renderSyncDashboard(container: HTMLElement) {
-        container.createEl("p", { text: "Your vault is linked to GitHub. Keep your personal notes and structure in sync with one click." });
+        container.createEl("p", { text: "Keep this vault segment in sync across your devices or with collaborators." });
         
         const statusBox = container.createDiv({ cls: "abstract-folder-status-box" });
         statusBox.createEl("div", { text: "✓ Git Initialized", cls: "status-tag success" });
@@ -140,15 +141,73 @@ export class PersonalBackupModal extends Modal {
                 .onClick(() => this.startBackup()));
     }
 
+    private async renderSharingSection(container: HTMLElement) {
+        container.createEl("hr");
+        container.createEl("h3", { text: "Vault Sharing" });
+        container.createEl("p", { text: "To share this vault with others, you need to grant them access to the underlying GitHub repository." });
+
+        const remoteUrl = await this.plugin.libraryManager.getRemoteUrl(this.folder.path);
+        if (remoteUrl) {
+            // Sanitize URL: Remove credentials and convert to standard HTTPS if possible
+            let githubUrl = remoteUrl;
+            try {
+                if (githubUrl.includes('@') && githubUrl.includes('github.com')) {
+                    if (githubUrl.startsWith('git@')) {
+                        githubUrl = githubUrl.replace('git@github.com:', 'https://github.com/').replace('.git', '');
+                    } else {
+                        const urlObj = new URL(githubUrl);
+                        githubUrl = `https://${urlObj.host}${urlObj.pathname.replace('.git', '')}`;
+                    }
+                }
+            } catch (e) {
+                console.warn("[PersonalBackupModal] Failed to sanitize URL", e);
+            }
+            
+            const shareBox = container.createDiv({ cls: "af-share-box" });
+            const shareHeader = shareBox.createDiv({ cls: "af-share-header" });
+            shareHeader.createEl("strong", { text: "Repository Link" });
+            
+            const copyBtn = shareHeader.createEl("button", { 
+                text: "Copy Link", 
+                cls: "mod-small" 
+            });
+            copyBtn.addEventListener("click", () => {
+                navigator.clipboard.writeText(githubUrl).then(() => {
+                    const originalText = copyBtn.innerText;
+                    copyBtn.innerText = "Copied!";
+                    copyBtn.addClass("is-success");
+                    setTimeout(() => {
+                        copyBtn.innerText = originalText;
+                        copyBtn.removeClass("is-success");
+                    }, 2000);
+                });
+            });
+
+            const linkContainer = shareBox.createDiv({ cls: "af-share-link-container" });
+            linkContainer.createEl("code", { text: githubUrl, cls: "af-share-link-code" });
+
+            const infoEl = container.createDiv({ cls: "af-share-flow-info" });
+            infoEl.createEl("p", { 
+                text: "1. Add your collaborator to this repository on GitHub (Settings > Collaborators)." 
+            });
+            infoEl.createEl("p", { 
+                text: "2. Send them the link above." 
+            });
+            infoEl.createEl("p", { 
+                text: "3. They can then add this link as a 'Standalone Library' in their Abstract Folder settings to start syncing with you." 
+            });
+        }
+    }
+
     private renderGovernanceSection(container: HTMLElement) {
         container.createEl("hr");
-        container.createEl("h3", { text: "Safety & Exclusions" });
+        container.createEl("h3", { text: "Security & Exclusions" });
 
-        const librariesPath = this.plugin.settings.librarySettings?.librariesPath || "Abstract Library";
-        const exclusions = [librariesPath, ".obsidian", ".trash", "node_modules"].map(e => `• ${e}`).join("\n");
+        const exclusions = this.plugin.settings.librarySettings.securityExclusions || [];
+        const exclusionText = exclusions.map(e => `• ${e}`).join("\n");
         
-        container.createEl("p", { text: "The following paths are automatically ignored to keep your backup clean and secure:" });
-        container.createEl("pre", { text: exclusions, cls: "abstract-folder-exclusion-list" });
+        container.createEl("p", { text: "The following patterns are automatically ignored to keep your vault clean and secure:" });
+        container.createEl("pre", { text: exclusionText, cls: "abstract-folder-exclusion-list" });
 
         const scanSetting = new Setting(container)
             .setName("Large File Audit")

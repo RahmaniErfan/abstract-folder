@@ -227,3 +227,30 @@
     background-color: var(--background-modifier-border);
     color: var(--text-muted);
 }
+
+/* Space View Layout Fixes */
+.abstract-folder-tree-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    height: 100%;
+}
+
+/* Ensure the scroll container takes all available space */
+.abstract-folder-tree-container .abstract-folder-viewport-scroll-container {
+    flex: 1;
+    overflow-y: auto;
+    height: 100% !important; 
+}
+
+/* Toolbar Buttons */
+.library-shelf-search-row .nav-action-button {
+    margin-left: 2px;
+    color: var(--text-muted);
+}
+
+.library-shelf-search-row .nav-action-button:hover {
+    color: var(--text-normal);
+}

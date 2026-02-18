@@ -104,8 +104,11 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   hideNonMarkdownOrphans: true,
   librarySettings: {
     librariesPath: "Abstract Library",
+    sharedSpacesRoot: "Abstract Spaces",
     registries: ["https://raw.githubusercontent.com/RahmaniErfan/abstract-registry/main/directory.json"],
     standaloneLibraries: [],
+    sharedSpaces: [],
+    personalBackups: [],
     githubToken: "",
     githubUsername: "",
     githubAvatar: "",
@@ -115,5 +118,6 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
     enableScheduledSync: false,
     syncIntervalValue: 1,
     syncIntervalUnit: 'hours',
+    securityExclusions: ['.obsidian/', '.trash/', 'node_modules/', '*.log'],
   },
 };

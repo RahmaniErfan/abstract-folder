@@ -9,13 +9,18 @@ import { AbstractFolderPluginSettings } from "../../settings";
 import { AuthService } from "../services/auth-service";
 import { ConflictManager } from "./conflict-manager";
 import { MergeModal } from "../../ui/modals/merge/merge-modal";
+import { SecurityManager } from "../../core/security-manager";
 
 /**
  * LibraryManager handles Git operations using isomorphic-git.
  * It uses a physical Node FS adapter to sync files directly to the vault.
  */
 export class LibraryManager {
-    constructor(private app: App, private settings: AbstractFolderPluginSettings) {}
+    constructor(
+        private app: App, 
+        private settings: AbstractFolderPluginSettings,
+        private securityManager: SecurityManager
+    ) {}
 
     /**
      * Fetch and cache GitHub user info.
@@ -144,6 +149,39 @@ export class LibraryManager {
             new Notice(`Library installed: ${destinationPath}`);
         } catch (error) {
             console.error("Clone failed", error);
+            throw error;
+        }
+    }
+
+    /**
+     * Clone a shared space (collaborative folder).
+     * Does NOT enforce library.config.json.
+     */
+    async cloneSpace(repositoryUrl: string, destinationPath: string, token?: string): Promise<void> {
+        try {
+            const absoluteDir = this.getAbsolutePath(destinationPath);
+            const tokenToUse = token || this.getToken();
+            
+            console.debug(`[LibraryManager] Cloning shared space from ${repositoryUrl} to ${absoluteDir}`);
+
+            /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+            await git.clone({
+                fs: NodeFsAdapter,
+                http: ObsidianHttpAdapter as any,
+                dir: absoluteDir,
+                url: repositoryUrl,
+                onAuth: tokenToUse ? () => ({ username: tokenToUse }) : undefined,
+                singleBranch: true,
+                depth: 1
+            });
+            /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+
+            // Refresh the vault so Obsidian sees the new files
+            await this.app.vault.adapter.list(destinationPath);
+            
+            new Notice(`Shared Space cloned: ${destinationPath}`);
+        } catch (error) {
+            console.error("Clone space failed", error);
             throw error;
         }
     }
@@ -342,27 +380,17 @@ export class LibraryManager {
     }
 
     /**
-     * Ensure a .gitignore exists with standard exclusions.
+     * Ensure a .gitignore exists with standard exclusions from SecurityManager.
      */
     private async ensureGitIgnore(absoluteDir: string): Promise<void> {
         const gitIgnorePath = path.join(absoluteDir, '.gitignore');
-        const librariesPath = this.settings.librarySettings?.librariesPath || "Abstract Library";
-        const defaultExclusions = [
-            `${librariesPath}/`,
-            '.obsidian/',
-            '.trash/',
-            'node_modules/',
-            '*.log'
-        ].join('\n');
+        const content = this.securityManager.generateGitIgnoreContent();
 
         try {
             const exists = await NodeFsAdapter.promises.stat(gitIgnorePath).catch(() => null);
             if (!exists) {
-                await NodeFsAdapter.promises.writeFile(gitIgnorePath, defaultExclusions, 'utf8');
+                await NodeFsAdapter.promises.writeFile(gitIgnorePath, content, 'utf8');
                 console.debug(`[LibraryManager] Created default .gitignore at ${gitIgnorePath}`);
-            } else {
-                // Optionally append exclusions if missing, but let's keep it simple for now
-                console.debug(`[LibraryManager] Existing .gitignore found at ${gitIgnorePath}`);
             }
         } catch (error) {
             console.error("Failed to ensure .gitignore", error);
@@ -370,25 +398,28 @@ export class LibraryManager {
     }
 
     /**
-     * Recursively scan for files larger than a threshold (default 10MB).
+     * Recursively scan for files that violate security rules (e.g., size).
      */
-    public async checkForLargeFiles(vaultPath: string, thresholdMB: number = 10): Promise<string[]> {
-        const largeFiles: string[] = [];
-        const thresholdBytes = thresholdMB * 1024 * 1024;
+    public async checkForLargeFiles(vaultPath: string): Promise<string[]> {
+        const invalidFiles: string[] = [];
         const absoluteDir = this.getAbsolutePath(vaultPath);
 
-        const librariesPath = this.settings.librarySettings?.librariesPath || "Abstract Library";
         const scan = async (dir: string) => {
             const entries = await NodeFsAdapter.promises.readdir(dir, { withFileTypes: true });
             for (const entry of entries) {
                 const fullPath = path.join(dir, entry.name);
+                const relativePath = path.relative(absoluteDir, fullPath);
+
+                if (this.securityManager.isPathExcluded(relativePath)) continue;
+
                 if (entry.isDirectory()) {
-                    if (entry.name === '.git' || entry.name === 'node_modules' || entry.name === librariesPath) continue;
+                    if (entry.name === '.git') continue;
                     await scan(fullPath);
                 } else if (entry.isFile()) {
                     const stats = await NodeFsAdapter.promises.stat(fullPath);
-                    if (stats.size > thresholdBytes) {
-                        largeFiles.push(path.relative(absoluteDir, fullPath));
+                    const validation = this.securityManager.validateFile(relativePath, stats.size);
+                    if (!validation.valid) {
+                        invalidFiles.push(`${relativePath} (${validation.reason})`);
                     }
                 }
             }
@@ -397,9 +428,51 @@ export class LibraryManager {
         try {
             await scan(absoluteDir);
         } catch (e) {
-            console.error("Scanning for large files failed", e);
+            console.error("Scanning for security violations failed", e);
         }
-        return largeFiles;
+        return invalidFiles;
+    }
+
+    /**
+     * Initialize a fresh git repository in a folder (for Shared Spaces).
+     */
+    async initRepository(vaultPath: string): Promise<void> {
+         try {
+            const absoluteDir = this.getAbsolutePath(vaultPath);
+            await this.ensureGitIgnore(absoluteDir);
+            
+            // Check if already a repo
+            if (await this.detectExistingGit(vaultPath)) {
+                console.log(`[LibraryManager] ${vaultPath} is already a git repo.`);
+                return;
+            }
+
+            await git.init({ fs: NodeFsAdapter, dir: absoluteDir });
+            
+            const gitSettings = this.settings.librarySettings;
+            const author = { 
+                name: gitSettings.gitName || gitSettings.githubUsername || "Abstract Folder", 
+                email: gitSettings.gitEmail || (gitSettings.githubUsername ? `${gitSettings.githubUsername}@users.noreply.github.com` : "shared@abstract.folder")
+            };
+
+            // Add all files (including .gitignore)
+            await git.add({ fs: NodeFsAdapter, dir: absoluteDir, filepath: "." });
+            
+            // Initial commit
+            await git.commit({
+                fs: NodeFsAdapter,
+                dir: absoluteDir,
+                message: "Initial commit via Abstract Spaces",
+                author: author,
+                committer: author
+            });
+            
+            console.log(`[LibraryManager] Initialized git repo at ${vaultPath}`);
+
+         } catch (error) {
+            console.error("Failed to init repository", error);
+            throw error;
+         }
     }
 
     /**

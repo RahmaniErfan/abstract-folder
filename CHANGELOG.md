@@ -20,6 +20,11 @@
 - **Visual Sync Indicators**: Notification badges for uncommitted/unpushed changes and high-performance sync animations (rotating refresh arrows).
 - **Quick-Sync Action**: Interactive status bar controls for one-click background synchronization and instant access to the Backup & Sync Center.
 - **Library Search Toggles**: Integrated "Show Ancestors" and "Show Descendants" toggles directly into the Library Tree search bar.
+- **Standalone Spaces Explorer**: A dedicated view for managing shared spaces, separate from personal files.
+  - **Shared Space Shelf**: A card-based view listing all available shared spaces.
+  - **Scoped Space Tree**: Clicking a space opens a focused tree view for that project, isolated from the main vault.
+  - **Dedicated Toolbar**: Each space view includes a full toolbar for Search, Sort, New Note, and New Folder actions.
+  - **Context-Aware Sync**: A bottom status bar specific to each space for granular Push/Pull operations.
 
 ### Removed
 - **Legacy Components**: Removed monolithic `FolderIndexer`, `TreeCoordinator`, and all class-based `Facets`.

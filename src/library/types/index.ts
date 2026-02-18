@@ -36,8 +36,11 @@ export interface RegistryItem {
 
 export interface LibrarySettings {
     librariesPath: string; // Default: "Abstract Library"
+    sharedSpacesRoot: string; // Default: "Abstract Spaces"
     registries: string[];  // List of custom registry URLs
     standaloneLibraries: string[]; // List of direct repository URLs
+    sharedSpaces: string[]; // List of paths that are Shared Spaces (Collaborative)
+    personalBackups: string[]; // List of paths that are Personal Backups
     githubToken?: string;
     githubUsername?: string;
     githubAvatar?: string;
@@ -47,4 +50,5 @@ export interface LibrarySettings {
     enableScheduledSync: boolean;
     syncIntervalValue: number;
     syncIntervalUnit: 'minutes' | 'hours' | 'days' | 'weeks';
+    securityExclusions: string[]; // Patterns for files to exclude from sync
 }

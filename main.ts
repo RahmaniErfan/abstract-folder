@@ -24,6 +24,7 @@ import { AbstractBridge } from './src/library/bridge/abstract-bridge';
 import { ContributionEngine } from './src/library/services/contribution-engine';
 import { LibraryCenterView, VIEW_TYPE_LIBRARY_CENTER } from './src/library/ui/library-center-view';
 import { LibraryExplorerView, VIEW_TYPE_LIBRARY_EXPLORER } from './src/library/ui/library-explorer-view';
+import { AbstractSpacesExplorerView, ABSTRACT_SPACES_VIEW_TYPE } from './src/ui/view/abstract-spaces-explorer';
 import './src/styles/index.css';
 import './src/styles/library-explorer.css';
 import './src/styles/merge-view.css';
@@ -31,6 +32,7 @@ import { TreeBuilder } from './src/core/tree-builder';
 import { ContextEngine } from './src/core/context-engine';
 import { ScopeProjector } from './src/core/scope-projector';
 import { TransactionManager } from './src/core/transaction-manager';
+import { SecurityManager } from './src/core/security-manager';
 
 import { ContextMenuHandler } from './src/ui/context-menu';
 
@@ -40,6 +42,7 @@ export default class AbstractFolderPlugin extends Plugin {
 	abstractBridge: AbstractBridge;
 	contributionEngine: ContributionEngine;
 	metricsManager: MetricsManager;
+	securityManager: SecurityManager;
 	contextMenuHandler: ContextMenuHandler;
 	abstractRibbonIconEl: HTMLElement | null = null;
 	libraryRibbonIconEl: HTMLElement | null = null;
@@ -59,7 +62,8 @@ export default class AbstractFolderPlugin extends Plugin {
 		// Initialize Abstract Library services
 		this.abstractBridge = new AbstractBridge(this.app);
 		this.contributionEngine = new ContributionEngine(this.app);
-		this.libraryManager = new LibraryManager(this.app, this.settings);
+		this.securityManager = new SecurityManager(this.settings);
+		this.libraryManager = new LibraryManager(this.app, this.settings, this.securityManager);
 
 		// Initialize Graph Engine
 		this.graphEngine = new GraphEngine(this.app, this.settings);
@@ -108,6 +112,11 @@ export default class AbstractFolderPlugin extends Plugin {
 			(leaf) => new LibraryExplorerView(leaf, this)
 		);
 
+        this.registerView(
+            ABSTRACT_SPACES_VIEW_TYPE,
+            (leaf) => new AbstractSpacesExplorerView(leaf, this)
+        );
+
 		this.updateRibbonIconVisibility();
 
 		this.addCommand({
@@ -125,6 +134,14 @@ export default class AbstractFolderPlugin extends Plugin {
 				this.activateLibraryExplorer().catch(console.error);
 			},
 		});
+
+        this.addCommand({
+            id: "open-abstract-spaces-explorer",
+            name: "Open abstract spaces explorer",
+            callback: () => {
+                this.activateAbstractSpacesExplorer().catch(console.error);
+            },
+        });
 
 		this.addCommand({
 			id: "open-view",
@@ -419,6 +436,34 @@ this.addCommand({
 			await workspace.revealLeaf(leaf);
 		}
 	}
+
+    async activateAbstractSpacesExplorer() {
+        Logger.debug("Activating Abstract Spaces Explorer...");
+        const { workspace } = this.app;
+        let leaf: WorkspaceLeaf | null = null;
+        const leaves = workspace.getLeavesOfType(ABSTRACT_SPACES_VIEW_TYPE);
+
+        if (leaves.length > 0) {
+            leaf = leaves[0];
+        } else {
+            const side = this.settings.openSide;
+            leaf = side === 'left' ? workspace.getLeftLeaf(false) : workspace.getRightLeaf(false);
+            if (!leaf) {
+                leaf = side === 'left' ? workspace.getLeftLeaf(true) : workspace.getRightLeaf(true);
+            }
+            
+            if (leaf) {
+                await leaf.setViewState({
+                    type: ABSTRACT_SPACES_VIEW_TYPE,
+                    active: true,
+                });
+            }
+        }
+
+        if (leaf) {
+            await workspace.revealLeaf(leaf);
+        }
+    }
 
 	async activateView() {
 		Logger.debug("Activating Abstract Folder View...");
