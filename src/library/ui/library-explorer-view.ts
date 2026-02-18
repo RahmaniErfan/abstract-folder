@@ -152,6 +152,8 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             void this.plugin.activateLibraryCenter();
         });
 
+        container.createDiv({ cls: "library-header-divider" });
+
         const shelfContainer = container.createDiv({ cls: "library-shelf" });
         await this.refreshShelf(shelfContainer);
     }
@@ -252,6 +254,8 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         this.renderSearch(header, "Search in library...", () => {
             void this.refreshLibraryTree();
         }, true); // Enable options for tree view
+
+        header.createDiv({ cls: "library-header-divider" });
 
         const treeContainer = container.createDiv({ cls: "abstract-folder-tree-container" });
         const scrollContainer = treeContainer.createDiv({ cls: "abstract-folder-viewport-scroll-container nav-files-container" });

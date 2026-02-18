@@ -165,8 +165,8 @@
 
 .library-header-divider {
     border-top: 1px solid var(--background-modifier-border);
-    opacity: 0.5;
-    margin: 0 12px;
+    opacity: 0.6;
+    margin: 4px 12px;
 }
 
 /* Library Access Badge Pill */
