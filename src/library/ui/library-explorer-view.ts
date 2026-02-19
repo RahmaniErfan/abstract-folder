@@ -7,6 +7,7 @@ import { ContextEngine } from "../../core/context-engine";
 import { AbstractNode } from "../../core/tree-builder";
 import { ScopedContentProvider } from "../../core/content-provider";
 import { AbstractFolderToolbar } from "../../ui/toolbar/abstract-folder-toolbar";
+import { AbstractDashboardModal } from "../../ui/modals/abstract-dashboard-modal";
 
 export const VIEW_TYPE_LIBRARY_EXPLORER = "abstract-library-explorer";
 
@@ -425,6 +426,23 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         const controlsArea = toolbar.createDiv({ cls: "af-status-controls" });
 
         if (this.isOwner) {
+            // Share Button
+            const shareBtn = controlsArea.createDiv({ 
+                cls: "af-status-control clickable-icon", 
+                attr: { "aria-label": "Share library" } 
+            });
+            setIcon(shareBtn, "users");
+            shareBtn.addEventListener("click", () => {
+                if (!this.selectedLibrary?.file) return;
+                new AbstractDashboardModal(
+                    this.app,
+                    this.plugin,
+                    this.selectedLibrary.file.path,
+                    this.selectedLibrary.file.name,
+                    true
+                ).open();
+            });
+
             const pushBtn = controlsArea.createDiv({ 
                 cls: "af-status-control clickable-icon", 
                 attr: { "aria-label": "Push changes" } 

@@ -231,9 +231,36 @@ export class VirtualViewport {
         }
 
         // 3. Label
-        const label = self.querySelector(".af-item-inner") as HTMLElement;
-        if (label) {
+        const inner = self.querySelector(".af-item-inner") as HTMLElement;
+        if (inner) {
+            let label = inner.querySelector(".af-item-label") as HTMLElement;
+            if (!label) {
+                label = inner.createSpan("af-item-label");
+            }
             label.textContent = node.name;
+        }
+
+        // 4. Sync status indicator (Direct child of self for absolute right alignment)
+        let indicator = self.querySelector(".af-sync-indicator") as HTMLElement;
+        if (node.syncStatus) {
+            el.classList.remove("is-synced", "is-modified", "is-conflict", "is-untracked");
+            el.classList.add(`is-${node.syncStatus}`);
+            
+            if (!indicator) {
+                indicator = self.createDiv("af-sync-indicator");
+            }
+            indicator.className = `af-sync-indicator is-${node.syncStatus}`;
+            
+            const tooltips: any = {
+                synced: "Synced with GitHub",
+                modified: "Modified (Uncommitted)",
+                conflict: "Merge Conflict!",
+                untracked: "New file (Untracked)"
+            };
+            indicator.setAttribute("aria-label", tooltips[node.syncStatus] || "");
+        } else if (indicator) {
+            indicator.remove();
+            el.classList.remove("is-synced", "is-modified", "is-conflict", "is-untracked");
         }
     }
 

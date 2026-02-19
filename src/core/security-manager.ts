@@ -72,6 +72,87 @@ export class SecurityManager {
     }
 
     /**
+     * Internal validator for path safety during writes.
+     * Enforces a strict whitelist of allowed file extensions.
+     */
+    public validatePath(filepath: string): { valid: boolean; reason?: string } {
+        const normalized = filepath.replace(/\\/g, '/');
+        const basename = path.basename(normalized);
+        const ext = path.extname(basename).toLowerCase();
+        
+        // 1. Strict Whitelist Strategy
+        // Only allow specific, safe file types.
+        const allowedExtensions = new Set([
+            // Text / Data
+            '.md', '.txt', '.json', '.csv', '.canvas',
+            // Images
+            '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.bmp', '.ico',
+            // Documents
+            '.pdf',
+            // Styles (Restricted, but often needed for snippets - keeping strict for now)
+            // '.css' // CSS is intentionally excluded from the default whitelist to prevent UI spoofing
+        ]);
+
+        // Special case: License files or other common capitalizations
+        if (allowedExtensions.has(ext)) {
+            // Allowed
+        } else if (basename.toLowerCase() === 'license' || basename.toLowerCase() === 'readme') {
+            // Allowed no-extension files
+        } else {
+            return { valid: false, reason: `Security Restriction: File type '${ext}' is not on the allowlist.` };
+        }
+
+        // 2. Block .obsidian folder writes at root (Quarantine logic handles this redirection, 
+        // but if it slips through to here, we block it to be safe).
+        if (normalized.startsWith('.obsidian/') || normalized.includes('/.obsidian/')) {
+            // usage of .obsidian is restricted to specific safe config files if we were to allow it,
+            // but for now, we rely on the adapter to redirect.
+            // If the adapter didn't redirect, we treat it as an unsafe direct write.
+             return { valid: false, reason: `Security Restriction: Direct write to .obsidian folder is blocked.` };
+        }
+
+        return { valid: true };
+    }
+
+    /**
+     * Sanitizes Markdown content to neutralize executable code blocks.
+     * Renames 'dataviewjs' -> 'text:dataviewjs-sanitized'
+     */
+    public sanitizeMarkdown(content: string): string {
+        let sanitized = content;
+
+        // 1. Neutralize DataviewJS
+        sanitized = sanitized.replace(
+            /(```\s*)dataviewjs(\s*\n)/gi, 
+            '$1text:dataviewjs-sanitized$2'
+        );
+
+        // 2. Neutralize Templater
+        sanitized = sanitized.replace(
+            /(<%[\s\S]*?%>)/g, 
+            (match) => match.replace(/<%/g, '<%_SAFE_').replace(/%>/g, '_SAFE_%>')
+        );
+        sanitized = sanitized.replace(
+            /(```\s*)templater(\s*\n)/gi, 
+            '$1text:templater-sanitized$2'
+        );
+
+        // 3. Neutralize CustomJS
+        sanitized = sanitized.replace(
+            /(```\s*)customjs(\s*\n)/gi, 
+            '$1text:customjs-sanitized$2'
+        );
+
+        // 4. Neutralize HTML scripts (basic check)
+        sanitized = sanitized.replace(
+            /<script\b[^>]*>([\s\S]*?)<\/script>/gmi,
+            '<!-- SANITIZED SCRIPT: $1 -->'
+        );
+
+        return sanitized;
+    }
+
+    /**
      * Generates content for a .gitignore file based on current security settings.
      */
     public generateGitIgnoreContent(): string {

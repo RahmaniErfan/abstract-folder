@@ -60,6 +60,35 @@ export class ConflictManager {
     }
 
     /**
+     * Automatically resolves conflicts for certain file types (e.g. config files) 
+     * based on predefined rules.
+     */
+    static async autoResolveConflicts(dir: string, conflictPaths: string[]): Promise<string[]> {
+        const remainingConflicts: string[] = [];
+        const configFiles = new Set(['workspace.json', 'appearance.json', 'hotkeys.json', 'core-plugins.json', 'plugins.json']);
+
+        for (const filepath of conflictPaths) {
+            const basename = path.basename(filepath);
+            
+            // Rule: "My Config Wins" - Keep Local for .obsidian config files
+            if (configFiles.has(basename) || filepath.includes('.obsidian/')) {
+                console.log(`[ConflictManager] Auto-resolving config file: ${filepath} (Keep Local)`);
+                try {
+                    const info = await this.getConflictInfo(dir, filepath);
+                    if (info) {
+                        await this.resolveConflict(dir, filepath, info.currentContent);
+                        continue; // Resolved!
+                    }
+                } catch (e) {
+                    console.error(`[ConflictManager] Failed to auto-resolve ${filepath}:`, e);
+                }
+            }
+            remainingConflicts.push(filepath);
+        }
+        return remainingConflicts;
+    }
+
+    /**
      * Retrieves the contents of the "Current" (Local/Ours) and "Incoming" (Remote/Theirs)
      * versions of a conflicted file.
      * 

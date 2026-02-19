@@ -17,6 +17,23 @@ export class MergeModal extends Modal {
         
         contentEl.createEl("h2", { text: "Resolve Merge Conflicts" });
 
+        const toolbar = contentEl.createDiv({ cls: "merge-bulk-toolbar" });
+        new ButtonComponent(toolbar)
+            .setButtonText("Keep All Local (Ours)")
+            .onClick(() => {
+                if (confirm("Are you sure you want to resolve ALL conflicts using your local versions?")) {
+                    this.controller.resolveAllOurs();
+                }
+            });
+            
+        new ButtonComponent(toolbar)
+            .setButtonText("Accept All Incoming (Theirs)")
+            .onClick(() => {
+                if (confirm("Are you sure you want to resolve ALL conflicts using the remote versions?")) {
+                    this.controller.resolveAllTheirs();
+                }
+            });
+
         const mainContainer = contentEl.createDiv({ cls: "merge-main-container" });
         this.sidebarEl = mainContainer.createDiv({ cls: "merge-sidebar" });
         this.editorEl = mainContainer.createDiv({ cls: "merge-editor-container" });

@@ -2,7 +2,7 @@ import { App, setIcon, Notice } from "obsidian";
 import type AbstractFolderPlugin from "main";
 import { Logger } from "../../utils/logger";
 import { AbstractFolderPluginSettings } from "../../settings";
-import { PersonalBackupModal } from "../modals";
+import { AbstractDashboardModal } from "../modals/abstract-dashboard-modal";
 
 export class AbstractFolderStatusBar {
     private containerEl: HTMLElement;
@@ -37,7 +37,14 @@ export class AbstractFolderStatusBar {
         });
         setIcon(dashboardBtn, "cloud");
         dashboardBtn.addEventListener("click", () => {
-            new PersonalBackupModal(this.app, this.plugin, this.app.vault.getRoot()).open();
+            const vaultName = (this.app.vault.adapter as any).getName?.() || "My Vault";
+            new AbstractDashboardModal(
+                this.app, 
+                this.plugin, 
+                "", 
+                vaultName,
+                true
+            ).open();
         });
 
         // Sync Button: Quick Sync

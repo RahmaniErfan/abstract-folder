@@ -55,6 +55,22 @@ export class MergeController {
         }
     }
 
+    resolveAllOurs() {
+        this.state.conflicts.forEach(c => {
+            this.state.resolutions.set(c.path, c.currentContent);
+        });
+        this.checkCompletion();
+        this.notify();
+    }
+
+    resolveAllTheirs() {
+        this.state.conflicts.forEach(c => {
+            this.state.resolutions.set(c.path, c.incomingContent);
+        });
+        this.checkCompletion();
+        this.notify();
+    }
+
     private checkCompletion() {
         this.state.isComplete = this.state.conflicts.every(c => this.state.resolutions.has(c.path));
     }

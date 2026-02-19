@@ -22,6 +22,7 @@ export interface AbstractNode {
     isLibrary?: boolean;
     isShared?: boolean;
     isBackup?: boolean;
+    syncStatus?: 'synced' | 'modified' | 'conflict' | 'untracked';
 }
 
 export interface TreeSnapshot {
@@ -163,7 +164,20 @@ export class TreeBuilder {
             return pipeline.matches(id, meta);
         });
 
+
         const sortedRoots = pipeline.sort(filteredRoots);
+
+        // 4. Fetch Sync Statuses
+        const scopedPath = provider.resolveScope() !== 'global' ? provider.getCreationRoot() : "";
+        let syncStatusMap: Map<string, any> | null = null;
+        if (scopedPath !== undefined) {
+            try {
+                syncStatusMap = await (this.app as any).plugins.plugins['abstract-folder'].libraryManager.getFileStatuses(scopedPath || "");
+            } catch (e) {
+                console.error("[TreeBuilder] Failed to fetch sync statuses", e);
+            }
+        }
+
         
         // Use a reverse stack for DFS processing
         const stack: Array<{ id: FileID, uri: string, level: number, visitedPath: Set<FileID>, parentId?: FileID }> = [];
@@ -205,6 +219,13 @@ export class TreeBuilder {
             if (!isStructural && (isSearching && !isMatch)) continue;
 
             // 2. Rendering Decision
+            let syncStatus: any = undefined;
+            if (syncStatusMap && scopedPath !== undefined) {
+                const relativePath = (scopedPath !== "" && id.startsWith(scopedPath)) ? 
+                    (id === scopedPath ? "" : id.substring(scopedPath.length + 1)) : id;
+                syncStatus = syncStatusMap.get(relativePath);
+            }
+
             items.push({
                 id,
                 uri,
@@ -218,7 +239,8 @@ export class TreeBuilder {
                 icon: meta?.icon,
                 isLibrary: meta?.isLibrary,
                 isShared: meta?.isShared,
-                isBackup: meta?.isBackup
+                isBackup: meta?.isBackup,
+                syncStatus: syncStatus
             });
             
             // Track physical -> synthetic mapping

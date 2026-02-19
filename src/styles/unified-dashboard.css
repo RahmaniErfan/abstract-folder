@@ -1,0 +1,118 @@
+/* Unified Dashboard Modal Styles */
+
+.af-unified-dashboard-modal {
+    width: 800px;
+    max-width: 90vw;
+}
+
+.af-unified-dashboard-modal .modal-content {
+    padding: 0;
+}
+
+.af-dashboard-container {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.af-dashboard-section {
+    background-color: var(--background-secondary-alt);
+    border-radius: var(--radius-m);
+    padding: 16px;
+    border: 1px solid var(--background-modifier-border);
+}
+
+.af-dashboard-section h3 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    font-size: var(--font-ui-medium);
+    font-weight: var(--font-semibold);
+    color: var(--text-accent);
+}
+
+.af-dashboard-section p {
+    color: var(--text-muted);
+    font-size: var(--font-ui-small);
+    line-height: var(--line-height-tight);
+}
+
+.af-activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.af-activity-item {
+    display: flex;
+    gap: 12px;
+    position: relative;
+}
+
+.af-activity-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--interactive-accent);
+    margin-top: 6px;
+    flex-shrink: 0;
+}
+
+.af-activity-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 3.5px;
+    top: 14px;
+    bottom: -14px;
+    width: 1px;
+    background-color: var(--background-modifier-border);
+}
+
+.af-activity-content {
+    flex-grow: 1;
+}
+
+.af-activity-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.af-activity-author {
+    font-weight: var(--font-semibold);
+    font-size: var(--font-ui-small);
+}
+
+.af-activity-date {
+    color: var(--text-muted);
+    font-size: var(--font-ui-smaller);
+}
+
+.af-activity-msg {
+    font-size: var(--font-ui-small);
+    color: var(--text-normal);
+}
+
+.af-dashboard-exclusions-text {
+    font-family: var(--font-monospace);
+    background-color: var(--background-primary);
+    padding: 4px 8px;
+    border-radius: var(--radius-s);
+    display: inline-block;
+}
+
+.af-warning-list {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.af-warning-file {
+    font-size: var(--font-ui-smaller);
+    color: var(--text-error);
+    background-color: var(--background-message-error);
+    padding: 4px 8px;
+    border-radius: var(--radius-s);
+}

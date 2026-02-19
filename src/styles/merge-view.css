@@ -99,3 +99,13 @@
     align-items: center;
     padding-top: 10px;
 }
+
+/* Merge Modal Bulk Toolbar */
+.merge-bulk-toolbar {
+	display: flex;
+	gap: 8px;
+	padding: 8px 12px;
+	background-color: var(--background-secondary-alt);
+	border-bottom: 1px solid var(--background-modifier-border);
+	margin-bottom: 8px;
+}

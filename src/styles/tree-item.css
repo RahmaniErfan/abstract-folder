@@ -25,12 +25,13 @@
 }
 
 /* The clickable row */
-.abstract-folder-item-self {
+.af-item-self {
 	display: flex;
 	align-items: center;
 	cursor: pointer;
-	padding: var(--nav-item-padding); /* Use Obsidian variables for consistency */
-	height: 24px; /* Explicit height matching the virtualization engine's expectation */
+	padding: var(--nav-item-padding); 
+	padding-right: 12px; /* Ensure dot has room on the right */
+	height: 24px; 
 	margin-bottom: var(--nav-item-margin-bottom);
 	border-radius: var(--nav-item-radius);
 	color: var(--nav-item-color);
@@ -38,33 +39,26 @@
 	font-weight: var(--nav-item-weight);
 	line-height: var(--line-height-tight);
 	transition: background-color 0.1s ease-in-out;
-	/* Ensure there's space for the icon */
 	justify-content: flex-start;
-	gap: 4px; /* Space between flex items in this container */
+	gap: 4px;
 	position: relative;
+	width: 100%;
+	box-sizing: border-box;
 }
 
-.abstract-folder-item-self:hover {
+.af-item-self:hover {
 	background-color: var(--nav-item-background-hover);
 	color: var(--nav-item-text-color-hover);
 }
 
-.abstract-folder-item.is-selected > .abstract-folder-item-self {
-	background-color: var(--nav-item-background-hover) !important; /* Match hover color exactly */
+.abstract-folder-item.is-selected > .af-item-self {
+	background-color: var(--nav-item-background-hover) !important;
 	color: var(--nav-item-text-color-hover) !important;
 	font-weight: var(--nav-item-weight);
 	border-radius: var(--nav-item-radius);
 }
 
-/* Scoped Highlight: Nested items under a selected folder (Logic currently disabled in TS) */
-.abstract-folder-item.is-child-of-selected > .abstract-folder-item-self {
-	background-color: var(--nav-item-background-hover) !important;
-	color: var(--nav-item-text-color-hover) !important;
-	border-radius: var(--nav-item-radius);
-}
-
-/* Style for multi-selected item */
-.abstract-folder-item-self.is-multi-selected {
+.af-item-self.is-multi-selected {
 	background-color: var(--nav-item-background-active);
 	color: var(--nav-item-text-color-active);
 	font-weight: var(--font-medium);
@@ -74,19 +68,23 @@
 	color: var(--nav-item-text-color-active);
 }
 
-/* Inner Text */
-.abstract-folder-item-inner {
-	flex-grow: 1; /* Match native explorer behavior */
+/* Inner Text Wrapper */
+.af-item-inner {
+	flex-grow: 1;
+	display: flex;
+	align-items: center;
+	overflow: hidden;
+	gap: 6px;
+	min-width: 0;
+}
+
+/* The actual text label */
+.af-item-label {
+	flex: 1 1 auto;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	/* Typography inherited from .abstract-folder-item-self or set specifically */
-	font-size: inherit;
-	font-weight: inherit;
-	line-height: inherit;
-	color: inherit;
-	display: flex; /* Make it a flex container to align its content if needed */
-	align-items: center; /* Vertically align content */
+	min-width: 0;
 }
 
 .abstract-folder-item-icon {
@@ -140,8 +138,8 @@
 }
 
 .abstract-folder-item.is-collapsed
-	> .abstract-folder-item-self
-	> .abstract-folder-collapse-icon
+	> .af-item-self
+	> .af-collapse-icon
 	svg {
 	transform: rotate(-90deg) !important; /* Collapsed state: arrow points RIGHT */
 }
@@ -185,4 +183,41 @@
 .abstract-folder-multi-parent-indicator svg {
 	width: 12px;
 	height: 12px;
+}
+
+/* Sync Status Indicators */
+.af-sync-indicator {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	margin-left: auto; /* Push to the absolute right of af-item-self */
+	margin-right: 4px; /* Small buffer from the edge */
+	display: inline-block;
+	flex-shrink: 0;
+}
+
+.af-sync-indicator.is-synced {
+	background-color: var(--color-green);
+	opacity: 0.6;
+}
+
+.af-sync-indicator.is-modified {
+	background-color: var(--color-yellow);
+}
+
+.af-sync-indicator.is-conflict {
+	background-color: var(--color-red);
+	box-shadow: 0 0 4px var(--color-red);
+	animation: af-pulse-red 2s infinite;
+}
+
+.af-sync-indicator.is-untracked {
+	background-color: var(--text-muted);
+	border: 1px solid var(--text-muted);
+}
+
+@keyframes af-pulse-red {
+	0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+	70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(255, 0, 0, 0); }
+	100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
 }

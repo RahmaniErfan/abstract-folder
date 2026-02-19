@@ -3,7 +3,7 @@ import AbstractFolderPlugin from "main";
 import { CreateSharedSpaceModal } from "../modals/create-shared-space-modal";
 import { JoinSharedSpaceModal } from "../modals/join-shared-space-modal";
 import { LinkSharedSpaceModal } from "../modals/link-shared-space-modal";
-import { SpaceDashboardModal } from "../modals/space-dashboard-modal";
+import { AbstractDashboardModal } from "../modals/abstract-dashboard-modal";
 import { VirtualViewport, ViewportDelegate } from "../components/virtual-viewport";
 import { ContextEngine } from "../../core/context-engine";
 import { AbstractNode } from "../../core/tree-builder";
@@ -330,7 +330,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         setIcon(dashboardBtn, "cloud");
         dashboardBtn.addEventListener("click", () => {
             if (!this.selectedSpace) return;
-            new SpaceDashboardModal(this.app, this.plugin, this.selectedSpace, this.isOwner).open();
+            new AbstractDashboardModal(this.app, this.plugin, this.selectedSpace.path, this.selectedSpace.name, this.isOwner).open();
         });
 
         if (!isLinked) {

@@ -5,6 +5,7 @@ import { ObsidianHttpAdapter } from "./http-adapter";
 import { LibraryConfig, LibraryStatus, RegistryItem } from "../types";
 import { DataService } from "../services/data-service";
 import { NodeFsAdapter } from "./node-fs-adapter";
+import { SecureFsAdapter } from "./secure-fs-adapter";
 import { AbstractFolderPluginSettings } from "../../settings";
 import { AuthService } from "../services/auth-service";
 import { ConflictManager } from "./conflict-manager";
@@ -62,6 +63,7 @@ export class LibraryManager {
     async getSyncStatus(vaultPath: string): Promise<{ ahead: number; dirty: number }> {
         try {
             const absoluteDir = this.getAbsolutePath(vaultPath);
+            // Status check is read-only, safe to use NodeFsAdapter for speed
             const matrix = await git.statusMatrix({ fs: NodeFsAdapter, dir: absoluteDir });
             
             // row[1] = head, row[2] = workdir, row[3] = stage
@@ -98,6 +100,7 @@ export class LibraryManager {
     async cloneLibrary(repositoryUrl: string, destinationPath: string, item?: RegistryItem, token?: string): Promise<void> {
         try {
             const absoluteDir = this.getAbsolutePath(destinationPath);
+            const secureFs = new SecureFsAdapter(this.securityManager, absoluteDir);
             
             console.debug(`[LibraryManager] Cloning library from ${repositoryUrl} to ${absoluteDir}`);
 
@@ -105,7 +108,7 @@ export class LibraryManager {
             
             /* eslint-disable @typescript-eslint/no-unsafe-assignment */
             await git.clone({
-                fs: NodeFsAdapter,
+                fs: secureFs, // Use Secure FS
                 http: ObsidianHttpAdapter as any,
                 dir: absoluteDir,
                 url: repositoryUrl,
@@ -160,13 +163,14 @@ export class LibraryManager {
     async cloneSpace(repositoryUrl: string, destinationPath: string, token?: string): Promise<void> {
         try {
             const absoluteDir = this.getAbsolutePath(destinationPath);
+            const secureFs = new SecureFsAdapter(this.securityManager, absoluteDir);
             const tokenToUse = token || this.getToken();
             
             console.debug(`[LibraryManager] Cloning shared space from ${repositoryUrl} to ${absoluteDir}`);
 
             /* eslint-disable @typescript-eslint/no-unsafe-assignment */
             await git.clone({
-                fs: NodeFsAdapter,
+                fs: secureFs, // Use Secure FS
                 http: ObsidianHttpAdapter as any,
                 dir: absoluteDir,
                 url: repositoryUrl,
@@ -192,6 +196,7 @@ export class LibraryManager {
     async updateLibrary(vaultPath: string, token?: string): Promise<void> {
         try {
             const absoluteDir = this.getAbsolutePath(vaultPath);
+            const secureFs = new SecureFsAdapter(this.securityManager, absoluteDir);
             const tokenToUse = token || this.getToken();
 
             const gitSettings = this.settings.librarySettings;
@@ -202,7 +207,7 @@ export class LibraryManager {
 
             /* eslint-disable @typescript-eslint/no-unsafe-assignment */
             await git.pull({
-                fs: NodeFsAdapter,
+                fs: secureFs, // Use Secure FS
                 http: ObsidianHttpAdapter as any,
                 dir: absoluteDir,
                 onAuth: tokenToUse ? () => ({ username: tokenToUse }) : undefined,
@@ -444,6 +449,7 @@ export class LibraryManager {
     async initRepository(vaultPath: string): Promise<void> {
          try {
             const absoluteDir = this.getAbsolutePath(vaultPath);
+            const secureFs = new SecureFsAdapter(this.securityManager, absoluteDir);
             await this.ensureGitIgnore(absoluteDir);
             
             // Check if already a repo
@@ -452,7 +458,7 @@ export class LibraryManager {
                 return;
             }
 
-            await git.init({ fs: NodeFsAdapter, dir: absoluteDir, defaultBranch: 'main' });
+            await git.init({ fs: secureFs, dir: absoluteDir, defaultBranch: 'main' });
             
             const gitSettings = this.settings.librarySettings;
             const author = { 
@@ -461,11 +467,11 @@ export class LibraryManager {
             };
 
             // Add all files (including .gitignore)
-            await git.add({ fs: NodeFsAdapter, dir: absoluteDir, filepath: "." });
+            await git.add({ fs: secureFs, dir: absoluteDir, filepath: "." });
             
             // Initial commit
             await git.commit({
-                fs: NodeFsAdapter,
+                fs: secureFs,
                 dir: absoluteDir,
                 message: "Initial commit via Abstract Spaces",
                 author: author,
@@ -492,6 +498,7 @@ export class LibraryManager {
 
         try {
             const absoluteDir = this.getAbsolutePath(vaultPath);
+            const secureFs = new SecureFsAdapter(this.securityManager, absoluteDir);
             const tokenToUse = token || this.getToken();
 
             // 2. Initial safety checks
@@ -504,11 +511,11 @@ export class LibraryManager {
             }
 
             // 3. git init
-            await git.init({ fs: NodeFsAdapter, dir: absoluteDir, defaultBranch: 'main' });
+            await git.init({ fs: secureFs, dir: absoluteDir, defaultBranch: 'main' });
 
             // add remote
             await git.addRemote({
-                fs: NodeFsAdapter,
+                fs: secureFs,
                 dir: absoluteDir,
                 remote: 'origin',
                 url: repositoryUrl
@@ -530,6 +537,7 @@ export class LibraryManager {
     async syncBackup(vaultPath: string, message: string = "Sync via Abstract Folder", token?: string, silent: boolean = false): Promise<void> {
         try {
             const absoluteDir = this.getAbsolutePath(vaultPath);
+            const secureFs = new SecureFsAdapter(this.securityManager, absoluteDir);
             const tokenToUse = token || this.getToken();
             
             const gitSettings = this.settings.librarySettings;
@@ -539,12 +547,12 @@ export class LibraryManager {
             };
 
             // 1. Add all files
-            await git.add({ fs: NodeFsAdapter, dir: absoluteDir, filepath: "." });
+            await git.add({ fs: secureFs, dir: absoluteDir, filepath: "." });
 
             // 2. Commit local changes first
             // This prevents CheckoutConflictError and turns it into a MergeConflictError
             await git.commit({
-                fs: NodeFsAdapter,
+                fs: secureFs,
                 dir: absoluteDir,
                 message: message,
                 author: author,
@@ -559,10 +567,10 @@ export class LibraryManager {
             // We use the current branch name for pulling
             let currentBranch = "main";
             try {
-                currentBranch = await git.currentBranch({ fs: NodeFsAdapter, dir: absoluteDir }) || "main";
+                currentBranch = await git.currentBranch({ fs: secureFs, dir: absoluteDir }) || "main";
                 
                 await git.pull({
-                    fs: NodeFsAdapter,
+                    fs: secureFs,
                     http: ObsidianHttpAdapter as any,
                     dir: absoluteDir,
                     onAuth: tokenToUse ? () => ({ username: tokenToUse }) : undefined,
@@ -586,7 +594,7 @@ export class LibraryManager {
             // 4. Push
             // We push the current local branch to the remote branch of the same name
             await git.push({
-                fs: NodeFsAdapter,
+                fs: secureFs,
                 http: ObsidianHttpAdapter as any,
                 dir: absoluteDir,
                 onAuth: tokenToUse ? () => ({ username: tokenToUse }) : undefined,
@@ -648,6 +656,7 @@ export class LibraryManager {
     async finalizeMerge(absoluteDir: string, vaultPath: string, token: string | undefined, silent: boolean = false): Promise<void> {
         try {
             console.log("[LibraryManager] Finalizing merge...");
+            const secureFs = new SecureFsAdapter(this.securityManager, absoluteDir);
             const gitSettings = this.settings.librarySettings;
             const author = { 
                 name: gitSettings.gitName || gitSettings.githubUsername || "Abstract Folder", 
@@ -657,15 +666,16 @@ export class LibraryManager {
             // Resolve parents for the merge commit
             // We need to explicitly link the remote commit we just merged with, 
             // otherwise the push will be rejected as non-fast-forward.
-            const headOid = await git.resolveRef({ fs: NodeFsAdapter, dir: absoluteDir, ref: 'HEAD' });
+            // These reads are safe with NodeFs or SecureFs (passthrough).
+            const headOid = await git.resolveRef({ fs: secureFs, dir: absoluteDir, ref: 'HEAD' });
             let mergeParentOid: string | null = null;
             
             try {
-                mergeParentOid = await git.resolveRef({ fs: NodeFsAdapter, dir: absoluteDir, ref: 'FETCH_HEAD' });
+                mergeParentOid = await git.resolveRef({ fs: secureFs, dir: absoluteDir, ref: 'FETCH_HEAD' });
             } catch (e) {
                 console.warn("[LibraryManager] Could not resolve FETCH_HEAD, trying origin/main");
                 try {
-                     mergeParentOid = await git.resolveRef({ fs: NodeFsAdapter, dir: absoluteDir, ref: 'refs/remotes/origin/main' });
+                     mergeParentOid = await git.resolveRef({ fs: secureFs, dir: absoluteDir, ref: 'refs/remotes/origin/main' });
                 } catch (e2) {
                     console.warn("[LibraryManager] Could not resolve origin/main either. Proceeding with single parent commit (may cause fast-forward issues).");
                 }
@@ -679,7 +689,7 @@ export class LibraryManager {
 
             // 1. Commit the merge
             await git.commit({
-                fs: NodeFsAdapter,
+                fs: secureFs,
                 dir: absoluteDir,
                 message: `Merge branch 'origin/main' into main`,
                 author: author,
@@ -689,7 +699,7 @@ export class LibraryManager {
 
             // 2. Push the result
             await git.push({
-                fs: NodeFsAdapter,
+                fs: secureFs,
                 http: ObsidianHttpAdapter as any,
                 dir: absoluteDir,
                 onAuth: token ? () => ({ username: token }) : undefined,
@@ -747,5 +757,37 @@ export class LibraryManager {
             console.error("[LibraryManager] Failed to fetch collaborators", error);
             return [];
         }
+    }
+
+    /**
+     * Get the Git status for all files in a library.
+     */
+    async getFileStatuses(vaultPath: string): Promise<Map<string, 'synced' | 'modified' | 'conflict' | 'untracked'>> {
+        const statusMap = new Map<string, 'synced' | 'modified' | 'conflict' | 'untracked'>();
+        try {
+            const absoluteDir = this.getAbsolutePath(vaultPath);
+            const matrix = await git.statusMatrix({
+                fs: NodeFsAdapter,
+                dir: absoluteDir
+            });
+
+            for (const [filepath, head, workdir, stage] of matrix) {
+                if (filepath === '.') continue;
+                
+                // stage 1,2,3 indicates conflict
+                if (stage > 1) {
+                    statusMap.set(filepath, 'conflict');
+                } else if (head === 1 && workdir === 1) {
+                    statusMap.set(filepath, 'synced');
+                } else if (head === 1 && workdir === 2) {
+                    statusMap.set(filepath, 'modified');
+                } else if (head === 0 && workdir === 2) {
+                    statusMap.set(filepath, 'untracked');
+                }
+            }
+        } catch (e) {
+            console.error(`[LibraryManager] Failed to get file statuses for ${vaultPath}`, e);
+        }
+        return statusMap;
     }
 }

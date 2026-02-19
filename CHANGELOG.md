@@ -2,6 +2,9 @@
 
 ## [Unreleased] - (V2 High-Performance Architecture)
 ### Added
+- **Unified Dashboard UI**: Consolidated "Space Dashboard," "Personal Backup," and "Collaborator" modals into a single, high-performance `AbstractDashboardModal`. Features a context-aware `UnifiedDashboardView` with sync settings, recent activity, and collaboration tools.
+- **Global Sync Status Indicators**: Enabled real-time Git synchronization feedback (colored dots) in the main Abstract Folder view, providing vault-wide backup visibility.
+- **VS Code-style Tree Polish**: Sync indicators are now aligned to the absolute right of each tree item, and file names truncate gracefully with ellipses (...) to prevent layout breakage.
 - **Git Merge Conflict Resolution**: A full UI for detecting and resolving Git merge conflicts directly within Obsidian. Includes a 2-pane comparison view and intelligent conflict parsing.
 - **Robust Sync Recovery**: The sync engine now gracefully handles interruption and merge states, preventing infinite loops during complex updates.
 
