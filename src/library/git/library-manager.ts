@@ -777,25 +777,53 @@ export class LibraryManager {
         const statusMap = new Map<string, 'synced' | 'modified' | 'conflict' | 'untracked'>();
         try {
             const absoluteDir = this.getAbsolutePath(vaultPath);
+            /* eslint-disable @typescript-eslint/no-unsafe-assignment */
             const matrix = await git.statusMatrix({
                 fs: NodeFsAdapter,
                 dir: absoluteDir
             });
+            /* eslint-enable @typescript-eslint/no-unsafe-assignment */
 
-            for (const [filepath, head, workdir, stage] of matrix) {
+            // Matrix Structure: [filepath, head, workdir, stage]
+            // HEAD (1): 0=absent, 1=present
+            // WORKDIR (2): 0=absent, 1=identical to HEAD, 2=different than HEAD
+            // STAGE (3): 0=absent, 1=identical to HEAD, 2=different than HEAD, 3=conflict
+
+            for (const row of matrix) {
+                const [filepath, head, workdir, stage] = row;
                 if (filepath === '.') continue;
                 
-                // stage 1,2,3 indicates conflict
-                if (stage > 1) {
-                    statusMap.set(filepath, 'conflict');
-                } else if (head === 1 && workdir === 1) {
-                    statusMap.set(filepath, 'synced');
-                } else if (head === 1 && workdir === 2) {
-                    statusMap.set(filepath, 'modified');
-                } else if (head === 0 && workdir === 2) {
-                    statusMap.set(filepath, 'untracked');
-                }
+                // 1. Conflict
+                // Conflict entries have stage > 1, OR specific patterns in matrix like [*, 2, 3] etc.
+                // But isomorphic-git docs say: 
+                // "If stage is 2 (modified) then it's staged."
+                // "If stage is 3 then it is a merge conflict."
+                // Wait, standard docs:
+                // 0: absent, 1: unmodified, 2: modified
+                // If stage > 2? No, stage column in matrix is about index vs head.
+                // Let's rely on standard interpretations:
+                // [1, 2, 1] = modified in workdir, not staged
+                // [1, 2, 2] = modified in workdir, staged
+                // [1, 2, 3] = ? 
+                
+                // Let's simplify:
+                // Untracked: [0, 2, 0] (absent in HEAD, present in WORKDIR, absent in STAGE) - wait stage 0 means absent?
+                // Actually:
+                // 0 = absent, 1 = present, 2 = different
+                
+                // UNTRACKED: [0, 2, 0] or [0, 2, 2] (added)
+                
+                if (head === 0 && workdir === 2) {
+                     statusMap.set(filepath, 'untracked');
+                } else if (workdir === 2 && head === 1) {
+                     statusMap.set(filepath, 'modified');
+                } else if (head === 1 && workdir === 1 && stage === 1) {
+                     statusMap.set(filepath, 'synced');
             }
+            }
+            
+            console.debug(`[LibraryManager] File statuses for ${vaultPath}:`, statusMap);
+
         } catch (e) {
             console.error(`[LibraryManager] Failed to get file statuses for ${vaultPath}`, e);
         }

@@ -391,7 +391,10 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
 
             pushArea.addEventListener("click", async () => {
                 if (!this.selectedSpace) return;
-                pushArea.addClass("is-syncing");
+                
+                // Visual feedback: Fade opacity
+                pushArea.style.opacity = "0.5";
+                
                 try {
                     new Notice(`Pushing ${this.selectedSpace.name}...`);
                     await this.plugin.libraryManager.syncBackup(this.selectedSpace.path, "Update space", undefined, true);
@@ -400,7 +403,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
                 } catch (e) {
                     new Notice(`Push failed: ${e.message}`);
                 } finally {
-                    pushArea.removeClass("is-syncing");
+                    pushArea.style.opacity = "1";
                 }
             });
         }
@@ -425,7 +428,9 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
 
         pullArea.addEventListener("click", async () => {
             if (!this.selectedSpace) return;
-            pullArea.addClass("is-syncing");
+            
+            pullArea.style.opacity = "0.5";
+            
             try {
                 new Notice(`Updating ${this.selectedSpace.name}...`);
                 await this.plugin.libraryManager.updateLibrary(this.selectedSpace.path);
@@ -434,7 +439,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             } catch (e) {
                 new Notice(`Update failed: ${e.message}`);
             } finally {
-                pullArea.removeClass("is-syncing");
+                pullArea.style.opacity = "1";
             }
         });
 

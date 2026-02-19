@@ -52,6 +52,13 @@ export class SecureFsAdapter {
                 return fs.promises.writeFile(isolatedPath, data, options);
             }
 
+            // 2.5 Allow Internal Git Files
+            // We must allow writing to .git or we cannot push/pull!
+            if (relativePath.includes('.git/') || relativePath.endsWith('.git')) {
+                // Git files are safe to write as they are managed by the plugin
+                return fs.promises.writeFile(file, data, options);
+            }
+
             // 3. Security Validation (Extension Whitelist)
             const validation = this.securityManager.validatePath(relativePath);
             if (!validation.valid) {
