@@ -1,6 +1,8 @@
-import { App, TFile } from "obsidian";
+import { App, TFile, TFolder } from "obsidian";
 import { FileID, IGraphEngine, NodeMeta } from "./graph-engine";
 import { SortConfig } from "../types";
+import { MetricsManager } from "../metrics-manager";
+import { Logger } from "../utils/logger";
 
 export interface TreePipeline {
     /**
@@ -39,6 +41,7 @@ export class StandardTreePipeline implements TreePipeline {
     constructor(
         private app: App,
         private graph: IGraphEngine,
+        private metricsManager: MetricsManager,
         public config: {
             sortConfig: SortConfig;
             filterQuery: string | null;
@@ -223,20 +226,61 @@ export class StandardTreePipeline implements TreePipeline {
     }
 
     sort(ids: FileID[]): FileID[] {
-        const { sortOrder } = this.config.sortConfig;
+        const { sortBy, sortOrder } = this.config.sortConfig;
         
-        return [...ids].sort((a, b) => {
-            const metaA = this.graph.getChildren(a).length > 0; // simplistic folder check
-            const metaB = this.graph.getChildren(b).length > 0;
-            
-            // Folder first (optional, following V1 convention)
-            if (metaA !== metaB) return metaA ? -1 : 1;
+        Logger.debug(`[Abstract Folder] Sort: Sorting ${ids.length} items by ${sortBy} (${sortOrder})`);
 
-            const nameA = this.getNodeName(a);
-            const nameB = this.getNodeName(b);
+        return [...ids].sort((a, b) => {
+            const fileA = this.app.vault.getAbstractFileByPath(a);
+            const fileB = this.app.vault.getAbstractFileByPath(b);
+
+            const isFolderA = fileA instanceof TFolder;
+            const isFolderB = fileB instanceof TFolder;
             
-            const cmp = nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
-            return sortOrder === 'asc' ? cmp : -cmp;
+            // Real Folders first (Traditional Obsidian Behavior)
+            if (isFolderA !== isFolderB) return isFolderA ? -1 : 1;
+
+            let cmp = 0;
+
+            if (sortBy === 'name') {
+                const nameA = this.getNodeName(a);
+                const nameB = this.getNodeName(b);
+                cmp = nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+            } else if (sortBy === 'mtime') {
+                const mA = (fileA instanceof TFile) ? fileA.stat.mtime : (this.graph.getNodeMeta(a)?.mtime || 0);
+                const mB = (fileB instanceof TFile) ? fileB.stat.mtime : (this.graph.getNodeMeta(b)?.mtime || 0);
+                cmp = mA - mB;
+            } else if (sortBy === 'ctime') {
+                const cA = (fileA instanceof TFile) ? fileA.stat.ctime : (this.graph.getNodeMeta(a)?.mtime || 0);
+                const cB = (fileB instanceof TFile) ? fileB.stat.ctime : (this.graph.getNodeMeta(b)?.mtime || 0);
+                cmp = cA - cB;
+            } else if (sortBy === 'thermal') {
+                const valA = this.metricsManager.getMetrics(a).thermal;
+                const valB = this.metricsManager.getMetrics(b).thermal;
+                cmp = valA - valB;
+            } else if (sortBy === 'rot') {
+                const valA = this.metricsManager.getMetrics(a).rot;
+                const valB = this.metricsManager.getMetrics(b).rot;
+                cmp = valA - valB;
+            } else if (sortBy === 'gravity') {
+                const valA = this.metricsManager.getMetrics(a).gravity;
+                const valB = this.metricsManager.getMetrics(b).gravity;
+                cmp = valA - valB;
+            } else {
+                const nameA = this.getNodeName(a);
+                const nameB = this.getNodeName(b);
+                cmp = nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+            }
+
+            // Fallback to name if criteria is equal
+            if (cmp === 0) {
+                const nameA = this.getNodeName(a);
+                const nameB = this.getNodeName(b);
+                cmp = nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+            }
+
+            const result = sortOrder === 'asc' ? cmp : -cmp;
+            return result;
         });
     }
 

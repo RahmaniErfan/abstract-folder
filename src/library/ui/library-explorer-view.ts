@@ -5,6 +5,8 @@ import { Logger } from "../../utils/logger";
 import { VirtualViewport, ViewportDelegate } from "../../ui/components/virtual-viewport";
 import { ContextEngine } from "../../core/context-engine";
 import { AbstractNode } from "../../core/tree-builder";
+import { ScopedContentProvider } from "../../core/content-provider";
+import { AbstractFolderToolbar } from "../../ui/toolbar/abstract-folder-toolbar";
 
 export const VIEW_TYPE_LIBRARY_EXPLORER = "abstract-library-explorer";
 
@@ -292,33 +294,44 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             const libraryFile = this.selectedLibrary.file;
             const libraryPath = libraryFile ? libraryFile.path : null;
         
-        // Strategic Cache Ingestion:
-        // Before building the tree, we seed the GraphEngine with relationships
-        // discovered by the Bridge's manual scan. This ensures the V2 Pipeline
-        // sees the correct hierarchy even if Obsidian's cache is stale.
-        if (libraryPath) {
-            const relationships = this.plugin.abstractBridge.getLibraryRelationships(libraryPath);
-            if (relationships) {
-                this.plugin.graphEngine.seedRelationships(relationships);
+            // Strategic Cache Ingestion
+            if (libraryPath) {
+                const relationships = this.plugin.abstractBridge.getLibraryRelationships(libraryPath);
+                if (relationships) {
+                    this.plugin.graphEngine.seedRelationships(relationships);
+                }
             }
-        }
 
-        // Use the library's root folder as the active group to establish hierarchy
+            // Create Scoped Provider for Library
+            // Use 'library' scope ID to match ContextEngine
+            const provider = new ScopedContentProvider(
+                this.plugin.app,
+                this.plugin.settings,
+                libraryPath || "",
+                "library",
+                false, // No groupings in library view for now
+                null
+            );
+
             const generator = this.plugin.treeBuilder.buildTree(
                 this.contextEngine, 
-                this.searchQuery, 
-                !!this.searchQuery, 
-                libraryPath,
-                { showAncestors: this.showAncestors, showDescendants: this.showDescendants }
+                provider,
+                { 
+                    filterQuery: this.searchQuery,
+                    forceExpandAll: !!this.searchQuery,
+                    showAncestors: this.showAncestors, 
+                    showDescendants: this.showDescendants 
+                }
             );
-        let result;
-        while (true) {
-            const next = await generator.next();
-            if (next.done) {
-                result = next.value;
-                break;
+
+            let result;
+            while (true) {
+                const next = await generator.next();
+                if (next.done) {
+                    result = next.value;
+                    break;
+                }
             }
-        }
 
             if (result) {
                 this.currentItems = result.items;
@@ -337,30 +350,55 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     }
 
     private renderTopToolbar(container: HTMLElement) {
-        const toolbar = container.createDiv({ cls: "abstract-folder-toolbar" });
-
-        if (this.repositoryUrl) {
-            const githubBtn = toolbar.createDiv({ 
-                cls: "abstract-folder-toolbar-action clickable-icon", 
-                attr: { "aria-label": "View on GitHub" } 
-            });
-            setIcon(githubBtn, "github");
-            githubBtn.addEventListener("click", () => {
-                window.open(this.repositoryUrl!, "_blank");
-            });
-        }
+        const toolbarContainer = container.createDiv({ cls: "abstract-folder-toolbar" });
         
-        const forkBtn = toolbar.createDiv({ cls: "abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Fork library (Coming soon)" } });
-        setIcon(forkBtn, "git-fork");
-        
-        const prBtn = toolbar.createDiv({ cls: "abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Create PR (Coming soon)" } });
-        setIcon(prBtn, "git-pull-request");
+        const libraryPath = this.selectedLibrary?.file?.path || "";
+        const provider = new ScopedContentProvider(
+            this.plugin.app, 
+            this.plugin.settings, 
+            libraryPath, 
+            "library",
+            false, 
+            null
+        );
 
-        const issueBtn = toolbar.createDiv({ cls: "abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Open Issue (Coming soon)" } });
-        setIcon(issueBtn, "alert-circle");
+        new AbstractFolderToolbar(
+            this.app,
+            this.plugin.settings,
+            this.plugin,
+            this.contextEngine,
+            {
+                containerEl: toolbarContainer,
+                provider: provider,
+                showFocusButton: false,
+                showConversionButton: false,
+                showCollapseButton: true,
+                showExpandButton: true,
+                showSortButton: true,
+                showFilterButton: true,
+                showGroupButton: false,
+                showCreateNoteButton: this.isOwner,
+                showCreateFolderButton: this.isOwner,
+                extraActions: (toolbarEl: HTMLElement) => {
+                     if (this.repositoryUrl) {
+                        this.createToolbarAction(toolbarEl, "github", "View on GitHub", () => window.open(this.repositoryUrl!, "_blank"));
+                     }
+                     this.createToolbarAction(toolbarEl, "git-fork", "Fork library (Coming soon)", () => {});
+                     this.createToolbarAction(toolbarEl, "git-pull-request", "Create PR (Coming soon)", () => {});
+                     this.createToolbarAction(toolbarEl, "alert-circle", "Open Issue (Coming soon)", () => {});
+                     this.createToolbarAction(toolbarEl, "star", "Star library (Coming soon)", () => {});
+                }
+            }
+        ).render();
+    }
 
-        const starBtn = toolbar.createDiv({ cls: "abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Star library (Coming soon)" } });
-        setIcon(starBtn, "star");
+    private createToolbarAction(container: HTMLElement, icon: string, title: string, onClick: () => void) {
+        const btn = container.createDiv({ 
+            cls: "abstract-folder-toolbar-action clickable-icon", 
+            attr: { "aria-label": title } 
+        });
+        setIcon(btn, icon);
+        btn.addEventListener("click", onClick);
     }
 
     private async renderBottomToolbar(container: HTMLElement) {

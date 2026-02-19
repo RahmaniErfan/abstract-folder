@@ -6,6 +6,7 @@ import { AbstractFolderStatusBar } from "./abstract-folder-status-bar";
 import { TreeSnapshot, AbstractNode } from "../../core/tree-builder";
 import { Logger } from "../../utils/logger";
 import { AbstractSearch } from "../search/abstract-search";
+import { GlobalContentProvider } from "../../core/content-provider";
 
 export const VIEW_TYPE_ABSTRACT_FOLDER = "abstract-folder-view";
 
@@ -165,13 +166,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
         const activeFile = this.app.workspace.getActiveFile();
         if (!activeFile) return;
 
-        // 1. Update Search/Filter via ContextEngine (AbstractSearch will react)
-        this.contextEngine.setFilter(activeFile.basename);
-        
-        // 2. Enable Ancestry Toggles in Settings
-        this.plugin.settings.searchShowAncestors = true;
-        this.plugin.settings.searchShowDescendants = true;
-        await this.plugin.saveSettings();
+        this.focusFile(activeFile.path);
     }
 
     onItemClick(node: AbstractNode, event: MouseEvent): void {
@@ -233,11 +228,16 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
         try {
             const state = this.contextEngine.getState();
             const filterQuery = state.activeFilter;
+
+            const provider = new GlobalContentProvider(this.app, this.plugin.settings, state.activeGroupId);
             
             const generator = this.plugin.treeBuilder.buildTree(
                 this.contextEngine,
-                filterQuery,
-                !!filterQuery || !!options.forceExpand // Force expand all if searching OR requested
+                provider,
+                {
+                    filterQuery: filterQuery,
+                    forceExpandAll: !!filterQuery || !!options.forceExpand // Force expand all if searching OR requested
+                }
             );
             while (true) {
                 const result = await generator.next();
@@ -264,7 +264,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
             console.error("Failed to refresh tree", error);
         } finally {
             this.isRefreshing = false;
-            Logger.debug("[Abstract Folder] View: refreshTree finished");
+            // Logger.debug("[Abstract Folder] View: refreshTree finished");
             if (this.nextRefreshScheduled) {
                 Logger.debug("[Abstract Folder] View: Next refresh was scheduled, re-triggering...");
                 this.nextRefreshScheduled = false;

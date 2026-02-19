@@ -71,7 +71,7 @@ export default class AbstractFolderPlugin extends Plugin {
 		
 		this.metricsManager = new MetricsManager(this.app, this.graphEngine, this);
 		
-		this.treeBuilder = new TreeBuilder(this.app, this.graphEngine);
+		this.treeBuilder = new TreeBuilder(this.app, this.graphEngine, this.metricsManager);
 		this.contextEngine = new ContextEngine(this, 'global');
 		this.scopeProjector = new ScopeProjector();
 		this.transactionManager = new TransactionManager(this.app, this.graphEngine, this.settings);

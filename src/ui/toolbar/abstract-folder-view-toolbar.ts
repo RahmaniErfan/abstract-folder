@@ -5,6 +5,7 @@ import { CreateAbstractChildModal, PersonalBackupModal } from "../modals";
 import { createAbstractChildFile } from "../../utils/file-operations";
 import { ManageSortingModal } from "../modals/manage-sorting-modal";
 import { AbstractFolderToolbar } from "./abstract-folder-toolbar";
+import { GlobalContentProvider } from "../../core/content-provider";
 
 export class AbstractFolderViewToolbar {
     private abstractFolderToolbar: AbstractFolderToolbar;
@@ -13,11 +14,14 @@ export class AbstractFolderViewToolbar {
         private app: App,
         private settings: AbstractFolderPluginSettings,
         private plugin: AbstractFolderPlugin,
-        private contextEngine: any, // import dynamically or use any
+        private contextEngine: any, 
         private containerEl: HTMLElement,
         private focusSearch: () => void,
         private focusActiveFile: () => void,
     ) {
+        // Create a provider for the toolbar to check capabilities
+        const provider = new GlobalContentProvider(app, settings, null);
+
         this.abstractFolderToolbar = new AbstractFolderToolbar(
             app,
             settings,
@@ -25,17 +29,15 @@ export class AbstractFolderViewToolbar {
             contextEngine,
             {
                 containerEl: containerEl,
+                provider: provider,
                 showFocusButton: settings.showFocusActiveFileButton,
                 showConversionButton: settings.showConversionButton,
                 showCollapseButton: settings.showCollapseAllButton,
-                showExpandButton: true, // Always show if we want to support it, or check settings if we add it
-                showViewStyleButton: true, // Always show for personal view
+                showExpandButton: true, 
                 showSortButton: settings.showSortButton,
                 showFilterButton: settings.showFilterButton,
                 showGroupButton: settings.showGroupButton,
                 showCreateNoteButton: settings.showCreateNoteButton,
-                // Personal view doesn't typically have "create folder" button in toolbar, usually via modal or context menu
-                // But if we want it, we can enable it. The original didn't seem to have it in the main toolbar.
                 showCreateFolderButton: false, 
                 focusActiveFile: focusActiveFile
             }
@@ -50,7 +52,5 @@ export class AbstractFolderViewToolbar {
         this.abstractFolderToolbar.updateButtonStates();
     }
 
-    public updateViewStyleToggleButton(): void {
-        this.abstractFolderToolbar.updateViewStyleToggleButton();
-    }
+
 }

@@ -9,21 +9,22 @@ import { Group, SortBy } from "../../types";
 import { ManageGroupsModal } from "../modals/manage-groups-modal";
 import { Logger } from "../../utils/logger";
 import { ContextEngine } from "../../core/context-engine";
+import { ContentProvider } from "../../core/content-provider";
 
 export interface AbstractFolderToolbarOptions {
     containerEl: HTMLElement;
-    fileCreationRoot?: string; // If provided, new files/folders are created here. If null, created at root/default.
+    provider: ContentProvider;
     focusActiveFile?: () => void;
     showFocusButton?: boolean;
     showConversionButton?: boolean;
     showCollapseButton?: boolean;
     showExpandButton?: boolean;
-    showViewStyleButton?: boolean;
     showSortButton?: boolean;
     showFilterButton?: boolean;
     showGroupButton?: boolean;
     showCreateNoteButton?: boolean;
     showCreateFolderButton?: boolean;
+    extraActions?: (container: HTMLElement) => void;
 }
 
 export class AbstractFolderToolbar {
@@ -38,7 +39,7 @@ export class AbstractFolderToolbar {
     ) {}
 
     public render(): void {
-        const { containerEl } = this.options;
+        const { containerEl, provider } = this.options;
         containerEl.empty();
         containerEl.addClass("abstract-folder-toolbar");
         
@@ -50,12 +51,6 @@ export class AbstractFolderToolbar {
         
         if (this.options.showConversionButton) {
             this.addAction("lucide-folder-sync", "Convert folder structure", (evt) => this.showConversionMenu(evt));
-        }
-
-        if (this.options.showViewStyleButton) {
-            const btn = this.addAction("rows-2", "Switch view style", () => this.toggleViewStyle());
-            this.buttons.set('viewStyle', btn);
-            this.updateViewStyleToggleButton();
         }
 
         if (this.options.showExpandButton) {
@@ -72,15 +67,15 @@ export class AbstractFolderToolbar {
             this.buttons.set('collapse', btn);
         }
 
-        if (this.options.showSortButton) {
+        if (this.options.showSortButton && provider.supportsSorting()) {
             this.addAction("arrow-up-down", "Sort order", (evt) => this.showSortMenu(evt));
         }
 
-        if (this.options.showFilterButton) {
+        if (this.options.showFilterButton && provider.supportsFiltering()) {
             this.addAction("filter", "Filter", (evt) => this.showFilterMenu(evt));
         }
 
-        if (this.options.showGroupButton) {
+        if (this.options.showGroupButton && provider.supportsGroups()) {
             this.addAction("users", "Select group", (evt) => this.showGroupMenu(evt));
         }
 
@@ -90,6 +85,10 @@ export class AbstractFolderToolbar {
         
         if (this.options.showCreateFolderButton) {
             this.addAction("folder-plus", "Create new folder", () => this.handleCreateFolder());
+        }
+        
+        if (this.options.extraActions) {
+            this.options.extraActions(containerEl);
         }
 
         this.updateButtonStates();
@@ -126,41 +125,24 @@ export class AbstractFolderToolbar {
             else expandBtn.removeAttribute('aria-disabled');
         }
 
-        if (this.options.showViewStyleButton) {
-            this.updateViewStyleToggleButton();
+        if (this.options.showExpandButton) {
+            this.updateExpandButtonState();
         }
     }
 
-    private toggleViewStyle() {
-        // Toggle logic
-        const newStyle = this.settings.viewStyle === 'tree' ? 'column' : 'tree';
-        this.settings.viewStyle = newStyle;
-        this.plugin.saveSettings().then(() => {
-            this.plugin.app.workspace.trigger('abstract-folder:view-style-changed');
-            this.updateViewStyleToggleButton();
-            this.updateButtonStates();
-        }).catch(Logger.error);
+    private updateExpandButtonState() {
+        // Logic if needed
     }
 
-    public updateViewStyleToggleButton(): void {
-        const btn = this.buttons.get('viewStyle');
-        if (!btn) return;
-        
-        const isColumnView = this.settings.viewStyle === 'column';
-        setIcon(btn, isColumnView ? "folder-tree" : "rows-2");
-        const mode = isColumnView ? "tree" : "column";
-        btn.setAttribute("aria-label", `Switch to ${mode} view`);
-        btn.title = `Switch to ${mode} view`;
-    }
+
 
     private handleCreateNote() {
-        // If we have a creation root (e.g. Space), we pre-fill or force that location.
-        // For now, simpler to just use the modal but maybe we need a dedicated "Quick Create" if root is set.
+        const creationRoot = this.options.provider.getCreationRoot();
         
-        if (this.options.fileCreationRoot) {
+        if (creationRoot) {
             // Direct creation in the specific root
             new CreateAbstractChildModal(this.app, this.settings, (name, type) => {
-                this.createFileInPath(this.options.fileCreationRoot!, name, type);
+                this.createFileInPath(creationRoot, name, type);
             }, 'note').open();
         } else {
             // Standard abstract creation
@@ -181,13 +163,7 @@ export class AbstractFolderToolbar {
             content = '{}';
         }
 
-        // Construct full path
-        // path is the folder path e.g. "Spaces/MySpace"
-        // name is "My Note"
-        
         const candidatePath = `${path}/${name}${extension}`;
-        // We can use a simpler conflict resolution or reuse getConflictFreeName if updated to support path prefixes
-        // For now, simple increment
         let finalPath = candidatePath;
         let counter = 1;
         while (this.app.vault.getAbstractFileByPath(finalPath)) {
@@ -204,9 +180,11 @@ export class AbstractFolderToolbar {
     }
 
     private handleCreateFolder() {
-        if (this.options.fileCreationRoot) {
+        const creationRoot = this.options.provider.getCreationRoot();
+
+        if (creationRoot) {
             new NameInputModal(this.app, "Create new folder", "Folder name", (name) => {
-                 this.createFolderInPath(this.options.fileCreationRoot!, name);
+                 this.createFolderInPath(creationRoot, name);
              }).open();
         } else {
              new NameInputModal(this.app, "Create new folder", "Folder name", (name) => {

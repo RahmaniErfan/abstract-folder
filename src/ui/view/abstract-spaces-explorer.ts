@@ -9,6 +9,7 @@ import { ContextEngine } from "../../core/context-engine";
 import { AbstractNode } from "../../core/tree-builder";
 import { AbstractFolderToolbar } from "../toolbar/abstract-folder-toolbar";
 import { AbstractSearch } from "../search/abstract-search";
+import { ScopedContentProvider } from "../../core/content-provider";
 
 export const ABSTRACT_SPACES_VIEW_TYPE = "abstract-spaces-explorer";
 
@@ -85,7 +86,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
                  void this.refreshSpaceTree();
             });
             this.contextEngine.on('expand-all', () => {
-                 void this.refreshSpaceTree();
+                 void this.refreshSpaceTree({ forceExpand: true });
             });
             
             void this.renderSpaceTree(container);
@@ -248,17 +249,31 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         // Create container for toolbar
         const toolbarContainer = container.createDiv();
         
+        const path = this.selectedSpace?.path || "";
+        const provider = new ScopedContentProvider(
+            this.plugin.app,
+            this.plugin.settings,
+            path,
+            `space:${path}`,
+            false, // Spaces usually flat or folder based, no extra grouping for now
+            null
+        );
+
         new AbstractFolderToolbar(this.app, this.plugin.settings, this.plugin, this.contextEngine, {
             containerEl: toolbarContainer,
-            fileCreationRoot: this.selectedSpace?.path || "",
+            provider: provider,
             showSortButton: true,
             showCreateNoteButton: true,
             showCreateFolderButton: true,
-            showGroupButton: true,
+            showGroupButton: false, // Groups disabled for now in spaces
             showFilterButton: true,
             showExpandButton: true,
             showCollapseButton: true,
-            showViewStyleButton: true
+            extraActions: (toolbarEl: HTMLElement) => {
+                 // Space specific actions? 
+                 // Maybe move "Sync Now" or "Space Dashboard" here if we want? 
+                 // Currently they are in bottom status bar.
+            }
         }).render();
     }
 
@@ -388,7 +403,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         });
     }
 
-    private async refreshSpaceTree() {
+    private async refreshSpaceTree(options: { forceExpand?: boolean } = {}) {
         if (!this.viewport || !this.selectedSpace) return;
         
         if (this.isRefreshing) {
@@ -401,24 +416,31 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         try {
             const scopePath = this.selectedSpace.path;
             
-            // Strategic Cache Ingestion:
-            // Ensure GraphEngine sees the correct hierarchy even if Obsidian's cache is stale
+            // Strategic Cache Ingestion
             const relationships = this.plugin.abstractBridge.getLibraryRelationships(scopePath);
             if (relationships) {
                 this.plugin.graphEngine.seedRelationships(relationships);
             }
 
+            const provider = new ScopedContentProvider(
+                this.plugin.app,
+                this.plugin.settings,
+                scopePath,
+                `space:${scopePath}`,
+                false,
+                null
+            );
+
             const generator = this.plugin.treeBuilder.buildTree(
-            this.contextEngine,
-            this.searchQuery,
-            !!this.searchQuery, 
-            undefined, // Use the context engine's active group
-            {
-                scopingPath: this.selectedSpace.path,
-                showAncestors: this.plugin.settings.searchShowAncestors,
-                showDescendants: this.plugin.settings.searchShowDescendants
-            }
-        );    
+                this.contextEngine,
+                provider,
+                {
+                    filterQuery: this.searchQuery,
+                    forceExpandAll: !!this.searchQuery || !!options.forceExpand,
+                    showAncestors: this.plugin.settings.searchShowAncestors,
+                    showDescendants: this.plugin.settings.searchShowDescendants
+                }
+            );    
             let result;
             while (true) {
                 const next = await generator.next();
