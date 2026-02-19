@@ -11,17 +11,22 @@ import { AuthService } from "../services/auth-service";
 import { ConflictManager } from "./conflict-manager";
 import { MergeModal } from "../../ui/modals/merge/merge-modal";
 import { SecurityManager } from "../../core/security-manager";
+import { GitScopeManager } from "./git-scope-manager";
 
 /**
  * LibraryManager handles Git operations using isomorphic-git.
  * It uses a physical Node FS adapter to sync files directly to the vault.
  */
 export class LibraryManager {
+    public readonly scopeManager: GitScopeManager;
+
     constructor(
         private app: App, 
         private settings: AbstractFolderPluginSettings,
         private securityManager: SecurityManager
-    ) {}
+    ) {
+        this.scopeManager = new GitScopeManager(app);
+    }
 
     /**
      * Fetch and cache GitHub user info.
@@ -236,6 +241,8 @@ export class LibraryManager {
             }
             console.error("Update failed", error);
             throw error;
+        } finally {
+            void this.scopeManager.refreshScope(vaultPath);
         }
     }
 
@@ -627,6 +634,8 @@ export class LibraryManager {
             }
             console.error("Sync failed", error);
             throw error;
+        } finally {
+            void this.scopeManager.refreshScope(vaultPath);
         }
     }
 
@@ -712,6 +721,8 @@ export class LibraryManager {
             console.error("[LibraryManager] Failed to finalize merge:", error);
             new Notice("Failed to finalize merge. Check console for details.");
             throw error;
+        } finally {
+            void this.scopeManager.refreshScope(vaultPath);
         }
     }
     /**

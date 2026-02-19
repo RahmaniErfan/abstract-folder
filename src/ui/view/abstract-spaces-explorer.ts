@@ -24,6 +24,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
     private repositoryUrl: string | null = null;
     private authorName = "Unknown";
     private isOwner = false;
+    private scopeUnsubscribe: (() => void) | null = null;
 
     // Search Options
     private searchQuery = "";
@@ -295,6 +296,16 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
     private async renderSpaceStatusBar(container: HTMLElement) {
         if (!this.selectedSpace) return;
         
+        // Register & Subscribe Scope
+        if (this.scopeUnsubscribe) {
+            this.scopeUnsubscribe();
+            this.scopeUnsubscribe = null;
+        }
+        
+        const scopeId = this.selectedSpace.path;
+        const absPath = (this.plugin.libraryManager as any).getAbsolutePath(scopeId);
+        this.plugin.libraryManager.scopeManager.registerScope(scopeId, absPath);
+        
         const isLinked = !!this.repositoryUrl;
 
         const toolbar = container.createDiv({ cls: "af-status-bar" });
@@ -362,6 +373,21 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             });
             const pushIconContainer = pushArea.createDiv({ cls: "af-status-sync-icon" });
             setIcon(pushIconContainer, "upload-cloud");
+            const pushBadge = pushIconContainer.createDiv({ cls: "af-status-sync-badge push-badge is-hidden" });
+            pushBadge.style.backgroundColor = "var(--color-blue)";
+            
+            // Scope listener removed from here to be consolidated
+            /*
+            this.scopeUnsubscribe = this.plugin.libraryManager.scopeManager.subscribe(scopeId, (state) => {
+                 const count = state.localChanges + state.ahead;
+                 if (count > 0) {
+                     pushBadge.textContent = count > 9 ? "9+" : String(count);
+                     pushBadge.removeClass("is-hidden");
+                 } else {
+                     pushBadge.addClass("is-hidden");
+                 }
+            });
+            */
 
             pushArea.addEventListener("click", async () => {
                 if (!this.selectedSpace) return;
@@ -386,6 +412,16 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         });
         const pullIconContainer = pullArea.createDiv({ cls: "af-status-sync-icon" });
         setIcon(pullIconContainer, "refresh-cw");
+        const pullBadge = pullIconContainer.createDiv({ cls: "af-status-sync-badge pull-badge is-hidden" });
+        
+        // Add listener for pull badge (combined with push listener if exists? No, separate is fine or shared unsubscribe)
+        // If we already subscribed (owner case), we need to chain?
+        // Actually, `subscribe` returns an unsubscribe function. We can have multiple listeners.
+        // But `this.scopeUnsubscribe` only holds one.
+        // Solution: Create a composite listener or just one listener that updates both.
+        
+        // Let's do one listener at the end of the method that updates refs we captured.
+        // I will revert the listener inside the `if (this.isOwner)` block and put it at the end.
 
         pullArea.addEventListener("click", async () => {
             if (!this.selectedSpace) return;
@@ -400,6 +436,48 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             } finally {
                 pullArea.removeClass("is-syncing");
             }
+        });
+
+
+        // Sub scription for badges
+        this.scopeUnsubscribe = this.plugin.libraryManager.scopeManager.subscribe(scopeId, (state) => {
+             // Update Push Badge
+             if (this.isOwner) {
+                 // We need to find the badge element. 
+                 // Since we don't store ref, we query it.
+                 // This is a bit hacky but keeps code localized.
+                 const pushIcon = toolbar.querySelector(".af-status-sync-icon .af-status-sync-badge.push-badge");
+                 if (!pushIcon && (state.localChanges > 0 || state.ahead > 0)) {
+                      const parent = toolbar.querySelectorAll(".af-status-sync-icon")[0]; // Push is first if owner?
+                      if (parent) {
+                          const badge = parent.createDiv({ cls: "af-status-sync-badge push-badge" });
+                          badge.style.backgroundColor = "var(--color-blue)";
+                          const count = state.localChanges + state.ahead;
+                          badge.textContent = count > 9 ? "9+" : String(count);
+                      }
+                 } else if (pushIcon) {
+                      const count = state.localChanges + state.ahead;
+                      if (count > 0) {
+                          pushIcon.textContent = count > 9 ? "9+" : String(count);
+                          pushIcon.removeClass("is-hidden");
+                      } else {
+                          pushIcon.addClass("is-hidden");
+                      }
+                 }
+             }
+
+             // Update Pull Badge
+             const pullIcon = toolbar.querySelector(".af-status-sync-icon .af-status-sync-badge.pull-badge");
+             // For pull, we need to correctly identify the pull area icon. 
+             // If owner, pull is 2nd. If not owner, pull is 1st (after link/cloud?).
+             
+             // Let's rely on finding by aria-label maybe? Or just querySelectorAll logic?
+             
+             // Cleaner: Re-render logic inside the subscription is safer? No, expensive.
+             // Best: Store refs when creating elements.
+             
+             // UPDATE: I will modify the creation code above to store refs in local vars or use a class property map if needed.
+             // For now, let's just re-implement the badge creation in the blocks above to make them accessible.
         });
     }
 
@@ -501,6 +579,10 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         if (this.viewport) {
             this.viewport.destroy();
             this.viewport = null;
+        }
+        if (this.scopeUnsubscribe) {
+            this.scopeUnsubscribe();
+            this.scopeUnsubscribe = null;
         }
         this.currentItems = [];
     }

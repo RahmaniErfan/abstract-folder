@@ -10,7 +10,9 @@ export class AbstractFolderStatusBar {
     private syncArea: HTMLElement;
     private pushArea: HTMLElement;
     private syncBadge: HTMLElement;
+    private pushBadge: HTMLElement;
     private syncIconContainer: HTMLElement;
+    private unsubscribe: (() => void) | null = null;
 
     constructor(
         private app: App,
@@ -19,6 +21,22 @@ export class AbstractFolderStatusBar {
         private parentEl: HTMLElement
     ) {
         this.render();
+        
+        // Register and subscribe to root scope (Personal Vault)
+        const vaultRoot = ""; 
+        const absPath = (this.plugin.libraryManager as any).getAbsolutePath(vaultRoot);
+        this.plugin.libraryManager.scopeManager.registerScope(vaultRoot, absPath);
+        
+        this.unsubscribe = this.plugin.libraryManager.scopeManager.subscribe(vaultRoot, (state) => {
+            this.updateBadges(state);
+        });
+    }
+
+    public onDestroy() {
+        if (this.unsubscribe) {
+            this.unsubscribe();
+            this.unsubscribe = null;
+        }
     }
 
     private render() {
@@ -55,6 +73,9 @@ export class AbstractFolderStatusBar {
         });
         const pushIconContainer = this.pushArea.createDiv({ cls: "af-status-sync-icon" });
         setIcon(pushIconContainer, "upload-cloud");
+        
+        this.pushBadge = pushIconContainer.createDiv({ cls: "af-status-sync-badge is-hidden" });
+        this.pushBadge.style.backgroundColor = "var(--color-blue)"; 
 
         this.pushArea.addEventListener("click", async (evt) => {
             evt.preventDefault();
@@ -150,23 +171,36 @@ export class AbstractFolderStatusBar {
     }
 
     public async refreshStatus() {
+        // Trigger a manual refresh in the manager, which will emit the event
+        await this.plugin.libraryManager.scopeManager.refreshScope("");
+    }
+
+    private updateBadges(state: any) {
         if (!this.settings.librarySettings.githubToken) {
-            this.syncArea.addClass("is-hidden");
-            this.pushArea.addClass("is-hidden");
-            return;
+             this.syncArea.addClass("is-hidden");
+             this.pushArea.addClass("is-hidden");
+             return;
         }
         this.syncArea.removeClass("is-hidden");
         this.pushArea.removeClass("is-hidden");
 
-        Logger.debug("[Abstract Folder] StatusBar: refreshStatus started (calling getSyncStatus)");
-        const status = await this.plugin.libraryManager.getSyncStatus("");
-        Logger.debug(`[Abstract Folder] StatusBar: refreshStatus complete, dirty: ${status.dirty}`);
-        
-        if (status.dirty > 0) {
-            this.syncBadge.textContent = status.dirty > 9 ? "9+" : String(status.dirty);
+        // Local changes -> Push Badge
+        if (state.localChanges > 0 || state.ahead > 0) {
+            const count = state.localChanges + state.ahead;
+            this.pushBadge.textContent = count > 9 ? "9+" : String(count);
+            this.pushBadge.removeClass("is-hidden");
+        } else {
+            this.pushBadge.addClass("is-hidden");
+        }
+
+        // Remote changes -> Pull Badge (Sync)
+        // Note: 'dirty' in old getSyncStatus was local changes. 
+        // Here we want Pull Badge to show downstream changes if we know them.
+        if (state.remoteChanges > 0) {
+            this.syncBadge.textContent = state.remoteChanges > 9 ? "9+" : String(state.remoteChanges);
             this.syncBadge.removeClass("is-hidden");
         } else {
-            this.syncBadge.addClass("is-hidden");
+             this.syncBadge.addClass("is-hidden");
         }
     }
 }
