@@ -1,4 +1,4 @@
-import { Group, SortConfig, FilterConfig } from "./types";
+import { Group, SortConfig, FilterConfig, ScopeConfig } from "./types";
 import { LibrarySettings } from "./library/types";
 
 export interface AbstractFolderPluginSettings {
@@ -21,11 +21,18 @@ export interface AbstractFolderPluginSettings {
   expandedFolders: string[]; // List of paths of currently expanded folders
   excludedPaths: string[]; // Paths to exclude from the abstract folder view (e.g. export folders)
   groups: Group[]; // New: List of defined groups
-  activeGroupId: string | null; // New: ID of the currently active group, or null if no group is active
-  expandTargetFolderOnDrop: boolean; // Whether to expand the target folder after a drag-and-drop operation
+  scopes: Record<string, ScopeConfig>; // New: Scoped configurations
+  
+  /** @deprecated Migration to scopes['global'] will happen */
+  activeGroupId: string | null; 
+  /** @deprecated Migration to scopes['global'] will happen */
+  defaultSort: SortConfig; 
+  /** @deprecated Migration to scopes['global'] will happen */
+  defaultFilter: FilterConfig; 
+
+  expandTargetFolderOnDrop: boolean; // Whether to expand the target folder after a drag-and-drop operation 
   metrics: Record<string, { thermal: number; lastInteraction: number }>; // Path -> Metrics (persisted)
-  defaultSort: SortConfig; // Default sort configuration for the main view
-  defaultFilter: FilterConfig; // Default filter configuration for the main view
+
   customCreatedDateProperties: string; // Comma-separated frontmatter property names for created date
   customModifiedDateProperties: string; // Comma-separated frontmatter property names for modified date
   displayNameOrder: string[]; // Ordered list of properties to check for display name
@@ -73,6 +80,7 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   expandedFolders: [],
   excludedPaths: [],
   groups: [],
+  scopes: {}, // Initial empty scopes
   activeGroupId: null,
   expandTargetFolderOnDrop: true, // Default to true for now
   metrics: {},

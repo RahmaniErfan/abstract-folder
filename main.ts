@@ -72,7 +72,7 @@ export default class AbstractFolderPlugin extends Plugin {
 		this.metricsManager = new MetricsManager(this.app, this.graphEngine, this);
 		
 		this.treeBuilder = new TreeBuilder(this.app, this.graphEngine);
-		this.contextEngine = new ContextEngine(this.settings);
+		this.contextEngine = new ContextEngine(this, 'global');
 		this.scopeProjector = new ScopeProjector();
 		this.transactionManager = new TransactionManager(this.app, this.graphEngine, this.settings);
 
@@ -207,13 +207,7 @@ this.addCommand({
 	id: "manage-groups",
 	name: "Manage groups",
 	callback: () => {
-		new ManageGroupsModal(this.app, this.settings, (updatedGroups: Group[], activeGroupId: string | null) => {
-			this.settings.groups = updatedGroups;
-			this.settings.activeGroupId = activeGroupId;
-			void this.saveSettings().then(() => {
-				this.app.workspace.trigger('abstract-folder:group-changed');
-			}).catch(console.error);
-		}, this).open();
+		new ManageGroupsModal(this.app, this.contextEngine, this).open();
 	},
 });
 
@@ -230,6 +224,7 @@ this.addCommand({
 				const prefilledGroup: Group = {
 					id: Math.random().toString(36).substring(2, 15),
 					name: activeFile.basename,
+					scope: 'global',
 					parentFolders: [activeFile.path],
 				};
 

@@ -41,6 +41,8 @@ export class AbstractFolderToolbar {
         const { containerEl } = this.options;
         containerEl.empty();
         containerEl.addClass("abstract-folder-toolbar");
+        
+        Logger.debug("[Abstract Folder] Toolbar: Rendering with options", this.options);
 
         if (this.options.showFocusButton) {
             this.addAction("target", "Focus active file", () => this.options.focusActiveFile?.());
@@ -79,7 +81,7 @@ export class AbstractFolderToolbar {
         }
 
         if (this.options.showGroupButton) {
-            this.addAction("group", "Select group", (evt) => this.showGroupMenu(evt));
+            this.addAction("users", "Select group", (evt) => this.showGroupMenu(evt));
         }
 
         if (this.options.showCreateNoteButton) {
@@ -232,17 +234,7 @@ export class AbstractFolderToolbar {
     private showSortMenu(event: MouseEvent): void {
         const menu = new Menu();
         menu.addItem(item => item.setTitle("Manage default sorting").setIcon("gear").onClick(() => {
-            new ManageSortingModal(this.app, this.settings, (updated) => {
-                this.plugin.settings = updated;
-                this.plugin.saveSettings().then(() => {
-                    let sortConfig = this.plugin.settings.defaultSort;
-                    if (this.contextEngine.getState().activeGroupId) {
-                        const active = this.plugin.settings.groups.find(g => g.id === this.contextEngine.getState().activeGroupId);
-                        if (active && active.sort) sortConfig = active.sort;
-                    }
-                    this.contextEngine.setSortConfig(sortConfig);
-                }).catch(Logger.error);
-            }).open();
+            new ManageSortingModal(this.app, this.contextEngine, this.plugin).open();
         }));
         menu.addSeparator();
         const currentSort = this.contextEngine.getState().sortConfig;
@@ -274,12 +266,7 @@ export class AbstractFolderToolbar {
     private showFilterMenu(event: MouseEvent): void {
         const menu = new Menu();
         menu.addItem(item => item.setTitle("Manage default filtering").setIcon("gear").onClick(() => {
-            new ManageFilteringModal(this.app, this.settings, (updated) => {
-                this.plugin.settings = updated;
-                this.plugin.saveSettings().then(() => {
-                    this.plugin.app.workspace.trigger('abstract-folder:graph-updated');
-                }).catch(Logger.error);
-            }).open();
+            new ManageFilteringModal(this.app, this.contextEngine, this.plugin).open();
         }));
 
         menu.showAtMouseEvent(event);
@@ -287,37 +274,43 @@ export class AbstractFolderToolbar {
 
     private showGroupMenu(event: MouseEvent): void {
         const menu = new Menu();
-        if (this.settings.groups.length === 0) {
+        const groups = this.contextEngine.getGroups();
+        if (groups.length === 0) {
             menu.addItem(item => item.setTitle("No groups defined").setDisabled(true));
         } else {
-            this.settings.groups.forEach((group: Group) => {
+            groups.forEach((group: Group) => {
+                const isActive = this.contextEngine.getState().activeGroupId === group.id;
                 menu.addItem(item => item.setTitle(group.name)
-                    .setIcon(this.settings.activeGroupId === group.id ? "check" : "group")
+                    .setIcon(isActive ? "check" : "group")
                     .onClick(async () => {
-                        this.contextEngine.setActiveGroup(group.id);
-                        await this.plugin.saveSettings();
-                        if (group.sort) this.contextEngine.setSortConfig(group.sort);
+                         // Toggle or Set
+                         if (isActive) {
+                             this.contextEngine.setActiveGroup(null);
+                         } else {
+                             this.contextEngine.setActiveGroup(group.id);
+                             if (group.sort) this.contextEngine.setSortConfig(group.sort);
+                         }
                     }));
             });
             menu.addSeparator();
         }
 
         menu.addItem(item => item.setTitle("Manage groups").setIcon("gear").onClick(() => {
-            new ManageGroupsModal(this.app, this.settings, (updatedGroups, activeGroupId) => {
-                this.plugin.settings.groups = updatedGroups;
-                this.plugin.settings.activeGroupId = activeGroupId;
-                this.contextEngine.setActiveGroup(activeGroupId);
-                this.plugin.saveSettings().catch(Logger.error);
-            }, this.plugin).open();
+            new ManageGroupsModal(this.app, this.contextEngine, this.plugin).open();
         }));
 
         // Only show Clear if we are currently in a group
         if (this.contextEngine.getState().activeGroupId) {
             menu.addItem(item => item.setTitle("Clear active group").setIcon("cross").onClick(async () => {
                 this.contextEngine.setActiveGroup(null);
-                await this.plugin.saveSettings();
-                const defaultSort = this.plugin.settings.defaultSort;
-                this.contextEngine.setSortConfig(defaultSort);
+                
+                // Revert to scope default sort
+                const scope = this.plugin.settings.scopes[this.contextEngine.getScope()];
+                if (scope && scope.sort) {
+                    this.contextEngine.setSortConfig(scope.sort);
+                } else {
+                    this.contextEngine.setSortConfig({ sortBy: 'name', sortOrder: 'asc' });
+                }
             }));
         }
 

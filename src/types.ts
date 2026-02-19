@@ -47,6 +47,7 @@ export interface FolderNode {
 export interface Group {
   id: string;
   name: string;
+  scope: string; // The scope this group belongs to (e.g. 'global', 'library', 'space:...')
   parentFolders: string[]; // Paths of parent folders to display
   sort?: SortConfig;
   filter?: FilterConfig;
@@ -72,3 +73,9 @@ export interface FilterConfig {
 }
 
 export type Cycle = string[]; // Represents a cycle as an array of file paths
+
+export interface ScopeConfig {
+  activeGroupId: string | null;
+  sort: SortConfig;
+  filter: FilterConfig;
+}

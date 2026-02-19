@@ -17,10 +17,14 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
     private currentSnapshot: TreeSnapshot | null = null;
     private isRefreshing = false;
     private nextRefreshScheduled = false;
+    private contextEngine: import("../../core/context-engine").ContextEngine;
 
     constructor(leaf: WorkspaceLeaf, plugin: AbstractFolderPlugin) {
         super(leaf);
         this.plugin = plugin;
+        // CREATE LOCAL CONTEXT ENGINE (GLOBAL SCOPE)
+        const { ContextEngine } = require("../../core/context-engine");
+        this.contextEngine = new ContextEngine(plugin, 'global');
     }
 
     getViewType(): string {
@@ -49,26 +53,26 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
             this.app,
             this.plugin.settings,
             this.plugin,
+            this.contextEngine,
             toolbarEl,
             () => this.focusSearch(),
             () => this.focusActiveFile()
         );
+        // We need to inject our local context engine into the toolbar if it relies on it?
+        // AbstractFolderViewToolbar likely relies on plugin.contextEngine?
+        // Let's check AbstractFolderViewToolbar - it likely needs update too if it takes contextEngine.
+        // It takes (app, settings, plugin, container, ...)
+        // If it uses plugin.contextEngine internally, we might need to patch it or pass contextEngine options.
+        // CHECK: AbstractFolderViewToolbar source. It extends AbstractFolderToolbar? Or uses it?
+        // It's a specific class.
         this.toolbar.setupToolbarActions();
 
         const searchContainer = headerEl.createDiv({ cls: "abstract-folder-search-container" });
-        new AbstractSearch(this.app, this.plugin, this.plugin.settings, this.plugin.contextEngine, {
+        new AbstractSearch(this.app, this.plugin, this.plugin.settings, this.contextEngine, {
             containerEl: searchContainer,
             placeholder: "Search notes...",
             onSearch: (query) => {
                  Logger.debug(`[Abstract Folder] View: Search input changed to "${query}"`);
-                 // ContextEngine update is handled by AbstractSearch internally
-                 // We just need to trigger refresh if not automatically triggered by 'changed' event.
-                 // Actually AbstractSearch calls contextEngine.setFilter(query).
-                 // ContextEngine emits 'changed', which AbstractFolderView listens to.
-                 // So we might not need to do anything here if the listener calls refreshTree.
-                 // However, AbstractSearch expects onSearch callback.
-                 // Let's check AbstractSearch checks.
-                 // AbstractSearch handles UI value.
             },
            showAncestryToggles: true
         }).render();
@@ -85,39 +89,25 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
             rowsContainer,
             scrollContainer,
             spacerEl,
-            this.plugin.contextEngine,
+            this.contextEngine,
             this.plugin.scopeProjector,
             this
         );
 
         // Subscribe to general context changes
-        this.plugin.contextEngine.on('changed', () => {
+        this.contextEngine.on('changed', () => {
             void this.refreshTree();
         });
 
-        this.plugin.contextEngine.on('expand-all', () => {
-             // We can't efficiently expand every single folder without loading them.
-             // But we can trigger a refresh with forceExpandAll=true for the current view.
-             // However, `refreshTree` uses `this.plugin.treeBuilder`.
-             // Check `refreshTree` signature.
-             // It calls `this.plugin.treeBuilder.buildTree(..., forceExpandAll)`.
-             // But `forceExpandAll` is currently only true if filterQuery is present.
-             // We can add a property `forceExpandOnce` or similar.
-             // For now, let's just re-render with a flag if possible, or maybe just `contextEngine` state should have a flag?
-             // Actually, the `expand-all` event is a signal.
-             // Let's modify `refreshTree` to accept an override?
-             // Or better, let's just set a temporary flag.
+        this.contextEngine.on('expand-all', () => {
              void this.refreshTree({ forceExpand: true });
         });
 
         // Subscribe to graph changes
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-        // Subscribe to graph changes
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
         this.registerEvent(this.app.workspace.on('abstract-folder:graph-updated' as any, () => {
             // 1. Snapshot physical paths BEFORE rebuilding the tree
             if (this.currentSnapshot?.locationMap) {
-                this.plugin.contextEngine.snapshotPhysicalPaths(this.currentSnapshot.locationMap);
+                this.contextEngine.snapshotPhysicalPaths(this.currentSnapshot.locationMap);
             }
             // 2. Refresh the tree with silent repair
             void this.refreshTree({ repair: true });
@@ -152,7 +142,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
         }
     }
 
-    private focusSearch() {
+    public focusSearch() {
         const searchInput = this.contentEl.querySelector('.abstract-folder-search-input') as HTMLInputElement;
         if (searchInput) {
             searchInput.focus();
@@ -165,7 +155,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
         if (snapshot) {
             const matchingNode = snapshot.items.find(item => item.id === path);
             if (matchingNode) {
-                this.plugin.contextEngine.select(matchingNode.uri, { multi: false });
+                this.contextEngine.select(matchingNode.uri, { multi: false });
                 this.viewport.scrollToItem(matchingNode.uri);
             }
         }
@@ -176,44 +166,12 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
         if (!activeFile) return;
 
         // 1. Update Search/Filter via ContextEngine (AbstractSearch will react)
-        // If we want to filter by name to find it? 
-        // Or just expanding to it?
-        // Original code set filter to basename.
-        this.plugin.contextEngine.setFilter(activeFile.basename);
+        this.contextEngine.setFilter(activeFile.basename);
         
         // 2. Enable Ancestry Toggles in Settings
         this.plugin.settings.searchShowAncestors = true;
         this.plugin.settings.searchShowDescendants = true;
         await this.plugin.saveSettings();
-
-        // 3. Trigger Search & Save (setFilter emits changed, but we also save settings)
-        // We might want to force a refresh if setFilter didn't trigger it yet, but it should.
-        
-        // Reveal in tree logic (V2 migration)
-        // We wait for the tree to refresh?
-        // setFilter is synchronous in updating state but emits event.
-        // refreshTree is async.
-        // We might need to wait for refresh to complete to scroll to item.
-        // However, we can just try to select it.
-        // If it's not in the tree yet, we can't scroll to it.
-        
-        // If we just set filter, the tree will rebuild.
-        // We should wait for rebuild?
-        // For now let's just trigger selection and hope it works or rely on subsequent updates.
-        // Actually, if we set filter, the view will refresh.
-        // We can hook into the next snapshot update?
-        // Or we can just let the user see the result.
-        
-        // Logic to highlight/focus a specific path:
-        // We can't find `matchingNode` until tree is rebuilt.
-        // The previous code had `this.currentSnapshot` which was STALE at this point if filter just changed.
-        // So the previous code was likely buggy or relying on `searchInput.value` change triggering something?
-        
-        // Let's just set the filter and settings.
-        // The tree will update.
-        // If we want to ensure selection, we might need a "pending focus" state.
-        
-        // For now, removing the manual DOM manipulation and button toggling.
     }
 
     onItemClick(node: AbstractNode, event: MouseEvent): void {
@@ -221,7 +179,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
         const isRange = event.shiftKey;
 
         // 1. Update Selection State
-        this.plugin.contextEngine.select(node.uri, {
+        this.contextEngine.select(node.uri, {
             multi: isMulti,
             range: isRange,
             flatList: this.currentSnapshot?.items.map(n => n.uri)
@@ -235,7 +193,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
     }
 
     onItemToggle(node: AbstractNode, event: MouseEvent): void {
-        this.plugin.contextEngine.toggleExpand(node.uri);
+        this.contextEngine.toggleExpand(node.uri);
         void this.refreshTree();
     }
 
@@ -244,7 +202,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
         this.plugin.contextMenuHandler.showV2ContextMenu(
             event,
             node,
-            this.plugin.contextEngine.getState().selectedURIs,
+            this.contextEngine.getState().selectedURIs,
             this.currentSnapshot.items
         );
     }
@@ -273,11 +231,11 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
         this.nextRefreshScheduled = false;
 
         try {
-            const state = this.plugin.contextEngine.getState();
+            const state = this.contextEngine.getState();
             const filterQuery = state.activeFilter;
             
             const generator = this.plugin.treeBuilder.buildTree(
-                this.plugin.contextEngine,
+                this.contextEngine,
                 filterQuery,
                 !!filterQuery || !!options.forceExpand // Force expand all if searching OR requested
             );
@@ -291,7 +249,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
 
             // Silent Repair IF requested BEFORE updating viewport
             if (options.repair && this.currentSnapshot) {
-                this.plugin.contextEngine.repairState(this.currentSnapshot.locationMap, { silent: true });
+                this.contextEngine.repairState(this.currentSnapshot.locationMap, { silent: true });
             }
 
             if (this.currentSnapshot) {

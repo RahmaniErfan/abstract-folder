@@ -2,25 +2,58 @@ import { Setting, AbstractInputSuggest, normalizePath, TFolder } from "obsidian"
 import type AbstractFolderPlugin from "main";
 
 export class PathInputSuggest extends AbstractInputSuggest<string> {
-	constructor(private plugin: AbstractFolderPlugin, private inputEl: HTMLInputElement) {
+	constructor(
+		private plugin: AbstractFolderPlugin, 
+		private inputEl: HTMLInputElement,
+		private options?: {
+			scopePath?: string;
+			extension?: string;
+			includeFolders?: boolean;
+			includeFiles?: boolean;
+		}
+	) {
 		super(plugin.app, inputEl);
 	}
 
 	getSuggestions(inputStr: string): string[] {
 		const abstractFiles = this.plugin.app.vault.getAllLoadedFiles();
-		const folders: string[] = [];
+		const suggestions: string[] = [];
 		const lowerCaseInputStr = inputStr.toLowerCase();
 
+		const { scopePath, extension, includeFolders = true, includeFiles = true } = this.options || {};
+
 		abstractFiles.forEach((file) => {
-			if (
-				file instanceof TFolder &&
-				file.path.toLowerCase().contains(lowerCaseInputStr)
-			) {
-				folders.push(file.path);
+			const filePath = file.path;
+			const isFolder = file instanceof TFolder;
+			const isFile = !isFolder;
+
+			// 1. Filter by Scope
+			if (scopePath) {
+				const isExactMatch = filePath === scopePath;
+				const isChildMatch = filePath.startsWith(scopePath + "/");
+				if (!isExactMatch && !isChildMatch) {
+					return;
+				}
 			}
+
+			// 2. Filter by Search Query
+			if (!filePath.toLowerCase().contains(lowerCaseInputStr)) {
+				return;
+			}
+
+			// 3. Filter by Type (File vs Folder)
+			if (isFolder && !includeFolders) return;
+			if (isFile && !includeFiles) return;
+
+			// 4. Filter by Extension
+			if (isFile && extension && !filePath.endsWith(extension)) {
+				return;
+			}
+
+			suggestions.push(filePath);
 		});
 
-		return folders;
+		return suggestions.slice(0, 50); // Limit to 50 suggestions
 	}
 
 	renderSuggestion(value: string, el: HTMLElement): void {

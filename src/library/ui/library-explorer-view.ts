@@ -33,7 +33,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
 
     constructor(leaf: WorkspaceLeaf, private plugin: AbstractFolderPlugin) {
         super(leaf);
-        this.contextEngine = new ContextEngine(plugin.settings);
+        this.contextEngine = new ContextEngine(plugin, 'library');
     }
 
     getViewType(): string {

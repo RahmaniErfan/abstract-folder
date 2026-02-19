@@ -93,7 +93,7 @@ export interface IGraphEngine {
     getNodeMeta(id: FileID): NodeMeta | undefined;
     
     // Analysis
-    getAllRoots(activeGroupId?: string | null): FileID[];
+    getAllRoots(activeGroupId?: string | null, scopingPath?: string | null): FileID[];
     
     // Lifecycle
     initialize(): Promise<void>;
@@ -388,95 +388,94 @@ export class GraphEngine implements IGraphEngine {
     }
 
     /**
-     * Returns all nodes that have no parents (roots of the graph)
+     * Returns all nodes that have no parents (roots of the graph) in the current context.
+     * Supports both Group-based filtering and Path-based scoping.
      */
-    getAllRoots(activeGroupId?: string | null): FileID[] {
+    getAllRoots(activeGroupId?: string | null, scopingPath?: string | null): FileID[] {
         const processedRoots = new Set<FileID>();
-        Logger.debug(`[Abstract Folder] GraphEngine: getAllRoots called with activeGroupId: ${activeGroupId}`);
+        Logger.debug(`[Abstract Folder] GraphEngine: getAllRoots called with activeGroupId: ${activeGroupId}, scopingPath: ${scopingPath}`);
+
+        // 1. Resolve effective scoping path
+        let effectiveScopingPath = scopingPath || null;
+        let isGroupBased = false;
+        let group: import('../types').Group | undefined;
 
         if (activeGroupId) {
-            // 1. Check if activeGroupId is a Group ID in settings
-            const group = this.settings.groups.find(g => g.id === activeGroupId);
+            group = this.settings.groups.find(g => g.id === activeGroupId);
             if (group) {
-                Logger.info(`[Abstract Folder] GraphEngine: Found group ${group.name}, resolving ${group.parentFolders.length} folders`);
-                for (const path of group.parentFolders) {
-                    const resolved = this.resolveGroupRoot(path);
-                    if (resolved) processedRoots.add(resolved);
+                isGroupBased = true;
+            } else {
+                // If not a group, treat it as a scoping path (legacy/shelf behavior)
+                if (!effectiveScopingPath) {
+                    effectiveScopingPath = activeGroupId;
                 }
-                return Array.from(processedRoots);
             }
+        }
 
-            // 2. If not a group, treat it as a Path-Based Scope (Library Scoping)
-            // We search for nodes that:
-            // a) Reside within this path (physical prefix)
-            // b) Are roots within that scope (no parents defined WITHIN that same scope)
-            Logger.info(`[Abstract Folder] GraphEngine: Scoping graph to path: ${activeGroupId}`);
-            
-            // Normalize the scope path to ensure prefix matching works (e.g. folder/ vs folder)
-            const scopePrefix = activeGroupId.endsWith('/') ? activeGroupId : activeGroupId + '/';
+        // 2. Resolve Roots
+        if (isGroupBased && group) {
+            // Group Mode: Roots are the defined parent folders
+            Logger.info(`[Abstract Folder] GraphEngine: Resolving roots for group ${group.name}`);
+            const scopePrefix = effectiveScopingPath ? (effectiveScopingPath.endsWith('/') ? effectiveScopingPath : effectiveScopingPath + '/') : null;
+
+            for (const path of group.parentFolders) {
+                const resolved = this.resolveGroupRoot(path);
+                if (resolved) {
+                    // Filter by scopingPath if provided
+                    if (scopePrefix && resolved !== effectiveScopingPath && !resolved.startsWith(scopePrefix)) {
+                        continue;
+                    }
+                    processedRoots.add(resolved);
+                }
+            }
+            return Array.from(processedRoots);
+        } else if (effectiveScopingPath) {
+            // Scoped Path Mode (Library/Spaces): Find orphans within this path
+            Logger.info(`[Abstract Folder] GraphEngine: Resolving scoped roots for path: ${effectiveScopingPath}`);
+            const scopePrefix = effectiveScopingPath.endsWith('/') ? effectiveScopingPath : effectiveScopingPath + '/';
 
             for (const id of this.index.getAllFileIds()) {
                 // Only consider files inside the scoped path (or the path itself if it's a file)
-                if (id !== activeGroupId && !id.startsWith(scopePrefix)) continue;
+                if (id !== effectiveScopingPath && !id.startsWith(scopePrefix)) continue;
 
                 const node = this.index.getNode(id);
                 if (!node) continue;
 
-                // MODULAR ROOT CHECK: Apply policy even for scoped roots
-                if (!this.rootPolicy.shouldIncludeOrphan(id, node.meta, this.settings)) {
-                    continue;
-                }
+                // Policy Check
+                if (!this.rootPolicy.shouldIncludeOrphan(id, node.meta, this.settings)) continue;
 
-                // Check if this node has any parents that are ALSO within the scoped path
+                // Check for parents WITHIN the scope
                 let hasScopedParent = false;
                 for (const parentId of node.parents) {
-                    if (parentId === activeGroupId || parentId.startsWith(scopePrefix)) {
+                    if (parentId === effectiveScopingPath || parentId.startsWith(scopePrefix)) {
                         hasScopedParent = true;
                         break;
                     }
                 }
 
-                // If no parent is within the scoped path, it's a root for this scope
                 if (!hasScopedParent) {
                     processedRoots.add(id);
                 }
             }
-
-            if (processedRoots.size > 0) {
-                Logger.debug(`[Abstract Folder] GraphEngine: getAllRoots for scope ${activeGroupId} complete, found ${processedRoots.size} roots`);
-                return Array.from(processedRoots);
-            }
-            
-            Logger.warn(`[Abstract Folder] GraphEngine: No roots found for scope ${activeGroupId}`);
+            return Array.from(processedRoots);
         }
 
-        // Default: Nodes with no parents
+        // Default Mode: Global Orphans
         const libraryPath = this.settings.librarySettings.librariesPath;
+        const sharedSpacesRoot = this.settings.librarySettings.sharedSpacesRoot || "Abstract Spaces";
 
         for (const id of this.index.getAllFileIds()) {
             const node = this.index.getNode(id);
             if (node && node.parents.size === 0) {
-                // MODULAR ROOT CHECK:
-                // 1. Scoping Check: Exclude libraries AND shared spaces from main view roots
-                if (libraryPath && (id === libraryPath || id.startsWith(libraryPath + '/'))) {
-                    continue;
-                }
-                
-                const sharedSpacesRoot = this.settings.librarySettings.sharedSpacesRoot || "Abstract Spaces";
-                if (id === sharedSpacesRoot || id.startsWith(sharedSpacesRoot + '/')) {
-                    continue;
-                }
+                // Exclude libraries/spaces from global roots
+                if (libraryPath && (id === libraryPath || id.startsWith(libraryPath + '/'))) continue;
+                if (id === sharedSpacesRoot || id.startsWith(sharedSpacesRoot + '/')) continue;
 
-                // 2. Policy Check: Decouple topology (no parents) from UI eligibility (Orphan Policy)
                 if (this.rootPolicy.shouldIncludeOrphan(id, node.meta, this.settings)) {
                     processedRoots.add(id);
-                } else {
-                    // Log orphan rejection
-                    Logger.debug(`[Abstract Folder] GraphEngine: Rejecting orphan from roots based on policy -> ${id} (ext: ${node.meta.extension})`);
                 }
             }
         }
-        Logger.debug(`[Abstract Folder] GraphEngine: getAllRoots complete, found ${processedRoots.size} roots`);
         return Array.from(processedRoots);
     }
 

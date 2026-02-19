@@ -12,10 +12,11 @@ export class CreateEditGroupModal extends Modal {
 
   private groupId: string;
   private groupName: string;
+  private groupScope: string;
   private parentFolders: string[];
   private newParentFolderInput: HTMLInputElement | null = null;
 
-  constructor(app: App, settings: AbstractFolderPluginSettings, existingGroup: Group | null, onSubmit: (group: Group) => void, plugin: AbstractFolderPlugin) {
+  constructor(app: App, settings: AbstractFolderPluginSettings, existingGroup: Group | null, onSubmit: (group: Group) => void, plugin: AbstractFolderPlugin, initialScope: string = 'global') {
     super(app);
     this.plugin = plugin;
     this.settings = settings;
@@ -25,10 +26,12 @@ export class CreateEditGroupModal extends Modal {
     if (existingGroup) {
       this.groupId = existingGroup.id;
       this.groupName = existingGroup.name;
+      this.groupScope = existingGroup.scope;
       this.parentFolders = [...existingGroup.parentFolders];
     } else {
       this.groupId = this.generateId();
       this.groupName = "";
+      this.groupScope = initialScope;
       this.parentFolders = [];
     }
   }
@@ -85,7 +88,22 @@ export class CreateEditGroupModal extends Modal {
       .setDesc("Enter the full path of a note (.md) to include as a root parent (e.g., 'Notes/Parent.md'). The view will show this note and its children.")
       .addText(text => {
         this.newParentFolderInput = text.inputEl;
-        new PathInputSuggest(this.plugin, text.inputEl); // Use PathInputSuggest
+        
+        // Calculate scope path for suggestions
+        let scopePath: string | undefined = undefined;
+        if (this.groupScope.startsWith('space:')) {
+          scopePath = this.groupScope.replace('space:', '');
+        } else if (this.groupScope === 'library') {
+          scopePath = this.plugin.settings.librarySettings.librariesPath;
+        }
+
+        new PathInputSuggest(this.plugin, text.inputEl, {
+          scopePath: scopePath,
+          extension: ".md",
+          includeFolders: false,
+          includeFiles: true
+        });
+
         text.setPlaceholder("Note path (e.g. folder/note.md)")
           .onChange(value => {
             // No direct update here, wait for add button or enter
@@ -134,6 +152,7 @@ export class CreateEditGroupModal extends Modal {
     const group: Group = {
       id: this.groupId,
       name: this.groupName,
+      scope: this.groupScope,
       parentFolders: this.parentFolders,
     };
     this.onSubmit(group);

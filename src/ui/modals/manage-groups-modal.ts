@@ -1,26 +1,28 @@
 import { App, Modal, Setting } from "obsidian";
-import { AbstractFolderPluginSettings } from "../../settings";
 import { Group } from "../../types";
 import { CreateEditGroupModal } from "./create-edit-group-modal";
 import type AbstractFolderPlugin from "main";
+import { ContextEngine } from "../../core/context-engine";
 
 export class ManageGroupsModal extends Modal {
-  private settings: AbstractFolderPluginSettings;
-  private onSave: (groups: Group[], activeGroupId: string | null) => void;
+  private contextEngine: ContextEngine;
   private groups: Group[];
   private activeGroupId: string | null;
   private plugin: AbstractFolderPlugin;
 
-  constructor(app: App, settings: AbstractFolderPluginSettings, onSave: (groups: Group[], activeGroupId: string | null) => void, plugin: AbstractFolderPlugin) {
+  constructor(app: App, contextEngine: ContextEngine, plugin: AbstractFolderPlugin) {
     super(app);
     this.plugin = plugin;
-    this.settings = settings;
-    this.onSave = onSave;
-    this.groups = [...settings.groups]; // Work on a copy
-    this.activeGroupId = settings.activeGroupId;
+    this.contextEngine = contextEngine;
+    this.groups = this.contextEngine.getGroups();
+    this.activeGroupId = this.contextEngine.getState().activeGroupId;
   }
 
   onOpen() {
+    // Refresh data on open
+    this.groups = this.contextEngine.getGroups();
+    this.activeGroupId = this.contextEngine.getState().activeGroupId;
+
     const { contentEl } = this;
     contentEl.empty();
     contentEl.createEl("h2", { text: "Manage groups" });
@@ -49,8 +51,10 @@ export class ManageGroupsModal extends Modal {
       return;
     }
 
-    this.groups.forEach((group, index) => {
+    this.groups.forEach((group) => {
       const isActive = this.activeGroupId === group.id;
+      // console.log(`[Abstract Folder] Modal: Rendering group ${group.name} (id: ${group.id}), activeGroupId: ${this.activeGroupId}, isActive: ${isActive}`);
+      
       const groupSetting = new Setting(groupsContainer)
         .setName(group.name)
         .setDesc(`Folders: ${group.parentFolders.join(", ")}`)
@@ -63,6 +67,15 @@ export class ManageGroupsModal extends Modal {
         const dot = document.createElement("span");
         dot.addClass("abstract-folder-active-dot");
         groupSetting.nameEl.prepend(dot);
+
+        // Add "Activated" badge
+        const badge = groupSetting.nameEl.createEl("span", { 
+            text: " (Activated)", 
+            cls: "abstract-folder-active-badge" 
+        });
+        badge.style.color = "var(--interactive-accent)";
+        badge.style.fontSize = "var(--font-ui-smaller)";
+        badge.style.marginLeft = "4px";
       }
 
       // Make the whole row clickable
@@ -72,8 +85,10 @@ export class ManageGroupsModal extends Modal {
           return;
         }
         
-        this.activeGroupId = isActive ? null : group.id;
-        this.saveAndRerender();
+        const newActiveId = isActive ? null : group.id;
+        this.contextEngine.setActiveGroup(newActiveId);
+        this.activeGroupId = newActiveId;
+        this.refresh();
       });
 
       groupSetting.addButton(button => button
@@ -87,41 +102,39 @@ export class ManageGroupsModal extends Modal {
         .setIcon("trash")
         .setTooltip("Delete group")
         .onClick(() => {
-          this.deleteGroup(index);
+          this.deleteGroup(group.id);
         }));
     });
   }
 
   createGroup() {
-    new CreateEditGroupModal(this.app, this.settings, null, (newGroup) => {
-      this.groups.push(newGroup);
-      this.saveAndRerender();
-    }, this.plugin).open();
+    new CreateEditGroupModal(this.app, this.plugin.settings, null, async (newGroup) => {
+        await this.contextEngine.createGroup(newGroup.name, newGroup.parentFolders, newGroup.sort, newGroup.filter);
+        this.refresh();
+    }, this.plugin, this.contextEngine.getScope()).open();
   }
 
   editGroup(group: Group) {
-    new CreateEditGroupModal(this.app, this.settings, group, (updatedGroup) => {
-      const index = this.groups.findIndex(g => g.id === updatedGroup.id);
-      if (index !== -1) {
-        this.groups[index] = updatedGroup;
-        this.saveAndRerender();
-      }
-    }, this.plugin).open();
+    new CreateEditGroupModal(this.app, this.plugin.settings, group, async (updatedGroup) => {
+        await this.contextEngine.updateGroup(group.id, {
+            name: updatedGroup.name,
+            parentFolders: updatedGroup.parentFolders,
+            sort: updatedGroup.sort,
+            filter: updatedGroup.filter
+        });
+        this.refresh();
+    }, this.plugin, group.scope).open();
   }
 
-  deleteGroup(index: number) {
-    const groupToDelete = this.groups[index];
-    if (this.activeGroupId === groupToDelete.id) {
-        this.activeGroupId = null; // Clear active group if deleted
-    }
-    this.groups.splice(index, 1);
-    this.saveAndRerender();
+  async deleteGroup(groupId: string) {
+    await this.contextEngine.deleteGroup(groupId);
+    this.refresh();
   }
 
-  private saveAndRerender() {
-    this.onSave(this.groups, this.activeGroupId);
-    this.close();
-    this.open();
+  private refresh() {
+    this.groups = this.contextEngine.getGroups();
+    this.activeGroupId = this.contextEngine.getState().activeGroupId;
+    this.onOpen(); 
   }
 
   onClose() {

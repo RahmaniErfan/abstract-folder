@@ -30,7 +30,8 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
     constructor(leaf: WorkspaceLeaf, plugin: AbstractFolderPlugin) {
         super(leaf);
         this.plugin = plugin;
-        this.contextEngine = new ContextEngine(plugin.settings);
+        const { ContextEngine } = require("../../core/context-engine");
+        this.contextEngine = new ContextEngine(plugin, 'library');
     }
 
     getViewType() {
@@ -73,8 +74,26 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         container.addClass("abstract-library-explorer");
 
         if (this.selectedSpace) {
+            // Re-initialize engine for the space scope if specific, 
+            // OR reuse 'library' scope if we want library settings to apply to all spaces?
+            // The plan said: "Uses dynamic scopes like 'space:Path/To/Space'"
+            const { ContextEngine } = require("../../core/context-engine");
+            this.contextEngine = new ContextEngine(this.plugin, `space:${this.selectedSpace.path}`);
+            
+            // Subscribe to state changes
+            this.contextEngine.on('changed', () => {
+                 void this.refreshSpaceTree();
+            });
+            this.contextEngine.on('expand-all', () => {
+                 void this.refreshSpaceTree();
+            });
+            
             void this.renderSpaceTree(container);
         } else {
+            // Back to library scope
+            const { ContextEngine } = require("../../core/context-engine");
+            this.contextEngine = new ContextEngine(this.plugin, 'library');
+            
             void this.renderShelf(container);
         }
     }
@@ -235,6 +254,11 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             showSortButton: true,
             showCreateNoteButton: true,
             showCreateFolderButton: true,
+            showGroupButton: true,
+            showFilterButton: true,
+            showExpandButton: true,
+            showCollapseButton: true,
+            showViewStyleButton: true
         }).render();
     }
 
@@ -376,12 +400,21 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
 
         try {
             const scopePath = this.selectedSpace.path;
+            
+            // Strategic Cache Ingestion:
+            // Ensure GraphEngine sees the correct hierarchy even if Obsidian's cache is stale
+            const relationships = this.plugin.abstractBridge.getLibraryRelationships(scopePath);
+            if (relationships) {
+                this.plugin.graphEngine.seedRelationships(relationships);
+            }
+
             const generator = this.plugin.treeBuilder.buildTree(
             this.contextEngine,
             this.searchQuery,
-            !!this.searchQuery, // Force expand all if searching
-            this.selectedSpace.path,
+            !!this.searchQuery, 
+            undefined, // Use the context engine's active group
             {
+                scopingPath: this.selectedSpace.path,
                 showAncestors: this.plugin.settings.searchShowAncestors,
                 showDescendants: this.plugin.settings.searchShowDescendants
             }

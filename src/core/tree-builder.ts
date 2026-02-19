@@ -39,15 +39,16 @@ export class TreeBuilder {
         filterQuery?: string | null, 
         forceExpandAll = false, 
         overrideGroupId?: string | null,
-        searchOptions?: { showAncestors?: boolean, showDescendants?: boolean }
+        searchOptions?: { showAncestors?: boolean, showDescendants?: boolean, scopingPath?: string }
     ): AsyncGenerator<void, TreeSnapshot, void> {
         const items: AbstractNode[] = [];
         const locationMap = new Map<FileID, string[]>();
         const state = context.getState();
         const activeGroupId = overrideGroupId !== undefined ? overrideGroupId : state.activeGroupId;
-        const stateStr = JSON.stringify({ activeGroupId, filterQuery, forceExpandAll });
-        Logger.debug(`[Abstract Folder] TreeBuilder: buildTree started with state: ${stateStr}`);
+        const scopingPath = searchOptions?.scopingPath || null;
 
+        const stateStr = JSON.stringify({ activeGroupId, scopingPath, filterQuery, forceExpandAll });
+        Logger.debug(`[Abstract Folder] TreeBuilder: buildTree started with state: ${stateStr}`);
 
         // 1. Resolve Active Filter Config (Group vs Default)
         let activeFilterConfig = context.settings.defaultFilter;
@@ -64,9 +65,11 @@ export class TreeBuilder {
         const searchShowDescendants = searchOptions?.showDescendants ?? context.settings.searchShowDescendants;
 
         // Path-based scoping (useful for Library View)
+        // If activeGroupId is a folder path (and not a group), it acts as a scopingPath too
         const isGroupMeta = context.settings.groups.some(g => g.id === activeGroupId);
-        const scopePrefix = (activeGroupId && !isGroupMeta) 
-            ? (activeGroupId.endsWith('/') ? activeGroupId : activeGroupId + '/') 
+        const effectiveScopingPath = scopingPath || (activeGroupId && !isGroupMeta ? activeGroupId : null);
+        const scopePrefix = effectiveScopingPath 
+            ? (effectiveScopingPath.endsWith('/') ? effectiveScopingPath : effectiveScopingPath + '/') 
             : null;
 
         // 3. Initialize Pipeline
@@ -79,7 +82,7 @@ export class TreeBuilder {
             searchShowAncestors: searchShowAncestors
         });
 
-        let roots = this.graph.getAllRoots(activeGroupId);
+        let roots = this.graph.getAllRoots(activeGroupId, effectiveScopingPath);
 
         // 2b. If searching and NOT showing all ancestors, we want matches to appear as roots
         const libraryPath = context.settings.librarySettings.librariesPath;
@@ -112,13 +115,19 @@ export class TreeBuilder {
                 }
 
                 // 2. Path-based Scoping (Library/Folders)
-                if (scopePrefix && file.path !== activeGroupId && !file.path.startsWith(scopePrefix)) {
+                if (scopePrefix && file.path !== effectiveScopingPath && !file.path.startsWith(scopePrefix)) {
                     continue;
                 }
 
-                // 3. Main View Scoping: Exclude libraries
-                if (!activeGroupId && libraryPath && (file.path === libraryPath || file.path.startsWith(libraryPath + '/'))) {
-                    continue;
+                // 3. Main View Scoping: Exclude libraries and spaces from main view
+                if (!activeGroupId && !effectiveScopingPath) {
+                    if (libraryPath && (file.path === libraryPath || file.path.startsWith(libraryPath + '/'))) {
+                        continue;
+                    }
+                    const sharedSpacesRoot = context.settings.librarySettings.sharedSpacesRoot || "Abstract Spaces";
+                    if (file.path === sharedSpacesRoot || file.path.startsWith(sharedSpacesRoot + '/')) {
+                        continue;
+                    }
                 }
 
                 if (file.name.toLowerCase().includes(query)) {
@@ -206,13 +215,15 @@ export class TreeBuilder {
 
             // [STRICT SCOPE CHECK]
             // Ensure no nodes leak from outside the defined scope (important for Library View)
-            if (scopePrefix && id !== activeGroupId && !id.startsWith(scopePrefix)) {
+            if (scopePrefix && id !== effectiveScopingPath && !id.startsWith(scopePrefix)) {
                 continue;
             }
 
             // [MAIN VIEW SCOPE CHECK]
             // Ensure library files AND shared spaces don't leak into the main view
-            if (!activeGroupId) {
+            // BUT allow them if we are explicitly scoped (e.g. browsing a Space)
+            // This check is bypassed if a scopingPath is active, as the scopingPath implies explicit intent.
+            if (!activeGroupId && !effectiveScopingPath) {
                 if (libraryPath && (id === libraryPath || id.startsWith(libraryPath + '/'))) {
                     continue;
                 }

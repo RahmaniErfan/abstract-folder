@@ -1,8 +1,9 @@
 import { EventEmitter } from 'events';
-import { SortConfig } from '../types';
+import { SortConfig, ScopeConfig } from '../types';
 import { AbstractFolderPluginSettings } from '../settings';
 import { Logger } from 'src/utils/logger';
 import { FileID } from './graph-engine';
+import type AbstractFolderPlugin from 'main';
 
 export interface ContextState {
     /** Currently selected Synthetic URIs */
@@ -25,23 +26,58 @@ export interface ContextState {
  */
 export class ContextEngine extends EventEmitter {
     public settings: AbstractFolderPluginSettings;
+    private plugin: AbstractFolderPlugin;
+    private scope: string;
     private state: ContextState;
     /** Stable reference to physical paths of selections for the Repair Cycle */
     private selectedPaths: Set<string> = new Set();
     /** Stable reference to physical paths of expansions for the Repair Cycle */
     private expandedPaths: Set<string> = new Set();
 
-    constructor(settings: AbstractFolderPluginSettings, initialState?: Partial<ContextState>) {
+    constructor(plugin: AbstractFolderPlugin, scope: string = 'global', initialState?: Partial<ContextState>) {
         super();
-        this.settings = settings;
+        this.plugin = plugin;
+        this.settings = plugin.settings;
+        this.scope = scope;
+        
+        // Ensure scope exists or initialize it
+        this.ensureScopeInitialized(scope);
+        const scopeConfig = this.settings.scopes[scope];
+
         this.state = {
             selectedURIs: initialState?.selectedURIs || new Set(),
             expandedURIs: initialState?.expandedURIs || new Set(),
             focusedURI: initialState?.focusedURI || null,
             activeFilter: initialState?.activeFilter || null,
-            activeGroupId: initialState?.activeGroupId || settings.activeGroupId || null,
-            sortConfig: initialState?.sortConfig || { sortBy: 'name', sortOrder: 'asc' }
+            activeGroupId: initialState?.activeGroupId || scopeConfig?.activeGroupId || null,
+            sortConfig: initialState?.sortConfig || scopeConfig?.sort || { sortBy: 'name', sortOrder: 'asc' }
         };
+    }
+
+    private ensureScopeInitialized(scope: string) {
+        if (!this.settings.scopes) this.settings.scopes = {};
+        if (!this.settings.scopes[scope]) {
+            // If global, try usage of deprecated global settings for migration if we want?
+            // For now, simple defaults.
+            // If it's 'global' and we have deprecated values and NO scope entry, we could migrate here.
+            if (scope === 'global' && !this.settings.scopes['global'] && this.settings.activeGroupId !== undefined) {
+                 this.settings.scopes['global'] = {
+                    activeGroupId: this.settings.activeGroupId,
+                    sort: this.settings.defaultSort,
+                    filter: this.settings.defaultFilter
+                 };
+            } else {
+                this.settings.scopes[scope] = {
+                    activeGroupId: null,
+                    sort: { sortBy: 'name', sortOrder: 'asc' },
+                    filter: { excludeExtensions: [] }
+                };
+            }
+        }
+    }
+    
+    public getScope(): string {
+        return this.scope;
     }
 
     getState(): ContextState {
@@ -157,16 +193,95 @@ export class ContextEngine extends EventEmitter {
     }
 
     setSortConfig(config: SortConfig): void {
-        Logger.debug(`[Abstract Folder] Context: Setting sort config`, config);
+        Logger.debug(`[Abstract Folder] Context: Setting sort config for scope ${this.scope}`, config);
         this.state.sortConfig = config;
+        
+        // Persist to scope
+        this.ensureScopeInitialized(this.scope);
+        this.settings.scopes[this.scope].sort = config;
+        this.plugin.saveSettings().catch(Logger.error);
+        
         this.emit('changed', this.getState());
     }
 
     setActiveGroup(groupId: string | null): void {
-        Logger.debug(`[Abstract Folder] Context: Setting active group to ${groupId}`);
+        Logger.debug(`[Abstract Folder] Context: Setting active group to ${groupId} for scope ${this.scope}`);
         this.state.activeGroupId = groupId;
-        this.settings.activeGroupId = groupId;
+        
+        // Persist to scope
+        this.ensureScopeInitialized(this.scope);
+        this.settings.scopes[this.scope].activeGroupId = groupId;
+        this.plugin.saveSettings().catch(Logger.error);
+        
         this.emit('changed', this.getState());
+    }
+
+    // =========================================================================================
+    // Group Management (Scoped)
+    // =========================================================================================
+
+    public getGroups(): import('../types').Group[] {
+        if (!this.settings.groups) return [];
+        // Return groups that match the current scope OR (migration strategy: legacy global groups if scope is global?)
+        // The prompt said: "A group created in 'Personal' will strictly belong to 'Personal'."
+        // So strict filtering is best.
+        return this.settings.groups.filter(g => g.scope === this.scope);
+    }
+
+    public async createGroup(name: string, parentFolders: string[], sort?: SortConfig, filter?: import('../types').FilterConfig): Promise<string> {
+        const newGroup: import('../types').Group = {
+            id: crypto.randomUUID(),
+            name,
+            scope: this.scope,
+            parentFolders,
+            sort,
+            filter
+        };
+        this.settings.groups.push(newGroup);
+        await this.plugin.saveSettings();
+        
+        // Auto-select the new group?
+        this.setActiveGroup(newGroup.id);
+        
+        return newGroup.id;
+    }
+
+    public async updateGroup(groupId: string, updates: Partial<Omit<import('../types').Group, 'id' | 'scope'>>): Promise<void> {
+        const groupIndex = this.settings.groups.findIndex(g => g.id === groupId);
+        if (groupIndex === -1) return;
+        
+        // Ensure we only update groups in current scope to be safe, though ID is unique.
+        if (this.settings.groups[groupIndex].scope !== this.scope) {
+             Logger.warn(`[Abstract Folder] Context: Attempted to update group ${groupId} from wrong scope ${this.scope}`);
+             return;
+        }
+
+        this.settings.groups[groupIndex] = { ...this.settings.groups[groupIndex], ...updates };
+        await this.plugin.saveSettings();
+        
+        // If this is the active group, trigger update
+        if (this.state.activeGroupId === groupId) {
+             // Re-set to trigger listeners if needed, or just emit changed
+             if (updates.sort) {
+                 this.setSortConfig(updates.sort);
+             }
+             this.emit('changed', this.getState());
+        } else {
+             this.emit('changed', this.getState()); 
+        }
+    }
+
+    public async deleteGroup(groupId: string): Promise<void> {
+        const initialLength = this.settings.groups.length;
+        this.settings.groups = this.settings.groups.filter(g => g.id !== groupId);
+        
+        if (this.settings.groups.length !== initialLength) {
+            if (this.state.activeGroupId === groupId) {
+                this.setActiveGroup(null);
+            }
+            await this.plugin.saveSettings();
+            this.emit('changed', this.getState());
+        }
     }
 
     // =========================================================================================

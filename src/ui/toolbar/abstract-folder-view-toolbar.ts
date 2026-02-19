@@ -13,6 +13,7 @@ export class AbstractFolderViewToolbar {
         private app: App,
         private settings: AbstractFolderPluginSettings,
         private plugin: AbstractFolderPlugin,
+        private contextEngine: any, // import dynamically or use any
         private containerEl: HTMLElement,
         private focusSearch: () => void,
         private focusActiveFile: () => void,
@@ -21,7 +22,7 @@ export class AbstractFolderViewToolbar {
             app,
             settings,
             plugin,
-            plugin.contextEngine,
+            contextEngine,
             {
                 containerEl: containerEl,
                 showFocusButton: settings.showFocusActiveFileButton,

@@ -1,29 +1,35 @@
 import { App, Modal, Setting } from "obsidian";
 import { AbstractFolderPluginSettings } from "../../settings";
 import { Group, SortBy, SortConfig } from "../../types";
+import { ContextEngine } from "../../core/context-engine";
+import type AbstractFolderPlugin from "main";
 
 export class ManageSortingModal extends Modal {
-  private settings: AbstractFolderPluginSettings;
-  private onSave: (updatedSettings: AbstractFolderPluginSettings) => void;
+  private contextEngine: ContextEngine;
+  private plugin: AbstractFolderPlugin;
   private groups: Group[];
   private defaultSort: SortConfig;
 
-  constructor(app: App, settings: AbstractFolderPluginSettings, onSave: (updatedSettings: AbstractFolderPluginSettings) => void) {
+  constructor(app: App, contextEngine: ContextEngine, plugin: AbstractFolderPlugin) {
     super(app);
-    this.settings = settings;
-    this.onSave = onSave;
-    this.groups = JSON.parse(JSON.stringify(settings.groups)) as Group[]; // Work on a deep copy
-    this.defaultSort = { ...settings.defaultSort }; // Work on a copy
+    this.contextEngine = contextEngine;
+    this.plugin = plugin;
+    this.groups = this.contextEngine.getGroups(); // Already filtered by scope
+    
+    // Get current scope's default sort
+    const scope = this.contextEngine.getScope();
+    const scopeConfig = this.plugin.settings.scopes[scope];
+    this.defaultSort = scopeConfig ? { ...scopeConfig.sort } : { sortBy: 'name', sortOrder: 'asc' };
   }
 
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.createEl("h2", { text: "Manage default sorting" });
-    contentEl.createEl("p", { text: "Set the default sorting options for the main view and for each group. These settings will be applied when you switch to the group or reset the view." });
+    contentEl.createEl("p", { text: `Set the default sorting options for the '${this.contextEngine.getScope()}' scope and for each group.` });
 
     // Main Default View Sorting
-    contentEl.createEl("h3", { text: "Default view" });
+    contentEl.createEl("h3", { text: "Scope Default" });
     const defaultViewContainer = contentEl.createDiv({ cls: "abstract-folder-sort-container" });
     this.createSortSetting(defaultViewContainer, "Default view", this.defaultSort, (newSort) => {
         this.defaultSort = newSort;
@@ -39,12 +45,15 @@ export class ManageSortingModal extends Modal {
       groupsContainer.createEl("p", { text: "No groups defined." });
     } else {
       this.groups.forEach((group) => {
-        // Initialize group sort if it doesn't exist, defaulting to 'name' 'asc'
+        // Initialize group sort if it doesn't exist
         if (!group.sort) {
             group.sort = { sortBy: 'name', sortOrder: 'asc' };
         }
         
         this.createSortSetting(groupsContainer, group.name, group.sort, (newSort) => {
+             // We update the local object (reference from getGroups which is settings reference? no getGroups returns filtered array)
+             // Wait, settings.groups in contextEngine returns reference to objects in settings.groups array?
+             // Yes, array.filter returns new array but objects are references.
              group.sort = newSort;
         });
       });
@@ -92,12 +101,34 @@ export class ManageSortingModal extends Modal {
         );
   }
 
-  saveSettings() {
-    // Update the main settings object with the local changes IN PLACE to preserve reference
-    this.settings.groups = this.groups;
-    this.settings.defaultSort = this.defaultSort;
+  async saveSettings() {
+    // 1. Save scope default sort
+    const scope = this.contextEngine.getScope();
+    if (this.plugin.settings.scopes[scope]) {
+        this.plugin.settings.scopes[scope].sort = this.defaultSort;
+        // Also update context engine state if it's the active sort and no group is active? 
+        // ContextEngine.setSortConfig updates state and settings.
+        // Here we act as a bulk update.
+        if (!this.contextEngine.getState().activeGroupId) {
+            this.contextEngine.setSortConfig(this.defaultSort);
+        }
+    }
+
+    // 2. Save Groups (references were modified directly in onOpen logic)
+    // contextEngine.getGroups() returned references to objects in settings.groups.
+    // So modifications to group.sort are already reflected in the objects in settings.groups.
+    // We just need to persist settings.
+    await this.plugin.saveSettings();
     
-    this.onSave(this.settings);
+    // If active group was modified, we should update context engine?
+    const activeGroupId = this.contextEngine.getState().activeGroupId;
+    if (activeGroupId) {
+        const activeGroup = this.groups.find(g => g.id === activeGroupId);
+        if (activeGroup && activeGroup.sort) {
+            this.contextEngine.setSortConfig(activeGroup.sort);
+        }
+    }
+
     this.close();
   }
 

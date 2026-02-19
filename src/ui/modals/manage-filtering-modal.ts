@@ -1,29 +1,35 @@
 import { App, Modal, Setting } from "obsidian";
 import { AbstractFolderPluginSettings } from "../../settings";
 import { Group, FilterConfig } from "../../types";
+import { ContextEngine } from "../../core/context-engine";
+import type AbstractFolderPlugin from "main";
 
 export class ManageFilteringModal extends Modal {
-  private settings: AbstractFolderPluginSettings;
-  private onSave: (updatedSettings: AbstractFolderPluginSettings) => void;
+  private contextEngine: ContextEngine;
+  private plugin: AbstractFolderPlugin;
   private groups: Group[];
   private defaultFilter: FilterConfig;
 
-  constructor(app: App, settings: AbstractFolderPluginSettings, onSave: (updatedSettings: AbstractFolderPluginSettings) => void) {
+  constructor(app: App, contextEngine: ContextEngine, plugin: AbstractFolderPlugin) {
     super(app);
-    this.settings = settings;
-    this.onSave = onSave;
-    this.groups = JSON.parse(JSON.stringify(settings.groups)) as Group[]; // Work on a deep copy
-    this.defaultFilter = { ...settings.defaultFilter }; // Work on a copy
+    this.contextEngine = contextEngine;
+    this.plugin = plugin;
+    this.groups = this.contextEngine.getGroups(); // Already filtered by scope
+    
+    // Get current scope's default filter
+    const scope = this.contextEngine.getScope();
+    const scopeConfig = this.plugin.settings.scopes[scope];
+    this.defaultFilter = scopeConfig ? { ...scopeConfig.filter } : { excludeExtensions: [] };
   }
 
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.createEl("h2", { text: "Manage default filtering" });
-    contentEl.createEl("p", { text: "Set the default filtering options for the main view and for each group. Enter extensions separated by commas." });
+    contentEl.createEl("p", { text: `Set the default filtering options for the '${this.contextEngine.getScope()}' scope and for each group. Enter extensions separated by commas.` });
 
     // Main Default View Filtering
-    contentEl.createEl("h3", { text: "Default view" });
+    contentEl.createEl("h3", { text: "Scope Default" });
     const defaultViewContainer = contentEl.createDiv({ cls: "abstract-folder-filter-container" });
     this.createFilterSetting(defaultViewContainer, "Default view", this.defaultFilter, (newFilter) => {
         this.defaultFilter = newFilter;
@@ -79,18 +85,27 @@ export class ManageFilteringModal extends Modal {
         );
   }
 
-  saveSettings() {
-  this.settings.groups = this.groups;
-  this.settings.defaultFilter = this.defaultFilter;
-  
-  this.onSave(this.settings);
+  async saveSettings() {
+    // 1. Save scope default filter
+    const scope = this.contextEngine.getScope();
+    if (this.plugin.settings.scopes[scope]) {
+        this.plugin.settings.scopes[scope].filter = this.defaultFilter;
+        // Update context engine if this is the active filter?
+        // setFilter takes a string query, not FilterConfig.
+        // The ContextEngine uses settings.scopes[scope].filter implicitly? 
+        // No, ContextEngine state has activeFilter (search query).
+        // The defaultFilter is used by TreeBuilder or GraphEngine options probably.
+    }
 
-  // Trigger a full re-build of the tree after saving filter settings
-  // @ts-ignore: Custom event
-  this.app.workspace.trigger('abstract-folder:graph-updated');
+    // 2. Save Groups (modified references)
+    await this.plugin.saveSettings();
+    
+    // Trigger graph update
+    // @ts-ignore
+    this.app.workspace.trigger('abstract-folder:graph-updated');
 
-  this.close();
-}
+    this.close();
+  }
 
   onClose() {
     const { contentEl } = this;
