@@ -378,7 +378,6 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
                 showFilterButton: true,
                 showGroupButton: false,
                 showCreateNoteButton: this.isOwner,
-                showCreateFolderButton: this.isOwner,
                 extraActions: (toolbarEl: HTMLElement) => {
                      if (this.repositoryUrl) {
                         this.createToolbarAction(toolbarEl, "github", "View on GitHub", () => window.open(this.repositoryUrl!, "_blank"));

@@ -264,11 +264,11 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             provider: provider,
             showSortButton: true,
             showCreateNoteButton: true,
-            showCreateFolderButton: true,
             showGroupButton: false, // Groups disabled for now in spaces
             showFilterButton: true,
             showExpandButton: true,
             showCollapseButton: true,
+            showConversionButton: true,
             extraActions: (toolbarEl: HTMLElement) => {
                  // Space specific actions? 
                  // Maybe move "Sync Now" or "Space Dashboard" here if we want? 

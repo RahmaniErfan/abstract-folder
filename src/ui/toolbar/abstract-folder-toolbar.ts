@@ -23,7 +23,6 @@ export interface AbstractFolderToolbarOptions {
     showFilterButton?: boolean;
     showGroupButton?: boolean;
     showCreateNoteButton?: boolean;
-    showCreateFolderButton?: boolean;
     extraActions?: (container: HTMLElement) => void;
 }
 
@@ -52,16 +51,16 @@ export class AbstractFolderToolbar {
         if (this.options.showConversionButton) {
             this.addAction("lucide-folder-sync", "Convert folder structure", (evt) => this.showConversionMenu(evt));
         }
-
+        
         if (this.options.showExpandButton) {
-            const btn = this.addAction("chevrons-up-down", "Expand all folders", () => {
+            const btn = this.addAction("chevrons-up-down", "Expand all", () => {
                 this.contextEngine.expandAll();
             });
             this.buttons.set('expand', btn);
         }
 
         if (this.options.showCollapseButton) {
-            const btn = this.addAction("chevrons-down-up", "Collapse all folders", () => {
+            const btn = this.addAction("chevrons-down-up", "Collapse all", () => {
                 this.contextEngine.collapseAll();
             });
             this.buttons.set('collapse', btn);
@@ -81,10 +80,6 @@ export class AbstractFolderToolbar {
 
         if (this.options.showCreateNoteButton) {
             this.addAction("file-plus", "Create new note", () => this.handleCreateNote());
-        }
-        
-        if (this.options.showCreateFolderButton) {
-            this.addAction("folder-plus", "Create new folder", () => this.handleCreateFolder());
         }
         
         if (this.options.extraActions) {
@@ -134,8 +129,6 @@ export class AbstractFolderToolbar {
         // Logic if needed
     }
 
-
-
     private handleCreateNote() {
         const creationRoot = this.options.provider.getCreationRoot();
         
@@ -176,36 +169,6 @@ export class AbstractFolderToolbar {
             this.app.workspace.getLeaf(false).openFile(newFile);
         } catch (e) {
             new Notice(`Failed to create file: ${e.message}`);
-        }
-    }
-
-    private handleCreateFolder() {
-        const creationRoot = this.options.provider.getCreationRoot();
-
-        if (creationRoot) {
-            new NameInputModal(this.app, "Create new folder", "Folder name", (name) => {
-                 this.createFolderInPath(creationRoot, name);
-             }).open();
-        } else {
-             new NameInputModal(this.app, "Create new folder", "Folder name", (name) => {
-                 this.createFolderInPath(this.app.vault.getRoot().path, name);
-             }).open();
-        }
-    }
-
-    private async createFolderInPath(path: string, name: string) {
-        const candidatePath = path === '/' ? name : `${path}/${name}`;
-        let finalPath = candidatePath;
-        let counter = 1;
-        while (this.app.vault.getAbstractFileByPath(finalPath)) {
-            finalPath = path === '/' ? `${name} ${counter}` : `${path}/${name} ${counter}`;
-            counter++;
-        }
-
-        try {
-            await this.app.vault.createFolder(finalPath);
-        } catch (e) {
-            new Notice(`Failed to create folder: ${e.message}`);
         }
     }
 
