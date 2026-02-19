@@ -429,9 +429,9 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             // Share Button
             const shareBtn = controlsArea.createDiv({ 
                 cls: "af-status-control clickable-icon", 
-                attr: { "aria-label": "Share library" } 
+                attr: { "aria-label": "Library Info & Settings" } 
             });
-            setIcon(shareBtn, "users");
+            setIcon(shareBtn, "cloud");
             shareBtn.addEventListener("click", () => {
                 if (!this.selectedLibrary?.file) return;
                 new AbstractDashboardModal(
@@ -445,9 +445,9 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
 
             const pushBtn = controlsArea.createDiv({ 
                 cls: "af-status-control clickable-icon", 
-                attr: { "aria-label": "Push changes" } 
+                attr: { "aria-label": "Push changes to remote" } 
             });
-            setIcon(pushBtn, "arrow-up-circle");
+            setIcon(pushBtn, "upload-cloud");
             pushBtn.addEventListener("click", async () => {
                 if (!this.selectedLibrary?.file) return;
                 try {
@@ -462,7 +462,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
 
         const pullBtn = controlsArea.createDiv({ 
             cls: "af-status-control clickable-icon", 
-            attr: { "aria-label": "Pull updates" } 
+            attr: { "aria-label": "Pull updates from remote" } 
         });
         setIcon(pullBtn, "refresh-cw");
         pullBtn.addEventListener("click", async () => {

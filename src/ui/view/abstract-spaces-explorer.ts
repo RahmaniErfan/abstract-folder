@@ -358,10 +358,10 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         if (this.isOwner) {
             const pushArea = controlsArea.createDiv({ 
                 cls: "af-status-control af-status-sync-btn clickable-icon", 
-                attr: { "aria-label": "Push changes" } 
+                attr: { "aria-label": "Push changes to remote" } 
             });
             const pushIconContainer = pushArea.createDiv({ cls: "af-status-sync-icon" });
-            setIcon(pushIconContainer, "arrow-up-circle");
+            setIcon(pushIconContainer, "upload-cloud");
 
             pushArea.addEventListener("click", async () => {
                 if (!this.selectedSpace) return;
@@ -382,7 +382,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         // Pull Button
         const pullArea = controlsArea.createDiv({ 
             cls: "af-status-control af-status-sync-btn clickable-icon", 
-            attr: { "aria-label": "Pull updates" } 
+            attr: { "aria-label": "Pull updates from remote" } 
         });
         const pullIconContainer = pullArea.createDiv({ cls: "af-status-sync-icon" });
         setIcon(pullIconContainer, "refresh-cw");

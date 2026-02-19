@@ -8,6 +8,7 @@ export class AbstractFolderStatusBar {
     private containerEl: HTMLElement;
     private identityArea: HTMLElement;
     private syncArea: HTMLElement;
+    private pushArea: HTMLElement;
     private syncBadge: HTMLElement;
     private syncIconContainer: HTMLElement;
 
@@ -33,7 +34,7 @@ export class AbstractFolderStatusBar {
         // Cloud Button: Open Dashboard
         const dashboardBtn = controlsArea.createDiv({ 
             cls: "af-status-control clickable-icon",
-            attr: { "aria-label": "Backup & Sync Center" }
+            attr: { "aria-label": "Backup & Sync Center (Dashboard)" }
         });
         setIcon(dashboardBtn, "cloud");
         dashboardBtn.addEventListener("click", () => {
@@ -47,10 +48,34 @@ export class AbstractFolderStatusBar {
             ).open();
         });
 
-        // Sync Button: Quick Sync
+        // Push Button
+        this.pushArea = controlsArea.createDiv({ 
+            cls: "af-status-control af-status-sync-btn clickable-icon",
+            attr: { "aria-label": "Push changes to remote" }
+        });
+        const pushIconContainer = this.pushArea.createDiv({ cls: "af-status-sync-icon" });
+        setIcon(pushIconContainer, "upload-cloud");
+
+        this.pushArea.addEventListener("click", async (evt) => {
+            evt.preventDefault();
+            evt.stopPropagation();
+            
+            this.pushArea.addClass("is-syncing");
+            try {
+                await this.plugin.libraryManager.syncBackup("", "Manual push from Status Bar", undefined, true);
+                new Notice("Push complete");
+            } catch (e) {
+                new Notice(`Push failed: ${e.message}`);
+            } finally {
+                this.pushArea.removeClass("is-syncing");
+                this.refreshStatus();
+            }
+        });
+
+        // Pull Button
         this.syncArea = controlsArea.createDiv({ 
             cls: "af-status-control af-status-sync-btn clickable-icon",
-            attr: { "aria-label": "Sync Backup Now" }
+            attr: { "aria-label": "Pull updates from remote" }
         });
         
         this.syncIconContainer = this.syncArea.createDiv({ cls: "af-status-sync-icon" });
@@ -64,10 +89,10 @@ export class AbstractFolderStatusBar {
             
             this.syncArea.addClass("is-syncing");
             try {
-                await this.plugin.libraryManager.syncBackup("");
-                new Notice("Sync complete");
+                await this.plugin.libraryManager.updateLibrary("");
+                new Notice("Updates pulled");
             } catch (e) {
-                new Notice(`Sync failed: ${e.message}`);
+                new Notice(`Pull failed: ${e.message}`);
             } finally {
                 this.syncArea.removeClass("is-syncing");
                 this.refreshStatus();
@@ -127,9 +152,11 @@ export class AbstractFolderStatusBar {
     public async refreshStatus() {
         if (!this.settings.librarySettings.githubToken) {
             this.syncArea.addClass("is-hidden");
+            this.pushArea.addClass("is-hidden");
             return;
         }
         this.syncArea.removeClass("is-hidden");
+        this.pushArea.removeClass("is-hidden");
 
         Logger.debug("[Abstract Folder] StatusBar: refreshStatus started (calling getSyncStatus)");
         const status = await this.plugin.libraryManager.getSyncStatus("");
