@@ -18,7 +18,7 @@ export class ScopeProjector {
         }
 
         // 1. Normalize: Ensure all URIs end with a slash to prevent partial matches
-        const normalized = Array.from(selectedURIs).map(uri => 
+        const normalized = Array.from(selectedURIs).map(uri =>
             uri.endsWith('/') ? uri : `${uri}/`
         );
 
@@ -40,18 +40,17 @@ export class ScopeProjector {
     }
 
     /**
-     * Blazing fast check to see if a node is a descendant of a selected scope.
+     * Blazing fast check to see if a node is within a selected scope (descendant or the parent itself).
      * This is called in the hot render loop of the VirtualViewport.
      * 
      * @param nodeUri The synthetic URI of the node to check
      */
-    isDescendant(nodeUri: string): boolean {
+    isInScope(nodeUri: string): boolean {
         if (this._activePrefixes.length === 0) return false;
 
         // Optimized check: return true if nodeUri starts with any active prefix
-        // but is not the prefix itself (descendants only).
         return this._activePrefixes.some(prefix => 
-            nodeUri.startsWith(prefix) && nodeUri !== prefix
+            nodeUri.startsWith(prefix)
         );
     }
 

@@ -259,27 +259,27 @@ export class VirtualViewport {
             }
         }
 
-        // 3.7 Indent Guides (Reddit style)
-        const guideColors = [
-            'var(--text-accent)',
-            'var(--color-red)',
-            'var(--color-orange)',
-            'var(--color-yellow)',
-            'var(--color-green)',
-            'var(--color-cyan)',
-            'var(--color-blue)',
-            'var(--color-purple)',
-            'var(--color-pink)'
-        ];
+        // 3.7 Indent Guides
+        const enableRainbow = this.context.settings.enableRainbowIndents;
+        const palette = this.context.settings.rainbowPalette;
+        const perItemColors = this.context.settings.enablePerItemRainbowColors;
 
-        const existingGuides = el.querySelectorAll('.af-item-guide');
+        const existingGuides = el.querySelectorAll('.abstract-folder-indent-guide');
         if (existingGuides.length !== node.level) {
             existingGuides.forEach(g => g.remove());
             for (let d = 0; d < node.level; d++) {
                 const guide = document.createElement('div');
-                guide.className = 'af-item-guide';
+                guide.className = 'abstract-folder-indent-guide';
+                
+                if (enableRainbow) {
+                    guide.classList.add(palette + '-palette');
+                    // If per-item colors are enabled, we index by path segment hash if possible, 
+                    // but for virtual viewport, depth-based index is more standard.
+                    const colorIndex = d % 10;
+                    guide.classList.add(`rainbow-indent-${colorIndex}`);
+                }
+                
                 guide.style.left = `${d * 18 + 12}px`;
-                guide.style.backgroundColor = guideColors[d % guideColors.length];
                 el.appendChild(guide);
             }
         }
@@ -314,7 +314,7 @@ export class VirtualViewport {
 
         const isSelected = this.context.isSelected(node.uri);
         const isExpanded = this.context.isExpanded(node.uri);
-        const isInScope = this.scope.isDescendant(node.uri);
+        const isInScope = this.scope.isInScope(node.uri);
 
         const stateFingerprint = `${isSelected}:${isExpanded}:${isInScope}:${index}`;
         if (el.dataset.stateFingerprint === stateFingerprint) return;
