@@ -46,6 +46,7 @@ export default class AbstractFolderPlugin extends Plugin {
 	contextMenuHandler: ContextMenuHandler;
 	abstractRibbonIconEl: HTMLElement | null = null;
 	libraryRibbonIconEl: HTMLElement | null = null;
+	spacesRibbonIconEl: HTMLElement | null = null;
 	syncInterval: number | null = null;
 
 	// SOVM Singletons
@@ -408,6 +409,10 @@ this.addCommand({
 			this.libraryRibbonIconEl.remove();
 			this.libraryRibbonIconEl = null;
 		}
+		if (this.spacesRibbonIconEl) {
+			this.spacesRibbonIconEl.remove();
+			this.spacesRibbonIconEl = null;
+		}
 	}
 
 	async activateLibraryCenter() {
@@ -571,6 +576,11 @@ this.addCommand({
 					this.activateLibraryExplorer().catch(console.error);
 				});
 			}
+			if (!this.spacesRibbonIconEl) {
+				this.spacesRibbonIconEl = this.addRibbonIcon("users", "Open abstract spaces explorer", () => {
+					this.activateAbstractSpacesExplorer().catch(console.error);
+				});
+			}
 		} else {
 			if (this.abstractRibbonIconEl) {
 				this.abstractRibbonIconEl.remove();
@@ -579,6 +589,10 @@ this.addCommand({
 			if (this.libraryRibbonIconEl) {
 				this.libraryRibbonIconEl.remove();
 				this.libraryRibbonIconEl = null;
+			}
+			if (this.spacesRibbonIconEl) {
+				this.spacesRibbonIconEl.remove();
+				this.spacesRibbonIconEl = null;
 			}
 		}
 	}

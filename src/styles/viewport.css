@@ -5,7 +5,8 @@
 
 /* Force clean container on the view leaf itself */
 .workspace-leaf-content[data-type=abstract-folder-view] .view-content,
-.workspace-leaf-content[data-type=abstract-library-explorer] .view-content {
+.workspace-leaf-content[data-type=abstract-library-explorer] .view-content,
+.workspace-leaf-content[data-type=abstract-spaces-explorer] .view-content {
     padding: 0 !important;
     margin: 0 !important;
     overflow: hidden !important;
