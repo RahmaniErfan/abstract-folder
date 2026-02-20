@@ -28,6 +28,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     private isOwner = false;
     private repositoryUrl: string | null = null;
     private authorName = "Unknown";
+    private scopeUnsubscribe: (() => void) | null = null;
 
 
     // Search Options
@@ -444,38 +445,85 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             });
 
             const pushBtn = controlsArea.createDiv({ 
-                cls: "af-status-control clickable-icon", 
+                cls: "af-status-control af-status-sync-btn clickable-icon", 
                 attr: { "aria-label": "Push changes to remote" } 
             });
-            setIcon(pushBtn, "upload-cloud");
+            const pushIconContainer = pushBtn.createDiv({ cls: "af-status-sync-icon" });
+            setIcon(pushIconContainer, "upload-cloud");
+            const pushBadge = pushIconContainer.createDiv({ cls: "af-status-sync-badge push-badge is-hidden" });
+            pushBadge.style.backgroundColor = "var(--color-blue)";
+            
             pushBtn.addEventListener("click", async () => {
                 if (!this.selectedLibrary?.file) return;
                 try {
+                    pushBtn.style.opacity = "0.5";
                     new Notice("Pushing changes...");
-                    await this.plugin.libraryManager.syncBackup(this.selectedLibrary.file.path, "Update library");
+                    await this.plugin.libraryManager.syncBackup(this.selectedLibrary.file.path, "Update library", undefined, true);
                     new Notice("Successfully pushed changes");
                 } catch (e) {
                     new Notice(`Push failed: ${e.message}`);
+                } finally {
+                    pushBtn.style.opacity = "1";
                 }
             });
         }
 
         const pullBtn = controlsArea.createDiv({ 
-            cls: "af-status-control clickable-icon", 
+            cls: "af-status-control af-status-sync-btn clickable-icon", 
             attr: { "aria-label": "Pull updates from remote" } 
         });
-        setIcon(pullBtn, "refresh-cw");
+        const pullIconContainer = pullBtn.createDiv({ cls: "af-status-sync-icon" });
+        setIcon(pullIconContainer, "refresh-cw");
+        const pullBadge = pullIconContainer.createDiv({ cls: "af-status-sync-badge pull-badge is-hidden" });
+
         pullBtn.addEventListener("click", async () => {
             if (!this.selectedLibrary?.file) return;
             try {
+                pullBtn.style.opacity = "0.5";
                 new Notice("Updating library...");
                 await this.plugin.libraryManager.updateLibrary(this.selectedLibrary.file.path);
                 new Notice("Library updated");
                 void this.refreshLibraryTree();
             } catch (e) {
                 new Notice(`Update failed: ${e.message}`);
+            } finally {
+                pullBtn.style.opacity = "1";
             }
         });
+
+        if (this.scopeUnsubscribe) {
+            this.scopeUnsubscribe();
+            this.scopeUnsubscribe = null;
+        }
+
+        const scopeId = this.selectedLibrary?.file?.path;
+        if (scopeId) {
+            const absPath = (this.plugin.libraryManager as any).getAbsolutePath(scopeId);
+            this.plugin.libraryManager.scopeManager.registerScope(scopeId, absPath);
+
+            this.scopeUnsubscribe = this.plugin.libraryManager.scopeManager.subscribe(scopeId, (state) => {
+                if (this.isOwner) {
+                    const pushIcon = toolbar.querySelector(".af-status-sync-icon .af-status-sync-badge.push-badge") as HTMLElement | null;
+                    if (!pushIcon && (state.localChanges > 0 || state.ahead > 0)) {
+                        const parent = toolbar.querySelectorAll(".af-status-sync-icon")[0] as HTMLElement | undefined;
+                        if (parent) {
+                            const badge = parent.createDiv({ cls: "af-status-sync-badge push-badge" });
+                            badge.style.backgroundColor = "var(--color-blue)";
+                            const count = state.localChanges + state.ahead;
+                            badge.textContent = count > 9 ? "9+" : String(count);
+                        }
+                    } else if (pushIcon) {
+                        const count = state.localChanges + state.ahead;
+                        if (count > 0) {
+                            pushIcon.textContent = count > 9 ? "9+" : String(count);
+                            pushIcon.removeClass("is-hidden");
+                        } else {
+                            pushIcon.addClass("is-hidden");
+                        }
+                    }
+                }
+            });
+        }
     }
 
     // ViewportDelegateV2 implementation
@@ -521,6 +569,10 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         if (this.viewport) {
             this.viewport.destroy();
             this.viewport = null;
+        }
+        if (this.scopeUnsubscribe) {
+            this.scopeUnsubscribe();
+            this.scopeUnsubscribe = null;
         }
         this.currentItems = [];
     }
