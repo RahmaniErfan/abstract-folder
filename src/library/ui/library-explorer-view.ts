@@ -87,6 +87,8 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         // @ts-ignore
         this.registerEvent(this.app.workspace.on("abstract-folder:graph-updated", () => {
             if (this.selectedLibrary) {
+                const header = this.containerEl.querySelector(".abstract-folder-header") as HTMLElement;
+                if (header) this.renderHeader(header);
                 this.debouncedRefreshLibraryTree();
             } else {
                 this.renderView();
@@ -278,41 +280,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         if (!this.selectedLibrary) return;
 
         const header = container.createDiv({ cls: "abstract-folder-header" });
-        
-        const titleRow = header.createDiv({ cls: "abstract-folder-header-title-container" });
-        const backBtn = titleRow.createDiv({ cls: "af-header-back-button abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Back to shelf" } });
-        setIcon(backBtn, "arrow-left");
-        backBtn.addEventListener("click", () => {
-            if (this.viewport) {
-                this.viewport.destroy();
-                this.viewport = null;
-            }
-            this.selectedLibrary = null;
-            this.searchQuery = ""; // Reset search when going back to shelf
-            this.renderView();
-        });
-
-        if (this.selectedLibrary.file instanceof TFolder) {
-            const meta = this.plugin.graphEngine?.getNodeMeta?.(this.selectedLibrary.file.path);
-            const iconToUse = meta?.icon || "library";
-            
-            const titleEl = titleRow.createEl("h3", { cls: "abstract-folder-header-title" });
-            const iconEl = titleEl.createDiv({ cls: "af-header-icon" });
-            setIcon(iconEl, iconToUse);
-            titleEl.createSpan({ text: this.selectedLibrary.file.name });
-            
-            // Pre-fetch ownership and repo info for toolbars
-            const status = await this.plugin.libraryManager.isLibraryOwner(this.selectedLibrary.file.path);
-            this.isOwner = status.isOwner;
-            this.authorName = status.author;
-            this.repositoryUrl = status.repositoryUrl;
-        }
-
-        this.renderTopToolbar(header);
-
-        this.renderSearch(header, "Search in library...", () => {
-            void this.refreshLibraryTree();
-        }, true); // Enable options for tree view
+        await this.renderHeader(header);
 
         header.createDiv({ cls: "library-header-divider" });
 
@@ -335,6 +303,49 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             { showGroupHeader: true }
         );
         await this.refreshLibraryTree();
+    }
+
+    private async renderHeader(header: HTMLElement) {
+        header.empty();
+
+        const titleRow = header.createDiv({ cls: "abstract-folder-header-title-container" });
+        const backBtn = titleRow.createDiv({ cls: "af-header-back-button abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Back to shelf" } });
+        setIcon(backBtn, "arrow-left");
+        backBtn.addEventListener("click", () => {
+            if (this.viewport) {
+                this.viewport.destroy();
+                this.viewport = null;
+            }
+            this.selectedLibrary = null;
+            this.searchQuery = ""; // Reset search when going back to shelf
+            this.renderView();
+        });
+
+        if (this.selectedLibrary!.file instanceof TFolder) {
+            const meta = this.plugin.graphEngine?.getNodeMeta?.(this.selectedLibrary!.file.path);
+            const iconToUse = meta?.icon || "library";
+            
+            const titleEl = titleRow.createEl("h3", { cls: "abstract-folder-header-title" });
+            const iconEl = titleEl.createDiv({ cls: "af-header-icon" });
+            setIcon(iconEl, iconToUse);
+            titleEl.createSpan({ text: this.selectedLibrary!.file.name });
+            
+            // Pre-fetch ownership and repo info for toolbars
+            const status = await this.plugin.libraryManager.isLibraryOwner(this.selectedLibrary!.file.path);
+            this.isOwner = status.isOwner;
+            this.authorName = status.author;
+            this.repositoryUrl = status.repositoryUrl;
+        }
+
+        const visibility = this.plugin.settings.visibility.libraries;
+
+        this.renderTopToolbar(header);
+
+        if (visibility.showSearchHeader) {
+            this.renderSearch(header, "Search in library...", () => {
+                void this.refreshLibraryTree();
+            }, true); // Enable options for tree view
+        }
     }
 
     private async refreshLibraryTree(options: { forceExpand?: boolean } = {}) {

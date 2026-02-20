@@ -192,7 +192,8 @@ export class VirtualViewport {
 
     private updateRowContent(el: HTMLElement, node: AbstractNode) {
         // Performance Fingerprint: Skip expensive DOM/SVG logic if state hasn't changed.
-        const fingerprint = `${node.uri}:${node.name}:${node.syncStatus}:${node.icon}:${node.hasChildren}:${node.level}`;
+        const settings = this.context.settings;
+        const fingerprint = `${node.uri}:${node.name}:${node.syncStatus}:${node.icon}:${node.hasChildren}:${node.level}:${settings.enableRainbowIndents}:${settings.rainbowPalette}:${settings.enablePerItemRainbowColors}`;
         if (el.dataset.fingerprint === fingerprint) return;
         el.dataset.fingerprint = fingerprint;
 

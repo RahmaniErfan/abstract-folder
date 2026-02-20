@@ -64,6 +64,8 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         this.registerEvent(
             (this.app.workspace as any).on("abstract-folder:graph-updated", () => {
                 if (this.selectedSpace) {
+                    const header = this.containerEl.querySelector(".abstract-folder-header") as HTMLElement;
+                    if (header) this.renderHeader(header);
                     this.debouncedRefreshSpaceTree();
                 } else {
                     this.renderView();
@@ -258,8 +260,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         this.authorName = status.author;
         this.repositoryUrl = status.repositoryUrl;
 
-        this.renderTopToolbar(header);
-        this.renderSearch(header);
+        this.renderHeader(header);
 
         header.createDiv({ cls: "library-header-divider" });
 
@@ -280,6 +281,36 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             { showGroupHeader: true }
         );
         await this.refreshSpaceTree();
+    }
+
+    private renderHeader(header: HTMLElement) {
+        header.empty();
+
+        const titleRow = header.createDiv({ cls: "abstract-folder-header-title-container" });
+        const backBtn = titleRow.createDiv({ cls: "af-header-back-button abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Back to shelf" } });
+        setIcon(backBtn, "arrow-left");
+        backBtn.addEventListener("click", () => {
+            if (this.viewport) {
+                this.viewport.destroy();
+                this.viewport = null;
+            }
+            this.selectedSpace = null;
+            this.renderView();
+        });
+
+        const meta = this.plugin.graphEngine?.getNodeMeta?.(this.selectedSpace!.path);
+        const iconToUse = meta?.icon || "users";
+        
+        const titleEl = titleRow.createEl("h3", { cls: "abstract-folder-header-title" });
+        const iconEl = titleEl.createDiv({ cls: "af-header-icon" });
+        if (!meta?.icon) {
+            iconEl.style.color = "var(--color-purple)";
+        }
+        setIcon(iconEl, iconToUse);
+        titleEl.createSpan({ text: this.selectedSpace!.name });
+
+        this.renderTopToolbar(header);
+        this.renderSearch(header);
     }
 
     private renderTopToolbar(container: HTMLElement) {
@@ -308,11 +339,8 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             showSortButton: visibility.showSortButton,
             showFilterButton: visibility.showFilterButton,
             showGroupButton: visibility.showGroupButton,
-            showCreateNoteButton: visibility.showCreateNoteButton,
+            showCreateNoteButton: visibility.showCreateNoteButton && this.isOwner,
             extraActions: (toolbarEl: HTMLElement) => {
-                 // Space specific actions? 
-                 // Maybe move "Sync Now" or "Space Dashboard" here if we want? 
-                 // Currently they are in bottom status bar.
             }
         }).render();
     }

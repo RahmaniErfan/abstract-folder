@@ -48,38 +48,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
         contentEl.empty();
         contentEl.addClass("abstract-folder-view");
 
-        // Header/Search area
-        const headerEl = contentEl.createDiv({ cls: "abstract-folder-header" });
-        
-        // Toolbar
-        const toolbarEl = headerEl.createDiv({ cls: "abstract-folder-toolbar" });
-        this.toolbar = new AbstractFolderViewToolbar(
-            this.app,
-            this.plugin.settings,
-            this.plugin,
-            this.contextEngine,
-            toolbarEl,
-            () => this.focusSearch(),
-            () => this.focusActiveFile()
-        );
-        // We need to inject our local context engine into the toolbar if it relies on it?
-        // AbstractFolderViewToolbar likely relies on plugin.contextEngine?
-        // Let's check AbstractFolderViewToolbar - it likely needs update too if it takes contextEngine.
-        // It takes (app, settings, plugin, container, ...)
-        // If it uses plugin.contextEngine internally, we might need to patch it or pass contextEngine options.
-        // CHECK: AbstractFolderViewToolbar source. It extends AbstractFolderToolbar? Or uses it?
-        // It's a specific class.
-        this.toolbar.setupToolbarActions();
-
-        const searchContainer = headerEl.createDiv({ cls: "abstract-folder-search-container" });
-        new AbstractSearch(this.app, this.plugin, this.plugin.settings, this.contextEngine, {
-            containerEl: searchContainer,
-            placeholder: "Search notes...",
-            onSearch: (query) => {
-                 Logger.debug(`[Abstract Folder] View: Search input changed to "${query}"`);
-            },
-           showAncestryToggles: true
-        }).render();
+        this.renderHeader();
 
         // Viewport Container
         const scrollContainer = contentEl.createDiv({ cls: "abstract-folder-viewport-scroll-container" });
@@ -109,6 +78,9 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
 
         // Subscribe to graph changes
         this.registerEvent(this.app.workspace.on('abstract-folder:graph-updated' as any, () => {
+            // 0. Update Header (Visibility might have changed)
+            this.renderHeader();
+
             // 1. Snapshot physical paths BEFORE rebuilding the tree
             if (this.currentSnapshot?.locationMap) {
                 this.contextEngine.snapshotPhysicalPaths(this.currentSnapshot.locationMap);
@@ -140,10 +112,49 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
         // Initial build
         Logger.debug("[Abstract Folder] View: Initial refreshTree starting during onOpen...");
         await this.refreshTree();
-        Logger.debug("[Abstract Folder] View: Initial refreshTree complete.");
 
         // 3. Status Bar (Bottom)
         this.statusBar = new AbstractFolderStatusBar(this.app, this.plugin.settings, this.plugin, contentEl);
+    }
+
+    private renderHeader() {
+        const { contentEl } = this;
+        let headerEl = contentEl.querySelector(".abstract-folder-header") as HTMLElement;
+        if (!headerEl) {
+            headerEl = contentEl.createDiv({ cls: "abstract-folder-header" });
+            // Prepend if content already has children
+            if (contentEl.firstChild && contentEl.firstChild !== headerEl) {
+                contentEl.insertBefore(headerEl, contentEl.firstChild);
+            }
+        }
+        headerEl.empty();
+
+        const visibility = this.plugin.settings.visibility.default;
+
+        // Toolbar
+        const toolbarEl = headerEl.createDiv({ cls: "abstract-folder-toolbar" });
+        this.toolbar = new AbstractFolderViewToolbar(
+            this.app,
+            this.plugin.settings,
+            this.plugin,
+            this.contextEngine,
+            toolbarEl,
+            () => this.focusSearch(),
+            () => this.focusActiveFile()
+        );
+        this.toolbar.setupToolbarActions();
+
+        if (visibility.showSearchHeader) {
+            const searchContainer = headerEl.createDiv({ cls: "abstract-folder-search-container" });
+            new AbstractSearch(this.app, this.plugin, this.plugin.settings, this.contextEngine, {
+                containerEl: searchContainer,
+                placeholder: "Search notes...",
+                onSearch: (query) => {
+                    Logger.debug(`[Abstract Folder] View: Search input changed to "${query}"`);
+                },
+                showAncestryToggles: true
+            }).render();
+        }
     }
 
     async onClose() {

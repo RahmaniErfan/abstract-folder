@@ -181,8 +181,9 @@
 }
 
 .af-status-badge.is-public {
-    background-color: var(--background-modifier-success-hover);
-    color: white;
+    background-color: rgba(var(--interactive-accent-rgb, 124, 58, 237), 0.12);
+    color: var(--text-accent);
+    border: 1px solid rgba(var(--interactive-accent-rgb, 124, 58, 237), 0.25);
 }
 
 .af-status-badge .svg-icon {
