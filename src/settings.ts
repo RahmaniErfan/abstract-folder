@@ -16,7 +16,6 @@ export interface AbstractFolderPluginSettings {
   enableRainbowIndents: boolean; // Whether to enable rainbow indentation guides
   rainbowPalette: 'classic' | 'pastel' | 'neon'; // The color palette for rainbow indents
   enablePerItemRainbowColors: boolean; // Whether to use varied colors for indentation guides of sibling items
-  viewStyle: 'tree' | 'column'; // New: Tree or Column view
   rememberExpanded: boolean; // Whether to remember expanded/collapsed state of folders
   expandedFolders: string[]; // List of paths of currently expanded folders
   excludedPaths: string[]; // Paths to exclude from the abstract folder view (e.g. export folders)
@@ -39,7 +38,6 @@ export interface AbstractFolderPluginSettings {
   searchShowDescendants: boolean; // Whether to show descendants in search results
   searchShowAncestors: boolean; // Whether to show ancestors in search results
   lastInteractionContextId: string | null; // The contextual ID of the most recently interacted folder/file
-  showViewStyleToggle: boolean; // Whether to show the view style toggle button
   showFocusActiveFileButton: boolean; // Whether to show the focus active file button
   showConversionButton: boolean; // Whether to show the conversion button
   showCollapseAllButton: boolean; // Whether to show the collapse all button
@@ -75,7 +73,6 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   enableRainbowIndents: true,
   rainbowPalette: 'classic',
   enablePerItemRainbowColors: false, // Default to false
-  viewStyle: 'tree',
   rememberExpanded: false,
   expandedFolders: [],
   excludedPaths: [],
@@ -92,7 +89,6 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   searchShowDescendants: false,
   searchShowAncestors: false,
   lastInteractionContextId: null,
-  showViewStyleToggle: true,
   showFocusActiveFileButton: true,
   showConversionButton: true,
   showCollapseAllButton: true,

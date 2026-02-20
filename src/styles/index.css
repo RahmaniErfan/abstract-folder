@@ -4,7 +4,7 @@
 @import './header.css';
 @import './tree-item.css';
 @import './tree-structure.css';
-@import './column-view.css';
+@import './tree-structure.css';
 @import './modals.css';
 @import './drag-and-drop.css';
 @import './obsidian-overrides.css';
@@ -16,3 +16,4 @@
 @import './merge-view.css';
 @import './space-dashboard.css';
 @import './unified-dashboard.css';
+@import './settings.css';

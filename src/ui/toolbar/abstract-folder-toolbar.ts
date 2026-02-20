@@ -75,7 +75,7 @@ export class AbstractFolderToolbar {
         }
 
         if (this.options.showGroupButton && provider.supportsGroups()) {
-            this.addAction("boxes", "Select group", (evt) => this.showGroupMenu(evt));
+            this.addAction("group", "Select group", (evt) => this.showGroupMenu(evt));
         }
 
         if (this.options.showCreateNoteButton) {
@@ -104,22 +104,6 @@ export class AbstractFolderToolbar {
     }
 
     public updateButtonStates(): void {
-        const isTreeView = this.settings.viewStyle === 'tree';
-        
-        const collapseBtn = this.buttons.get('collapse');
-        if (collapseBtn) {
-            collapseBtn.toggleClass('is-disabled', !isTreeView);
-            if (!isTreeView) collapseBtn.setAttribute('aria-disabled', 'true');
-            else collapseBtn.removeAttribute('aria-disabled');
-        }
-
-        const expandBtn = this.buttons.get('expand');
-        if (expandBtn) {
-            expandBtn.toggleClass('is-disabled', !isTreeView);
-            if (!isTreeView) expandBtn.setAttribute('aria-disabled', 'true');
-            else expandBtn.removeAttribute('aria-disabled');
-        }
-
         if (this.options.showExpandButton) {
             this.updateExpandButtonState();
         }
@@ -222,7 +206,7 @@ export class AbstractFolderToolbar {
             groups.forEach((group: Group) => {
                 const isActive = this.contextEngine.getState().activeGroupId === group.id;
                 menu.addItem(item => item.setTitle(group.name)
-                    .setIcon(isActive ? "check" : "boxes")
+                    .setIcon(isActive ? "check" : "group")
                     .onClick(async () => {
                          // Toggle or Set
                          if (isActive) {

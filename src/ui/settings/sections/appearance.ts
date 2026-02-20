@@ -43,21 +43,6 @@ export function renderAppearanceSettings(containerEl: HTMLElement, plugin: Abstr
 		);
 
 	new Setting(containerEl)
-		.setName("View style")
-		.setDesc("Choose between tree and column view.")
-		.addDropdown((dropdown) =>
-			dropdown
-				.addOption("tree", "Tree")
-				.addOption("column", "Column")
-				.setValue(plugin.settings.viewStyle)
-				.onChange(async (value: "tree" | "column") => {
-					plugin.settings.viewStyle = value;
-					await plugin.saveSettings();
-					plugin.app.workspace.trigger("abstract-folder:graph-updated");
-				}),
-		);
-
-	new Setting(containerEl)
 		.setName("Max menu name length")
 		.setDesc("Maximum length of file names shown in menus and dropdowns.")
 		.addSlider((slider) =>
@@ -72,17 +57,6 @@ export function renderAppearanceSettings(containerEl: HTMLElement, plugin: Abstr
 		);
 
 	new Setting(containerEl).setName("Visibility").setHeading();
-
-	new Setting(containerEl)
-		.setName("Show view style toggle")
-		.setDesc("Show the button to toggle between tree and column view.")
-		.addToggle((toggle) =>
-			toggle.setValue(plugin.settings.showViewStyleToggle).onChange(async (value) => {
-				plugin.settings.showViewStyleToggle = value;
-				await plugin.saveSettings();
-				plugin.app.workspace.trigger("abstract-folder:graph-updated");
-			}),
-		);
 
 	new Setting(containerEl)
 		.setName("Show focus active file button")

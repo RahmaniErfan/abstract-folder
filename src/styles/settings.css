@@ -1,0 +1,89 @@
+.abstract-folder-settings-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 4px; /* Reduced gap for tighter fit */
+    margin: 0 auto 24px auto;
+    padding: 6px;
+    background-color: var(--background-secondary-alt);
+    border-radius: 14px;
+    border: 1px solid var(--background-modifier-border);
+    width: fit-content;
+    max-width: 100%;
+}
+
+.abstract-folder-settings-tab-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    background: transparent;
+    border: none;
+    min-width: 80px;
+    color: var(--text-muted);
+}
+
+.abstract-folder-settings-tab-button:hover {
+    background-color: var(--background-modifier-hover);
+    color: var(--text-normal);
+    transform: translateY(-1px);
+}
+
+.abstract-folder-settings-tab-button.is-active {
+    background-color: var(--background-primary);
+    color: var(--interactive-accent);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(0);
+}
+
+.abstract-folder-settings-tab-icon {
+    margin-bottom: 6px;
+}
+
+.abstract-folder-settings-tab-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.abstract-folder-settings-tab-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Glassmorphism effect for active tab if supported */
+@supports (backdrop-filter: blur(10px)) {
+    .abstract-folder-settings-tab-button.is-active {
+        background-color: rgba(var(--interactive-accent-rgb), 0.1);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(var(--interactive-accent-rgb), 0.2);
+    }
+}
+
+.abstract-folder-settings-section {
+    animation: abstract-folder-fade-in 0.3s ease-out;
+}
+
+@keyframes abstract-folder-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Ensure excluded paths look clean */
+.abstract-folder-excluded-paths-container {
+    margin-top: 10px;
+    padding: 12px;
+    background: var(--background-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--background-modifier-border);
+}
