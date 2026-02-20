@@ -277,7 +277,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             this.contextEngine,
             this.plugin.scopeProjector,
             this,
-            { showGroupHeader: false }
+            { showGroupHeader: true }
         );
         await this.refreshSpaceTree();
     }
@@ -292,8 +292,8 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             this.plugin.settings,
             path,
             `space:${path}`,
-            false, // Spaces usually flat or folder based, no extra grouping for now
-            null
+            true, // Enable weight/groups
+            this.contextEngine.getState().activeGroupId
         );
 
         new AbstractFolderToolbar(this.app, this.plugin.settings, this.plugin, this.contextEngine, {
@@ -301,7 +301,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             provider: provider,
             showSortButton: true,
             showCreateNoteButton: true,
-            showGroupButton: false, // Groups disabled for now in spaces
+            showGroupButton: true, // Groups enabled
             showFilterButton: true,
             showExpandButton: true,
             showCollapseButton: true,
@@ -546,8 +546,8 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
                 this.plugin.settings,
                 scopePath,
                 `space:${scopePath}`,
-                false,
-                null
+                true, // Enable weight/groups
+                this.contextEngine.getState().activeGroupId
             );
 
             const generator = this.plugin.treeBuilder.buildTree(

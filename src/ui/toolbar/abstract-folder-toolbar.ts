@@ -75,7 +75,7 @@ export class AbstractFolderToolbar {
         }
 
         if (this.options.showGroupButton && provider.supportsGroups()) {
-            this.addAction("users", "Select group", (evt) => this.showGroupMenu(evt));
+            this.addAction("boxes", "Select group", (evt) => this.showGroupMenu(evt));
         }
 
         if (this.options.showCreateNoteButton) {
@@ -222,7 +222,7 @@ export class AbstractFolderToolbar {
             groups.forEach((group: Group) => {
                 const isActive = this.contextEngine.getState().activeGroupId === group.id;
                 menu.addItem(item => item.setTitle(group.name)
-                    .setIcon(isActive ? "check" : "group")
+                    .setIcon(isActive ? "check" : "boxes")
                     .onClick(async () => {
                          // Toggle or Set
                          if (isActive) {

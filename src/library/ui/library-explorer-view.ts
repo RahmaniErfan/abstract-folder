@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, setIcon, TFolder, TFile, Platform, Notice } from "obsidian";
+import { ItemView, WorkspaceLeaf, setIcon, TFolder, TFile, Platform, Notice, debounce } from "obsidian";
 import type AbstractFolderPlugin from "../../../main";
 import { LibraryNode } from "../types";
 import { Logger } from "../../utils/logger";
@@ -29,6 +29,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     private repositoryUrl: string | null = null;
     private authorName = "Unknown";
     private scopeUnsubscribe: (() => void) | null = null;
+    private debouncedRefreshLibraryTree: (options?: { forceExpand?: boolean }) => void;
 
 
     // Search Options
@@ -38,6 +39,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     constructor(leaf: WorkspaceLeaf, private plugin: AbstractFolderPlugin) {
         super(leaf);
         this.contextEngine = new ContextEngine(plugin, 'library');
+        this.debouncedRefreshLibraryTree = debounce(this.refreshLibraryTree.bind(this), 20);
     }
 
     getViewType(): string {
@@ -80,6 +82,30 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
                 }
             }
         }));
+        
+        // Listen for graph updates (e.g. new files) to refresh the tree
+        // @ts-ignore
+        this.registerEvent(this.app.workspace.on("abstract-folder:graph-updated", () => {
+            if (this.selectedLibrary) {
+                this.debouncedRefreshLibraryTree();
+            } else {
+                this.renderView();
+            }
+        }));
+
+        // Subscribe to context changes
+        this.contextEngine.on('changed', () => {
+            if (this.selectedLibrary) {
+                this.debouncedRefreshLibraryTree();
+            }
+        });
+
+        this.contextEngine.on('expand-all', () => {
+            if (this.selectedLibrary) {
+                this.debouncedRefreshLibraryTree({ forceExpand: true });
+            }
+        });
+
         this.renderView();
     }
 
@@ -306,12 +332,12 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             this.contextEngine,
             this.plugin.scopeProjector,
             this,
-            { showGroupHeader: false }
+            { showGroupHeader: true }
         );
         await this.refreshLibraryTree();
     }
 
-    private async refreshLibraryTree() {
+    private async refreshLibraryTree(options: { forceExpand?: boolean } = {}) {
         if (!this.viewport || !this.selectedLibrary) return;
         
         if (this.isRefreshing) {
@@ -340,8 +366,8 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
                 this.plugin.settings,
                 libraryPath || "",
                 "library",
-                false, // No groupings in library view for now
-                null
+                true, // Enable groupings
+                this.contextEngine.getState().activeGroupId
             );
 
             const generator = this.plugin.treeBuilder.buildTree(
@@ -349,7 +375,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
                 provider,
                 { 
                     filterQuery: this.searchQuery,
-                    forceExpandAll: !!this.searchQuery,
+                    forceExpandAll: !!this.searchQuery || !!options.forceExpand,
                     showAncestors: this.showAncestors, 
                     showDescendants: this.showDescendants 
                 }
@@ -375,7 +401,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             this.isRefreshing = false;
             if (this.nextRefreshScheduled) {
                 this.nextRefreshScheduled = false;
-                void this.refreshLibraryTree();
+                void this.refreshLibraryTree(options);
             }
         }
     }
@@ -389,8 +415,8 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             this.plugin.settings, 
             libraryPath, 
             "library",
-            false, 
-            null
+            true, 
+            this.contextEngine.getState().activeGroupId
         );
 
         new AbstractFolderToolbar(
@@ -407,7 +433,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
                 showExpandButton: true,
                 showSortButton: true,
                 showFilterButton: true,
-                showGroupButton: false,
+                showGroupButton: true, // Groups enabled
                 showCreateNoteButton: this.isOwner,
                 extraActions: (toolbarEl: HTMLElement) => {
                      if (this.repositoryUrl) {
@@ -574,7 +600,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
 
     onItemToggle(node: AbstractNode, event: MouseEvent): void {
         this.contextEngine.toggleExpand(node.uri);
-        void this.refreshLibraryTree();
+        void this.debouncedRefreshLibraryTree();
     }
 
     onItemContextMenu(node: AbstractNode, event: MouseEvent): void {
