@@ -167,3 +167,97 @@
     filter: blur(0.5px);
     border-left-color: var(--background-modifier-border);
 }
+/* Support Section */
+.af-settings-support-banner {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 24px;
+    background: linear-gradient(135deg, rgba(var(--interactive-accent-rgb), 0.1) 0%, rgba(var(--interactive-accent-rgb), 0.05) 100%);
+    border: 1px solid rgba(var(--interactive-accent-rgb), 0.2);
+    border-radius: var(--radius-m);
+    margin-bottom: 32px;
+}
+
+.af-support-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: var(--font-semibold);
+    font-size: var(--font-ui-large);
+    color: var(--text-accent);
+}
+
+.af-support-text {
+    font-size: var(--font-ui-medium);
+    color: var(--text-normal);
+    line-height: 1.5;
+    margin-bottom: 4px;
+}
+
+.af-support-buttons {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    width: 100%;
+}
+
+.af-support-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: var(--radius-m);
+    font-size: var(--font-ui-small);
+    font-weight: var(--font-medium);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent;
+}
+
+.af-support-btn.is-star {
+    background-color: var(--background-modifier-border);
+    color: var(--text-normal);
+}
+
+.af-support-btn.is-star:hover {
+    background-color: var(--background-modifier-border-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.af-support-btn.is-star.is-starred {
+    color: var(--text-accent);
+    background-color: rgba(var(--interactive-accent-rgb), 0.1);
+    border-color: rgba(var(--interactive-accent-rgb), 0.3);
+}
+
+.af-support-btn.is-github {
+    background-color: #24292f;
+    color: white;
+}
+
+.af-support-btn.is-github:hover {
+    background-color: #000;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.af-support-btn.is-coffee {
+    background-color: #FFDD00;
+    color: black;
+}
+
+.af-support-btn.is-coffee:hover {
+    background-color: #FFCC00;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 480px) {
+    .af-support-buttons {
+        flex-direction: column;
+    }
+}

@@ -247,4 +247,48 @@ export class AuthService {
             return null;
         }
     }
+
+    /**
+     * Star a repository
+     */
+    static async starRepository(token: string, owner: string, repo: string): Promise<boolean> {
+        try {
+            const response = await requestUrl({
+                url: `https://api.github.com/user/starred/${owner}/${repo}`,
+                method: "PUT",
+                headers: {
+                    "Authorization": `token ${token}`,
+                    "Accept": "application/json",
+                },
+                body: "",
+                throw: false
+            });
+            // 204 No Content is the success response for starring
+            return response.status === 204;
+        } catch (error) {
+            console.error("Failed to star repository", error);
+            return false;
+        }
+    }
+
+    /**
+     * Check if a repository is starred by the user
+     */
+    static async isStarred(token: string, owner: string, repo: string): Promise<boolean> {
+        try {
+            const response = await requestUrl({
+                url: `https://api.github.com/user/starred/${owner}/${repo}`,
+                method: "GET",
+                headers: {
+                    "Authorization": `token ${token}`,
+                    "Accept": "application/json",
+                },
+                throw: false
+            });
+            return response.status === 204;
+        } catch (error) {
+            // 404 means it's not starred
+            return false;
+        }
+    }
 }

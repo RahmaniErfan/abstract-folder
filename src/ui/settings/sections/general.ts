@@ -1,4 +1,4 @@
-import { Setting, AbstractInputSuggest, normalizePath, TFolder } from "obsidian";
+import { Setting, AbstractInputSuggest, normalizePath, TFolder, setIcon, Notice } from "obsidian";
 import type AbstractFolderPlugin from "main";
 
 export class PathInputSuggest extends AbstractInputSuggest<string> {
@@ -68,6 +68,7 @@ export class PathInputSuggest extends AbstractInputSuggest<string> {
 }
 
 export function renderGeneralSettings(containerEl: HTMLElement, plugin: AbstractFolderPlugin) {
+    renderSupportBanner(containerEl.createDiv(), plugin);
 	new Setting(containerEl).setName("Properties").setHeading();
 
 	new Setting(containerEl)
@@ -276,4 +277,76 @@ function renderExcludedPaths(containerEl: HTMLElement, plugin: AbstractFolderPlu
 				renderList();
 			}),
 	);
+}
+
+async function renderSupportBanner(containerEl: HTMLElement, plugin: AbstractFolderPlugin) {
+    containerEl.empty();
+    const banner = containerEl.createDiv({ cls: "af-settings-support-banner" });
+    
+    const header = banner.createDiv({ cls: "af-support-header" });
+    setIcon(header, "heart");
+    header.createSpan({ text: "Support Abstract Folder" });
+    
+    banner.createDiv({ 
+        cls: "af-support-text", 
+        text: "Abstract Folder is developed by a single developer with the invaluable help of the community in finding bugs and suggesting improvements. If you find it useful, consider supporting the journey!" 
+    });
+
+    const buttons = banner.createDiv({ cls: "af-support-buttons" });
+
+    // GitHub Star
+    const starBtn = buttons.createDiv({ cls: "af-support-btn is-star" });
+    setIcon(starBtn, "star");
+    starBtn.createSpan({ text: "Star" });
+    starBtn.onClickEvent(async () => {
+        if (starBtn.hasClass("is-starred")) {
+            window.open("https://github.com/RahmaniErfan/abstract-folder", "_blank");
+            return;
+        }
+
+        const token = await (plugin.libraryManager as any).getToken();
+        if (!token) {
+            window.open("https://github.com/RahmaniErfan/abstract-folder", "_blank");
+            return;
+        }
+        
+        try {
+            const { AuthService } = await import("../../../library/services/auth-service");
+            const success = await AuthService.starRepository(token, "RahmaniErfan", "abstract-folder");
+            if (success) {
+                new Notice("Successfully starred Abstract Folder! Thank you!");
+                starBtn.addClass("is-starred");
+                starBtn.querySelector("span")!.textContent = "Starred";
+            } else {
+                window.open("https://github.com/RahmaniErfan/abstract-folder", "_blank");
+            }
+        } catch (e) {
+            window.open("https://github.com/RahmaniErfan/abstract-folder", "_blank");
+        }
+    });
+
+    // Sponsor
+    const ghSponsor = buttons.createDiv({ cls: "af-support-btn is-github" });
+    setIcon(ghSponsor, "heart-handshake");
+    ghSponsor.createSpan({ text: "Sponsor" });
+    ghSponsor.onClickEvent(() => window.open("https://github.com/sponsors/RahmaniErfan", "_blank"));
+
+    // Coffee
+    const coffee = buttons.createDiv({ cls: "af-support-btn is-coffee" });
+    setIcon(coffee, "coffee");
+    coffee.createSpan({ text: "Coffee" });
+    coffee.onClickEvent(() => window.open("https://buymeacoffee.com/erfanrahmani", "_blank"));
+
+    // Try to check if already starred
+    try {
+        const token = await (plugin.libraryManager as any).getToken();
+        if (token) {
+            const { AuthService } = await import("../../../library/services/auth-service");
+            const isStarred = await AuthService.isStarred(token, "RahmaniErfan", "abstract-folder");
+            if (isStarred) {
+                starBtn.addClass("is-starred");
+                starBtn.querySelector("span")!.textContent = "Starred";
+            }
+        }
+    } catch (e) {}
 }
