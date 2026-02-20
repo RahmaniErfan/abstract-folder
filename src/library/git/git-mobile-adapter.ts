@@ -1,11 +1,20 @@
-import { IGitStatusAdapter, GitStatusMatrix } from './types';
+import * as git from 'isomorphic-git';
+import { ObsidianHttpAdapter } from './http-adapter';
+import { NodeFsAdapter } from './node-fs-adapter';
+import { SecureFsAdapter } from './secure-fs-adapter';
+import { IGitEngine, GitStatusMatrix, GitAuthor } from './types';
 import { getGitWorkerBlobUrl } from './git-worker-bundle';
+import { SecurityManager } from '../../core/security-manager';
 
-export class GitMobileAdapter implements IGitStatusAdapter {
+export class GitMobileAdapter implements IGitEngine {
     private worker: Worker | null = null;
 
-    constructor() {
+    constructor(private securityManager: SecurityManager) {
         this.initWorker();
+    }
+
+    isDesktopNative(): boolean {
+        return false;
     }
 
     private initWorker() {
@@ -17,6 +26,107 @@ export class GitMobileAdapter implements IGitStatusAdapter {
         } catch (e) {
             console.error('[GitMobileAdapter] Failed to initialize worker', e);
         }
+    }
+
+    private getSecureFs(absoluteDir: string) {
+        return new SecureFsAdapter(this.securityManager, absoluteDir);
+    }
+
+    async init(absoluteDir: string, defaultBranch: string = 'main'): Promise<void> {
+        const secureFs = this.getSecureFs(absoluteDir);
+        await git.init({ fs: secureFs, dir: absoluteDir, defaultBranch });
+    }
+
+    async clone(absoluteDir: string, url: string, token?: string): Promise<void> {
+        const secureFs = this.getSecureFs(absoluteDir);
+        await git.clone({
+            fs: secureFs,
+            http: ObsidianHttpAdapter as any,
+            dir: absoluteDir,
+            url,
+            onAuth: token ? () => ({ username: token }) : undefined,
+            singleBranch: true,
+            depth: 1
+        });
+    }
+
+    async add(absoluteDir: string, filepath: string): Promise<void> {
+        const secureFs = this.getSecureFs(absoluteDir);
+        await git.add({ fs: secureFs, dir: absoluteDir, filepath });
+    }
+
+    async remove(absoluteDir: string, filepath: string): Promise<void> {
+        const secureFs = this.getSecureFs(absoluteDir);
+        await git.remove({ fs: secureFs, dir: absoluteDir, filepath });
+    }
+
+    async commit(absoluteDir: string, message: string, author: GitAuthor, parents?: string[]): Promise<void> {
+        const secureFs = this.getSecureFs(absoluteDir);
+        await git.commit({
+            fs: secureFs,
+            dir: absoluteDir,
+            message,
+            author,
+            committer: author,
+            parent: parents
+        });
+    }
+
+    async pull(absoluteDir: string, branch: string, author: GitAuthor, token?: string): Promise<void> {
+        const secureFs = this.getSecureFs(absoluteDir);
+        const currentRef = await git.currentBranch({ fs: secureFs, dir: absoluteDir }) || branch;
+        await git.pull({
+            fs: secureFs,
+            http: ObsidianHttpAdapter as any,
+            dir: absoluteDir,
+            onAuth: token ? () => ({ username: token }) : undefined,
+            singleBranch: true,
+            ref: currentRef,
+            author,
+            committer: author
+        });
+    }
+
+    async push(absoluteDir: string, branch: string, token?: string, force?: boolean): Promise<void> {
+        const secureFs = this.getSecureFs(absoluteDir);
+        const currentRef = await git.currentBranch({ fs: secureFs, dir: absoluteDir }) || branch;
+        await git.push({
+            fs: secureFs,
+            http: ObsidianHttpAdapter as any,
+            dir: absoluteDir,
+            onAuth: token ? () => ({ username: token }) : undefined,
+            remote: 'origin',
+            ref: currentRef,
+            force
+        });
+    }
+
+    async addRemote(absoluteDir: string, remote: string, url: string): Promise<void> {
+        await git.addRemote({
+            fs: NodeFsAdapter,
+            dir: absoluteDir,
+            remote,
+            url
+        });
+    }
+
+    async currentBranch(absoluteDir: string): Promise<string | undefined> {
+        const secureFs = this.getSecureFs(absoluteDir);
+        return await git.currentBranch({ fs: secureFs, dir: absoluteDir }) || undefined;
+    }
+
+    async resolveRef(absoluteDir: string, ref: string): Promise<string> {
+        const secureFs = this.getSecureFs(absoluteDir);
+        return await git.resolveRef({ fs: secureFs, dir: absoluteDir, ref });
+    }
+
+    async getConfig(absoluteDir: string, configPath: string): Promise<string | undefined> {
+        const val = await git.getConfig({
+            fs: NodeFsAdapter,
+            dir: absoluteDir,
+            path: configPath
+        });
+        return typeof val === 'string' ? val : undefined;
     }
 
     async getStatusMatrix(absoluteDir: string, ignoredPaths?: string[]): Promise<GitStatusMatrix> {

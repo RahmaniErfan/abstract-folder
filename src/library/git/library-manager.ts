@@ -14,7 +14,7 @@ import { SecurityManager } from "../../core/security-manager";
 import { GitScopeManager } from "./git-scope-manager";
 import { GitDesktopAdapter } from "./git-desktop-adapter";
 import { GitMobileAdapter } from "./git-mobile-adapter";
-import { GitStatusMatrix } from "./types";
+import { GitStatusMatrix, IGitEngine, GitAuthor } from "./types";
 import { Logger } from "../../utils/logger";
 
 /**
@@ -25,6 +25,7 @@ export class LibraryManager {
     public readonly scopeManager: GitScopeManager;
     private gitDesktopAdapter: GitDesktopAdapter;
     private gitMobileAdapter: GitMobileAdapter;
+    private hasNativeGit: boolean | undefined = undefined;
 
     // Cache includes isFetching lock
     private cache: Map<string, { dirty: boolean; isFetching: boolean; data: GitStatusMatrix }> = new Map();
@@ -40,7 +41,7 @@ export class LibraryManager {
     ) {
         this.scopeManager = new GitScopeManager(app);
         this.gitDesktopAdapter = new GitDesktopAdapter();
-        this.gitMobileAdapter = new GitMobileAdapter();
+        this.gitMobileAdapter = new GitMobileAdapter(this.securityManager);
 
         // Reactive Cache Invalidation Hooks (Stored for Cleanup)
         this.vaultRefs.push(this.app.vault.on('modify', (file) => this.flagCacheDirty(file.path)));
@@ -54,6 +55,27 @@ export class LibraryManager {
             }
         };
         window.addEventListener('focus', this.windowFocusListener);
+    }
+
+    private async getEngine(): Promise<IGitEngine> {
+        if (this.hasNativeGit !== undefined) {
+            return this.hasNativeGit ? this.gitDesktopAdapter : this.gitMobileAdapter;
+        }
+        if (Platform.isDesktop) {
+            try {
+                const { promisify } = require('util');
+                const { execFile } = require('child_process');
+                const execFileAsync = promisify(execFile);
+                await execFileAsync('git', ['--version']);
+                this.hasNativeGit = true;
+            } catch (e) {
+                console.warn("[LibraryManager] Native git not found, falling back to isomorphic-git", e);
+                this.hasNativeGit = false;
+            }
+        } else {
+            this.hasNativeGit = false;
+        }
+        return this.hasNativeGit ? this.gitDesktopAdapter : this.gitMobileAdapter;
     }
 
     /**
@@ -95,13 +117,18 @@ export class LibraryManager {
      */
     async getSyncStatus(vaultPath: string): Promise<{ ahead: number; dirty: number }> {
         try {
+            const engine = await this.getEngine();
             const absoluteDir = this.getAbsolutePath(vaultPath);
             // Status check is read-only, safe to use NodeFsAdapter for speed
-            const matrix = await git.statusMatrix({ fs: NodeFsAdapter, dir: absoluteDir });
+            const matrix = await engine.getStatusMatrix(absoluteDir);
             
             // row[1] = head, row[2] = workdir, row[3] = stage
             // unmodified: [1,1,1], modified: [1,2,1], staged: [1,2,2], added: [0,2,2], deleted: [1,0,0]
-            const dirty = matrix.filter((row: any[]) => row[1] !== row[2] || row[2] !== row[3]).length;
+            // For the new mapping: 'synced', 'modified', 'conflict', 'untracked'
+            let dirty = 0;
+            for (const status of matrix.values()) {
+                if (status !== 'synced') dirty++;
+            }
 
             // Ahead count (commits not on remote)
             // This is a bit more complex with isomorphic-git, for now let's focus on dirty count
@@ -117,8 +144,18 @@ export class LibraryManager {
         if (this.app?.secretStorage && typeof this.app.secretStorage.getSecret === 'function') {
             try {
                 return await this.app.secretStorage.getSecret('abstract-folder-github-pat') || undefined;
-            } catch (e) {
-                Logger.error("[LibraryManager] Failed to get secret from SecretStorage", e);
+            } catch (e: any) {
+                // Notice: On some Linux distributions or Obsidian versions, secretStorage is present 
+                // but throws TypeError or errors due to missing keychain access.
+                if (e instanceof TypeError && e.message.includes('this.app.getSecret is not a function')) {
+                    try {
+                        return await this.app.secretStorage.getSecret.call(this.app, 'abstract-folder-github-pat') || undefined;
+                    } catch (e2) {
+                        Logger.warn("[LibraryManager] SecretStorage context fallback failed.", e2);
+                    }
+                } else {
+                    Logger.warn("[LibraryManager] Failed to get secret from SecretStorage (keychain may be unavailable)", e);
+                }
             }
         }
         return this.settings?.librarySettings?.githubToken;
@@ -160,21 +197,9 @@ export class LibraryManager {
     async cloneLibrary(repositoryUrl: string, destinationPath: string, item?: RegistryItem, token?: string): Promise<void> {
         try {
             const absoluteDir = this.getAbsolutePath(destinationPath);
-            const secureFs = new SecureFsAdapter(this.securityManager, absoluteDir);
-            
+            const engine = await this.getEngine();
             const tokenToUse = token || await this.ensureToken(destinationPath);
-            
-            /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-            await git.clone({
-                fs: secureFs, // Use Secure FS
-                http: ObsidianHttpAdapter as any,
-                dir: absoluteDir,
-                url: repositoryUrl,
-                onAuth: tokenToUse ? () => ({ username: tokenToUse }) : undefined,
-                singleBranch: true,
-                depth: 1
-            });
-            /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+            await engine.clone(absoluteDir, repositoryUrl, tokenToUse);
 
             console.debug(`[LibraryManager] Clone complete for ${absoluteDir}. Verifying contents...`);
             try {
@@ -221,20 +246,9 @@ export class LibraryManager {
     async cloneSpace(repositoryUrl: string, destinationPath: string, token?: string): Promise<void> {
         try {
             const absoluteDir = this.getAbsolutePath(destinationPath);
-            const secureFs = new SecureFsAdapter(this.securityManager, absoluteDir);
+            const engine = await this.getEngine();
             const tokenToUse = token || await this.ensureToken(destinationPath);
-            
-            /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-            await git.clone({
-                fs: secureFs, // Use Secure FS
-                http: ObsidianHttpAdapter as any,
-                dir: absoluteDir,
-                url: repositoryUrl,
-                onAuth: tokenToUse ? () => ({ username: tokenToUse }) : undefined,
-                singleBranch: true,
-                depth: 1
-            });
-            /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+            await engine.clone(absoluteDir, repositoryUrl, tokenToUse);
 
             // Refresh the vault so Obsidian sees the new files
             await this.app.vault.adapter.list(destinationPath);
@@ -253,7 +267,7 @@ export class LibraryManager {
     async updateLibrary(vaultPath: string, token?: string): Promise<void> {
         try {
             const absoluteDir = this.getAbsolutePath(vaultPath);
-            const secureFs = new SecureFsAdapter(this.securityManager, absoluteDir);
+            const engine = await this.getEngine();
             const tokenToUse = token || await this.ensureToken(vaultPath);
 
             const gitSettings = this.settings.librarySettings;
@@ -262,17 +276,7 @@ export class LibraryManager {
                 email: gitSettings.gitEmail || (gitSettings.githubUsername ? `${gitSettings.githubUsername}@users.noreply.github.com` : "manager@abstract.library")
             };
 
-            /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-            await git.pull({
-                fs: secureFs, // Use Secure FS
-                http: ObsidianHttpAdapter as any,
-                dir: absoluteDir,
-                onAuth: tokenToUse ? () => ({ username: tokenToUse }) : undefined,
-                singleBranch: true,
-                author: author,
-                committer: author
-            });
-            /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+            await engine.pull(absoluteDir, "main", author, tokenToUse);
 
             // Refresh vault
             await this.app.vault.adapter.list(vaultPath);
@@ -305,16 +309,16 @@ export class LibraryManager {
     async getStatus(vaultPath: string): Promise<LibraryStatus> {
         try {
             const absoluteDir = this.getAbsolutePath(vaultPath);
-            /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-            const matrix = await git.statusMatrix({
-                fs: NodeFsAdapter,
-                dir: absoluteDir
-            });
-            /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+            const engine = await this.getEngine();
+            const matrix = await engine.getStatusMatrix(absoluteDir);
             
-            // row[1] = head, row[2] = workdir, row[3] = stage
-            // 0: absent, 1: unmodified, 2: modified
-            const isDirty = matrix.some((row: any[]) => row[1] !== row[2] || row[2] !== row[3]);
+            let isDirty = false;
+            for (const status of matrix.values()) {
+                if (status !== 'synced') {
+                    isDirty = true;
+                    break;
+                }
+            }
             return isDirty ? 'dirty' : 'up-to-date';
         } catch (error) {
             console.error("Status check failed", error);
@@ -422,12 +426,9 @@ export class LibraryManager {
     async getRemoteUrl(vaultPath: string): Promise<string | null> {
         try {
             const absoluteDir = this.getAbsolutePath(vaultPath);
-            const url = await git.getConfig({
-                fs: NodeFsAdapter,
-                dir: absoluteDir,
-                path: 'remote.origin.url'
-            });
-            return url as string;
+            const engine = await this.getEngine();
+            const url = await engine.getConfig(absoluteDir, 'remote.origin.url');
+            return url || null;
         } catch (error) {
             // This is expected for non-git folders
             return null;
@@ -518,7 +519,8 @@ export class LibraryManager {
                 return;
             }
 
-            await git.init({ fs: secureFs, dir: absoluteDir, defaultBranch: 'main' });
+            const engine = await this.getEngine();
+            await engine.init(absoluteDir, 'main');
             
             const gitSettings = this.settings.librarySettings;
             const author = { 
@@ -527,16 +529,10 @@ export class LibraryManager {
             };
 
             // Add all files (including .gitignore)
-            await git.add({ fs: secureFs, dir: absoluteDir, filepath: "." });
+            await engine.add(absoluteDir, ".");
             
             // Initial commit
-            await git.commit({
-                fs: secureFs,
-                dir: absoluteDir,
-                message: "Initial commit via Abstract Spaces",
-                author: author,
-                committer: author
-            });
+            await engine.commit(absoluteDir, "Initial commit via Abstract Spaces", author);
             
             console.log(`[LibraryManager] Initialized git repo at ${vaultPath}`);
 
@@ -571,15 +567,11 @@ export class LibraryManager {
             }
 
             // 3. git init
-            await git.init({ fs: secureFs, dir: absoluteDir, defaultBranch: 'main' });
+            const engine = await this.getEngine();
+            await engine.init(absoluteDir, 'main');
 
             // add remote
-            await git.addRemote({
-                fs: secureFs,
-                dir: absoluteDir,
-                remote: 'origin',
-                url: repositoryUrl
-            });
+            await engine.addRemote(absoluteDir, 'origin', repositoryUrl);
 
             // Initial commit and push
             await this.syncBackup(vaultPath, "Initial backup via Abstract Folder", tokenToUse);
@@ -607,17 +599,26 @@ export class LibraryManager {
                 email: gitSettings.gitEmail || (gitSettings.githubUsername ? `${gitSettings.githubUsername}@users.noreply.github.com` : "backup@abstract.folder")
             };
 
-            // 1. Add all files
-            await git.add({ fs: secureFs, dir: absoluteDir, filepath: "." });
+            const engine = await this.getEngine();
+            
+            // 1. Add all files (handles modified & untracked)
+            await engine.add(absoluteDir, ".");
+
+            if (!engine.isDesktopNative()) {
+                // 1.5. Remove deleted files (isomorphic-git does not stage deletions via `add .`)
+                const matrix = await git.statusMatrix({ fs: NodeFsAdapter, dir: absoluteDir });
+                for (const row of matrix) {
+                    // row[1] = head, row[2] = workdir, row[3] = stage
+                    // If workdir is 0 (absent) but head/stage is 1/2 (tracked/added), it was deleted
+                    if (row[2] === 0 && (row[1] !== 0 || row[3] !== 0)) {
+                        await engine.remove(absoluteDir, row[0]);
+                    }
+                }
+            }
+
 
             // 2. Commit local state to ensure atomic merge
-            await git.commit({
-                fs: secureFs,
-                dir: absoluteDir,
-                message: message,
-                author: author,
-                committer: author
-            }).catch(e => {
+            await engine.commit(absoluteDir, message, author).catch(e => {
                 // If there's nothing to commit, commit throws an error. We can safely ignore it.
                 if (e.code === 'NothingToCommitError') return;
                 throw e;
@@ -626,18 +627,9 @@ export class LibraryManager {
             // 3. Pull and merge remote changes
             let currentBranch = "main";
             try {
-                currentBranch = await git.currentBranch({ fs: secureFs, dir: absoluteDir }) || "main";
+                currentBranch = await engine.currentBranch(absoluteDir) || "main";
                 
-                await git.pull({
-                    fs: secureFs,
-                    http: ObsidianHttpAdapter as any,
-                    dir: absoluteDir,
-                    onAuth: tokenToUse ? () => ({ username: tokenToUse }) : undefined,
-                    singleBranch: true,
-                    ref: currentBranch,
-                    author: author,
-                    committer: author
-                });
+                await engine.pull(absoluteDir, currentBranch, author, tokenToUse);
             } catch (e: any) {
                 // Handle various "new repo" edge cases
                 const isNotFoundError = e.code === 'NotFoundError' || e.message?.includes('could not find');
@@ -651,14 +643,7 @@ export class LibraryManager {
             }
 
             // 4. Push local changes
-            await git.push({
-                fs: secureFs,
-                http: ObsidianHttpAdapter as any,
-                dir: absoluteDir,
-                onAuth: tokenToUse ? () => ({ username: tokenToUse }) : undefined,
-                remote: 'origin',
-                ref: currentBranch
-            });
+            await engine.push(absoluteDir, currentBranch, tokenToUse);
 
             if (!silent) new Notice("Backup synced successfully");
         } catch (error: any) {
@@ -692,12 +677,8 @@ export class LibraryManager {
     async addRemote(vaultPath: string, url: string): Promise<void> {
         try {
             const absoluteDir = this.getAbsolutePath(vaultPath);
-            await git.addRemote({
-                fs: NodeFsAdapter,
-                dir: absoluteDir,
-                remote: 'origin',
-                url: url
-            });
+            const engine = await this.getEngine();
+            await engine.addRemote(absoluteDir, 'origin', url);
             console.log(`[LibraryManager] Added remote 'origin' -> ${url} for ${vaultPath}`);
         } catch (error) {
             console.error("Failed to add remote", error);
@@ -718,19 +699,20 @@ export class LibraryManager {
                 email: gitSettings.gitEmail || (gitSettings.githubUsername ? `${gitSettings.githubUsername}@users.noreply.github.com` : "backup@abstract.folder")
             };
 
+            const engine = await this.getEngine();
             // Resolve parents for the merge commit
             // We need to explicitly link the remote commit we just merged with, 
             // otherwise the push will be rejected as non-fast-forward.
             // These reads are safe with NodeFs or SecureFs (passthrough).
-            const headOid = await git.resolveRef({ fs: secureFs, dir: absoluteDir, ref: 'HEAD' });
+            const headOid = await engine.resolveRef(absoluteDir, 'HEAD');
             let mergeParentOid: string | null = null;
             
             try {
-                mergeParentOid = await git.resolveRef({ fs: secureFs, dir: absoluteDir, ref: 'FETCH_HEAD' });
+                mergeParentOid = await engine.resolveRef(absoluteDir, 'FETCH_HEAD');
             } catch (e) {
                 console.warn("[LibraryManager] Could not resolve FETCH_HEAD, trying origin/main");
                 try {
-                     mergeParentOid = await git.resolveRef({ fs: secureFs, dir: absoluteDir, ref: 'refs/remotes/origin/main' });
+                     mergeParentOid = await engine.resolveRef(absoluteDir, 'refs/remotes/origin/main');
                 } catch (e2) {
                     console.warn("[LibraryManager] Could not resolve origin/main either. Proceeding with single parent commit (may cause fast-forward issues).");
                 }
@@ -743,24 +725,10 @@ export class LibraryManager {
             }
 
             // 1. Commit the merge
-            await git.commit({
-                fs: secureFs,
-                dir: absoluteDir,
-                message: `Merge branch 'origin/main' into main`,
-                author: author,
-                committer: author,
-                parent: parents 
-            });
+            await engine.commit(absoluteDir, `Merge branch 'origin/main' into main`, author, parents);
 
             // 2. Push the result (force to overwrite remote if we resolved conflicts differently)
-            await git.push({
-                fs: secureFs,
-                http: ObsidianHttpAdapter as any,
-                dir: absoluteDir,
-                onAuth: token ? () => ({ username: token }) : undefined,
-                remote: 'origin',
-                force: true
-            });
+            await engine.push(absoluteDir, 'main', token, true);
 
             console.log("[LibraryManager] Merge finalized and pushed successfully.");
             new Notice("Merge resolved and synced successfully!");

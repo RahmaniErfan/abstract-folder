@@ -1,17 +1,38 @@
 import { Setting, Notice } from "obsidian";
 import type AbstractFolderPlugin from "main";
 
-export function renderGitHubSettings(containerEl: HTMLElement, plugin: AbstractFolderPlugin) {
+export async function renderGitHubSettings(containerEl: HTMLElement, plugin: AbstractFolderPlugin) {
 	containerEl.empty();
 
-	const isSecretStorageAvailable = !!((plugin.app as any).secretStorage && typeof (plugin.app as any).secretStorage.getSecret === 'function');
+	// Test if SecretStorage ACTUALLY works (sometimes present but broken on Linux)
+	let isSecretStorageAvailable = false;
+	let requiresAppBinding = false;
+	const secretStorage = (plugin.app as any).secretStorage;
+	if (secretStorage && typeof secretStorage.getSecret === 'function') {
+		try {
+			await secretStorage.getSecret('af-test-key');
+			isSecretStorageAvailable = true;
+		} catch (e: any) {
+			if (e instanceof TypeError && e.message.includes('not a function')) {
+				try {
+					await secretStorage.getSecret.call(plugin.app, 'af-test-key');
+					isSecretStorageAvailable = true;
+					requiresAppBinding = true;
+				} catch (e2) {
+					console.warn("[Abstract Folder] SecretStorage context fallback failed.", e2);
+				}
+			} else {
+				console.warn("[Abstract Folder] SecretStorage is present but threw an error during viability check. Falling back to unsafe storage.", e);
+			}
+		}
+	}
 
 	if (isSecretStorageAvailable) {
 		const securityDisclaimer = containerEl.createDiv({ cls: "af-settings-disclaimer" });
 		securityDisclaimer.style.fontSize = "var(--font-ui-smaller)";
-		securityDisclaimer.style.color = "var(--text-warning)";
+		securityDisclaimer.style.color = "var(--text-success)";
 		securityDisclaimer.style.padding = "var(--size-4-2) var(--size-4-3)";
-		securityDisclaimer.style.border = "1px solid var(--text-warning)";
+		securityDisclaimer.style.border = "1px solid var(--text-success)";
 		securityDisclaimer.style.borderRadius = "var(--radius-s)";
 		securityDisclaimer.style.backgroundColor = "var(--background-secondary-alt)";
 		securityDisclaimer.style.marginTop = "var(--size-4-4)";
@@ -21,7 +42,7 @@ export function renderGitHubSettings(containerEl: HTMLElement, plugin: AbstractF
 		
 		securityDisclaimer.createEl("strong", { text: "Security Note: " });
 		securityDisclaimer.createSpan({ 
-			text: "This feature requires Obsidian v1.11.4+ to securely encrypt your GitHub token via your operating system's keychain. It is never saved to your local vault files." 
+			text: "Your GitHub token will be securely encrypted via your operating system's keychain. It is never saved to your local vault files." 
 		});
 
 	} else {
@@ -36,53 +57,73 @@ export function renderGitHubSettings(containerEl: HTMLElement, plugin: AbstractF
 		warningEl.style.marginBottom = "var(--size-4-4)";
 		warningEl.style.textAlign = "center";
 		
-		warningEl.createEl("strong", { text: "Git Sync Disabled: " });
+		warningEl.createEl("strong", { text: "Unsafe Storage Warning: " });
 		warningEl.createSpan({ 
-			text: "This feature requires Obsidian v1.11.4+ to securely store credentials. Please update Obsidian to enable GitHub integration via SecretStorage." 
+			text: "Your token will be saved to your local vault settings because Obsidian's native SecretStorage is unavailable or broken. Please update Obsidian." 
 		});
 	}
 
 	new Setting(containerEl).setName("GitHub Authentication").setHeading();
 
-
-	if (isSecretStorageAvailable) {
-		new Setting(containerEl)
-			.setName("GitHub Personal Access Token")
-			.setDesc("Authenticate with a PAT to access private libraries and contribute.")
-			.addText(async (text) => {
-				text.inputEl.type = "password";
-				const savedToken = await (plugin.app as any).secretStorage.getSecret('abstract-folder-github-pat');
-				
-				text.setPlaceholder("ghp_xxxxxxxxxxxx")
-					.setValue(savedToken || "")
-					.onChange(async (value) => {
-						const token = value.trim();
-						await (plugin.app as any).secretStorage.setSecret('abstract-folder-github-pat', token);
+	new Setting(containerEl)
+		.setName("GitHub Personal Access Token")
+		.setDesc("Authenticate with a PAT to access private libraries and contribute.")
+		.addText(async (text) => {
+			text.inputEl.type = "password";
+			
+			let savedToken = plugin.settings.librarySettings.githubToken;
+			if (isSecretStorageAvailable) {
+				if (requiresAppBinding) {
+					savedToken = await secretStorage.getSecret.call(plugin.app, 'abstract-folder-github-pat');
+				} else {
+					savedToken = await secretStorage.getSecret('abstract-folder-github-pat');
+				}
+			}
+			
+			text.setPlaceholder("ghp_xxxxxxxxxxxx")
+				.setValue(savedToken || "")
+				.onChange(async (value) => {
+					const token = value.trim();
+					
+					if (isSecretStorageAvailable) {
+						// Some Obsidian versions use storeSecret, some might use setSecret. Try both.
+						const setFnName = typeof secretStorage.storeSecret === 'function' ? 'storeSecret' : 'setSecret';
+						const setFn = secretStorage[setFnName];
+						if (setFn) {
+							if (requiresAppBinding) {
+								await setFn.call(plugin.app, 'abstract-folder-github-pat', token);
+							} else {
+								await setFn.call(secretStorage, 'abstract-folder-github-pat', token);
+							}
+						}
 						
-						// Clear old plaintext token if it exists
+						// Clear old plaintext token
 						if (plugin.settings.librarySettings.githubToken) {
 							plugin.settings.librarySettings.githubToken = "";
 							await plugin.saveSettings();
 						}
+					} else {
+						plugin.settings.librarySettings.githubToken = token;
+						await plugin.saveSettings();
+					}
 
-						if (!token) return;
+					if (!token) return;
 
-						const userInfo = await plugin.libraryManager.refreshIdentity(token);
-						if (userInfo) {
-							new Notice(`Authenticated as ${userInfo.login}`);
-							renderGitHubSettings(containerEl, plugin); // Re-render to show username
-						}
-					});
-			})
-			.addButton((btn) => 
-				btn
-					.setButtonText("Generate Token")
-					.setTooltip("Generate a token on GitHub with 'repo' and 'user' scope")
-					.onClick(() => {
-						window.open("https://github.com/settings/tokens/new?scopes=repo,user&description=Abstract%20Folder%20Token");
-					})
-			);
-	}
+					const userInfo = await plugin.libraryManager.refreshIdentity(token);
+					if (userInfo) {
+						new Notice(`Authenticated as ${userInfo.login}`);
+						renderGitHubSettings(containerEl, plugin); // Re-render to show username
+					}
+				});
+		})
+		.addButton((btn) => 
+			btn
+				.setButtonText("Generate Token")
+				.setTooltip("Generate a token on GitHub with 'repo' and 'user' scope")
+				.onClick(() => {
+					window.open("https://github.com/settings/tokens/new?scopes=repo,user&description=Abstract%20Folder%20Token");
+				})
+		);
 
 
 	if (plugin.settings.librarySettings.githubUsername) {
