@@ -57,9 +57,7 @@ export class ContextEngine extends EventEmitter {
     private ensureScopeInitialized(scope: string) {
         if (!this.settings.scopes) this.settings.scopes = {};
         if (!this.settings.scopes[scope]) {
-            // If global, try usage of deprecated global settings for migration if we want?
-            // For now, simple defaults.
-            // If it's 'global' and we have deprecated values and NO scope entry, we could migrate here.
+            // Perform migration if global settings were previously stored at the root level
             if (scope === 'global' && !this.settings.scopes['global'] && this.settings.activeGroupId !== undefined) {
                  this.settings.scopes['global'] = {
                     activeGroupId: this.settings.activeGroupId,
@@ -133,7 +131,7 @@ export class ContextEngine extends EventEmitter {
      * Toggles expansion state of a folder
      */
     toggleExpand(uri: string): void {
-        Logger.debug(`[Abstract Folder] Context: Toggling expand for ${uri}`);
+        // Logger.debug(`Context: Toggling expand for ${uri}`);
         if (this.state.expandedURIs.has(uri)) {
             this.state.expandedURIs.delete(uri);
         } else {
@@ -173,26 +171,12 @@ export class ContextEngine extends EventEmitter {
     }
 
     expandAll(): void {
-        // We can't easily validly expand "ALL" because we don't know all IDs without traversing the graph.
-        // However, usually "Expand All" in these views might mean "Expand everything currently loaded" or "Set a flag".
-        // If we want to truly expand all, we might need a flag `expandAll: true` in state or let the TreeBuilder handle it.
-        // TreeBuilder has `forceExpandAll` argument.
-        // Let's add a transient flag or just emit an event that View listens to?
-        // OR we can change `expandedURIs` to a special set or handle it in TreeBuilder.
-        // For now, let's trigger a special state change or use the `forceExpandAll` mechanism via buildTree.
-        // But context state should reflect it.
-        // Let's defer to the view to handle "Expand All" logic via TreeBuilder, OR update all known URIs.
-        // Since we don't track all URIs here, we can't populate `expandedURIs` exhaustively without GraphEngine.
-        //
-        // However, `AbstractFolderView` calls `treeBuilder.buildTree` with `forceExpandAll`.
-        // Maybe we expose a way to set `forceExpandAll` in context?
-        // But `ContextState` doesn't have it.
-        // Let's emit a special event 'expand-all' that the View listens to.
+        // Emit expand-all event for the View to handle via TreeBuilder
         this.emit('expand-all');
     }
 
     setSortConfig(config: SortConfig): void {
-        Logger.debug(`[Abstract Folder] Context: Setting sort config for scope ${this.scope}`, config);
+        Logger.debug(`Context: Setting sort config for scope ${this.scope}`, config);
         this.state.sortConfig = config;
         
         // Persist to scope
@@ -204,7 +188,7 @@ export class ContextEngine extends EventEmitter {
     }
 
     setActiveGroup(groupId: string | null): void {
-        Logger.debug(`[Abstract Folder] Context: Setting active group to ${groupId} for scope ${this.scope}`);
+        Logger.debug(`Context: Setting active group to ${groupId} for scope ${this.scope}`);
         this.state.activeGroupId = groupId;
         
         // Persist to scope
@@ -249,9 +233,9 @@ export class ContextEngine extends EventEmitter {
         const groupIndex = this.settings.groups.findIndex(g => g.id === groupId);
         if (groupIndex === -1) return;
         
-        // Ensure we only update groups in current scope to be safe, though ID is unique.
+        // Validate that the group matches the current scope
         if (this.settings.groups[groupIndex].scope !== this.scope) {
-             Logger.warn(`[Abstract Folder] Context: Attempted to update group ${groupId} from wrong scope ${this.scope}`);
+             Logger.warn(`Context: Attempted to update group ${groupId} from wrong scope ${this.scope}`);
              return;
         }
 
@@ -313,14 +297,9 @@ export class ContextEngine extends EventEmitter {
         }
 
         for (const uri of this.state.expandedURIs) {
-            // URIs are often formatted like "library:Path/To/Repo" or "space:Path/To/Repo"
-            // We isolate the physical path part.
+            // Return the physical path component of the synthetic URI
             const parts = uri.split(':');
             const pathPart = parts.length > 1 ? parts.slice(1).join(':') : uri;
-            
-            // To be safe, we also include the path itself, and maybe its top-level root
-            // If the URI is "space:Abstract Spaces/Test Space/Folder", the repo root is "Abstract Spaces/Test Space"
-            // For now, returning the raw parsed path allows LibraryManager to check if this path startsWith the repo root.
             activeRoots.add(pathPart);
         }
         return activeRoots;
@@ -352,7 +331,7 @@ export class ContextEngine extends EventEmitter {
             }
         }
         
-        Logger.debug(`[Abstract Folder] Context: Snapshot complete. Paths - Selected: ${this.selectedPaths.size}, Expanded: ${this.expandedPaths.size}`);
+        // Logger.debug(`Context: Snapshot complete. Paths - Selected: ${this.selectedPaths.size}, Expanded: ${this.expandedPaths.size}`);
     }
 
     /**
@@ -377,7 +356,7 @@ export class ContextEngine extends EventEmitter {
         this.state.selectedURIs = newSelectedURIs;
         this.state.expandedURIs = newExpandedURIs;
 
-        Logger.debug(`[Abstract Folder] Context: State repaired. URIs - Selected: ${this.state.selectedURIs.size}, Expanded: ${this.state.expandedURIs.size}`);
+        // Logger.debug(`Context: State repaired. URIs - Selected: ${this.state.selectedURIs.size}, Expanded: ${this.state.expandedURIs.size}`);
         
         if (!options.silent) {
             this.emit('selection-changed', this.state.selectedURIs);

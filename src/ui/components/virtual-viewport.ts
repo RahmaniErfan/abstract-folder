@@ -22,8 +22,8 @@ export interface ViewportOptions {
 }
 
 /**
- * VirtualViewportV2 is the Presentation Layer for the v2 Architecture.
- * It uses absolute positioning and background-gradients for depth lines.
+ * VirtualViewport handles thepresentation layer of the file tree.
+ * It uses absolute positioning for virtualized row rendering and indent guides.
  */
 export class VirtualViewport {
     private items: AbstractNode[] = [];
@@ -274,8 +274,7 @@ export class VirtualViewport {
                 
                 if (enableRainbow) {
                     guide.classList.add(palette + '-palette');
-                    // If per-item colors are enabled, we index by path segment hash if possible, 
-                    // but for virtual viewport, depth-based index is more standard.
+                    // Index colors based on depth
                     const colorIndex = d % 10;
                     guide.classList.add(`rainbow-indent-${colorIndex}`);
                 }

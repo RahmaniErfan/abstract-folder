@@ -78,9 +78,9 @@ export class SecureFsAdapter {
                 const sanitized = this.securityManager.sanitizeMarkdown(contentStr);
                 
                 // If content changed, log it
-                if (contentStr !== sanitized) {
-                    console.log(`[SecureFsAdapter] Sanitized content for ${relativePath}`);
-                }
+                // if (contentStr !== sanitized) {
+                //     console.log(`[SecureFsAdapter] Sanitized content for ${relativePath}`);
+                // }
 
                 return fs.promises.writeFile(filepath, sanitized, options);
             }

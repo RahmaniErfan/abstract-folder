@@ -47,7 +47,7 @@ export class LibraryManager {
         this.vaultRefs.push(this.app.vault.on('create', (file) => this.flagCacheDirty(file.path)));
         this.vaultRefs.push(this.app.vault.on('delete', (file) => this.flagCacheDirty(file.path)));
 
-        // Window Focus SWR Invalidation (.git blind spot fix)
+        // Window Focus Listener: Force cache invalidation when returning to the app
         this.windowFocusListener = () => {
             for (const vaultPath of this.cache.keys()) {
                 this.flagCacheDirtyByPath(vaultPath);
@@ -135,8 +135,6 @@ export class LibraryManager {
             const absoluteDir = this.getAbsolutePath(destinationPath);
             const secureFs = new SecureFsAdapter(this.securityManager, absoluteDir);
             
-            console.debug(`[LibraryManager] Cloning library from ${repositoryUrl} to ${absoluteDir}`);
-
             const tokenToUse = token || this.getToken();
             
             /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -158,7 +156,6 @@ export class LibraryManager {
 
                 if (!configExists) {
                     if (item) {
-                        console.debug(`[LibraryManager] library.config.json missing in ${absoluteDir}. Bootstrapping from Registry metadata...`);
                         const manifest: LibraryConfig = {
                             id: item.id || `gen-${item.name.toLowerCase().replace(/\s+/g, '-')}`,
                             name: item.name,
@@ -199,8 +196,6 @@ export class LibraryManager {
             const secureFs = new SecureFsAdapter(this.securityManager, absoluteDir);
             const tokenToUse = token || this.getToken();
             
-            console.debug(`[LibraryManager] Cloning shared space from ${repositoryUrl} to ${absoluteDir}`);
-
             /* eslint-disable @typescript-eslint/no-unsafe-assignment */
             await git.clone({
                 fs: secureFs, // Use Secure FS
@@ -584,8 +579,7 @@ export class LibraryManager {
             // 1. Add all files
             await git.add({ fs: secureFs, dir: absoluteDir, filepath: "." });
 
-            // 2. Commit local changes first
-            // This prevents CheckoutConflictError and turns it into a MergeConflictError
+            // 2. Commit local state to ensure atomic merge
             await git.commit({
                 fs: secureFs,
                 dir: absoluteDir,
@@ -598,8 +592,7 @@ export class LibraryManager {
                 throw e;
             });
 
-            // 3. Pull changes (which will now perform a merge if needed)
-            // We use the current branch name for pulling
+            // 3. Pull and merge remote changes
             let currentBranch = "main";
             try {
                 currentBranch = await git.currentBranch({ fs: secureFs, dir: absoluteDir }) || "main";
@@ -626,8 +619,7 @@ export class LibraryManager {
                 }
             }
 
-            // 4. Push
-            // We push the current local branch to the remote branch of the same name
+            // 4. Push local changes
             await git.push({
                 fs: secureFs,
                 http: ObsidianHttpAdapter as any,
@@ -639,15 +631,9 @@ export class LibraryManager {
 
             if (!silent) new Notice("Backup synced successfully");
         } catch (error: any) {
-            console.log("[LibraryManager] Sync failed with error:", error);
-            console.log("[LibraryManager] Error code:", error.code);
-            console.log("[LibraryManager] Error name:", error.name);
-
             if (error.code === 'MergeConflictError' || error.name === 'MergeConflictError' || error.name === 'CheckoutConflictError') {
                 const absoluteDir = this.getAbsolutePath(vaultPath);
-                console.log("[LibraryManager] Attempting to detect conflicts in:", absoluteDir);
                 const conflicts = await ConflictManager.detectConflicts(absoluteDir, error);
-                console.log("[LibraryManager] Detected conflicts:", conflicts);
                 
                 if (conflicts.length > 0) {
                     new Notice("Merge conflicts detected during backup. Opening Merge UI...");

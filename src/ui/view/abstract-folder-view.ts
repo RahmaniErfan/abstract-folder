@@ -24,7 +24,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
     constructor(leaf: WorkspaceLeaf, plugin: AbstractFolderPlugin) {
         super(leaf);
         this.plugin = plugin;
-        // CREATE LOCAL CONTEXT ENGINE (GLOBAL SCOPE)
+        // Initialize local context engine for global scope
         const { ContextEngine } = require("../../core/context-engine");
         this.contextEngine = new ContextEngine(plugin, 'global');
         
@@ -76,7 +76,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
              this.debouncedRefreshTree({ forceExpand: true });
         });
 
-        // Subscribe to graph changes
+        // Subscribe to graph changes to snapshot state and repair URIs
         this.registerEvent(this.app.workspace.on('abstract-folder:graph-updated' as any, () => {
             // 0. Update Header (Visibility might have changed)
             this.renderHeader();
@@ -91,8 +91,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
 
         this.registerEvent(
             (this.app.workspace as any).on('abstract-folder:git-refreshed', async (vaultPath?: string) => {
-                // Surgical DOM Repainting for Personal Documents (Vault Root)
-                // We only need to repaint if the repository that refreshed is the vault root repo.
+                // Update file statuses if the vault root repository refreshed
                 if (this.currentSnapshot && this.viewport && vaultPath === "") {
                     // 1. Fetch the fresh matrix for the vault root
                     const matrix = await this.plugin.libraryManager.getFileStatuses("");
@@ -109,7 +108,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
             })
         );
 
-        // Initial build
+        // Initial refresh of the tree on view open
         Logger.debug("[Abstract Folder] View: Initial refreshTree starting during onOpen...");
         await this.refreshTree();
 
@@ -207,7 +206,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
         const isMulti = event.ctrlKey || event.metaKey;
         const isRange = event.shiftKey;
 
-        // 1. Update Selection State
+        // Update selection state in context
         this.contextEngine.select(node.uri, {
             multi: isMulti,
             range: isRange,
@@ -280,7 +279,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
                 }
             }
 
-            // Silent Repair IF requested BEFORE updating viewport
+            // Perform state repair if requested before updating the viewport
             if (options.repair && this.currentSnapshot) {
                 this.contextEngine.repairState(this.currentSnapshot.locationMap, { silent: true });
             }

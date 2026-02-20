@@ -28,7 +28,7 @@ export class ConflictManager {
             if (match && match[1]) {
                 const files = match[1].split(',').map((f: string) => f.trim());
                 files.forEach((f: string) => conflicts.add(f));
-                console.log("[ConflictManager] Detected conflicts from error message:", Array.from(conflicts));
+                // console.log("ConflictManager: Detected conflicts from error message:", Array.from(conflicts));
             }
         }
 
@@ -72,7 +72,7 @@ export class ConflictManager {
             
             // Rule: "My Config Wins" - Keep Local for .obsidian config files
             if (configFiles.has(basename) || filepath.includes('.obsidian/')) {
-                console.log(`[ConflictManager] Auto-resolving config file: ${filepath} (Keep Local)`);
+                // console.log(`ConflictManager: Auto-resolving config file: ${filepath} (Keep Local)`);
                 try {
                     const info = await this.getConflictInfo(dir, filepath);
                     if (info) {
@@ -99,14 +99,14 @@ export class ConflictManager {
      */
     static async getConflictInfo(dir: string, filepath: string): Promise<ConflictInfo | null> {
         try {
-            console.log(`[ConflictManager] Retrieving conflict info for ${filepath}`);
+            // console.log(`ConflictManager: Retrieving conflict info for ${filepath}`);
             const absolutePath = path.join(dir, filepath);
 
             // Strategy 1: Parse markers from disk
             try {
                 const content = await NodeFsAdapter.promises.readFile(absolutePath, 'utf8');
                 if (content.includes('<<<<<<< HEAD') && content.includes('=======')) {
-                    console.log(`[ConflictManager] Found conflict markers in ${filepath}. Parsing...`);
+                    // console.log(`ConflictManager: Found conflict markers in ${filepath}. Parsing...`);
                     const oursMatch = content.match(/<<<<<<< HEAD\n([\s\S]*?)\n=======/);
                     const theirsMatch = content.match(/=======\n([\s\S]*?)\n>>>>>>>/);
 

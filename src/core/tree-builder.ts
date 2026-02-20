@@ -42,8 +42,8 @@ export class TreeBuilder {
     constructor(private app: App, private graph: IGraphEngine, private metricsManager: MetricsManager) {}
 
     /**
-     * Builds a flattened tree view using a Depth-First Search (DFS).
-     * Now uses a TreePipeline to handle filtering and sorting logic, separating traversal from transformation.
+     * Builds a flattened tree view using a Depth-First Search (DFS) traversal.
+     * Delegates filtering and sorting logic to a TreePipeline.
      */
     async *buildTree(
         context: ContextEngine, 
@@ -58,11 +58,10 @@ export class TreeBuilder {
         const forceExpandAll = options.forceExpandAll || false;
 
         const stateStr = JSON.stringify({ scope: provider.resolveScope(), filterQuery, forceExpandAll });
-        Logger.debug(`[Abstract Folder] TreeBuilder: buildTree started with state: ${stateStr}`);
+        // Logger.debug(`TreeBuilder: buildTree started with state: ${stateStr}`);
 
-        // 1. Resolve Active Filter Config (Group vs Default)
+        // Determine active filter configuration
         let activeFilterConfig = context.settings.defaultFilter;
-        // Check if provider has active group logic (GlobalProvider does)
         if (provider.supportsGroups() && state.activeGroupId) {
             const group = context.settings.groups.find(g => g.id === state.activeGroupId);
             if (group && group.filter) {
@@ -87,8 +86,7 @@ export class TreeBuilder {
             searchShowAncestors: searchShowAncestors
         });
 
-        // 2b. If searching and NOT showing all ancestors, we want matches to appear as roots
-        // Capture structural roots for abstract ancestry check
+        // 4. Structural Root Resolution
         const structuralRoots = new Set(roots); 
         
         if (isSearching && !searchShowAncestors) {
@@ -99,35 +97,24 @@ export class TreeBuilder {
             const allFiles = this.app.vault.getFiles();
             for (const file of allFiles) {
                 
-                // [STRICT SCOPE CHECK] - Delegate to Provider's implicit scope logic?
-                // Logic:
-                // 1. If Provider is Scoped (CreationRoot exists), only search inside CreationRoot.
-                // 2. If Provider is Global + Active Group, search inside Group Folders OR Abstract Descendants.
-                // 3. If Provider is Global + No Group, search everywhere EXCEPT excluded paths (libraries/spaces).
-
+                // Scoped search logic: Filter files based on provider's scope
                 let isInScope = false;
-
                 if (provider.resolveScope() !== 'global') {
-                     // Scoped (Library/Space)
-                     const scopeRoot = provider.getCreationRoot();
-                     if (scopeRoot && (file.path === scopeRoot || file.path.startsWith(scopeRoot + '/'))) {
-                         isInScope = true;
-                     }
+                      const scopeRoot = provider.getCreationRoot();
+                      if (scopeRoot && (file.path === scopeRoot || file.path.startsWith(scopeRoot + '/'))) {
+                          isInScope = true;
+                      }
                 } else if (state.activeGroupId) {
-                    // Global Group
                     const group = context.settings.groups.find(g => g.id === state.activeGroupId);
                     if (group) {
-                         // A. Physical Check
                         if (group.parentFolders.some(folder => file.path.startsWith(folder))) {
                             isInScope = true;
                         }
-                        // B. Abstract Ancestry Check
                         else if (structuralRoots.size > 0 && this.isDescendantOf(file.path, structuralRoots)) {
                             isInScope = true;
                         }
                     }
                 } else {
-                    // Global View (No Group) - Exclude Libraries/Spaces
                      const libraryPath = context.settings.librarySettings.librariesPath;
                      const sharedSpacesRoot = context.settings.librarySettings.sharedSpacesRoot || "Abstract Spaces";
                      
@@ -146,7 +133,7 @@ export class TreeBuilder {
             }
             roots = matchingNodes;
 
-            // [FIX] Avoid duplication when showAncestors is OFF but showDescendants is ON.
+            // Prevent duplicate entries in search results
             if (searchShowDescendants) {
                 const matchingSet = new Set(matchingNodes);
                 roots = matchingNodes.filter(id => !this.isDescendantOf(id, matchingSet));
@@ -156,7 +143,7 @@ export class TreeBuilder {
         // Update pipeline with resolved roots
         (pipeline as StandardTreePipeline).updateGroupRoots(new Set(roots));
 
-        // 3. Process Roots (Filtered & Sorted)
+        // 5. Root node exclusion check
         const filteredRoots = roots.filter(id => {
             const meta = this.graph.getNodeMeta?.(id);
             if (pipeline.isExcluded(id, meta)) return false;
@@ -179,7 +166,7 @@ export class TreeBuilder {
             }
         }
         const statusEndTime = performance.now();
-        Logger.debug(`[Abstract Folder] TreeBuilder: getFileStatuses took ${(statusEndTime - statusStartTime).toFixed(2)}ms`);
+        // Logger.debug(`TreeBuilder: getFileStatuses took ${(statusEndTime - statusStartTime).toFixed(2)}ms`);
 
         const renderStartTime = performance.now();
         
@@ -206,23 +193,23 @@ export class TreeBuilder {
             
             const isExpanded = forceExpandAll || context.isExpanded(uri);
             
-            // Phase 1: Hard Exclusion
+            // Phase 1: Hard Exclusion (Filter by extension/settings)
             if (pipeline.isExcluded(id, meta)) continue;
 
             // [STRICT SCOPE CHECK] - Re-verify for children to ensure no leaks
             // (Strictly speaking, children of in-scope nodes should be in-scope, but links/shortcuts might bridge out)
             // For now, we assume graph integrity prevents leaks unless utilizing symlinks logic (not yet imp).
 
-            // Phase 2: Structural Inclusion
+            // Phase 2: Structural Inclusion (Force show roots or groups)
             const isStructural = !isSearching && pipeline.isStructural(id);
 
-            // Phase 3: Search Matching
+            // Phase 3: Search Matching (Filter items by query)
             const isMatch = isSearching ? pipeline.matches(id, meta, parentId) : true;
 
             // Decision
             if (!isStructural && (isSearching && !isMatch)) continue;
 
-            // 2. Rendering Decision
+            // Determine sync status
             let syncStatus: any = undefined;
             if (scopedPath !== "") {
                 if (syncStatusMap && scopedPath !== undefined) {
@@ -230,7 +217,6 @@ export class TreeBuilder {
                     syncStatus = syncStatusMap.get(relativePath);
                 }
             } else {
-                // Global view: resolve only against the vault root repository
                 syncStatus = syncStatusMap ? syncStatusMap.get(id) : undefined;
             }
 
@@ -256,7 +242,7 @@ export class TreeBuilder {
             existing.push(uri);
             locationMap.set(id, existing);
 
-            // 3. Traversal Decision
+            // Recurse into children if the node is expanded or matches the search
             const shouldTraverseChildren = isExpanded || (isSearching && (searchShowDescendants || isMatch));
 
             if (shouldTraverseChildren) {
@@ -283,8 +269,8 @@ export class TreeBuilder {
         }
 
         const renderEndTime = performance.now();
-        Logger.debug(`[Abstract Folder] TreeBuilder: DFS Traversal took ${(renderEndTime - renderStartTime).toFixed(2)}ms`);
-        Logger.debug(`[Abstract Folder] TreeBuilder: buildTree complete, total items: ${items.length}`);
+        // Logger.debug(`TreeBuilder: DFS Traversal took ${(renderEndTime - renderStartTime).toFixed(2)}ms`);
+        // Logger.debug(`TreeBuilder: buildTree complete, total items: ${items.length}`);
         return { items, locationMap };
     }
 

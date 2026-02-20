@@ -112,11 +112,10 @@ export interface IGraphEngine {
  * Internal storage for the Graph Topology
  */
 export class AdjacencyIndex {
-    // The Master Map: 50,000 nodes -> < 10MB RAM
+    // Master node index
     private nodes: Map<FileID, GraphNode> = new Map();
     
-    // The "Dirty List" for Batch Processing
-    // Stores IDs of files that have changed but haven't been re-indexed yet
+    // Dirty list for batch re-indexing files that have changed on disk
     private dirtyQueue: Set<FileID> = new Set();
 
     /**
@@ -178,7 +177,7 @@ export class AdjacencyIndex {
         
         // Update orphan status
         child.meta.isOrphan = child.parents.size === 0;
-        Logger.debug(`[Abstract Folder] AdjacencyIndex: Edge confirmed ${parentId} -> ${childId}. Parent children: ${parent.children.size}, Child parents: ${child.parents.size}`);
+        // Logger.debug(`AdjacencyIndex: Edge confirmed ${parentId} -> ${childId}. Parent children: ${parent.children.size}, Child parents: ${child.parents.size}`);
         return true;
     }
 
@@ -326,14 +325,12 @@ export class GraphEngine implements IGraphEngine {
     }
 
     /**
-     * Initializes the GraphEngine.
-     * This will perform an initial scan of the vault to build the graph.
+     * Incrementally re-indexes the entire vault.
      */
-    async initialize(): Promise<void> {
-        Logger.debug("[Abstract Folder] GraphEngine: Initializing (registering events)...");
+    public async initialize(): Promise<void> {
         this.registerEvents();
         // Indexing is now explicitly triggered by main.ts during onLayoutReady
-        Logger.info("[Abstract Folder] GraphEngine: Events registered");
+        Logger.info("GraphEngine: Events registered");
     }
 
     private registerEvents() {
@@ -364,7 +361,6 @@ export class GraphEngine implements IGraphEngine {
     getChildren(id: FileID): FileID[] {
         const node = this.index.getNode(id);
         if (!node) {
-            Logger.debug(`[Abstract Folder] GraphEngine: getChildren(${id}) - Node not found`);
             return [];
         }
         // Return raw list; TreeBuilder will sort them based on Context state
@@ -393,7 +389,6 @@ export class GraphEngine implements IGraphEngine {
      */
     getAllRoots(activeGroupId?: string | null, scopingPath?: string | null): FileID[] {
         const processedRoots = new Set<FileID>();
-        Logger.debug(`[Abstract Folder] GraphEngine: getAllRoots called with activeGroupId: ${activeGroupId}, scopingPath: ${scopingPath}`);
 
         // 1. Resolve effective scoping path
         let effectiveScopingPath = scopingPath || null;
@@ -405,7 +400,7 @@ export class GraphEngine implements IGraphEngine {
             if (group) {
                 isGroupBased = true;
             } else {
-                // If not a group, treat it as a scoping path (legacy/shelf behavior)
+                // Treat activeGroupId as scoping path if it's not a defined group
                 if (!effectiveScopingPath) {
                     effectiveScopingPath = activeGroupId;
                 }
@@ -431,7 +426,6 @@ export class GraphEngine implements IGraphEngine {
             return Array.from(processedRoots);
         } else if (effectiveScopingPath) {
             // Scoped Path Mode (Library/Spaces): Find orphans within this path
-            Logger.info(`[Abstract Folder] GraphEngine: Resolving scoped roots for path: ${effectiveScopingPath}`);
             const scopePrefix = effectiveScopingPath.endsWith('/') ? effectiveScopingPath : effectiveScopingPath + '/';
 
             for (const id of this.index.getAllFileIds()) {
@@ -480,7 +474,7 @@ export class GraphEngine implements IGraphEngine {
     }
 
     private resolveGroupRoot(includedPath: string): string | null {
-        // Ported resolution logic from V1 tree-utils
+        // Path resolution logic
         let targetPath = includedPath;
         let file = this.app.vault.getAbstractFileByPath(targetPath);
 
@@ -512,23 +506,20 @@ export class GraphEngine implements IGraphEngine {
      * Useful for "Refresh" functionality or initial load.
      */
     async forceReindex(): Promise<void> {
-        Logger.debug("[Abstract Folder] GraphEngine: forceReindex started");
         if (this.isSuspended) return;
         
         this.index.clear();
         this.fileRelationships.clear();
 
-        const allFiles = this.app.vault.getFiles();
-        Logger.debug(`[Abstract Folder] GraphEngine: forceReindex found ${allFiles.length} files in vault`);
+        // 1. Initial vault discovery
+        const files = this.app.vault.getFiles();
         
-        for (const file of allFiles) {
+        for (const file of files) {
             this.index.markDirty(file.path);
         }
         
-        // Immediate process or debounce?
-        // For forceReindex, we probably want to just run it.
+        // Run indexing process
         await this.processQueue();
-        Logger.debug("[Abstract Folder] GraphEngine: forceReindex complete");
     }
 
     /**
@@ -553,7 +544,6 @@ export class GraphEngine implements IGraphEngine {
      * Used by the LibraryBridge to provide data before Obsidian's indexer catches up.
      */
     seedRelationships(relationships: Map<FileID, FileDefinedRelationships>): void {
-        Logger.debug(`[Abstract Folder] GraphEngine: Seeding ${relationships.size} relationships`);
         
         for (const [id, rels] of relationships) {
             // Update internal relationship store
@@ -585,7 +575,6 @@ export class GraphEngine implements IGraphEngine {
                 });
             }
         }
-        Logger.debug(`[Abstract Folder] GraphEngine: Seeding complete`);
     }
 
     private isLibraryPath(path: string): boolean {
@@ -618,16 +607,14 @@ export class GraphEngine implements IGraphEngine {
     private async processQueue() {
         if (this.isSuspended || this.isProcessing) return;
         this.isProcessing = true;
-        Logger.debug("[Abstract Folder] GraphEngine: Processing queue started");
 
         try {
             const dirtyFiles = this.index.flushDirtyQueue();
             if (dirtyFiles.size === 0) {
-                Logger.debug("[Abstract Folder] GraphEngine: Processing queue finished, no dirty files");
                 return;
             }
 
-            Logger.debug(`[Abstract Folder] GraphEngine: Processing ${dirtyFiles.size} dirty files...`);
+            // Logger.debug(`GraphEngine: Processing ${dirtyFiles.size} dirty files...`);
 
             let topologyChanged = false;
             for (const id of dirtyFiles) {
@@ -648,24 +635,19 @@ export class GraphEngine implements IGraphEngine {
             if (topologyChanged) {
                 // @ts-ignore: Custom event
                 this.app.workspace.trigger('abstract-folder:graph-updated');
-                Logger.debug("[Abstract Folder] GraphEngine: Graph topology changed, triggered 'abstract-folder:graph-updated'");
             }
         } finally {
             this.isProcessing = false;
-            Logger.debug("[Abstract Folder] GraphEngine: Processing queue finished");
             
             // Check if more work was queued while we were processing
             if (this.index.flushDirtyQueue().size > 0) {
-                Logger.debug("[Abstract Folder] GraphEngine: More dirty files found after processing, re-queuing");
                 this.debouncedProcessQueue();
             }
         }
     }
 
     private updateFileIncremental(file: TFile): boolean {
-        Logger.debug(`[Abstract Folder] GraphEngine: updateFileIncremental started for ${file.path}`);
         if (this.isExcluded(file.path)) {
-            Logger.debug(`[Abstract Folder] GraphEngine: ${file.path} is excluded, skipping incremental update`);
             return false;
         }
 
@@ -683,11 +665,10 @@ export class GraphEngine implements IGraphEngine {
                 isShared: this.isSharedSpacePath(file.path),
                 isBackup: this.isPersonalBackupPath(file.path)
             });
-            Logger.debug(`[Abstract Folder] GraphEngine: ${file.path} relationships unchanged, only metadata updated`);
             return false;
         }
 
-        Logger.debug(`[Abstract Folder] GraphEngine: Incremental update for ${file.path}`);
+        // Logger.debug(`GraphEngine: Incremental update for ${file.path}`);
         
         // Update Source of Truth
         this.fileRelationships.set(file.path, newRelationships);
@@ -731,7 +712,6 @@ export class GraphEngine implements IGraphEngine {
             isShared: this.isSharedSpacePath(file.path),
             isBackup: this.isPersonalBackupPath(file.path)
         });
-        Logger.debug(`[Abstract Folder] GraphEngine: updateFileIncremental finished for ${file.path}, changed: ${changed}`);
         return changed;
     }
 
@@ -751,41 +731,27 @@ export class GraphEngine implements IGraphEngine {
         const definedByChild = childDefs?.definedParents.has(parent);
 
         if (!definedByParent && !definedByChild) {
-            Logger.debug(`[Abstract Folder] GraphEngine: Removing edge ${parent} -> ${child} as no longer supported by definitions`);
             return this.index.removeEdge(parent, child);
         }
         return false;
     }
 
     private removeFileFromGraph(id: FileID): boolean {
-        Logger.debug(`GraphEngine: Removing node ${id}`);
         this.fileRelationships.delete(id);
         const removed = this.index.removeNode(id);
-        if (removed) {
-            Logger.debug(`GraphEngine: Node ${id} successfully removed from graph`);
-        } else {
-            Logger.debug(`GraphEngine: Node ${id} was not found in graph for removal`);
-        }
         return removed;
-        
-        // We also need to check neighbors to see if any edges should be removed
-        // (This is implicitly handled by removeNode which cleans up adjacency lists,
-        // but we might want to re-verify remaining neighbors in a stricter system.
-        // For now, index.removeNode is sufficient for topology, but we should clear definitions.)
     }
 
     private handleRename(file: TFile, oldPath: string) {
-        Logger.debug(`[Abstract Folder] GraphEngine: Handling rename from ${oldPath} to ${file.path}`);
+        Logger.debug(`GraphEngine: Handling rename from ${oldPath} to ${file.path}`);
         // 1. Remove old ID
         this.removeFileFromGraph(oldPath);
         // 2. Add new ID (will be picked up by metadataCache usually, but we force it)
         this.index.markDirty(file.path);
         this.debouncedProcessQueue();
-        Logger.debug(`[Abstract Folder] GraphEngine: Rename handled, new path ${file.path} marked dirty`);
     }
 
     private getFileRelationships(file: TFile): FileDefinedRelationships {
-        Logger.debug(`[Abstract Folder] GraphEngine: getFileRelationships started for ${file.path}`);
         const relationships: FileDefinedRelationships = {
             definedParents: new Set(),
             definedChildren: new Set()
@@ -793,17 +759,7 @@ export class GraphEngine implements IGraphEngine {
 
         const metadata = this.app.metadataCache.getFileCache(file);
         
-        // CRITICAL DEBUG: Full metadata dump for Library files
-        if (file.path.includes("Abstract Library")) {
-            Logger.debug(`[Abstract Folder] GraphEngine: CRITICAL CACHE DUMP for ${file.path}`, {
-                fullMetadata: metadata,
-                rawFrontmatter: metadata?.frontmatter,
-                fmLinks: metadata?.frontmatterLinks
-            });
-        }
-
         if (!metadata?.frontmatter) {
-            Logger.debug(`[Abstract Folder] GraphEngine: No frontmatter found for ${file.path}`);
             return relationships;
         }
 
@@ -826,7 +782,6 @@ export class GraphEngine implements IGraphEngine {
 
         if (isHidden) {
             relationships.definedParents.add(HIDDEN_FOLDER_ID);
-            Logger.debug(`[Abstract Folder] GraphEngine: ${file.path} marked as hidden`);
         }
 
         // 2. Process Frontmatter Links
@@ -840,7 +795,6 @@ export class GraphEngine implements IGraphEngine {
                     if (!isHidden && this.parentProperties.includes(baseKey)) {
                         if (resolvedPath !== file.path) {
                             relationships.definedParents.add(resolvedPath);
-                            Logger.debug(`[Abstract Folder] GraphEngine: ${file.path} defines parent ${resolvedPath} via ${baseKey}`);
                         }
                     }
 
@@ -848,20 +802,15 @@ export class GraphEngine implements IGraphEngine {
                     if (this.childProperties.includes(baseKey)) {
                         if (resolvedPath !== file.path) {
                             relationships.definedChildren.add(resolvedPath);
-                            Logger.debug(`[Abstract Folder] GraphEngine: ${file.path} defines child ${resolvedPath} via ${baseKey}`);
                         }
                     }
                 }
             }
         }
         
-        Logger.debug(`[Abstract Folder] GraphEngine: Relationship for ${file.path}`, {
-            parents: Array.from(relationships.definedParents),
-            children: Array.from(relationships.definedChildren)
-        });
-
         return relationships;
     }
+
 
     private resolveLink(link: string, sourcePath: string): string | null {
         // 1. Remove outer quotes (YAML string behavior)

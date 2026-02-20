@@ -20,12 +20,15 @@ export function logToBuffer(level: LogEntry["level"], message: string, data?: un
         logBuffer.shift();
     }
     
-    // Explicitly using window.console to bypass any potential local shadowing or linting issues
-    const consoleMsg = `[Abstract Folder] ${message}`;
+    // Avoid double prefix if the message already starts with [Abstract Folder]
+    const prefix = "[Abstract Folder]";
+    const consoleMsg = message.startsWith(prefix) ? message : `${prefix} ${message}`;
     const args = data !== undefined ? [consoleMsg, data] : [consoleMsg];
 
-    if (level === "debug" || level === "info") {
+    if (level === "debug") {
         window.console.debug(...args);
+    } else if (level === "info") {
+        window.console.log(...args); // Use .log for info to distinguish from .debug
     } else if (level === "warn") {
         window.console.warn(...args);
     } else if (level === "error") {

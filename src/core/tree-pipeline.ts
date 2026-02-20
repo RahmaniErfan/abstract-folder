@@ -316,7 +316,7 @@ export class StandardTreePipeline implements TreePipeline {
             return result;
         });
         const sortEndTime = performance.now();
-        Logger.debug(`[Abstract Folder] Sort: Sorting ${ids.length} items by ${sortBy} (${sortOrder}) took ${(sortEndTime - sortStartTime).toFixed(2)}ms`);
+        // Logger.debug(`Sort: Sorting ${ids.length} items by ${sortBy} (${sortOrder}) took ${(sortEndTime - sortStartTime).toFixed(2)}ms`);
         return sorted;
     }
 
