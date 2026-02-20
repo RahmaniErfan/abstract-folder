@@ -1,9 +1,11 @@
 import { ItemView, WorkspaceLeaf, Menu, Notice, TFile, setIcon, Plugin, TFolder, Platform, debounce } from "obsidian";
+import { Logger } from "../../utils/logger";
 import AbstractFolderPlugin from "main";
 import { CreateSharedSpaceModal } from "../modals/create-shared-space-modal";
 import { JoinSharedSpaceModal } from "../modals/join-shared-space-modal";
 import { LinkSharedSpaceModal } from "../modals/link-shared-space-modal";
 import { AbstractDashboardModal } from "../modals/abstract-dashboard-modal";
+import { SpacesInfoModal } from "../modals/spaces-info-modal";
 import { VirtualViewport, ViewportDelegate } from "../components/virtual-viewport";
 import { ContextEngine } from "../../core/context-engine";
 import { AbstractNode } from "../../core/tree-builder";
@@ -209,6 +211,15 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         const titleRow = header.createDiv({ cls: "abstract-folder-header-title-container" });
         titleRow.createEl("h3", { cls: "abstract-folder-header-title", text: "Abstract Spaces" });
 
+        const infoIcon = titleRow.createDiv({ 
+            cls: "clickable-icon af-library-info-icon",
+            attr: { "aria-label": "About Abstract Spaces" }
+        });
+        setIcon(infoIcon, "alert-circle");
+        infoIcon.addEventListener("click", () => {
+            new SpacesInfoModal(this.app).open();
+        });
+
         const toolbar = header.createDiv({ cls: "abstract-folder-toolbar" });
         
         const newSpaceBtn = toolbar.createDiv({ cls: "abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Create New Space" } });
@@ -217,7 +228,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
              new CreateSharedSpaceModal(this.app, this.plugin).open();
         });
 
-        const joinSpaceBtn = toolbar.createDiv({ cls: "abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Join Shared Space" } });
+        const joinSpaceBtn = toolbar.createDiv({ cls: "abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Join or contribute libraries to a Shared Space" } });
         setIcon(joinSpaceBtn, "link");
         joinSpaceBtn.addEventListener("click", () => {
              new JoinSharedSpaceModal(this.app, this.plugin).open();
@@ -569,10 +580,20 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         try {
             const scopePath = this.selectedSpace.path;
             
+            // Strategic Tree Building: Ensure the bridge has parsed the structure
+            const folder = this.app.vault.getAbstractFileByPath(scopePath);
+            if (folder instanceof TFolder) {
+                Logger.debug(`[Abstract Spaces] Building tree for ${scopePath}...`);
+                await this.plugin.abstractBridge.buildAbstractLibraryTree(folder);
+            }
+
             // Strategic Cache Ingestion
             const relationships = this.plugin.abstractBridge.getLibraryRelationships(scopePath);
             if (relationships) {
+                Logger.debug(`[Abstract Spaces] Seeding ${relationships.size} relationships for ${scopePath}`);
                 this.plugin.graphEngine.seedRelationships(relationships);
+            } else {
+                Logger.warn(`[Abstract Spaces] No relationships found for ${scopePath}`);
             }
 
             const provider = new ScopedContentProvider(

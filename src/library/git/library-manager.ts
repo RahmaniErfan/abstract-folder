@@ -197,6 +197,10 @@ export class LibraryManager {
     async cloneLibrary(repositoryUrl: string, destinationPath: string, item?: RegistryItem, token?: string): Promise<void> {
         try {
             const absoluteDir = this.getAbsolutePath(destinationPath);
+
+            // Ensure the directory exists before cloning into it with '.'
+            await NodeFsAdapter.promises.mkdir(absoluteDir, { recursive: true });
+
             const engine = await this.getEngine();
             const tokenToUse = token || await this.ensureToken(destinationPath);
             await engine.clone(absoluteDir, repositoryUrl, tokenToUse);
@@ -246,6 +250,10 @@ export class LibraryManager {
     async cloneSpace(repositoryUrl: string, destinationPath: string, token?: string): Promise<void> {
         try {
             const absoluteDir = this.getAbsolutePath(destinationPath);
+
+            // Ensure the directory exists before cloning into it with '.'
+            await NodeFsAdapter.promises.mkdir(absoluteDir, { recursive: true });
+
             const engine = await this.getEngine();
             const tokenToUse = token || await this.ensureToken(destinationPath);
             await engine.clone(absoluteDir, repositoryUrl, tokenToUse);

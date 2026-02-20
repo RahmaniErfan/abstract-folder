@@ -119,11 +119,16 @@ export class AbstractBridge {
         const files: TFile[] = [];
         const localPathMap = new Map<string, string>(); // basename/name -> path
 
-        const recursiveScan = (folder: TFolder) => {
+        const recursiveScan = async (folder: TFolder) => {
+            // Force vault to see children if they might be missing (newly cloned)
+            if (folder.children.length === 0) {
+                 await this.app.vault.adapter.list(folder.path);
+            }
+
             for (const child of folder.children) {
                 if (child instanceof TFolder) {
                     if (child.name === ".git" || child.name === "node_modules") continue;
-                    recursiveScan(child);
+                    await recursiveScan(child);
                 } else if (child instanceof TFile && child.extension === 'md' && child.name !== 'library.config.json') {
                     files.push(child);
                     localPathMap.set(child.basename, child.path);
@@ -131,7 +136,7 @@ export class AbstractBridge {
                 }
             }
         };
-        recursiveScan(libraryRoot);
+        await recursiveScan(libraryRoot);
 
         const parentToChildren: Record<string, Set<string>> = {};
         const childToParents: Record<string, Set<string>> = {};
@@ -153,32 +158,41 @@ export class AbstractBridge {
             if (!frontmatter || (!hasParentProp && !hasChildrenProp)) {
                 try {
                     const content = await this.app.vault.read(file);
-                    const fmMatch = content.match(/^---\s*[\r\n]([\s\S]*?)[\r\n]---/);
+                    // More lenient regex for frontmatter detection
+                    const fmMatch = content.match(/^---\s*[\r\n]([\s\S]*?)[\r\n]---/m);
                     if (fmMatch) {
-                        // Parse frontmatter manually
                         const fmContent = fmMatch[1];
                         const lines = fmContent.split('\n');
                         const manualFM: Record<string, unknown> = {};
+                        
                         for (const line of lines) {
+                            if (!line.includes(':')) continue;
                             const [key, ...valParts] = line.split(':');
-                            if (key && valParts.length > 0) {
-                                const k = key.trim();
-                                if (this.parentPropertyNames.includes(k) || k === 'children') {
-                                    const v = valParts.join(':').trim();
-                                    // Handle simple arrays [a, b] or strings
-                                    if (v.startsWith('[') && v.endsWith(']')) {
-                                        manualFM[k] = v.slice(1, -1).split(',').map(s => s.trim().replace(/^["']|["']$/g, ''));
-                                    } else {
-                                        manualFM[k] = v.replace(/^["']|["']$/g, '');
-                                    }
+                            const k = key.trim();
+                            const val = valParts.join(':').trim();
+                            
+                            // Check if this key matches any of our parent/children property names (case-insensitive)
+                            const isParentKey = this.parentPropertyNames.some(p => p.toLowerCase() === k.toLowerCase());
+                            const isChildrenKey = k.toLowerCase() === 'children';
+
+                            if (isParentKey || isChildrenKey) {
+                                let v = val;
+                                // Clean quotes and wiki-link brackets
+                                v = v.replace(/^["']|["']$/g, '');
+                                
+                                if (v.startsWith('[') && v.endsWith(']')) {
+                                    manualFM[k] = v.slice(1, -1).split(',').map(s => s.trim().replace(/^["']|["']$/g, '').replace(/^\[\[|\]\]$/g, ''));
+                                } else {
+                                    manualFM[k] = v.replace(/^\[\[|\]\]$/g, '');
                                 }
+                                // Logger.debug(`[AbstractBridge] Extracted ${k}:`, manualFM[k]);
                             }
                         }
                         frontmatter = manualFM;
-                        // Logger.debug(`AbstractBridge: Parsed manual frontmatter for ${file.name}:`, frontmatter);
+                        Logger.debug(`[AbstractBridge] Manual parse of ${file.name}:`, { frontmatter, checkedProperties: this.parentPropertyNames });
                     }
                 } catch (e) {
-                    Logger.error(`AbstractBridge: Failed to read ${file.path} for manual metadata:`, e);
+                    Logger.error(`[AbstractBridge] Failed to read ${file.path} for manual metadata:`, e);
                 }
             }
             

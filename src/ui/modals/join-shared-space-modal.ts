@@ -20,7 +20,7 @@ export class JoinSharedSpaceModal extends Modal {
         contentEl.empty();
         
         contentEl.createEl("h2", { text: "Join Shared Space" });
-        contentEl.createEl("p", { text: "Clone an existing shared space from a Git repository." });
+        contentEl.createEl("p", { text: "Clone an existing shared space from a Git repository to collaborate with others or contribute libraries you maintain." });
 
         new Setting(contentEl)
             .setName("Repository URL")

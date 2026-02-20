@@ -61,7 +61,7 @@ export default class AbstractFolderPlugin extends Plugin {
 		await this.loadSettings();
 
 		// Initialize Abstract Library services
-		this.abstractBridge = new AbstractBridge(this.app);
+		this.abstractBridge = new AbstractBridge(this.app, this.settings);
 		this.contributionEngine = new ContributionEngine(this.app);
 		this.securityManager = new SecurityManager(this.settings);
 		this.libraryManager = new LibraryManager(this.app, this.settings, this.securityManager);
