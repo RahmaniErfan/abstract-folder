@@ -150,6 +150,9 @@ export class VirtualViewport {
         // 3. Label Container
         self.createDiv("af-item-inner");
 
+        // 4. Tag Container
+        self.createDiv("nav-file-tag").style.display = "none";
+
         // Events
         row.addEventListener("click", (e) => this.delegate.onItemClick(node, e));
         row.addEventListener("contextmenu", (e) => this.delegate.onItemContextMenu(node, e));
@@ -191,6 +194,14 @@ export class VirtualViewport {
         const self = el.querySelector(".af-item-self") as HTMLElement;
         if (!self) return;
 
+        let basename = node.name;
+        let extension = "";
+        const lastDotIndex = node.name.lastIndexOf('.');
+        if (lastDotIndex > 0) {
+            basename = node.name.substring(0, lastDotIndex);
+            extension = node.name.substring(lastDotIndex + 1);
+        }
+
         // 1. Disclosure Arrow (Chevron)
         const arrow = self.querySelector(".af-collapse-icon") as HTMLElement;
         if (arrow) {
@@ -228,7 +239,19 @@ export class VirtualViewport {
             if (!label) {
                 label = inner.createSpan("af-item-label");
             }
-            label.textContent = node.name;
+            label.textContent = basename;
+        }
+
+        // 3.5 Extension Tag
+        const tagEl = self.querySelector(".nav-file-tag") as HTMLElement;
+        const tagExtension = extension.toLowerCase() === "md" ? "" : extension;
+        if (tagEl) {
+            if (tagExtension) {
+                tagEl.textContent = tagExtension;
+                tagEl.style.display = ""; // default display block
+            } else {
+                tagEl.style.display = "none";
+            }
         }
 
         // 4. Sync status indicator (Direct child of self for absolute right alignment)

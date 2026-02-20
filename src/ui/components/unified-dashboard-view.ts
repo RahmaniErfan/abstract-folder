@@ -9,6 +9,11 @@ export class UnifiedDashboardView {
     private largeFiles: string[] = [];
     private repoInfo: { private: boolean; html_url: string; full_name: string } | null = null;
     private isLoading: boolean = true;
+    private history: any[] = [];
+
+    // DOM References for in-place updates
+    private summaryHeaderContainer: HTMLElement;
+    private activitySectionContainer: HTMLElement;
 
     constructor(
         private containerEl: HTMLElement,
@@ -23,12 +28,10 @@ export class UnifiedDashboardView {
     }
 
     private async init() {
-        // Initial quick check for git without blocking initial render
-        this.isLoading = true;
-        this.render();
-
         this.hasGit = await this.plugin.libraryManager.detectExistingGit(this.vaultPath);
-        
+        this.isLoading = true;
+        this.render(); // Initial shell render with skeletons
+
         if (this.hasGit) {
             const remoteUrl = await this.plugin.libraryManager.getRemoteUrl(this.vaultPath);
             if (remoteUrl) {
@@ -47,17 +50,26 @@ export class UnifiedDashboardView {
                     }
                 }
             }
+            this.history = await this.plugin.libraryManager.getHistory(this.vaultPath, 5);
         }
         
         this.isLoading = false;
-        this.render();
+        
+        // In-place UI updates to avoid resetting CollaboratorView
+        if (this.summaryHeaderContainer) {
+            this.renderSummaryHeader(this.summaryHeaderContainer);
+        }
+        if (this.activitySectionContainer && this.hasGit) {
+            this.renderActivitySection(this.activitySectionContainer);
+        }
     }
 
     private render() {
         this.containerEl.empty();
         const container = this.containerEl.createDiv({ cls: "af-dashboard-container" });
 
-        this.renderSummaryHeader(container);
+        this.summaryHeaderContainer = container.createDiv(); // Wrapper for summary
+        this.renderSummaryHeader(this.summaryHeaderContainer);
 
         if (!this.hasGit) {
             this.renderSetupGuide(container);
@@ -79,22 +91,24 @@ export class UnifiedDashboardView {
         this.renderSyncSection(container);
         
         // Activity Section
-        this.renderActivitySection(container);
+        this.activitySectionContainer = container.createDiv(); // Wrapper for activity
+        this.renderActivitySection(this.activitySectionContainer);
         
         // Governance/Security
         this.renderGovernanceSection(container);
     }
 
     private renderSummaryHeader(container: HTMLElement) {
+        container.empty();
         const header = container.createDiv({ cls: "af-dashboard-summary-header" });
         
         const left = header.createDiv({ cls: "af-summary-left" });
         
         if (this.isLoading) {
-            left.createDiv({ cls: "af-skeleton af-skeleton-avatar", attr: { style: "width: 12px; height: 12px;" } });
-            left.createDiv({ cls: "af-skeleton af-skeleton-text", attr: { style: "width: 120px; margin-bottom: 0;" } });
+            left.createDiv({ cls: "af-skeleton af-status-dot", attr: { style: "box-shadow: none;" } });
+            left.createDiv({ cls: "af-skeleton af-skeleton-text", attr: { style: "width: 120px; height: 14px; margin-bottom: 0;" } });
             const right = header.createDiv({ cls: "af-summary-right" });
-            right.createDiv({ cls: "af-skeleton af-skeleton-badge" });
+            right.createDiv({ cls: "af-skeleton af-status-badge", attr: { style: "width: 70px; height: 26px; border: none; cursor: default;" } });
             return;
         }
 
@@ -246,29 +260,36 @@ export class UnifiedDashboardView {
             );
     }
 
-    private async renderActivitySection(container: HTMLElement) {
+    private renderActivitySection(container: HTMLElement) {
+        container.empty();
         const section = container.createDiv({ cls: "af-dashboard-section" });
         section.createEl("h3", { text: "Recent Activity" });
 
         if (this.isLoading) {
             const list = section.createDiv({ cls: "af-activity-list" });
             for (let i = 0; i < 3; i++) {
-                const item = list.createDiv({ cls: "af-skeleton-item" });
-                const content = item.createDiv({ cls: "af-skeleton-content" });
-                content.createDiv({ cls: "af-skeleton af-skeleton-text", attr: { style: "width: 60%" } });
-                content.createDiv({ cls: "af-skeleton af-skeleton-text", attr: { style: "width: 40%" } });
+                const item = list.createDiv({ cls: "af-activity-item" });
+                item.createDiv({ cls: "af-skeleton af-activity-dot", attr: { style: "border: none; box-shadow: none;" } });
+                
+                const content = item.createDiv({ cls: "af-activity-content" });
+                
+                const header = content.createDiv({ cls: "af-activity-header", attr: { style: "align-items: center; margin-bottom: 8px;" } });
+                header.createDiv({ cls: "af-skeleton af-skeleton-text", attr: { style: "width: 30%; height: 12px; margin-bottom: 0;" } });
+                header.createDiv({ cls: "af-skeleton af-skeleton-text", attr: { style: "width: 20%; height: 10px; margin-bottom: 0;" } });
+                
+                content.createDiv({ cls: "af-skeleton af-skeleton-text", attr: { style: "width: 85%; height: 12px; margin-bottom: 6px;" } });
+                content.createDiv({ cls: "af-skeleton af-skeleton-text", attr: { style: "width: 40%; height: 12px; margin-bottom: 0;" } });
             }
             return;
         }
 
-        const history = await this.plugin.libraryManager.getHistory(this.vaultPath, 5);
-        if (history.length === 0) {
+        if (this.history.length === 0) {
             section.createEl("p", { text: "No sync activity yet.", cls: "af-empty-state" });
             return;
         }
 
         const list = section.createDiv({ cls: "af-activity-list" });
-        history.forEach(commit => {
+        this.history.forEach(commit => {
             const item = list.createDiv({ cls: "af-activity-item" });
             item.createDiv({ cls: "af-activity-dot" });
             const content = item.createDiv({ cls: "af-activity-content" });
