@@ -220,4 +220,31 @@ export class AuthService {
             return false;
         }
     }
+
+    /**
+     * Get specific repository details
+     */
+    static async getRepository(token: string, owner: string, repo: string): Promise<{ private: boolean; html_url: string; full_name: string } | null> {
+        try {
+            const response = await requestUrl({
+                url: `https://api.github.com/repos/${owner}/${repo}`,
+                method: "GET",
+                headers: {
+                    "Authorization": `token ${token}`,
+                    "Accept": "application/json",
+                },
+                throw: false
+            });
+            if (response.status !== 200) return null;
+            const data = response.json as { private: boolean; html_url: string; full_name: string };
+            return {
+                private: data.private,
+                html_url: data.html_url,
+                full_name: data.full_name
+            };
+        } catch (error) {
+            console.error("Failed to fetch repository details", error);
+            return null;
+        }
+    }
 }

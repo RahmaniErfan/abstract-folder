@@ -22,7 +22,7 @@ export class CollaboratorView {
         const collabSection = this.containerEl.createDiv({ cls: "af-dashboard-section" });
         collabSection.createEl("h3", { text: "Collaborators" });
         this.collabListContainer = collabSection.createDiv({ cls: "af-collaborator-list" });
-        this.collabListContainer.createEl("p", { text: "Loading...", cls: "af-empty-state" });
+        this.renderSkeleton(this.collabListContainer, 2);
 
         if (this.isOwner) {
             this.renderInviteForm(collabSection);
@@ -31,7 +31,7 @@ export class CollaboratorView {
             const pendingSection = this.containerEl.createDiv({ cls: "af-dashboard-section" });
             pendingSection.createEl("h3", { text: "Pending Invitations" });
             this.pendingListContainer = pendingSection.createDiv({ cls: "af-pending-list" });
-            this.pendingListContainer.createEl("p", { text: "Loading...", cls: "af-empty-state" });
+            this.renderSkeleton(this.pendingListContainer, 1);
         }
 
         this.refreshLists();
@@ -188,5 +188,20 @@ export class CollaboratorView {
                     }
                 })
             );
+    }
+
+    private renderSkeleton(container: HTMLElement, count: number) {
+        container.empty();
+        for (let i = 0; i < count; i++) {
+            const item = container.createDiv({ cls: "af-collaborator-item" });
+            
+            // Match avatar perfectly
+            item.createDiv({ cls: "af-skeleton af-collab-avatar" });
+            
+            // Match info block perfectly
+            const info = item.createDiv({ cls: "af-collab-info", attr: { style: "flex: 1;" } });
+            info.createDiv({ cls: "af-skeleton af-skeleton-text", attr: { style: "width: 60%; margin-bottom: 6px; height: 12px;" } });
+            info.createDiv({ cls: "af-skeleton af-skeleton-text", attr: { style: "width: 40%; margin-bottom: 0; height: 10px;" } });
+        }
     }
 }

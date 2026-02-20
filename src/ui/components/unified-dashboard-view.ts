@@ -7,6 +7,8 @@ export class UnifiedDashboardView {
     private hasGit: boolean = false;
     private isScanning: boolean = false;
     private largeFiles: string[] = [];
+    private repoInfo: { private: boolean; html_url: string; full_name: string } | null = null;
+    private isLoading: boolean = true;
 
     constructor(
         private containerEl: HTMLElement,
@@ -21,13 +23,41 @@ export class UnifiedDashboardView {
     }
 
     private async init() {
+        // Initial quick check for git without blocking initial render
+        this.isLoading = true;
+        this.render();
+
         this.hasGit = await this.plugin.libraryManager.detectExistingGit(this.vaultPath);
+        
+        if (this.hasGit) {
+            const remoteUrl = await this.plugin.libraryManager.getRemoteUrl(this.vaultPath);
+            if (remoteUrl) {
+                const match = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/.]+)(\.git)?$/);
+                if (match) {
+                    const owner = match[1];
+                    const repo = match[2];
+                    const token = this.plugin.settings.librarySettings.githubToken;
+                    if (token) {
+                        try {
+                            const { AuthService } = await import("../../library/services/auth-service");
+                            this.repoInfo = await AuthService.getRepository(token, owner, repo);
+                        } catch (e) {
+                            console.error("Failed to fetch repo info", e);
+                        }
+                    }
+                }
+            }
+        }
+        
+        this.isLoading = false;
         this.render();
     }
 
     private render() {
         this.containerEl.empty();
         const container = this.containerEl.createDiv({ cls: "af-dashboard-container" });
+
+        this.renderSummaryHeader(container);
 
         if (!this.hasGit) {
             this.renderSetupGuide(container);
@@ -53,6 +83,39 @@ export class UnifiedDashboardView {
         
         // Governance/Security
         this.renderGovernanceSection(container);
+    }
+
+    private renderSummaryHeader(container: HTMLElement) {
+        const header = container.createDiv({ cls: "af-dashboard-summary-header" });
+        
+        const left = header.createDiv({ cls: "af-summary-left" });
+        
+        if (this.isLoading) {
+            left.createDiv({ cls: "af-skeleton af-skeleton-avatar", attr: { style: "width: 12px; height: 12px;" } });
+            left.createDiv({ cls: "af-skeleton af-skeleton-text", attr: { style: "width: 120px; margin-bottom: 0;" } });
+            const right = header.createDiv({ cls: "af-summary-right" });
+            right.createDiv({ cls: "af-skeleton af-skeleton-badge" });
+            return;
+        }
+
+        const statusDot = left.createDiv({ cls: `af-status-dot ${this.hasGit ? 'is-active' : ''}` });
+        left.createSpan({ 
+            text: this.hasGit ? "GitHub Initialized" : "GitHub Not Initialized",
+            cls: "af-summary-status-text"
+        });
+
+        if (this.hasGit && this.repoInfo) {
+            const right = header.createDiv({ cls: "af-summary-right" });
+            const badge = right.createDiv({ 
+                cls: `af-status-badge ${this.repoInfo.private ? 'is-private' : 'is-public'}` 
+            });
+            setIcon(badge, this.repoInfo.private ? "lock" : "globe");
+            badge.createSpan({ text: this.repoInfo.private ? "Private" : "Public" });
+            
+            badge.onClickEvent(() => {
+                window.open(this.repoInfo!.html_url, "_blank");
+            });
+        }
     }
 
     private renderSetupGuide(container: HTMLElement) {
@@ -186,6 +249,17 @@ export class UnifiedDashboardView {
     private async renderActivitySection(container: HTMLElement) {
         const section = container.createDiv({ cls: "af-dashboard-section" });
         section.createEl("h3", { text: "Recent Activity" });
+
+        if (this.isLoading) {
+            const list = section.createDiv({ cls: "af-activity-list" });
+            for (let i = 0; i < 3; i++) {
+                const item = list.createDiv({ cls: "af-skeleton-item" });
+                const content = item.createDiv({ cls: "af-skeleton-content" });
+                content.createDiv({ cls: "af-skeleton af-skeleton-text", attr: { style: "width: 60%" } });
+                content.createDiv({ cls: "af-skeleton af-skeleton-text", attr: { style: "width: 40%" } });
+            }
+            return;
+        }
 
         const history = await this.plugin.libraryManager.getHistory(this.vaultPath, 5);
         if (history.length === 0) {
