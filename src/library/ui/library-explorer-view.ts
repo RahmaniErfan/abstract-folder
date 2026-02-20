@@ -449,26 +449,13 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
                 showGroupButton: visibility.showGroupButton,
                 showCreateNoteButton: visibility.showCreateNoteButton && this.isOwner,
                 extraActions: (toolbarEl: HTMLElement) => {
-                     if (this.repositoryUrl) {
-                        this.createToolbarAction(toolbarEl, "github", "View on GitHub", () => window.open(this.repositoryUrl!, "_blank"));
-                     }
-                     this.createToolbarAction(toolbarEl, "git-fork", "Fork library (Coming soon)", () => {});
-                     this.createToolbarAction(toolbarEl, "git-pull-request", "Create PR (Coming soon)", () => {});
-                     this.createToolbarAction(toolbarEl, "alert-circle", "Open Issue (Coming soon)", () => {});
-                     this.createToolbarAction(toolbarEl, "star", "Star library (Coming soon)", () => {});
+                    // GitHub actions moved to UnifiedDashboardView
                 }
             }
         ).render();
     }
 
-    private createToolbarAction(container: HTMLElement, icon: string, title: string, onClick: () => void) {
-        const btn = container.createDiv({ 
-            cls: "abstract-folder-toolbar-action clickable-icon", 
-            attr: { "aria-label": title } 
-        });
-        setIcon(btn, icon);
-        btn.addEventListener("click", onClick);
-    }
+
 
     private async renderBottomToolbar(container: HTMLElement) {
         const toolbar = container.createDiv({ cls: "af-status-bar" });

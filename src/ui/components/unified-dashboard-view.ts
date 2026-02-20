@@ -8,6 +8,7 @@ export class UnifiedDashboardView {
     private isScanning: boolean = false;
     private largeFiles: string[] = [];
     private repoInfo: { private: boolean; html_url: string; full_name: string } | null = null;
+    private githubUrl: string | null = null;
     private isLoading: boolean = true;
     private history: any[] = [];
 
@@ -35,17 +36,23 @@ export class UnifiedDashboardView {
         if (this.hasGit) {
             const remoteUrl = await this.plugin.libraryManager.getRemoteUrl(this.vaultPath);
             if (remoteUrl) {
-                const match = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/.]+)(\.git)?$/);
+                // Improved regex to better handle SSH, HTTPS, and trailing slashes/extensions
+                const match = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/.]+?)(?:\.git|\/)?$/);
                 if (match) {
                     const owner = match[1];
                     const repo = match[2];
-                    const token = (this.plugin.libraryManager as any).getToken();
+                    this.githubUrl = `https://github.com/${owner}/${repo}`;
+                    
+                    const token = await (this.plugin.libraryManager as any).getToken();
                     if (token) {
                         try {
                             const { AuthService } = await import("../../library/services/auth-service");
                             this.repoInfo = await AuthService.getRepository(token, owner, repo);
+                            if (this.repoInfo) {
+                                this.githubUrl = this.repoInfo.html_url;
+                            }
                         } catch (e) {
-                            console.error("Failed to fetch repo info", e);
+                            console.error("[UnifiedDashboard] Failed to fetch repo info", e);
                         }
                     }
                 }
@@ -118,18 +125,56 @@ export class UnifiedDashboardView {
             cls: "af-summary-status-text"
         });
 
-        if (this.hasGit && this.repoInfo) {
+        if (this.hasGit) {
             const right = header.createDiv({ cls: "af-summary-right" });
-            const badge = right.createDiv({ 
-                cls: `af-status-badge ${this.repoInfo.private ? 'is-private' : 'is-public'}` 
-            });
-            setIcon(badge, this.repoInfo.private ? "lock" : "globe");
-            badge.createSpan({ text: this.repoInfo.private ? "Private" : "Public" });
             
-            badge.onClickEvent(() => {
-                window.open(this.repoInfo!.html_url, "_blank");
-            });
+            // GitHub Actions Group (Resilient to missing repoInfo)
+            const actionsContainer = right.createDiv({ cls: "af-github-actions" });
+            this.renderGitHubActions(actionsContainer);
+
+            if (this.repoInfo) {
+                const badge = right.createDiv({ 
+                    cls: `af-status-badge ${this.repoInfo.private ? 'is-private' : 'is-public'}` 
+                });
+                setIcon(badge, this.repoInfo.private ? "lock" : "globe");
+                badge.createSpan({ text: this.repoInfo.private ? "Private" : "Public" });
+                
+                badge.onClickEvent(() => {
+                    window.open(this.repoInfo!.html_url, "_blank");
+                });
+            } else if (this.githubUrl) {
+                // Show a simple badge if we couldn't fetch detailed info
+                const badge = right.createDiv({ cls: `af-status-badge is-private` });
+                setIcon(badge, "github");
+                badge.createSpan({ text: "GitHub" });
+                badge.onClickEvent(() => window.open(this.githubUrl!, "_blank"));
+            }
         }
+    }
+
+    private renderGitHubActions(container: HTMLElement) {
+        if (!this.githubUrl) return;
+
+        const githubUrl = this.githubUrl;
+
+        this.createGitHubBtn(container, "github", "View on GitHub", () => window.open(githubUrl, "_blank"));
+        this.createGitHubBtn(container, "star", "Star library (Coming soon)", () => {});
+        this.createGitHubBtn(container, "git-fork", "Fork library (Coming soon)", () => {});
+        this.createGitHubBtn(container, "git-pull-request", "Create PR (Coming soon)", () => {});
+        this.createGitHubBtn(container, "alert-circle", "Open Issue (Coming soon)", () => {});
+    }
+
+    private createGitHubBtn(container: HTMLElement, icon: string, title: string, onClick: () => void) {
+        const btn = container.createDiv({ 
+            cls: "af-github-action-btn clickable-icon", 
+            attr: { "aria-label": title } 
+        });
+        setIcon(btn, icon);
+        btn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onClick();
+        });
     }
 
     private renderSetupGuide(container: HTMLElement) {

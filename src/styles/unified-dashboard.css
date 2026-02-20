@@ -158,6 +158,34 @@
     align-items: center;
 }
 
+.af-github-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-right: 12px;
+}
+
+.af-github-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-s);
+    color: var(--text-muted);
+    transition: all 0.2s ease;
+}
+
+.af-github-action-btn:hover {
+    background-color: var(--background-modifier-hover);
+    color: var(--text-accent);
+}
+
+.af-github-action-btn .svg-icon {
+    width: 16px;
+    height: 16px;
+}
+
 .af-status-badge {
     display: flex;
     align-items: center;

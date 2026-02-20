@@ -38,7 +38,7 @@ export class CollaboratorView {
     }
 
     async refreshLists() {
-        const token = (this.plugin.libraryManager as any).getToken();
+        const token = await (this.plugin.libraryManager as any).getToken();
         const remoteUrl = await this.plugin.libraryManager.getRemoteUrl(this.vaultPath);
         
         if (!token || !remoteUrl) {
@@ -72,6 +72,12 @@ export class CollaboratorView {
             }
         } catch (e) {
             console.error("Failed to refresh collaborators", e);
+            this.collabListContainer.empty();
+            if (e.status === 401) {
+                this.collabListContainer.createEl("p", { text: "GitHub access denied (401). Check your token in settings.", cls: "af-empty-state af-error-text" });
+            } else {
+                this.collabListContainer.createEl("p", { text: "Failed to load collaborators.", cls: "af-empty-state" });
+            }
         }
 
         // 2. Refresh Pending Invites
@@ -89,6 +95,12 @@ export class CollaboratorView {
                 }
             } catch (e) {
                 console.error("Failed to refresh invitations", e);
+                this.pendingListContainer.empty();
+                if (e.status === 401) {
+                    this.pendingListContainer.createEl("p", { text: "GitHub access denied (401).", cls: "af-empty-state af-error-text" });
+                } else {
+                    this.pendingListContainer.createEl("p", { text: "Failed to load invitations.", cls: "af-empty-state" });
+                }
             }
         }
     }
