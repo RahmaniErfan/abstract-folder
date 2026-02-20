@@ -4,7 +4,7 @@ import type AbstractFolderPlugin from "main";
 export function renderGitHubSettings(containerEl: HTMLElement, plugin: AbstractFolderPlugin) {
 	containerEl.empty();
 
-	const isSecretStorageAvailable = typeof (plugin.app as any).secretStorage !== 'undefined';
+	const isSecretStorageAvailable = !!((plugin.app as any).secretStorage && typeof (plugin.app as any).secretStorage.getSecret === 'function');
 
 	if (isSecretStorageAvailable) {
 		const securityDisclaimer = containerEl.createDiv({ cls: "af-settings-disclaimer" });
