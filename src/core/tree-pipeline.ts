@@ -228,60 +228,96 @@ export class StandardTreePipeline implements TreePipeline {
     sort(ids: FileID[]): FileID[] {
         const { sortBy, sortOrder } = this.config.sortConfig;
         
-        Logger.debug(`[Abstract Folder] Sort: Sorting ${ids.length} items by ${sortBy} (${sortOrder})`);
+        const sortStartTime = performance.now();
 
-        return [...ids].sort((a, b) => {
-            const fileA = this.app.vault.getAbstractFileByPath(a);
-            const fileB = this.app.vault.getAbstractFileByPath(b);
+        // 1. Pre-fetch all necessary metadata for $O(N \log N)$ stability without re-evaluating
+        interface SortMeta {
+            isFolder: boolean;
+            name: string;
+            mtime: number;
+            ctime: number;
+            thermal: number;
+            rot: number;
+            gravity: number;
+        }
 
-            const isFolderA = fileA instanceof TFolder;
-            const isFolderB = fileB instanceof TFolder;
+        const metaMap = new Map<string, SortMeta>();
+
+        for (const id of ids) {
+            const file = this.app.vault.getAbstractFileByPath(id);
+            const isFolder = file instanceof TFolder;
+            const name = this.getNodeName(id);
+            const graphMeta = this.graph.getNodeMeta(id);
+
+            let mtime = 0;
+            let ctime = 0;
+
+            if (file instanceof TFile) {
+                mtime = file.stat.mtime;
+                ctime = file.stat.ctime;
+            } else if (graphMeta) {
+                mtime = graphMeta.mtime || 0;
+                ctime = graphMeta.mtime || 0; // fallback ctime to mtime for graph items
+            }
+
+            let thermal = 0;
+            let rot = 0;
+            let gravity = 0;
+
+            if (sortBy === 'thermal' || sortBy === 'rot' || sortBy === 'gravity') {
+                const metrics = this.metricsManager.getMetrics(id);
+                thermal = metrics.thermal;
+                rot = metrics.rot;
+                gravity = metrics.gravity;
+            }
+
+            metaMap.set(id, {
+                isFolder,
+                name,
+                mtime,
+                ctime,
+                thermal,
+                rot,
+                gravity
+            });
+        }
+
+        const sorted = [...ids].sort((a, b) => {
+            const metaA = metaMap.get(a)!;
+            const metaB = metaMap.get(b)!;
             
             // Real Folders first (Traditional Obsidian Behavior)
-            if (isFolderA !== isFolderB) return isFolderA ? -1 : 1;
+            if (metaA.isFolder !== metaB.isFolder) return metaA.isFolder ? -1 : 1;
 
             let cmp = 0;
 
             if (sortBy === 'name') {
-                const nameA = this.getNodeName(a);
-                const nameB = this.getNodeName(b);
-                cmp = nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+                cmp = metaA.name.localeCompare(metaB.name, undefined, { numeric: true, sensitivity: 'base' });
             } else if (sortBy === 'mtime') {
-                const mA = (fileA instanceof TFile) ? fileA.stat.mtime : (this.graph.getNodeMeta(a)?.mtime || 0);
-                const mB = (fileB instanceof TFile) ? fileB.stat.mtime : (this.graph.getNodeMeta(b)?.mtime || 0);
-                cmp = mA - mB;
+                cmp = metaA.mtime - metaB.mtime;
             } else if (sortBy === 'ctime') {
-                const cA = (fileA instanceof TFile) ? fileA.stat.ctime : (this.graph.getNodeMeta(a)?.mtime || 0);
-                const cB = (fileB instanceof TFile) ? fileB.stat.ctime : (this.graph.getNodeMeta(b)?.mtime || 0);
-                cmp = cA - cB;
+                cmp = metaA.ctime - metaB.ctime;
             } else if (sortBy === 'thermal') {
-                const valA = this.metricsManager.getMetrics(a).thermal;
-                const valB = this.metricsManager.getMetrics(b).thermal;
-                cmp = valA - valB;
+                cmp = metaA.thermal - metaB.thermal;
             } else if (sortBy === 'rot') {
-                const valA = this.metricsManager.getMetrics(a).rot;
-                const valB = this.metricsManager.getMetrics(b).rot;
-                cmp = valA - valB;
+                cmp = metaA.rot - metaB.rot;
             } else if (sortBy === 'gravity') {
-                const valA = this.metricsManager.getMetrics(a).gravity;
-                const valB = this.metricsManager.getMetrics(b).gravity;
-                cmp = valA - valB;
+                cmp = metaA.gravity - metaB.gravity;
             } else {
-                const nameA = this.getNodeName(a);
-                const nameB = this.getNodeName(b);
-                cmp = nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+                cmp = metaA.name.localeCompare(metaB.name, undefined, { numeric: true, sensitivity: 'base' });
             }
 
             // Fallback to name if criteria is equal
             if (cmp === 0) {
-                const nameA = this.getNodeName(a);
-                const nameB = this.getNodeName(b);
-                cmp = nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+                cmp = metaA.name.localeCompare(metaB.name, undefined, { numeric: true, sensitivity: 'base' });
             }
 
             const result = sortOrder === 'asc' ? cmp : -cmp;
             return result;
         });
+        const sortEndTime = performance.now();
+        Logger.debug(`[Abstract Folder] Sort: Sorting ${ids.length} items by ${sortBy} (${sortOrder}) took ${(sortEndTime - sortStartTime).toFixed(2)}ms`);
+        return sorted;
     }
 
     private getNodeName(path: string): string {

@@ -127,7 +127,6 @@ export class ContextEngine extends EventEmitter {
         this.state.focusedURI = uri;
         
         this.emit('selection-changed', this.state.selectedURIs);
-        this.emit('changed', this.getState());
     }
 
     /**

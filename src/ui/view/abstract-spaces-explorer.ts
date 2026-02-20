@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Menu, Notice, TFile, setIcon, Plugin, TFolder, Platform } from "obsidian";
+import { ItemView, WorkspaceLeaf, Menu, Notice, TFile, setIcon, Plugin, TFolder, Platform, debounce } from "obsidian";
 import AbstractFolderPlugin from "main";
 import { CreateSharedSpaceModal } from "../modals/create-shared-space-modal";
 import { JoinSharedSpaceModal } from "../modals/join-shared-space-modal";
@@ -25,6 +25,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
     private authorName = "Unknown";
     private isOwner = false;
     private scopeUnsubscribe: (() => void) | null = null;
+    private debouncedRefreshSpaceTree: (options?: { forceExpand?: boolean }) => void;
 
     // Search Options
     private searchQuery = "";
@@ -34,6 +35,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         this.plugin = plugin;
         const { ContextEngine } = require("../../core/context-engine");
         this.contextEngine = new ContextEngine(plugin, 'library');
+        this.debouncedRefreshSpaceTree = debounce(this.refreshSpaceTree.bind(this), 20);
     }
 
     getViewType() {
@@ -62,7 +64,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         this.registerEvent(
             (this.app.workspace as any).on("abstract-folder:graph-updated", () => {
                 if (this.selectedSpace) {
-                    void this.refreshSpaceTree();
+                    this.debouncedRefreshSpaceTree();
                 } else {
                     this.renderView();
                 }
@@ -84,10 +86,10 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             
             // Subscribe to state changes
             this.contextEngine.on('changed', () => {
-                 void this.refreshSpaceTree();
+                 this.debouncedRefreshSpaceTree();
             });
             this.contextEngine.on('expand-all', () => {
-                 void this.refreshSpaceTree({ forceExpand: true });
+                 this.debouncedRefreshSpaceTree({ forceExpand: true });
             });
             
             void this.renderSpaceTree(container);
@@ -572,7 +574,6 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
 
     onItemToggle(node: AbstractNode, event: MouseEvent): void {
         this.contextEngine.toggleExpand(node.uri);
-        void this.refreshSpaceTree();
     }
 
     onItemContextMenu(node: AbstractNode, event: MouseEvent): void {

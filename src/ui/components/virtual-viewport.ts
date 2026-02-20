@@ -103,7 +103,7 @@ export class VirtualViewport {
         const clientHeight = this.scrollContainer.clientHeight;
         const itemHeight = this.delegate.isMobile() ? 32 : this.delegate.getItemHeight();
         
-        const buffer = 5;
+        const buffer = 25;
         const adjustedScrollTop = Math.max(0, scrollTop - this.HEADER_OFFSET);
         const startIndex = Math.max(0, Math.floor(adjustedScrollTop / itemHeight) - buffer);
         const endIndex = Math.min(this.items.length, Math.ceil((adjustedScrollTop + clientHeight) / itemHeight) + buffer);
@@ -191,6 +191,11 @@ export class VirtualViewport {
     }
 
     private updateRowContent(el: HTMLElement, node: AbstractNode) {
+        // Performance Fingerprint: Skip expensive DOM/SVG logic if state hasn't changed.
+        const fingerprint = `${node.uri}:${node.name}:${node.syncStatus}:${node.icon}:${node.hasChildren}:${node.level}`;
+        if (el.dataset.fingerprint === fingerprint) return;
+        el.dataset.fingerprint = fingerprint;
+
         const self = el.querySelector(".af-item-self") as HTMLElement;
         if (!self) return;
 
@@ -254,6 +259,31 @@ export class VirtualViewport {
             }
         }
 
+        // 3.7 Indent Guides (Reddit style)
+        const guideColors = [
+            'var(--text-accent)',
+            'var(--color-red)',
+            'var(--color-orange)',
+            'var(--color-yellow)',
+            'var(--color-green)',
+            'var(--color-cyan)',
+            'var(--color-blue)',
+            'var(--color-purple)',
+            'var(--color-pink)'
+        ];
+
+        const existingGuides = el.querySelectorAll('.af-item-guide');
+        if (existingGuides.length !== node.level) {
+            existingGuides.forEach(g => g.remove());
+            for (let d = 0; d < node.level; d++) {
+                const guide = document.createElement('div');
+                guide.className = 'af-item-guide';
+                guide.style.left = `${d * 18 + 12}px`;
+                guide.style.backgroundColor = guideColors[d % guideColors.length];
+                el.appendChild(guide);
+            }
+        }
+
         // 4. Sync status indicator (Direct child of self for absolute right alignment)
         let indicator = self.querySelector(".af-sync-indicator") as HTMLElement;
         if (node.syncStatus) {
@@ -279,42 +309,16 @@ export class VirtualViewport {
     }
 
     private updateRowState(el: HTMLElement, node: AbstractNode, index: number, itemHeight: number) {
-        // Sync dynamic content (Label, Icon, Arrow) first
+        // Sync dynamic content (Label, Icon, Arrow, Guides) first
         this.updateRowContent(el, node);
-
-        // Handle Indent Guides (Reddit style)
-        const existingGuides = el.querySelectorAll('.af-item-guide');
-        const colors = [
-            'var(--text-accent)',
-            'var(--color-red)',
-            'var(--color-orange)',
-            'var(--color-yellow)',
-            'var(--color-green)',
-            'var(--color-cyan)',
-            'var(--color-blue)',
-            'var(--color-purple)',
-            'var(--color-pink)'
-        ];
-
-        // Ensure correct number of guides
-        if (existingGuides.length !== node.level) {
-            existingGuides.forEach(g => g.remove());
-            for (let d = 0; d < node.level; d++) {
-                const guide = document.createElement('div');
-                guide.className = 'af-item-guide';
-                // Center under the chevron area (which is shifted by depth)
-                // Chevrons are at -24px relative to padding-left (which is 24 + d*18)
-                // So chevron is at d*18px absolute. Center of 24px width is +12px.
-                guide.style.left = `${d * 18 + 12}px`;
-                guide.style.backgroundColor = colors[d % colors.length];
-                el.appendChild(guide);
-            }
-        }
 
         const isSelected = this.context.isSelected(node.uri);
         const isExpanded = this.context.isExpanded(node.uri);
         const isInScope = this.scope.isDescendant(node.uri);
 
+        const stateFingerprint = `${isSelected}:${isExpanded}:${isInScope}:${index}`;
+        if (el.dataset.stateFingerprint === stateFingerprint) return;
+        el.dataset.stateFingerprint = stateFingerprint;
 
         /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access */
         (el.style as any).position = 'absolute';

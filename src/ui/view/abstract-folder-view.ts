@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, TFile, Notice, Platform, setIcon } from "obsidian";
+import { ItemView, WorkspaceLeaf, TFile, Notice, Platform, setIcon, debounce } from "obsidian";
 import type AbstractFolderPlugin from "main";
 import { VirtualViewport, ViewportDelegate } from "../components/virtual-viewport";
 import { AbstractFolderViewToolbar } from "../toolbar/abstract-folder-view-toolbar";
@@ -19,6 +19,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
     private isRefreshing = false;
     private nextRefreshScheduled = false;
     private contextEngine: import("../../core/context-engine").ContextEngine;
+    private debouncedRefreshTree: (options?: { forceExpand?: boolean, repair?: boolean }) => void;
 
     constructor(leaf: WorkspaceLeaf, plugin: AbstractFolderPlugin) {
         super(leaf);
@@ -26,6 +27,8 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
         // CREATE LOCAL CONTEXT ENGINE (GLOBAL SCOPE)
         const { ContextEngine } = require("../../core/context-engine");
         this.contextEngine = new ContextEngine(plugin, 'global');
+        
+        this.debouncedRefreshTree = debounce(this.refreshTree.bind(this), 20);
     }
 
     getViewType(): string {
@@ -97,11 +100,11 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
 
         // Subscribe to general context changes
         this.contextEngine.on('changed', () => {
-            void this.refreshTree();
+            this.debouncedRefreshTree();
         });
 
         this.contextEngine.on('expand-all', () => {
-             void this.refreshTree({ forceExpand: true });
+             this.debouncedRefreshTree({ forceExpand: true });
         });
 
         // Subscribe to graph changes
@@ -111,7 +114,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
                 this.contextEngine.snapshotPhysicalPaths(this.currentSnapshot.locationMap);
             }
             // 2. Refresh the tree with silent repair
-            void this.refreshTree({ repair: true });
+            this.debouncedRefreshTree({ repair: true });
         }));
 
         // Initial build
@@ -189,7 +192,6 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
 
     onItemToggle(node: AbstractNode, event: MouseEvent): void {
         this.contextEngine.toggleExpand(node.uri);
-        void this.refreshTree();
     }
 
     onItemContextMenu(node: AbstractNode, event: MouseEvent): void {
@@ -209,7 +211,7 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
         this.plugin.transactionManager.moveNode(draggedFile, targetNode.id)
             .then(() => {
                 new Notice(`Moved ${draggedFile.basename} to ${targetNode.name}`);
-                return this.refreshTree({ repair: true });
+                this.debouncedRefreshTree({ repair: true });
             })
             .catch((error) => {
                 console.error("Failed to move node", error);

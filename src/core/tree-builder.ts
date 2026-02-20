@@ -168,6 +168,7 @@ export class TreeBuilder {
         const sortedRoots = pipeline.sort(filteredRoots);
 
         // 4. Fetch Sync Statuses
+        const statusStartTime = performance.now();
         const scopedPath = provider.resolveScope() !== 'global' ? provider.getCreationRoot() : "";
         let syncStatusMap: Map<string, any> | null = null;
         if (scopedPath !== undefined) {
@@ -177,7 +178,10 @@ export class TreeBuilder {
                 console.error("[TreeBuilder] Failed to fetch sync statuses", e);
             }
         }
+        const statusEndTime = performance.now();
+        Logger.debug(`[Abstract Folder] TreeBuilder: getFileStatuses took ${(statusEndTime - statusStartTime).toFixed(2)}ms`);
 
+        const renderStartTime = performance.now();
         
         // Use a reverse stack for DFS processing
         const stack: Array<{ id: FileID, uri: string, level: number, visitedPath: Set<FileID>, parentId?: FileID }> = [];
@@ -274,6 +278,8 @@ export class TreeBuilder {
             }
         }
 
+        const renderEndTime = performance.now();
+        Logger.debug(`[Abstract Folder] TreeBuilder: DFS Traversal took ${(renderEndTime - renderStartTime).toFixed(2)}ms`);
         Logger.debug(`[Abstract Folder] TreeBuilder: buildTree complete, total items: ${items.length}`);
         return { items, locationMap };
     }

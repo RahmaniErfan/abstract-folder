@@ -1,4 +1,4 @@
-import { App, Notice, FileSystemAdapter } from "obsidian";
+import { App, Notice, FileSystemAdapter, EventRef, Platform } from "obsidian";
 import * as git from "isomorphic-git";
 import * as path from 'path';
 import { ObsidianHttpAdapter } from "./http-adapter";
@@ -12,6 +12,9 @@ import { ConflictManager } from "./conflict-manager";
 import { MergeModal } from "../../ui/modals/merge/merge-modal";
 import { SecurityManager } from "../../core/security-manager";
 import { GitScopeManager } from "./git-scope-manager";
+import { GitDesktopAdapter } from "./git-desktop-adapter";
+import { GitMobileAdapter } from "./git-mobile-adapter";
+import { GitStatusMatrix } from "./types";
 
 /**
  * LibraryManager handles Git operations using isomorphic-git.
@@ -19,6 +22,13 @@ import { GitScopeManager } from "./git-scope-manager";
  */
 export class LibraryManager {
     public readonly scopeManager: GitScopeManager;
+    private gitDesktopAdapter: GitDesktopAdapter;
+    private gitMobileAdapter: GitMobileAdapter;
+
+    // Cache includes isFetching lock
+    private cache: Map<string, { dirty: boolean; isFetching: boolean; data: GitStatusMatrix }> = new Map();
+    private windowFocusListener: () => void;
+    private vaultRefs: EventRef[] = [];
 
     constructor(
         private app: App, 
@@ -26,6 +36,21 @@ export class LibraryManager {
         private securityManager: SecurityManager
     ) {
         this.scopeManager = new GitScopeManager(app);
+        this.gitDesktopAdapter = new GitDesktopAdapter();
+        this.gitMobileAdapter = new GitMobileAdapter();
+
+        // Reactive Cache Invalidation Hooks (Stored for Cleanup)
+        this.vaultRefs.push(this.app.vault.on('modify', (file) => this.flagCacheDirty(file.path)));
+        this.vaultRefs.push(this.app.vault.on('create', (file) => this.flagCacheDirty(file.path)));
+        this.vaultRefs.push(this.app.vault.on('delete', (file) => this.flagCacheDirty(file.path)));
+
+        // Window Focus SWR Invalidation (.git blind spot fix)
+        this.windowFocusListener = () => {
+            for (const vaultPath of this.cache.keys()) {
+                this.flagCacheDirtyByPath(vaultPath);
+            }
+        };
+        window.addEventListener('focus', this.windowFocusListener);
     }
 
     /**
@@ -770,63 +795,101 @@ export class LibraryManager {
         }
     }
 
+    private flagCacheDirty(filePath: string) {
+        // locate parent library
+        for (const vaultPath of this.cache.keys()) {
+            if (filePath.startsWith(vaultPath + '/') || filePath === vaultPath) {
+                this.flagCacheDirtyByPath(vaultPath);
+                return;
+            }
+        }
+    }
+
+    public flagCacheDirtyByPath(vaultPath: string) {
+        const currentCache = this.cache.get(vaultPath);
+        if (currentCache) {
+            currentCache.dirty = true;
+        }
+    }
+
     /**
      * Get the Git status for all files in a library.
      */
-    async getFileStatuses(vaultPath: string): Promise<Map<string, 'synced' | 'modified' | 'conflict' | 'untracked'>> {
-        const statusMap = new Map<string, 'synced' | 'modified' | 'conflict' | 'untracked'>();
-        try {
-            const absoluteDir = this.getAbsolutePath(vaultPath);
-            /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-            const matrix = await git.statusMatrix({
-                fs: NodeFsAdapter,
-                dir: absoluteDir
-            });
-            /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+    async getFileStatuses(vaultPath: string): Promise<GitStatusMatrix> {
+        let cached = this.cache.get(vaultPath);
 
-            // Matrix Structure: [filepath, head, workdir, stage]
-            // HEAD (1): 0=absent, 1=present
-            // WORKDIR (2): 0=absent, 1=identical to HEAD, 2=different than HEAD
-            // STAGE (3): 0=absent, 1=identical to HEAD, 2=different than HEAD, 3=conflict
-
-            for (const row of matrix) {
-                const [filepath, head, workdir, stage] = row;
-                if (filepath === '.') continue;
-                
-                // 1. Conflict
-                // Conflict entries have stage > 1, OR specific patterns in matrix like [*, 2, 3] etc.
-                // But isomorphic-git docs say: 
-                // "If stage is 2 (modified) then it's staged."
-                // "If stage is 3 then it is a merge conflict."
-                // Wait, standard docs:
-                // 0: absent, 1: unmodified, 2: modified
-                // If stage > 2? No, stage column in matrix is about index vs head.
-                // Let's rely on standard interpretations:
-                // [1, 2, 1] = modified in workdir, not staged
-                // [1, 2, 2] = modified in workdir, staged
-                // [1, 2, 3] = ? 
-                
-                // Let's simplify:
-                // Untracked: [0, 2, 0] (absent in HEAD, present in WORKDIR, absent in STAGE) - wait stage 0 means absent?
-                // Actually:
-                // 0 = absent, 1 = present, 2 = different
-                
-                // UNTRACKED: [0, 2, 0] or [0, 2, 2] (added)
-                
-                if (head === 0 && workdir === 2) {
-                     statusMap.set(filepath, 'untracked');
-                } else if (workdir === 2 && head === 1) {
-                     statusMap.set(filepath, 'modified');
-                } else if (head === 1 && workdir === 1 && stage === 1) {
-                     statusMap.set(filepath, 'synced');
-            }
-            }
-            
-            console.debug(`[LibraryManager] File statuses for ${vaultPath}:`, statusMap);
-
-        } catch (e) {
-            console.error(`[LibraryManager] Failed to get file statuses for ${vaultPath}`, e);
+        // 1. Return immediately if we have a clean cache
+        if (cached && !cached.dirty) {
+            return cached.data;
         }
-        return statusMap;
+
+        // 2. Dispatch background request if dirty and NOT currently fetching (SWR Concurrency Lock)
+        if (!cached || (!cached.isFetching && cached.dirty)) {
+            // Set up initial cache or lock it
+            if (!cached) {
+                cached = { dirty: true, isFetching: true, data: new Map() };
+                this.cache.set(vaultPath, cached);
+            } else {
+                cached.isFetching = true; // Lock
+            }
+
+            const absoluteDir = this.getAbsolutePath(vaultPath);
+            
+            // Background Promise
+            this.fetchStatusWithFailover(absoluteDir)
+                .then((freshMatrix) => {
+                    const currentCache = this.cache.get(vaultPath);
+                    if (currentCache) { // ensure it wasn't deleted
+                        currentCache.dirty = false;
+                        currentCache.isFetching = false;
+                        currentCache.data = freshMatrix;
+                    }
+                    console.debug(`[LibraryManager] Background git refresh complete for ${vaultPath} (${freshMatrix.size} files)`);
+                    // Emit event silently so VirtualViewportV2 can repaint
+                    this.app.workspace.trigger('abstract-folder:git-refreshed', vaultPath);
+                })
+                .catch((error) => {
+                    console.error(`[LibraryManager] Failed to fetch git status for ${vaultPath}`, error);
+                    // Release the lock so it can try again on the next interaction
+                    const currentCache = this.cache.get(vaultPath);
+                    if (currentCache) {
+                        currentCache.isFetching = false;
+                    }
+                });
+        }
+
+        // 3. Instantly return stale data if we have it (zero blocking!)
+        return cached!.data; // UI renders stale state immediately (<2ms)
+    }
+
+    // Handles the Desktop adapter hard-fails (Fallback)
+    private async fetchStatusWithFailover(absoluteDir: string): Promise<GitStatusMatrix> {
+        if (Platform.isDesktop) {
+            try {
+                const matrix = await this.gitDesktopAdapter.getStatusMatrix(absoluteDir);
+                console.debug(`[LibraryManager] Git status fetched via Desktop Adapter for ${absoluteDir}`);
+                return matrix;
+            } catch (e: any) {
+                if (e.message === 'GIT_NOT_FOUND') {
+                    console.warn(`[LibraryManager] Native git not found for ${absoluteDir}, falling back to isomorphic-git Worker.`);
+                    const matrix = await this.gitMobileAdapter.getStatusMatrix(absoluteDir);
+                    console.debug(`[LibraryManager] Git status fetched via Mobile (Worker) Adapter for ${absoluteDir}`);
+                    return matrix;
+                }
+                throw e;
+            }
+        } else {
+            const matrix = await this.gitMobileAdapter.getStatusMatrix(absoluteDir);
+            console.debug(`[LibraryManager] Git status fetched via Mobile (Worker) Adapter for ${absoluteDir}`);
+            return matrix;
+        }
+    }
+
+    public cleanup() {
+        this.gitMobileAdapter.terminate();
+        window.removeEventListener('focus', this.windowFocusListener);
+
+        // Safely unregister Obsidian events
+        this.vaultRefs.forEach(ref => this.app.vault.offref(ref));
     }
 }

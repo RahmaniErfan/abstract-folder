@@ -394,6 +394,9 @@ this.addCommand({
 
 	onunload() {
 		Logger.debug("Starting onunload...");
+		if (this.libraryManager) {
+			this.libraryManager.cleanup();
+		}
 		Logger.debug("Saving metrics...");
 		void this.metricsManager.saveMetrics();
 		if (this.abstractRibbonIconEl) {

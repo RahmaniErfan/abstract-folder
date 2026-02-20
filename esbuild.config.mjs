@@ -12,6 +12,41 @@ if you want to view the source, please visit the github repository of this plugi
 
 const prod = (process.argv[2] === "production");
 
+try {
+	console.log("Bundling git worker...");
+	// 1. Build the worker to a string conceptually:
+	const workerResult = await esbuild.build({
+		entryPoints: ['src/library/git/git-worker.ts'],
+		bundle: true,
+		write: false,
+		format: 'iife',
+		target: 'es2018',
+		// NodeFsAdapter will probably pull in obsidian, which should be externalized, 
+		// but since we're in a worker we can't easily rely on obsidian module if it requires window/electron.
+		// Actually, let's keep it simple as proposed.
+		external: ['obsidian', 'electron'],
+	});
+	
+	const workerCode = workerResult.outputFiles[0].text;
+	const escapedCode = workerCode.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+	
+	const bundleTemplate = `/*
+THIS IS A GENERATED FILE by esbuild.config.mjs
+Do not edit directly.
+*/
+export function getGitWorkerBlobUrl(): string {
+    const code = \`${escapedCode}\`;
+    const blob = new Blob([code], { type: 'application/javascript' });
+    return URL.createObjectURL(blob);
+}
+`;
+	fs.writeFileSync('src/library/git/git-worker-bundle.ts', bundleTemplate);
+	console.log("Worker bundled successfully.");
+} catch (e) {
+	console.error("Worker bundling failed:", e);
+	process.exit(1);
+}
+
 const context = await esbuild.context({
 	banner: {
 		js: banner,
