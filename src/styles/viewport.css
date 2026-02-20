@@ -45,7 +45,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 2px;
 }
 
 .abstract-folder-search-input {
@@ -112,26 +112,33 @@
 }
 
 .af-item-icon svg {
-    width: 14px !important;
-    height: 14px !important;
+    width: 16px !important;
+    height: 16px !important;
 }
 
 .af-collapse-icon {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 24px !important;
-    height: 24px !important;
+    width: 18px !important;
+    height: 18px !important;
     color: var(--text-muted);
     pointer-events: auto !important;
     cursor: pointer;
-    margin-left: -24px !important; /* Pull it to the left of the icon */
+    margin-left: -18px !important; /* Pull it to the left of the icon */
     z-index: 5 !important;
 }
 
 .af-collapse-icon svg {
+    width: 12px !important;
+    height: 12px !important;
     transition: transform 0.1s ease;
 }
+
+.af-item-icon.abstract-folder-hidden {
+    display: none !important;
+}
+
 
 .af-collapse-icon.is-collapsed svg {
     transform: rotate(-90deg) !important;
@@ -188,12 +195,13 @@
     /* The core indentation logic */
     /* Padding holds the main content (icon/label).
        The chevron uses negative margin to stick out to the left of this padding boundary. */
-    padding-left: calc(24px + var(--depth, 0) * var(--indent-width)) !important;
+    padding-left: calc(22px + var(--depth, 0) * var(--indent-width)) !important;
     z-index: 3;
     background: transparent !important;
     margin: 0 !important; /* Ensure no internal margins */
     box-sizing: border-box !important;
     left: 0 !important; /* Ensure it stays docked to the left */
+    gap: 2px !important; /* Tighter gap between elements */
 }
 
 .af-item:hover {

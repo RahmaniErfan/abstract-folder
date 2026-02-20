@@ -73,6 +73,8 @@ export interface AbstractFolderPluginSettings {
   defaultNewNotePath: string; // Default path for new notes
   anonymizeDebugExport: boolean;
   hideNonMarkdownOrphans: boolean; // Whether to hide non-markdown files that have no parents
+  showFileIcon: boolean; // Whether to show file icons
+  showFolderIcon: boolean; // Whether to show folder icons
   librarySettings: LibrarySettings;
 }
 
@@ -159,6 +161,8 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   defaultNewNotePath: '',
   anonymizeDebugExport: true,
   hideNonMarkdownOrphans: true,
+  showFileIcon: false,
+  showFolderIcon: false,
   librarySettings: {
     librariesPath: "Abstract Library",
     sharedSpacesRoot: "Abstract Spaces",

@@ -49,6 +49,29 @@ export function renderAppearanceSettings(containerEl: HTMLElement, plugin: Abstr
 			}),
 		);
 
+	new Setting(containerEl).setName("Icons").setHeading();
+	new Setting(containerEl)
+		.setName("Show file icon")
+		.setDesc("Whether to show the default file icon.")
+		.addToggle((toggle) =>
+			toggle.setValue(plugin.settings.showFileIcon).onChange(async (value) => {
+				plugin.settings.showFileIcon = value;
+				await plugin.saveSettings();
+				plugin.app.workspace.trigger("abstract-folder:graph-updated");
+			}),
+		);
+
+	new Setting(containerEl)
+		.setName("Show folder icon")
+		.setDesc("Whether to show the default folder icon.")
+		.addToggle((toggle) =>
+			toggle.setValue(plugin.settings.showFolderIcon).onChange(async (value) => {
+				plugin.settings.showFolderIcon = value;
+				await plugin.saveSettings();
+				plugin.app.workspace.trigger("abstract-folder:graph-updated");
+			}),
+		);
+
 	new Setting(containerEl)
 		.setName("Max menu name length")
 		.setDesc("Maximum length of file names shown in menus and dropdowns.")

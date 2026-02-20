@@ -193,7 +193,7 @@ export class VirtualViewport {
     private updateRowContent(el: HTMLElement, node: AbstractNode) {
         // Performance Fingerprint: Skip expensive DOM/SVG logic if state hasn't changed.
         const settings = this.context.settings;
-        const fingerprint = `${node.uri}:${node.name}:${node.syncStatus}:${node.icon}:${node.hasChildren}:${node.level}:${settings.enableRainbowIndents}:${settings.rainbowPalette}:${settings.enablePerItemRainbowColors}`;
+        const fingerprint = `${node.uri}:${node.name}:${node.syncStatus}:${node.icon}:${node.hasChildren}:${node.level}:${settings.enableRainbowIndents}:${settings.rainbowPalette}:${settings.enablePerItemRainbowColors}:${settings.showFileIcon}:${settings.showFolderIcon}`;
         if (el.dataset.fingerprint === fingerprint) return;
         el.dataset.fingerprint = fingerprint;
 
@@ -211,6 +211,7 @@ export class VirtualViewport {
         // 1. Disclosure Arrow (Chevron)
         const arrow = self.querySelector(".af-collapse-icon") as HTMLElement;
         if (arrow) {
+            arrow.classList.remove("abstract-folder-hidden");
             if (node.hasChildren) {
                 // We check if it already has an svg child to avoid redundant setIcon calls
                 if (arrow.children.length === 0) {
@@ -220,9 +221,11 @@ export class VirtualViewport {
                         this.delegate.onItemToggle(node, e);
                     };
                 }
+                arrow.style.removeProperty("display");
                 arrow.style.visibility = 'visible';
             } else {
                 arrow.style.visibility = 'hidden';
+                arrow.style.setProperty("display", "none", "important");
                 arrow.onclick = null;
             }
         }
@@ -231,11 +234,28 @@ export class VirtualViewport {
         const iconEl = self.querySelector(".af-type-icon") as HTMLElement;
         if (iconEl) {
             iconEl.empty();
+            let hasIcon = false;
             if (node.icon) {
                 setIcon(iconEl, node.icon);
+                hasIcon = true;
+            } else if (node.hasChildren) {
+                if (settings.showFolderIcon) {
+                    setIcon(iconEl, "folder");
+                    hasIcon = true;
+                }
             } else {
-                setIcon(iconEl, node.hasChildren ? "folder" : "file-text");
+                
+                if (settings.showFileIcon) {
+                    setIcon(iconEl, "file-text");
+                    hasIcon = true;
+                }
             }
+            if (!hasIcon) {
+                iconEl.style.setProperty("display", "none", "important");
+            } else {
+                iconEl.style.removeProperty("display");
+            }
+            iconEl.classList.toggle("abstract-folder-hidden", !hasIcon);
         }
 
         // 3. Label
@@ -279,7 +299,7 @@ export class VirtualViewport {
                     guide.classList.add(`rainbow-indent-${colorIndex}`);
                 }
                 
-                guide.style.left = `${d * 18 + 12}px`;
+                guide.style.left = `${d * 18 + 13}px`;
                 el.appendChild(guide);
             }
         }
