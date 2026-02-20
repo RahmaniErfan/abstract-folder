@@ -4,6 +4,8 @@ import type AbstractFolderPlugin from "main";
 export async function renderGitHubSettings(containerEl: HTMLElement, plugin: AbstractFolderPlugin) {
 	containerEl.empty();
 
+
+
 	// Test if SecretStorage ACTUALLY works (sometimes present but broken on Linux)
 	let isSecretStorageAvailable = false;
 	let requiresAppBinding = false;
@@ -61,6 +63,49 @@ export async function renderGitHubSettings(containerEl: HTMLElement, plugin: Abs
 		warningEl.createSpan({ 
 			text: "Your token will be saved to your local vault settings because Obsidian's native SecretStorage is unavailable or broken. Please update Obsidian." 
 		});
+	}
+
+	const hasGit = await plugin.libraryManager.detectExistingGit("");
+	const statusBox = containerEl.createDiv({ cls: "abstract-folder-status-box" });
+	statusBox.setAttr("style", "display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 20px; margin-bottom: 24px;");
+
+	const leftArea = statusBox.createDiv();
+	leftArea.setAttr("style", "display: flex; align-items: center; gap: 8px;");
+
+	const tag = leftArea.createEl("div", { 
+		cls: `status-tag ${hasGit ? 'success' : ''}`
+	});
+	tag.setAttr("style", "display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px;");
+	
+	import("obsidian").then(({ setIcon }) => {
+		setIcon(tag.createDiv(), hasGit ? "check-circle" : "alert-circle");
+	});
+	tag.createSpan({ text: hasGit ? "Vault Git Initialized" : "Git Not Initialized" });
+
+	if (hasGit) {
+		const syncBtn = statusBox.createEl("button", { 
+			text: "Sync Now", 
+			cls: "mod-cta"
+		});
+		syncBtn.setAttr("style", "padding: 4px 16px;");
+		syncBtn.addEventListener("click", async () => {
+			syncBtn.disabled = true;
+			syncBtn.innerText = "Syncing...";
+			try {
+				await plugin.libraryManager.syncBackup("");
+				new Notice("Sync complete");
+				renderGitHubSettings(containerEl, plugin);
+			} catch (e) {
+				new Notice(`Sync failed: ${e.message}`);
+				syncBtn.disabled = false;
+				syncBtn.innerText = "Sync Now";
+			}
+		});
+	} else {
+		const helpP = statusBox.createEl("p", { 
+			text: "Backup not configured."
+		});
+		helpP.setAttr("style", "font-size: var(--font-ui-smaller); color: var(--text-muted); margin: 0;");
 	}
 
 	new Setting(containerEl).setName("GitHub Authentication").setHeading();
