@@ -214,7 +214,16 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             this.renderView();
         });
 
-        titleRow.createEl("h3", { text: this.selectedSpace.name, cls: "abstract-folder-header-title" });
+        const meta = this.plugin.graphEngine?.getNodeMeta?.(this.selectedSpace.path);
+        const iconToUse = meta?.icon || "users";
+        
+        const titleEl = titleRow.createEl("h3", { cls: "abstract-folder-header-title" });
+        const iconEl = titleEl.createDiv({ cls: "af-header-icon" });
+        if (!meta?.icon) {
+            iconEl.style.color = "var(--color-purple)";
+        }
+        setIcon(iconEl, iconToUse);
+        titleEl.createSpan({ text: this.selectedSpace.name });
 
         // Pre-fetch ownership and repo info for toolbars
         const status = await this.plugin.libraryManager.isLibraryOwner(this.selectedSpace.path);

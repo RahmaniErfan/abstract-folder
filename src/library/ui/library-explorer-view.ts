@@ -244,7 +244,13 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         });
 
         if (this.selectedLibrary.file instanceof TFolder) {
-            titleRow.createEl("h3", { text: this.selectedLibrary.file.name, cls: "abstract-folder-header-title" });
+            const meta = this.plugin.graphEngine?.getNodeMeta?.(this.selectedLibrary.file.path);
+            const iconToUse = meta?.icon || "library";
+            
+            const titleEl = titleRow.createEl("h3", { cls: "abstract-folder-header-title" });
+            const iconEl = titleEl.createDiv({ cls: "af-header-icon" });
+            setIcon(iconEl, iconToUse);
+            titleEl.createSpan({ text: this.selectedLibrary.file.name });
             
             // Pre-fetch ownership and repo info for toolbars
             const status = await this.plugin.libraryManager.isLibraryOwner(this.selectedLibrary.file.path);

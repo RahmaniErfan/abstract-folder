@@ -121,6 +121,7 @@
 .abstract-folder-header-title-container {
     display: flex;
     align-items: center;
+    justify-content: center;
     width: 100%;
     padding: 6px 12px;
     border-bottom: 1px solid var(--background-modifier-border);
@@ -134,18 +135,32 @@
     z-index: 10;
 }
 
-.abstract-folder-header-title {
+.abstract-library-explorer .abstract-folder-header-title {
     margin: 0 !important;
     font-size: 1.1em;
     font-weight: 600;
-    width: 100%;
-    text-align: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     color: var(--text-normal);
     border-bottom: none !important;
     padding: 0 !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.af-header-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.af-header-icon svg {
+    width: 18px;
+    height: 18px;
 }
 
 .abstract-folder-header-title::after {
