@@ -33,7 +33,7 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 
 	new Setting(containerEl).setName("Abstract Registry & Marketplace").setHeading();
 
-	containerEl.createEl("h3", { text: "Abstract library marketplace" });
+	containerEl.createEl("h3", { text: "Library Catalog Marketplace" });
 
 	new Setting(containerEl)
 		.setName("Official registry URL")
@@ -76,10 +76,10 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 		);
 
 	new Setting(containerEl)
-		.setName("Open library center")
+		.setName("Open official catalog")
 		.setDesc("Discover and install libraries.")
 		.addButton((btn) =>
-			btn.setButtonText("Open center").onClick(() => {
+			btn.setButtonText("Official Catalog").onClick(() => {
 				void plugin.activateLibraryCenter().catch(console.error);
 			}),
 		);

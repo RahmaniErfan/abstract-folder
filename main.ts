@@ -122,7 +122,7 @@ export default class AbstractFolderPlugin extends Plugin {
 
 		this.addCommand({
 			id: "open-library-center",
-			name: "Open library center",
+			name: "Open official catalog",
 			callback: () => {
 				this.activateLibraryCenter().catch(console.error);
 			},
@@ -130,7 +130,7 @@ export default class AbstractFolderPlugin extends Plugin {
 
 		this.addCommand({
 			id: "open-library-explorer",
-			name: "Open library explorer",
+			name: "Open library catalog",
 			callback: () => {
 				this.activateLibraryExplorer().catch(console.error);
 			},
@@ -572,7 +572,7 @@ this.addCommand({
 				});
 			}
 			if (!this.libraryRibbonIconEl) {
-				this.libraryRibbonIconEl = this.addRibbonIcon("library", "Open library explorer", () => {
+				this.libraryRibbonIconEl = this.addRibbonIcon("library", "Open library catalog", () => {
 					this.activateLibraryExplorer().catch(console.error);
 				});
 			}

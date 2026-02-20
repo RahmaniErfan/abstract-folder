@@ -48,7 +48,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     }
 
     getDisplayText(): string {
-        return "Library explorer";
+        return "Library Catalog";
     }
 
     getIcon(): string {
@@ -194,7 +194,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
 
     private async renderShelf(container: HTMLElement) {
         const titleRow = container.createDiv({ cls: "library-shelf-title-row" });
-        titleRow.createEl("h2", { text: "Libraries", cls: "shelf-title" });
+        titleRow.createEl("h2", { text: "Library Catalog", cls: "shelf-title" });
         
         const infoIcon = titleRow.createDiv({ 
             cls: "clickable-icon af-library-info-icon",
@@ -206,15 +206,15 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         });
 
         const searchRow = container.createDiv({ cls: "library-shelf-search-row" });
-        this.renderSearch(searchRow, "Search libraries...", () => {
+        this.renderSearch(searchRow, "Search catalog...", () => {
             void this.refreshShelf(shelfContainer);
         });
 
-        const openCenterBtn = searchRow.createEl("button", {
-            text: "Library center",
+        const officialCatalogBtn = searchRow.createEl("button", {
+            text: "Official Catalog",
             cls: "library-open-center-btn"
         });
-        openCenterBtn.addEventListener("click", () => {
+        officialCatalogBtn.addEventListener("click", () => {
             void this.plugin.activateLibraryCenter();
         });
 
@@ -247,11 +247,11 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
                 container.createEl("p", { text: "No matching libraries found.", cls: "empty-state" });
             } else {
                 container.createEl("p", {
-                    text: "No libraries installed. Visit the library center to discover and install libraries.",
+                    text: "No libraries installed. Visit the official catalog to discover and install libraries.",
                     cls: "empty-state"
                 });
-                const openCenterBtn = container.createEl("button", { text: "Open library center" });
-                openCenterBtn.addEventListener("click", () => {
+                const openCatalogBtn = container.createEl("button", { text: "Open Official Catalog" });
+                openCatalogBtn.addEventListener("click", () => {
                     void this.plugin.activateLibraryCenter();
                 });
             }

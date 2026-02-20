@@ -124,7 +124,7 @@ export function renderAppearanceSettings(containerEl: HTMLElement, plugin: Abstr
 	const views: { id: keyof typeof plugin.settings.visibility; name: string }[] = [
 		{ id: "default", name: "Default" },
 		{ id: "spaces", name: "Spaces" },
-		{ id: "libraries", name: "Libraries" },
+		{ id: "libraries", name: "Library Catalog" },
 	];
 
 	views.forEach((view) => {

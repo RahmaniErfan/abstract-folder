@@ -24,7 +24,7 @@ export class LibraryCenterView extends ItemView {
     }
 
     getDisplayText(): string {
-        return "Library center";
+        return "Official Catalog";
     }
 
     getIcon(): string {
@@ -36,7 +36,7 @@ export class LibraryCenterView extends ItemView {
         container.empty();
         container.addClass("abstract-library-center");
 
-        container.createEl("h2", { text: "Abstract library center" });
+        container.createEl("h2", { text: "Official Catalog" });
 
         const searchContainer = container.createDiv({ cls: "library-search-container" });
         

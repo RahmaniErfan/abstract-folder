@@ -11,43 +11,39 @@ export class LibraryInfoModal extends Modal {
         modalEl.addClass("af-library-info-modal-container");
         contentEl.addClass("af-library-info-modal");
 
-        contentEl.createEl("h2", { text: "Libraries & Catalogs", cls: "af-modal-title" });
+        contentEl.createEl("h2", { text: "Library Catalog & Libraries", cls: "af-modal-title" });
 
         const container = contentEl.createDiv({ cls: "af-info-container" });
 
-        // 1. Overview
-        this.renderSection(container, "Community-Driven Knowledge", "library", 
-            "A Catalog is a curated collection of Libraries. Libraries are community-driven knowledge bases that work similarly to Obsidian's community plugins but for structured data and curated knowledge.");
+        // 1. Catalog vs Library
+        this.renderSection(container, "Catalog vs Library", "library", 
+            "A Catalog is a curated collection of Libraries. The official catalog is managed by Abstract Folder and includes a network of libraries contributed by the maintainers or the community.");
 
-        // 2. Contribution Flow
-        this.renderSection(container, "How to Contribute", "git-pull-request", 
-            "If you want to add a knowledge base (e.g., cooking, software engineering, biology), follow these steps:\n" +
-            "1. Fork the official catalog repository.\n" +
-            "2. Add your library information to the directory index (`directory.json`).\n" +
-            "3. Submit a Pull Request (PR) for review.\n" +
-            "Once reviewed and accepted, your library will be available to all users of that catalog.");
+        // 2. Standalone & Unofficial
+        this.renderSection(container, "Standalone & Unofficial", "info", 
+            "Both catalogs and libraries can be standalone (unofficial). You can maintain your own catalog and allow others to add their libraries to it. A catalog simply consists of a configuration file with links to libraries and their specific details.");
 
-        // 3. Security Section
+        // 3. Catalog Management
+        this.renderSection(container, "GitHub-Based Management", "github", 
+            "Managing your own catalog must be done through GitHub; it cannot be managed directly through Obsidian. This ensures that the directory remains structured and easily accessible for contributors and users alike.");
+
+        // 4. Contribution & Syncing
+        this.renderSection(container, "Contribution & Syncing", "git-branch", 
+            "If you are a contributor to a library, you can easily add it to Abstract Spaces and update things there. Once your library is added to a catalog (such as the official one), other people will sync and see your changes automatically.");
+
+        // 5. Security & Safety
         this.renderSection(container, "Security & Catalog Filtering", "shield-check", 
             "To ensure vault safety, catalogs enforce strict security policies:\n" +
             "• Only specific file types are accepted.\n" +
             "• Unaccepted files or Dataview scripts are filtered out during pull operations to prevent malicious code execution.\n" +
             "• Content is scanned for safety before merging.");
 
-        // 4. Content Safety & Blacklisting
+        // 6. Content Safety & Blacklisting
         this.renderSection(container, "Safety Enforcement", "alert-octagon", 
             "Abstract Folder has a zero-tolerance policy for harmful content (NSFW, illegal, or malicious). Violators will be:\n" +
             "• Permanently blacklisted in the global catalog.\n" +
             "• If harmful content is added to a catalog—even by accident—the entire catalog will be removed and all responsible parties blacklisted.\n" +
             "Maintenance is critical to protecting the community.");
-
-        // 5. Creating & Using Catalogs
-        this.renderSection(container, "Catalog Management", "plus-circle", 
-            "You can contribute to the official catalog or add your own unofficial catalogs:\n" +
-            "1. To create a catalog, use the official Catalog Template.\n" +
-            "2. Submit a PR to the main catalog system to be officially listed.\n" +
-            "3. Alternatively, users can add custom catalog URLs in settings.\n" +
-            "Write access to any catalog is strictly limited to its verified maintainers. Maintainers are fully responsible for all merged content; others contribute via PRs.");
 
         const footer = contentEl.createDiv({ cls: "af-modal-footer" });
         const closeBtn = footer.createEl("button", { text: "Got it", cls: "mod-cta" });
