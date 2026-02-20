@@ -61,36 +61,183 @@
     flex-direction: column;
     overflow: hidden;
     padding: 10px;
+    background-color: var(--background-primary);
+}
+
+.abstract-folder-merge-modal .merge-editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.abstract-folder-merge-modal .merge-editor-header h3 {
+    margin: 0;
 }
 
 .abstract-folder-merge-modal .merge-editor-actions {
     display: flex;
     gap: 10px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--background-modifier-border);
+    align-items: center;
+}
+
+.abstract-folder-merge-modal .merge-nav-group {
+    display: flex;
+    gap: 2px;
+    margin-right: 15px;
+    background-color: var(--background-modifier-border);
+    padding: 2px;
+    border-radius: 4px;
+}
+
+.abstract-folder-merge-modal .merge-nav-group button {
+    background-color: var(--background-secondary);
+    box-shadow: none;
+    padding: 4px 8px;
+}
+
+.abstract-folder-merge-modal .merge-nav-group button:hover {
+    background-color: var(--background-secondary-alt);
+}
+
+/* 3-Pane Layout */
+.abstract-folder-merge-modal .merge-panes-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    margin-top: 10px;
+    gap: 10px;
 }
 
 .abstract-folder-merge-modal .merge-diff-display {
     display: flex;
-    flex: 1;
+    flex: 1; /* Top half */
     gap: 1px;
     background-color: var(--background-modifier-border);
-    margin-top: 10px;
-    overflow: hidden;
+    overflow: auto;
+    border: 1px solid var(--background-modifier-border);
 }
 
 .abstract-folder-merge-modal .diff-col {
     flex: 1;
     background-color: var(--background-primary);
-    padding: 10px;
-    overflow: auto;
 }
 
-.abstract-folder-merge-modal .diff-col pre {
+.abstract-folder-merge-modal .diff-col > strong {
+    display: block;
+    padding: 8px 12px;
+    background-color: var(--background-secondary);
+    border-bottom: 1px solid var(--background-modifier-border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.abstract-folder-merge-modal .diff-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.abstract-folder-merge-modal .diff-line {
+    display: flex;
+    min-height: 1.5em;
+    align-items: center;
+}
+
+.abstract-folder-merge-modal .diff-line-number {
+    width: 40px;
+    min-width: 40px;
+    text-align: right;
+    padding-right: 12px;
+    color: var(--text-muted);
+    user-select: none;
+    font-size: 0.8em;
+    font-family: var(--font-monospace);
+    border-right: 1px solid var(--background-modifier-border);
+    margin-right: 8px;
+    background-color: var(--background-secondary);
+}
+
+.abstract-folder-merge-modal .diff-line pre {
+    flex: 1;
     font-family: var(--font-monospace);
     font-size: 0.85em;
     white-space: pre-wrap;
     margin: 0;
+}
+
+.abstract-folder-merge-modal .diff-line.is-added {
+    background-color: rgba(60, 179, 113, 0.15); /* Softer green */
+}
+
+.abstract-folder-merge-modal .diff-line.is-removed {
+    background-color: rgba(255, 99, 71, 0.15); /* Softer red */
+}
+
+.abstract-folder-merge-modal .diff-line.is-empty {
+    background-color: transparent;
+}
+
+/* Block Actions for Merge Conflicts */
+.abstract-folder-merge-modal .diff-block-actions {
+    display: flex;
+    align-items: center;
+    padding: 2px 8px;
+    background-color: var(--background-secondary-alt);
+    border-top: 1px solid var(--background-modifier-border);
+    border-bottom: 1px solid var(--background-modifier-border);
+    min-height: 28px;
+}
+
+/* VS Code Style Inline Buttons */
+.abstract-folder-merge-modal .inline-action-btn {
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-accent);
+    padding: 2px 6px;
+    font-size: 0.8em;
+    height: auto;
+}
+
+.abstract-folder-merge-modal .inline-action-btn:hover {
+    background-color: var(--background-modifier-hover);
+    text-decoration: underline;
+}
+
+.abstract-folder-merge-modal .diff-block-actions .resolved-badge {
+    font-size: 0.8em;
+    color: var(--text-success);
+    font-weight: bold;
+    margin-right: 8px;
+}
+
+/* Result Preview Container (Bottom Half) */
+.abstract-folder-merge-modal .merge-preview-container {
+    flex: 1; /* Bottom half */
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+    overflow: hidden;
+}
+
+.abstract-folder-merge-modal .merge-preview-container h4 {
+    margin: 0;
+    padding: 8px 12px;
+    background-color: var(--background-secondary);
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.abstract-folder-merge-modal .merge-preview-container pre {
+    flex: 1;
+    margin: 0;
+    padding: 10px;
+    font-family: var(--font-monospace);
+    font-size: 0.85em;
+    white-space: pre-wrap;
+    overflow: auto;
 }
 
 .abstract-folder-merge-modal .merge-footer {

@@ -114,14 +114,14 @@ export class LibraryManager {
     }
 
     private async getToken(): Promise<string | undefined> {
-        if (typeof this.app.secretStorage !== 'undefined') {
+        if (this.app?.secretStorage && typeof this.app.secretStorage.getSecret === 'function') {
             try {
                 return await this.app.secretStorage.getSecret('abstract-folder-github-pat') || undefined;
             } catch (e) {
                 Logger.error("[LibraryManager] Failed to get secret from SecretStorage", e);
             }
         }
-        return this.settings.librarySettings.githubToken;
+        return this.settings?.librarySettings?.githubToken;
     }
 
     /**
@@ -752,13 +752,14 @@ export class LibraryManager {
                 parent: parents 
             });
 
-            // 2. Push the result
+            // 2. Push the result (force to overwrite remote if we resolved conflicts differently)
             await git.push({
                 fs: secureFs,
                 http: ObsidianHttpAdapter as any,
                 dir: absoluteDir,
                 onAuth: token ? () => ({ username: token }) : undefined,
-                remote: 'origin'
+                remote: 'origin',
+                force: true
             });
 
             console.log("[LibraryManager] Merge finalized and pushed successfully.");
