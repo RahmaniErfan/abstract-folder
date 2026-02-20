@@ -60,7 +60,7 @@ export class LibraryManager {
      * Fetch and cache GitHub user info.
      */
     async refreshIdentity(providedToken?: string): Promise<{ login: string; avatar_url: string; name: string | null; email: string | null } | null> {
-        const token = providedToken || this.getToken();
+        const token = providedToken || await this.getToken();
         if (!token) return null;
 
         const userInfo = await AuthService.getUserInfo(token);
@@ -113,8 +113,35 @@ export class LibraryManager {
         }
     }
 
-    private getToken(): string | undefined {
+    private async getToken(): Promise<string | undefined> {
+        if (typeof this.app.secretStorage !== 'undefined') {
+            try {
+                return await this.app.secretStorage.getSecret('abstract-folder-github-pat') || undefined;
+            } catch (e) {
+                Logger.error("[LibraryManager] Failed to get secret from SecretStorage", e);
+            }
+        }
         return this.settings.librarySettings.githubToken;
+    }
+
+    /**
+     * Ensures a token is available, otherwise throws and notifies the user.
+     */
+    private async ensureToken(vaultPath?: string): Promise<string> {
+        const token = await this.getToken();
+        if (!token) {
+            new Notice("🔒 GitHub PAT missing. Please configure it in the Abstract Folder settings to enable Git Sync.");
+            if (vaultPath) this.clearFetchingLock(vaultPath);
+            throw new Error("MISSING_TOKEN");
+        }
+        return token;
+    }
+
+    private clearFetchingLock(vaultPath: string) {
+        const cached = this.cache.get(vaultPath);
+        if (cached) {
+            cached.isFetching = false;
+        }
     }
 
     /**
@@ -135,7 +162,7 @@ export class LibraryManager {
             const absoluteDir = this.getAbsolutePath(destinationPath);
             const secureFs = new SecureFsAdapter(this.securityManager, absoluteDir);
             
-            const tokenToUse = token || this.getToken();
+            const tokenToUse = token || await this.ensureToken(destinationPath);
             
             /* eslint-disable @typescript-eslint/no-unsafe-assignment */
             await git.clone({
@@ -181,6 +208,7 @@ export class LibraryManager {
             
             new Notice(`Library installed: ${destinationPath}`);
         } catch (error) {
+            if (error instanceof Error && error.message === "MISSING_TOKEN") return;
             console.error("Clone failed", error);
             throw error;
         }
@@ -194,7 +222,7 @@ export class LibraryManager {
         try {
             const absoluteDir = this.getAbsolutePath(destinationPath);
             const secureFs = new SecureFsAdapter(this.securityManager, absoluteDir);
-            const tokenToUse = token || this.getToken();
+            const tokenToUse = token || await this.ensureToken(destinationPath);
             
             /* eslint-disable @typescript-eslint/no-unsafe-assignment */
             await git.clone({
@@ -213,6 +241,7 @@ export class LibraryManager {
             
             new Notice(`Shared Space cloned: ${destinationPath}`);
         } catch (error) {
+            if (error instanceof Error && error.message === "MISSING_TOKEN") return;
             console.error("Clone space failed", error);
             throw error;
         }
@@ -225,7 +254,7 @@ export class LibraryManager {
         try {
             const absoluteDir = this.getAbsolutePath(vaultPath);
             const secureFs = new SecureFsAdapter(this.securityManager, absoluteDir);
-            const tokenToUse = token || this.getToken();
+            const tokenToUse = token || await this.ensureToken(vaultPath);
 
             const gitSettings = this.settings.librarySettings;
             const author = {
@@ -262,6 +291,7 @@ export class LibraryManager {
                     return;
                 }
             }
+            if (error instanceof Error && error.message === "MISSING_TOKEN") return;
             console.error("Update failed", error);
             throw error;
         } finally {
@@ -529,7 +559,7 @@ export class LibraryManager {
         try {
             const absoluteDir = this.getAbsolutePath(vaultPath);
             const secureFs = new SecureFsAdapter(this.securityManager, absoluteDir);
-            const tokenToUse = token || this.getToken();
+            const tokenToUse = token || await this.ensureToken();
 
             // 2. Initial safety checks
             await this.ensureGitIgnore(absoluteDir);
@@ -556,6 +586,7 @@ export class LibraryManager {
             
             new Notice(`Backup initialized for ${vaultPath}`);
         } catch (error) {
+            if (error instanceof Error && error.message === "MISSING_TOKEN") return;
             console.error("Backup initialization failed", error);
             throw error;
         }
@@ -568,7 +599,7 @@ export class LibraryManager {
         try {
             const absoluteDir = this.getAbsolutePath(vaultPath);
             const secureFs = new SecureFsAdapter(this.securityManager, absoluteDir);
-            const tokenToUse = token || this.getToken();
+            const tokenToUse = token || await this.ensureToken(vaultPath);
             
             const gitSettings = this.settings.librarySettings;
             const author = { 
@@ -639,13 +670,14 @@ export class LibraryManager {
                     new Notice("Merge conflicts detected during backup. Opening Merge UI...");
                     new MergeModal(this.app, absoluteDir, conflicts, async () => {
                         // After resolution, we must COMMIT the merge to clear the conflict state, then push.
-                        await this.finalizeMerge(absoluteDir, vaultPath, token || this.getToken(), silent);
+                        await this.finalizeMerge(absoluteDir, vaultPath, token || await this.getToken(), silent);
                     }).open();
                     return;
                 } else {
                     console.warn("[LibraryManager] MergeConflictError caught but no conflicts detected by ConflictManager.");
                 }
             }
+            if (error instanceof Error && error.message === "MISSING_TOKEN") return;
             console.error("Sync failed", error);
             throw error;
         } finally {
