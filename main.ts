@@ -325,7 +325,8 @@ this.addCommand({
 		this.setupSyncScheduler();
 
 		// Auto-refresh identity if missing Git info
-		if (this.settings.librarySettings.githubToken && (!this.settings.librarySettings.gitName || !this.settings.librarySettings.gitEmail)) {
+		const token = this.settings.librarySettings.githubToken;
+		if (token && (!this.settings.librarySettings.gitName || !this.settings.librarySettings.gitEmail)) {
 			void this.libraryManager.refreshIdentity().catch(e => Logger.error("Failed to auto-refresh identity", e));
 		}
 	}

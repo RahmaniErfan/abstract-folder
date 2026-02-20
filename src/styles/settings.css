@@ -152,3 +152,18 @@
     border-radius: 8px;
     border: 1px solid var(--background-modifier-border);
 }
+
+/* Rainbow Indent Grouping */
+.af-settings-rainbow-group {
+    margin-left: 20px;
+    border-left: 2px solid var(--interactive-accent);
+    padding-left: 16px;
+    transition: all 0.3s ease;
+}
+
+.af-settings-rainbow-group.is-disabled {
+    opacity: 0.4;
+    pointer-events: none;
+    filter: blur(0.5px);
+    border-left-color: var(--background-modifier-border);
+}

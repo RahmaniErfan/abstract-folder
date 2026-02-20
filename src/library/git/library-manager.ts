@@ -59,8 +59,8 @@ export class LibraryManager {
     /**
      * Fetch and cache GitHub user info.
      */
-    async refreshIdentity(): Promise<{ login: string; avatar_url: string; name: string | null; email: string | null } | null> {
-        const token = this.getToken();
+    async refreshIdentity(providedToken?: string): Promise<{ login: string; avatar_url: string; name: string | null; email: string | null } | null> {
+        const token = providedToken || this.getToken();
         if (!token) return null;
 
         const userInfo = await AuthService.getUserInfo(token);
@@ -114,7 +114,7 @@ export class LibraryManager {
     }
 
     private getToken(): string | undefined {
-        return this.settings.librarySettings?.githubToken;
+        return this.settings.librarySettings.githubToken;
     }
 
     /**

@@ -38,7 +38,7 @@ export class CollaboratorView {
     }
 
     async refreshLists() {
-        const token = this.plugin.settings.librarySettings.githubToken;
+        const token = (this.plugin.libraryManager as any).getToken();
         const remoteUrl = await this.plugin.libraryManager.getRemoteUrl(this.vaultPath);
         
         if (!token || !remoteUrl) {
@@ -170,7 +170,7 @@ export class CollaboratorView {
                 .setCta()
                 .onClick(async () => {
                     if (!inviteName) return;
-                    const token = this.plugin.settings.librarySettings.githubToken;
+                    const token = (this.plugin.libraryManager as any).getToken();
                     const remoteUrl = await this.plugin.libraryManager.getRemoteUrl(this.vaultPath);
                     if (!token || !remoteUrl) return;
 

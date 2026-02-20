@@ -21,10 +21,11 @@ try {
 		write: false,
 		format: 'iife',
 		target: 'es2018',
+		platform: 'node',
 		// NodeFsAdapter will probably pull in obsidian, which should be externalized, 
 		// but since we're in a worker we can't easily rely on obsidian module if it requires window/electron.
 		// Actually, let's keep it simple as proposed.
-		external: ['obsidian', 'electron'],
+		external: ['obsidian', 'electron', ...builtins],
 	});
 	
 	const workerCode = workerResult.outputFiles[0].text;

@@ -127,7 +127,8 @@ export class AbstractFolderStatusBar {
     private isRefreshingIdentity = false;
     public async updateIdentity() {
         this.identityArea.empty();
-        if (!this.settings.librarySettings.githubToken) {
+        const token = (this.plugin.libraryManager as any).getToken();
+        if (!token) {
             this.identityArea.addClass("is-hidden");
             return;
         }
@@ -175,8 +176,9 @@ export class AbstractFolderStatusBar {
         await this.plugin.libraryManager.scopeManager.refreshScope("");
     }
 
-    private updateBadges(state: any) {
-        if (!this.settings.librarySettings.githubToken) {
+    private async updateBadges(state: any) {
+        const token = (this.plugin.libraryManager as any).getToken();
+        if (!token) {
              this.syncArea.addClass("is-hidden");
              this.pushArea.addClass("is-hidden");
              return;

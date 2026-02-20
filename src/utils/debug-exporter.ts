@@ -1,7 +1,7 @@
 import { App, TFolder, Notice, normalizePath, Platform } from "obsidian";
-import { FolderIndexer } from "../indexer";
+import { GraphEngine } from "../core/graph-engine";
 import { AbstractFolderPluginSettings } from "../settings";
-import { VIEW_TYPE_ABSTRACT_FOLDER } from "../view";
+import { VIEW_TYPE_ABSTRACT_FOLDER } from "../ui/view/abstract-folder-view";
 import { getLogs, Logger } from "./logger";
 import { HIDDEN_FOLDER_ID } from "../types";
 
@@ -100,7 +100,23 @@ class Anonymizer {
     }
 
     anonymizeData(data: unknown): unknown {
+        if (!data) return data;
+
+        // CRITICAL: Always redact GitHub token regardless of anonymization setting
+        if (typeof data === "object" && data !== null) {
+            const result: Record<string, unknown> = {};
+            for (const [key, value] of Object.entries(data)) {
+                if (key === "githubToken" && value) {
+                    result[key] = "redacted";
+                } else {
+                    result[key] = this.anonymizeData(value);
+                }
+            }
+            return result;
+        }
+
         if (!this.enabled) return data;
+        
         if (typeof data === "string") {
             // Simple check: if it looks like a path (has / or .md), anonymize it
             if (data.includes("/") || data.endsWith(".md")) {
@@ -111,18 +127,11 @@ class Anonymizer {
         if (Array.isArray(data)) {
             return data.map(item => this.anonymizeData(item));
         }
-        if (typeof data === "object" && data !== null) {
-            const result: Record<string, unknown> = {};
-            for (const [key, value] of Object.entries(data)) {
-                result[key] = this.anonymizeData(value);
-            }
-            return result;
-        }
         return data;
     }
 }
 
-export async function exportDebugDetails(app: App, settings: AbstractFolderPluginSettings, indexer: FolderIndexer) {
+export async function exportDebugDetails(app: App, settings: AbstractFolderPluginSettings, graphEngine: GraphEngine) {
     const internalApp = app as AppWithInternal;
     const anonymizer = new Anonymizer(settings.anonymizeDebugExport);
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -196,24 +205,17 @@ export async function exportDebugDetails(app: App, settings: AbstractFolderPlugi
         await app.vault.create(normalizePath(`${debugFolderPath}/vault_stats.json`), JSON.stringify(vaultStats, null, 2));
 
         // 6. Gather Graph Data (indexer state)
-        const graph = indexer.getGraph();
+        const graphDump = graphEngine.getDiagnosticDump();
         const graphData = {
-            roots: Array.from(graph.roots).map(p => anonymizer.anonymizePath(p)),
-            allFilesCount: graph.allFiles.size,
-            parentToChildren: Object.fromEntries(
-                Object.entries(graph.parentToChildren).map(([parent, children]) => [
-                    anonymizer.anonymizePath(parent),
-                    Array.from(children).map(c => anonymizer.anonymizePath(c))
+            nodes: Object.fromEntries(
+                Object.entries(graphDump).map(([id, data]) => [
+                    anonymizer.anonymizePath(id),
+                    {
+                        parents: data.parents.map(p => anonymizer.anonymizePath(p)),
+                        children: data.children.map(c => anonymizer.anonymizePath(c))
+                    }
                 ])
-            ),
-            childToParents: Object.fromEntries(
-                Array.from(graph.childToParents.entries()).map(([child, parents]) => [
-                    anonymizer.anonymizePath(child),
-                    Array.from(parents).map(p => anonymizer.anonymizePath(p))
-                ])
-            ),
-            cycles: indexer.getCycles().map(cycle => cycle.map(p => anonymizer.anonymizePath(p))),
-            isBuilding: indexer.isGraphBuilding()
+            )
         };
         await app.vault.create(normalizePath(`${debugFolderPath}/graph_state.json`), JSON.stringify(graphData, null, 2));
 
@@ -234,7 +236,7 @@ export async function exportDebugDetails(app: App, settings: AbstractFolderPlugi
                 type: leaf.view.getViewType(),
                 viewStyle: view.settings?.viewStyle,
                 isSearchVisible: view.isSearchVisible,
-                searchQuery: anonymizer.anonymizeData(view.searchInputEl?.value),
+                searchQuery: anonymizer.anonymizeData(view.searchInputEl?.value as any),
                 isConverting: view.isConverting,
                 isLoading: view.isLoading
             };

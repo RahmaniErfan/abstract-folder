@@ -28,7 +28,7 @@ export function renderDebugSettings(containerEl: HTMLElement, plugin: AbstractFo
 				.setButtonText("Export debug folder")
 				.setIcon("download")
 				.onClick(async () => {
-					await exportDebugDetails(plugin.app, plugin.settings, plugin.indexer);
+					await exportDebugDetails(plugin.app, plugin.settings, plugin.graphEngine);
 				}),
 		);
 

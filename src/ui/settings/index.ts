@@ -3,11 +3,11 @@ import type AbstractFolderPlugin from "main";
 import { renderGeneralSettings } from "./sections/general";
 import { renderAppearanceSettings } from "./sections/appearance";
 import { renderBehaviorSettings } from "./sections/behavior";
-import { renderSearchSettings } from "./sections/search";
+import { renderGitHubSettings } from "./sections/github";
 import { renderLibrarySettings } from "./sections/library";
 import { renderDebugSettings } from "./sections/debug";
 
-type SettingsTabId = 'general' | 'appearance' | 'behavior' | 'search' | 'library' | 'debug';
+type SettingsTabId = 'general' | 'appearance' | 'behavior' | 'github' | 'library' | 'debug';
 
 interface SettingsTabConfig {
 	id: SettingsTabId;
@@ -23,7 +23,7 @@ export class ModularSettingsTab extends PluginSettingTab {
 		{ id: 'general', name: 'General', icon: 'settings-2', render: renderGeneralSettings },
 		{ id: 'appearance', name: 'Appearance', icon: 'palette', render: renderAppearanceSettings },
 		{ id: 'behavior', name: 'Behavior', icon: 'zap', render: renderBehaviorSettings },
-		{ id: 'search', name: 'Search', icon: 'search', render: renderSearchSettings },
+		{ id: 'github', name: 'GitHub', icon: 'github', render: renderGitHubSettings },
 		{ id: 'library', name: 'Library', icon: 'library', render: renderLibrarySettings },
 		{ id: 'debug', name: 'Debug', icon: 'bug', render: renderDebugSettings },
 	];

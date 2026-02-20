@@ -78,7 +78,7 @@ export class LinkSharedSpaceModal extends Modal {
                     .setButtonText(this.autoCreate ? "Create & Publish" : "Link & Sync")
                     .setCta()
                     .onClick(async () => {
-                        const token = this.plugin.settings.librarySettings.githubToken;
+                        const token = (this.plugin.libraryManager as any).getToken();
                         if (!token) {
                             new Notice("GitHub token missing. Please authenticate in settings.");
                             return;

@@ -39,7 +39,7 @@ export class UnifiedDashboardView {
                 if (match) {
                     const owner = match[1];
                     const repo = match[2];
-                    const token = this.plugin.settings.librarySettings.githubToken;
+                    const token = (this.plugin.libraryManager as any).getToken();
                     if (token) {
                         try {
                             const { AuthService } = await import("../../library/services/auth-service");
@@ -157,7 +157,7 @@ export class UnifiedDashboardView {
                 .setButtonText("Initialize Backup")
                 .setCta()
                 .onClick(async () => {
-                    const token = this.plugin.settings.librarySettings.githubToken;
+                    const token = (this.plugin.libraryManager as any).getToken();
                     if (!token) {
                         new Notice("GitHub PAT not found. Please configure it in settings.");
                         return;

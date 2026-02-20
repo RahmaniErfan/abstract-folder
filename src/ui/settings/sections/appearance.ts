@@ -3,6 +3,7 @@ import type AbstractFolderPlugin from "main";
 import { VisibilitySettings } from "../../../settings";
 
 export function renderAppearanceSettings(containerEl: HTMLElement, plugin: AbstractFolderPlugin) {
+	containerEl.empty();
 	new Setting(containerEl).setName("Appearance").setHeading();
 
 	new Setting(containerEl)
@@ -13,10 +14,15 @@ export function renderAppearanceSettings(containerEl: HTMLElement, plugin: Abstr
 				plugin.settings.enableRainbowIndents = value;
 				await plugin.saveSettings();
 				plugin.app.workspace.trigger("abstract-folder:graph-updated");
+				renderAppearanceSettings(containerEl, plugin); // Re-render to update visibility
 			}),
 		);
 
-	new Setting(containerEl)
+	const rainbowGroup = containerEl.createDiv({ 
+		cls: `af-settings-rainbow-group ${!plugin.settings.enableRainbowIndents ? 'is-disabled' : ''}` 
+	});
+
+	new Setting(rainbowGroup)
 		.setName("Rainbow palette")
 		.setDesc("The color palette for rainbow indents.")
 		.addDropdown((dropdown) =>
@@ -32,7 +38,7 @@ export function renderAppearanceSettings(containerEl: HTMLElement, plugin: Abstr
 				}),
 		);
 
-	new Setting(containerEl)
+	new Setting(rainbowGroup)
 		.setName("Enable per-item rainbow colors")
 		.setDesc("Use varied colors for indentation guides of sibling items.")
 		.addToggle((toggle) =>
