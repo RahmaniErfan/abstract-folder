@@ -299,6 +299,33 @@ export class ContextEngine extends EventEmitter {
         return this.state.focusedURI === uri;
     }
 
+    /**
+     * Viewport Gating Optimization: 
+     * Returns a Set of the physical repository root paths that are currently visible/expanded.
+     * This allows background processes (like Git) to only fetch data for folders the user is actually looking at.
+     */
+    getActiveRepositoryPaths(): Set<string> {
+        const activeRoots = new Set<string>();
+
+        // If this is the global view, the relevant repository is the vault root ("").
+        if (this.scope === 'global') {
+            activeRoots.add("");
+        }
+
+        for (const uri of this.state.expandedURIs) {
+            // URIs are often formatted like "library:Path/To/Repo" or "space:Path/To/Repo"
+            // We isolate the physical path part.
+            const parts = uri.split(':');
+            const pathPart = parts.length > 1 ? parts.slice(1).join(':') : uri;
+            
+            // To be safe, we also include the path itself, and maybe its top-level root
+            // If the URI is "space:Abstract Spaces/Test Space/Folder", the repo root is "Abstract Spaces/Test Space"
+            // For now, returning the raw parsed path allows LibraryManager to check if this path startsWith the repo root.
+            activeRoots.add(pathPart);
+        }
+        return activeRoots;
+    }
+
     // =========================================================================================
     // State Repair Cycle
     // =========================================================================================

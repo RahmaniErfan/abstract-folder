@@ -57,6 +57,29 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         this.registerEvent(this.app.workspace.on("abstract-folder:library-changed", () => {
             this.renderView();
         }));
+        // @ts-ignore - Internal workspace event
+        this.registerEvent(this.app.workspace.on("abstract-folder:git-refreshed", async (vaultPath?: string) => {
+            // Surgical DOM Repainting
+            // We only need to repaint if we are actually looking at the repo that changed
+            if (this.selectedLibrary && this.selectedLibrary.file && this.viewport && vaultPath) {
+                const repoPath = this.selectedLibrary.file.path;
+                if (vaultPath.startsWith(repoPath) || repoPath.startsWith(vaultPath)) {
+                    // 1. Fetch the fresh matrix to update the underlying AbstractNode data model
+                    const matrix = await this.plugin.libraryManager.getFileStatuses(repoPath);
+                    
+                    // 2. Update the syncStatus on our current flat list of nodes
+                    for (const node of this.currentItems) {
+                        const relativePath = (repoPath !== "" && node.id.startsWith(repoPath)) ? 
+                            (node.id === repoPath ? "" : node.id.substring(repoPath.length + 1)) : node.id;
+                        const status = matrix.get(relativePath);
+                        node.syncStatus = status || undefined;
+                    }
+                    
+                    // 3. Command the VirtualViewport to surgically repaint only what's on screen
+                    this.viewport.forceUpdateVisibleRows();
+                }
+            }
+        }));
         this.renderView();
     }
 

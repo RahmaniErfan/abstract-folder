@@ -224,10 +224,14 @@ export class TreeBuilder {
 
             // 2. Rendering Decision
             let syncStatus: any = undefined;
-            if (syncStatusMap && scopedPath !== undefined) {
-                const relativePath = (scopedPath !== "" && id.startsWith(scopedPath)) ? 
-                    (id === scopedPath ? "" : id.substring(scopedPath.length + 1)) : id;
-                syncStatus = syncStatusMap.get(relativePath);
+            if (scopedPath !== "") {
+                if (syncStatusMap && scopedPath !== undefined) {
+                    const relativePath = (id === scopedPath ? "" : id.substring(scopedPath.length + 1));
+                    syncStatus = syncStatusMap.get(relativePath);
+                }
+            } else {
+                // Global view: resolve only against the vault root repository
+                syncStatus = syncStatusMap ? syncStatusMap.get(id) : undefined;
             }
 
             items.push({

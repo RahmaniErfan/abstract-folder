@@ -4,5 +4,5 @@ export interface IGitStatusAdapter {
     /**
      * Retrieves the status matrix for the repository.
      */
-    getStatusMatrix(absoluteDir: string): Promise<GitStatusMatrix>;
+    getStatusMatrix(absoluteDir: string, ignoredPaths?: string[]): Promise<GitStatusMatrix>;
 }

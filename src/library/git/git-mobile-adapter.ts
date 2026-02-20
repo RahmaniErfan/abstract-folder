@@ -19,7 +19,7 @@ export class GitMobileAdapter implements IGitStatusAdapter {
         }
     }
 
-    async getStatusMatrix(absoluteDir: string): Promise<GitStatusMatrix> {
+    async getStatusMatrix(absoluteDir: string, ignoredPaths?: string[]): Promise<GitStatusMatrix> {
         if (!this.worker) {
             console.warn('[GitMobileAdapter] Worker not running, returning empty status map.');
             return new Map();
@@ -42,7 +42,7 @@ export class GitMobileAdapter implements IGitStatusAdapter {
             };
 
             this.worker!.addEventListener('message', listener);
-            this.worker!.postMessage({ action: 'getStatusMatrix', absoluteDir, nonce: tempNonce });
+            this.worker!.postMessage({ action: 'getStatusMatrix', absoluteDir, ignoredPaths, nonce: tempNonce });
         });
     }
 

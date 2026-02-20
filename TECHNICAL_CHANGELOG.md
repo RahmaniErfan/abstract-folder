@@ -1,5 +1,23 @@
 # Technical Changelog
 
+## [2026-02-20] Smart Background Git Coordinator & Reactive Sync Indicators
+
+### 1. The Smart Background Coordinator
+*   **Idle-Detection Debouncing**: Implemented repo-specific timers in `LibraryManager`. Git status fetches now only trigger after 3 seconds of user inactivity, preventing CPU thrashing during aggressive auto-saves.
+*   **Longest-Prefix Match (LPM)**: Refactored cache invalidation logic to prioritize the most specific sub-repository (Spaces/Libraries) over the vault root, eliminating redundant "double-sync" processes.
+
+### 2. Viewport Gating Optimization
+*   **Active Path Detection**: Added `getActiveRepositoryPaths()` to `ContextEngine`. Background Git fetches are now suppressed unless the affected repository is currently visible/expanded in an active view.
+*   **Default View Scoping**: Corrected the default view to reliably trigger background fetches for the personal documents (vault root) while respecting gating for nested spaces.
+
+### 3. Surgical Data-Driven Repainting
+*   **Decoupled UI Flow**: Replaced naive DOM manipulation with a data-driven approach. Views now listen to the `abstract-folder:git-refreshed` event and update the `syncStatus` on the `AbstractNode` model.
+*   **Virtual Viewport Integration**: Leveraged `viewport.forceUpdateVisibleRows()` to trigger instant, coordinate-accurate repaints of Git icons without full tree reconstructions or DOM race conditions.
+
+### 4. High-Performance Sub-Repo Exclusion
+*   **Filter Injection**: Enhanced `GitMobileAdapter` (and its Web Worker) to accept a list of ignored paths.
+*   **JS Crawler Filtering**: Implemented a high-performance exclusion filter in `isomorphic-git.statusMatrix`. This actively blocks the JS crawler from entering sub-repository directories, drastically reducing scan times for the primary vault.
+
 ## [2026-02-18] Git Merge Conflict Resolution System
 
 ### 1. Conflict Logic Layer (`ConflictManager`)

@@ -117,6 +117,26 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
             this.debouncedRefreshTree({ repair: true });
         }));
 
+        this.registerEvent(
+            (this.app.workspace as any).on('abstract-folder:git-refreshed', async (vaultPath?: string) => {
+                // Surgical DOM Repainting for Personal Documents (Vault Root)
+                // We only need to repaint if the repository that refreshed is the vault root repo.
+                if (this.currentSnapshot && this.viewport && vaultPath === "") {
+                    // 1. Fetch the fresh matrix for the vault root
+                    const matrix = await this.plugin.libraryManager.getFileStatuses("");
+                    
+                    // 2. Update the syncStatus on our current flat list of nodes
+                    for (const node of this.currentSnapshot.items) {
+                        const status = matrix.get(node.id);
+                        node.syncStatus = status || undefined;
+                    }
+                    
+                    // 3. Command the VirtualViewport to surgically repaint only what's on screen
+                    this.viewport.forceUpdateVisibleRows();
+                }
+            })
+        );
+
         // Initial build
         Logger.debug("[Abstract Folder] View: Initial refreshTree starting during onOpen...");
         await this.refreshTree();

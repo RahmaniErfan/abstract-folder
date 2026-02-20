@@ -33,11 +33,19 @@ self.onmessage = async (e: MessageEvent) => {
     const { action, absoluteDir, nonce } = e.data;
     
     if (action === 'getStatusMatrix') {
+        const { absoluteDir, ignoredPaths, nonce } = e.data;
         try {
             /* eslint-disable @typescript-eslint/no-unsafe-assignment */
             const matrix = await git.statusMatrix({
                 fs: NodeFsAdapter,
-                dir: absoluteDir
+                dir: absoluteDir,
+                filter: (filepath) => {
+                    if (!ignoredPaths || ignoredPaths.length === 0) return true;
+                    // Optimization: High-performance filter to actively block JS crawler from entering sub-repositories
+                    return !ignoredPaths.some((ignored: string) => {
+                        return filepath === ignored || filepath.startsWith(ignored + '/');
+                    });
+                }
             });
             /* eslint-enable @typescript-eslint/no-unsafe-assignment */
             

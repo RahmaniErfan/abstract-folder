@@ -70,6 +70,31 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
                 }
             })
         );
+
+        // Listen for git status updates
+        this.registerEvent(
+            (this.app.workspace as any).on("abstract-folder:git-refreshed", async (vaultPath?: string) => {
+                // Surgical DOM Repainting
+                if (this.selectedSpace && this.viewport && vaultPath) {
+                    const repoPath = this.selectedSpace.path;
+                    if (vaultPath.startsWith(repoPath) || repoPath.startsWith(vaultPath)) {
+                        // 1. Fetch the fresh matrix to update the underlying AbstractNode data model
+                        const matrix = await this.plugin.libraryManager.getFileStatuses(repoPath);
+                        
+                        // 2. Update the syncStatus on our current flat list of nodes
+                        for (const node of this.currentItems) {
+                            const relativePath = (repoPath !== "" && node.id.startsWith(repoPath)) ? 
+                                (node.id === repoPath ? "" : node.id.substring(repoPath.length + 1)) : node.id;
+                            const status = matrix.get(relativePath);
+                            node.syncStatus = status || undefined;
+                        }
+                        
+                        // 3. Command the VirtualViewport to surgically repaint only what's on screen
+                        this.viewport.forceUpdateVisibleRows();
+                    }
+                }
+            })
+        );
     }
 
     private renderView() {

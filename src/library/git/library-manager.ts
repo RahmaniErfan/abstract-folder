@@ -15,6 +15,7 @@ import { GitScopeManager } from "./git-scope-manager";
 import { GitDesktopAdapter } from "./git-desktop-adapter";
 import { GitMobileAdapter } from "./git-mobile-adapter";
 import { GitStatusMatrix } from "./types";
+import { Logger } from "../../utils/logger";
 
 /**
  * LibraryManager handles Git operations using isomorphic-git.
@@ -27,6 +28,8 @@ export class LibraryManager {
 
     // Cache includes isFetching lock
     private cache: Map<string, { dirty: boolean; isFetching: boolean; data: GitStatusMatrix }> = new Map();
+    // Idle-Detection Debouncer Map for Smart Background Sync
+    private syncTimers: Map<string, NodeJS.Timeout> = new Map();
     private windowFocusListener: () => void;
     private vaultRefs: EventRef[] = [];
 
@@ -796,9 +799,13 @@ export class LibraryManager {
     }
 
     private flagCacheDirty(filePath: string) {
-        // locate parent library
-        for (const vaultPath of this.cache.keys()) {
-            if (filePath.startsWith(vaultPath + '/') || filePath === vaultPath) {
+        // Longest-Prefix Match: Implement by sorting keys by length descending
+        // to ensure specific sub-repos (spaces/libraries) are prioritized over the vault root ("").
+        const sortedRepos = Array.from(this.cache.keys()).sort((a, b) => b.length - a.length);
+
+        for (const vaultPath of sortedRepos) {
+            if (filePath.startsWith(vaultPath + '/') || filePath === vaultPath || (vaultPath === "" && filePath !== "")) {
+                Logger.debug(`[LibraryManager] Flagging cache dirty for repo: "${vaultPath}" due to file: ${filePath}`);
                 this.flagCacheDirtyByPath(vaultPath);
                 return;
             }
@@ -810,6 +817,40 @@ export class LibraryManager {
         if (currentCache) {
             currentCache.dirty = true;
         }
+
+        // Smart Background Coordinator: Idle-Detection Debouncer
+        // If a user keeps typing, we clear and reset the 3-second timer.
+        if (this.syncTimers.has(vaultPath)) {
+            clearTimeout(this.syncTimers.get(vaultPath)!);
+        }
+        
+        const timer = setTimeout(() => {
+            this.syncTimers.delete(vaultPath);
+            // Proactive sync
+            void this.getFileStatuses(vaultPath);
+        }, 3000); // 3 seconds of idle time required
+        
+        this.syncTimers.set(vaultPath, timer);
+    }
+
+    /**
+     * Retrieves the instantly accessible cached Git status for any file path,
+     * interrogating out all known sub-repositories (spaces/libraries).
+     */
+    public getCachedStatusForPath(filePath: string): 'synced' | 'modified' | 'conflict' | 'untracked' | null {
+        // Sort by length descending to match the most specific sub-repo first
+        const sortedRepos = Array.from(this.cache.keys()).sort((a, b) => b.length - a.length);
+        for (const repoPath of sortedRepos) {
+            if (repoPath === "" || filePath === repoPath || filePath.startsWith(repoPath + '/')) {
+                const cache = this.cache.get(repoPath);
+                if (!cache) continue;
+                
+                const relativePath = repoPath === "" ? filePath : (filePath === repoPath ? "" : filePath.substring(repoPath.length + 1));
+                const status = cache.data.get(relativePath);
+                if (status) return status;
+            }
+        }
+        return null;
     }
 
     /**
@@ -825,6 +866,36 @@ export class LibraryManager {
 
         // 2. Dispatch background request if dirty and NOT currently fetching (SWR Concurrency Lock)
         if (!cached || (!cached.isFetching && cached.dirty)) {
+            // Viewport Gating Optimization
+            // We only actually fetch if the user is looking at this repository or its children.
+            // If they aren't, we leave the cache marked 'dirty' for later.
+            let isVisible = false;
+            // The Library Explorer and Spaces Explorer both use 'ContextEngine'. 
+            // We can look at the workspaces to find active Explorers.
+            const leaves = this.app.workspace.getLeavesOfType("abstract-folder-view").concat(
+                this.app.workspace.getLeavesOfType("abstract-spaces-explorer"),
+                this.app.workspace.getLeavesOfType("abstract-library-explorer")
+            );
+            
+            for (const leaf of leaves) {
+                const view = leaf.view as any;
+                if (view.contextEngine) {
+                    const activePaths = view.contextEngine.getActiveRepositoryPaths();
+                    // Just being conservative: 
+                    // If the root is in the active set or size is 0 (root folder is selected/expanded), it's visible.
+                    // For spaces/libraries, the root itself is usually the scope.
+                    if (activePaths.size === 0 || Array.from(activePaths).some((p: string) => p.startsWith(vaultPath) || vaultPath.startsWith(p))) {
+                        isVisible = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!isVisible && cached) {
+               // Leave dirty for when user expands it
+               return cached.data;
+            }
+
             // Set up initial cache or lock it
             if (!cached) {
                 cached = { dirty: true, isFetching: true, data: new Map() };
@@ -835,8 +906,22 @@ export class LibraryManager {
 
             const absoluteDir = this.getAbsolutePath(vaultPath);
             
+            // Calculate sub-repository exclusions to optimize fetches (especially for mobile/isomorphic-git)
+            const ignoredPaths: string[] = [];
+            for (const otherPath of this.cache.keys()) {
+                if (otherPath === vaultPath) continue;
+                
+                if (vaultPath === "") {
+                    // Root repo: ignore all other specific repositories
+                    ignoredPaths.push(otherPath);
+                } else if (otherPath.startsWith(vaultPath + "/")) {
+                    // Scoped repo: ignore any nested repositories
+                    ignoredPaths.push(otherPath.substring(vaultPath.length + 1));
+                }
+            }
+
             // Background Promise
-            this.fetchStatusWithFailover(absoluteDir)
+            this.fetchStatusWithFailover(absoluteDir, ignoredPaths)
                 .then((freshMatrix) => {
                     const currentCache = this.cache.get(vaultPath);
                     if (currentCache) { // ensure it wasn't deleted
@@ -863,23 +948,23 @@ export class LibraryManager {
     }
 
     // Handles the Desktop adapter hard-fails (Fallback)
-    private async fetchStatusWithFailover(absoluteDir: string): Promise<GitStatusMatrix> {
+    private async fetchStatusWithFailover(absoluteDir: string, ignoredPaths?: string[]): Promise<GitStatusMatrix> {
         if (Platform.isDesktop) {
             try {
-                const matrix = await this.gitDesktopAdapter.getStatusMatrix(absoluteDir);
+                const matrix = await this.gitDesktopAdapter.getStatusMatrix(absoluteDir, ignoredPaths);
                 console.debug(`[LibraryManager] Git status fetched via Desktop Adapter for ${absoluteDir}`);
                 return matrix;
             } catch (e: any) {
                 if (e.message === 'GIT_NOT_FOUND') {
                     console.warn(`[LibraryManager] Native git not found for ${absoluteDir}, falling back to isomorphic-git Worker.`);
-                    const matrix = await this.gitMobileAdapter.getStatusMatrix(absoluteDir);
+                    const matrix = await this.gitMobileAdapter.getStatusMatrix(absoluteDir, ignoredPaths);
                     console.debug(`[LibraryManager] Git status fetched via Mobile (Worker) Adapter for ${absoluteDir}`);
                     return matrix;
                 }
                 throw e;
             }
         } else {
-            const matrix = await this.gitMobileAdapter.getStatusMatrix(absoluteDir);
+            const matrix = await this.gitMobileAdapter.getStatusMatrix(absoluteDir, ignoredPaths);
             console.debug(`[LibraryManager] Git status fetched via Mobile (Worker) Adapter for ${absoluteDir}`);
             return matrix;
         }

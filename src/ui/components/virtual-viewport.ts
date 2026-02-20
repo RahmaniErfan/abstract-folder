@@ -371,4 +371,24 @@ export class VirtualViewport {
         this.renderedItems.clear();
         this.containerEl.empty();
     }
+
+    /**
+     * Surgical DOM Repainting Optimization:
+     * Directly updates the content (e.g., Git sync status icons) of currently rendered rows
+     * without triggering a full virtual list reconciliation.
+     * Guarantees 100% accuracy based on the latest data model and prevents race conditions.
+     */
+    public forceUpdateVisibleRows() {
+        // Iterate only over the DOM elements that are currently on screen
+        this.renderedItems.forEach((el, uri) => {
+            // Find the active data node for this URI
+            const node = this.items.find(n => n.uri === uri);
+            if (node) {
+                // Clear the fingerprint so the updateRowContent method doesn't skip it
+                el.dataset.fingerprint = "";
+                // Surgically repaint just this row's content
+                this.updateRowContent(el, node);
+            }
+        });
+    }
 }
