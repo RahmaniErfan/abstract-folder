@@ -70,6 +70,7 @@ export class ModularSettingsTab extends PluginSettingTab {
 			tabBtn.onClickEvent(() => {
 				this.activeTab = config.id;
 				this.display();
+				this.containerEl.scrollTo(0, 0);
 			});
 		});
 	}

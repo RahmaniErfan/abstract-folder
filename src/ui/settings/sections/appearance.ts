@@ -1,5 +1,6 @@
 import { Setting } from "obsidian";
 import type AbstractFolderPlugin from "main";
+import { VisibilitySettings } from "../../../settings";
 
 export function renderAppearanceSettings(containerEl: HTMLElement, plugin: AbstractFolderPlugin) {
 	new Setting(containerEl).setName("Appearance").setHeading();
@@ -56,104 +57,59 @@ export function renderAppearanceSettings(containerEl: HTMLElement, plugin: Abstr
 				}),
 		);
 
-	new Setting(containerEl).setName("Visibility").setHeading();
+	const visibilityHeader = containerEl.createDiv({ cls: "af-settings-visibility-header" });
+	visibilityHeader.createDiv({ cls: "af-settings-visibility-title", text: "Visibility" });
+	const visibilityContent = containerEl.createDiv({ cls: "af-settings-visibility-content" });
 
-	new Setting(containerEl)
-		.setName("Show focus active file button")
-		.setDesc("Show the button to focus the active file in the abstract tree.")
-		.addToggle((toggle) =>
-			toggle.setValue(plugin.settings.showFocusActiveFileButton).onChange(async (value) => {
-				plugin.settings.showFocusActiveFileButton = value;
-				await plugin.saveSettings();
-				plugin.app.workspace.trigger("abstract-folder:graph-updated");
-			}),
-		);
+	let activeView: keyof typeof plugin.settings.visibility = "default";
 
-	new Setting(containerEl)
-		.setName("Show search bar header")
-		.setDesc("Show the search bar and filter/sort buttons.")
-		.addToggle((toggle) =>
-			toggle.setValue(plugin.settings.showSearchHeader).onChange(async (value) => {
-				plugin.settings.showSearchHeader = value;
-				await plugin.saveSettings();
-				plugin.app.workspace.trigger("abstract-folder:graph-updated");
-			}),
-		);
+	const renderVisibilityControls = (viewType: keyof typeof plugin.settings.visibility) => {
+		visibilityContent.empty();
+		const config = plugin.settings.visibility[viewType];
 
-	new Setting(containerEl)
-		.setName("Show group button")
-		.setDesc("Show the button to manage groups.")
-		.addToggle((toggle) =>
-			toggle.setValue(plugin.settings.showGroupButton).onChange(async (value) => {
-				plugin.settings.showGroupButton = value;
-				await plugin.saveSettings();
-				plugin.app.workspace.trigger("abstract-folder:graph-updated");
-			}),
-		);
+		const createToggle = (name: string, desc: string, key: keyof VisibilitySettings) => {
+			new Setting(visibilityContent)
+				.setName(name)
+				.setDesc(desc)
+				.addToggle((toggle) =>
+					toggle.setValue(config[key as string]).onChange(async (value) => {
+						config[key as string] = value;
+						await plugin.saveSettings();
+						plugin.app.workspace.trigger("abstract-folder:graph-updated");
+					}),
+				);
+		};
 
-	new Setting(containerEl)
-		.setName("Show create note button")
-		.setDesc("Show the button to create a new abstract note.")
-		.addToggle((toggle) =>
-			toggle.setValue(plugin.settings.showCreateNoteButton).onChange(async (value) => {
-				plugin.settings.showCreateNoteButton = value;
-				await plugin.saveSettings();
-				plugin.app.workspace.trigger("abstract-folder:graph-updated");
-			}),
-		);
+		createToggle("Show search header", "Show the search bar and filter/sort buttons.", "showSearchHeader");
+		createToggle("Show focus active file button", "Show the button to focus the active file.", "showFocusActiveFileButton");
+		createToggle("Show create note button", "Show the button to create a new note.", "showCreateNoteButton");
+		createToggle("Show group button", "Show the button to manage groups.", "showGroupButton");
+		createToggle("Show filter button", "Show the button to filter files.", "showFilterButton");
+		createToggle("Show sort button", "Show the button to change sorting.", "showSortButton");
+		createToggle("Show expand all button", "Show the button to expand all folders.", "showExpandAllButton");
+		createToggle("Show collapse all button", "Show the button to collapse all folders.", "showCollapseAllButton");
+		createToggle("Show conversion button", "Show the button to convert folders.", "showConversionButton");
+	};
 
-	new Setting(containerEl)
-		.setName("Show conversion button")
-		.setDesc("Show the button to convert folders to plugin format.")
-		.addToggle((toggle) =>
-			toggle.setValue(plugin.settings.showConversionButton).onChange(async (value) => {
-				plugin.settings.showConversionButton = value;
-				await plugin.saveSettings();
-				plugin.app.workspace.trigger("abstract-folder:graph-updated");
-			}),
-		);
+	const tabContainer = visibilityHeader.createDiv({ cls: "af-visibility-tabs" });
+	const views: { id: keyof typeof plugin.settings.visibility; name: string }[] = [
+		{ id: "default", name: "Default" },
+		{ id: "spaces", name: "Spaces" },
+		{ id: "libraries", name: "Libraries" },
+	];
 
-	new Setting(containerEl)
-		.setName("Show collapse all button")
-		.setDesc("Show the button to collapse all folders.")
-		.addToggle((toggle) =>
-			toggle.setValue(plugin.settings.showCollapseAllButton).onChange(async (value) => {
-				plugin.settings.showCollapseAllButton = value;
-				await plugin.saveSettings();
-				plugin.app.workspace.trigger("abstract-folder:graph-updated");
-			}),
-		);
+	views.forEach((view) => {
+		const tabBtn = tabContainer.createDiv({
+			cls: `af-visibility-tab ${activeView === view.id ? "is-active" : ""}`,
+			text: view.name,
+		});
+		tabBtn.onClickEvent(() => {
+			activeView = view.id;
+			tabContainer.querySelectorAll(".af-visibility-tab").forEach((el) => el.removeClass("is-active"));
+			tabBtn.addClass("is-active");
+			renderVisibilityControls(activeView);
+		});
+	});
 
-	new Setting(containerEl)
-		.setName("Show expand all button")
-		.setDesc("Show the button to expand all folders.")
-		.addToggle((toggle) =>
-			toggle.setValue(plugin.settings.showExpandAllButton).onChange(async (value) => {
-				plugin.settings.showExpandAllButton = value;
-				await plugin.saveSettings();
-				plugin.app.workspace.trigger("abstract-folder:graph-updated");
-			}),
-		);
-
-	new Setting(containerEl)
-		.setName("Show sort button")
-		.setDesc("Show the button to change sorting.")
-		.addToggle((toggle) =>
-			toggle.setValue(plugin.settings.showSortButton).onChange(async (value) => {
-				plugin.settings.showSortButton = value;
-				await plugin.saveSettings();
-				plugin.app.workspace.trigger("abstract-folder:graph-updated");
-			}),
-		);
-
-	new Setting(containerEl)
-		.setName("Show filter button")
-		.setDesc("Show the button to filter files.")
-		.addToggle((toggle) =>
-			toggle.setValue(plugin.settings.showFilterButton).onChange(async (value) => {
-				plugin.settings.showFilterButton = value;
-				await plugin.saveSettings();
-				plugin.app.workspace.trigger("abstract-folder:graph-updated");
-			}),
-		);
+	renderVisibilityControls(activeView);
 }

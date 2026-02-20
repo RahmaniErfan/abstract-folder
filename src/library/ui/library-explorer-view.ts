@@ -419,6 +419,8 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             this.contextEngine.getState().activeGroupId
         );
 
+        const visibility = this.plugin.settings.visibility.libraries;
+
         new AbstractFolderToolbar(
             this.app,
             this.plugin.settings,
@@ -427,14 +429,14 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             {
                 containerEl: toolbarContainer,
                 provider: provider,
-                showFocusButton: false,
-                showConversionButton: false,
-                showCollapseButton: true,
-                showExpandButton: true,
-                showSortButton: true,
-                showFilterButton: true,
-                showGroupButton: true, // Groups enabled
-                showCreateNoteButton: this.isOwner,
+                showFocusButton: visibility.showFocusActiveFileButton,
+                showConversionButton: visibility.showConversionButton,
+                showCollapseButton: visibility.showCollapseAllButton,
+                showExpandButton: visibility.showExpandAllButton,
+                showSortButton: visibility.showSortButton,
+                showFilterButton: visibility.showFilterButton,
+                showGroupButton: visibility.showGroupButton,
+                showCreateNoteButton: visibility.showCreateNoteButton && this.isOwner,
                 extraActions: (toolbarEl: HTMLElement) => {
                      if (this.repositoryUrl) {
                         this.createToolbarAction(toolbarEl, "github", "View on GitHub", () => window.open(this.repositoryUrl!, "_blank"));

@@ -1,4 +1,7 @@
 .abstract-folder-settings-tabs {
+    position: sticky;
+    top: -5px;
+    z-index: 10;
     display: flex;
     justify-content: center;
     gap: 4px; /* Reduced gap for tighter fit */
@@ -80,6 +83,68 @@
 }
 
 /* Ensure excluded paths look clean */
+.abstract-folder-settings-section-title {
+    font-size: 1.4em;
+    font-weight: 600;
+    margin-bottom: 24px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/* Visibility Settings Styles */
+.af-settings-visibility-header {
+    margin: 24px 0 16px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--background-modifier-border);
+    padding-top: 18px;
+}
+
+.af-settings-visibility-title {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+.af-visibility-tabs {
+    display: flex;
+    gap: 2px;
+    background-color: var(--background-secondary);
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid var(--background-modifier-border);
+}
+
+.af-visibility-tab {
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    color: var(--text-muted);
+}
+
+.af-visibility-tab:hover {
+    background-color: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.af-visibility-tab.is-active {
+    background-color: var(--interactive-accent);
+    color: white;
+}
+
+.af-settings-visibility-content {
+    animation: af-fade-in 0.3s ease;
+}
+
+@keyframes af-fade-in {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 .abstract-folder-excluded-paths-container {
     margin-top: 10px;
     padding: 12px;

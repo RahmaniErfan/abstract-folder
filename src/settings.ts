@@ -1,6 +1,19 @@
 import { Group, SortConfig, FilterConfig, ScopeConfig } from "./types";
 import { LibrarySettings } from "./library/types";
 
+export interface VisibilitySettings {
+	[key: string]: boolean;
+	showFocusActiveFileButton: boolean;
+	showConversionButton: boolean;
+	showCollapseAllButton: boolean;
+	showExpandAllButton: boolean;
+	showSortButton: boolean;
+	showFilterButton: boolean;
+	showGroupButton: boolean;
+	showCreateNoteButton: boolean;
+	showSearchHeader: boolean;
+}
+
 export interface AbstractFolderPluginSettings {
   propertyName: string; // The frontmatter property key used to define parent notes (child-defined parent)
   parentPropertyNames: string[]; // Support for multiple parent property names
@@ -49,6 +62,11 @@ export interface AbstractFolderPluginSettings {
   showBackupButton: boolean; // Whether to show the backup button
   showSearchHeader: boolean; // Whether to show the search bar header
   maxMenuNameLength: number; // Maximum length of file names shown in menus/dropdowns
+  visibility: {
+    default: VisibilitySettings;
+    spaces: VisibilitySettings;
+    libraries: VisibilitySettings;
+  };
   namingConflictStrategy: 'parent' | 'ancestor' | 'none'; // Strategy to resolve name conflicts in flat structure
   namingConflictSeparator: '-' | 'brackets'; // Separator to use for naming conflicts
   namingConflictOrder: 'parent-first' | 'name-first'; // Order of parent and name
@@ -100,6 +118,41 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   showBackupButton: true,
   showSearchHeader: true,
   maxMenuNameLength: 10,
+  visibility: {
+    default: {
+      showFocusActiveFileButton: true,
+      showConversionButton: true,
+      showCollapseAllButton: true,
+      showExpandAllButton: true,
+      showSortButton: true,
+      showFilterButton: true,
+      showGroupButton: true,
+      showCreateNoteButton: true,
+      showSearchHeader: true,
+    },
+    spaces: {
+      showFocusActiveFileButton: false,
+      showConversionButton: true,
+      showCollapseAllButton: true,
+      showExpandAllButton: true,
+      showSortButton: true,
+      showFilterButton: true,
+      showGroupButton: true,
+      showCreateNoteButton: true,
+      showSearchHeader: true,
+    },
+    libraries: {
+      showFocusActiveFileButton: false,
+      showConversionButton: false,
+      showCollapseAllButton: true,
+      showExpandAllButton: true,
+      showSortButton: true,
+      showFilterButton: true,
+      showGroupButton: true,
+      showCreateNoteButton: false,
+      showSearchHeader: true,
+    },
+  },
   namingConflictStrategy: 'parent',
   namingConflictSeparator: '-',
   namingConflictOrder: 'parent-first',

@@ -22,6 +22,8 @@ export class AbstractFolderViewToolbar {
         // Create a provider for the toolbar to check capabilities
         const provider = new GlobalContentProvider(app, settings, null);
 
+        const visibility = settings.visibility.default;
+
         this.abstractFolderToolbar = new AbstractFolderToolbar(
             app,
             settings,
@@ -30,15 +32,14 @@ export class AbstractFolderViewToolbar {
             {
                 containerEl: containerEl,
                 provider: provider,
-                showFocusButton: settings.showFocusActiveFileButton,
-                showConversionButton: settings.showConversionButton,
-                showCollapseButton: settings.showCollapseAllButton,
-                showExpandButton: true, 
-                showSortButton: settings.showSortButton,
-                showFilterButton: settings.showFilterButton,
-                showGroupButton: settings.showGroupButton,
-                showCreateNoteButton: settings.showCreateNoteButton,
-                showCreateFolderButton: false, 
+                showFocusButton: visibility.showFocusActiveFileButton,
+                showConversionButton: visibility.showConversionButton,
+                showCollapseButton: visibility.showCollapseAllButton,
+                showExpandButton: visibility.showExpandAllButton,
+                showSortButton: visibility.showSortButton,
+                showFilterButton: visibility.showFilterButton,
+                showGroupButton: visibility.showGroupButton,
+                showCreateNoteButton: visibility.showCreateNoteButton,
                 focusActiveFile: focusActiveFile
             }
         );

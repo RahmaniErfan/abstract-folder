@@ -90,4 +90,49 @@ export function renderBehaviorSettings(containerEl: HTMLElement, plugin: Abstrac
 				plugin.app.workspace.trigger('abstract-folder:graph-updated');
 			}),
 		);
+
+	new Setting(containerEl).setName("Naming conflict resolution").setHeading();
+
+	new Setting(containerEl)
+		.setName("Naming conflict strategy")
+		.setDesc("How to resolve name conflicts in flat structure.")
+		.addDropdown((dropdown) =>
+			dropdown
+				.addOption("parent", "Parent")
+				.addOption("ancestor", "Ancestor")
+				.addOption("none", "None")
+				.setValue(plugin.settings.namingConflictStrategy)
+				.onChange(async (value: "parent" | "ancestor" | "none") => {
+					plugin.settings.namingConflictStrategy = value;
+					await plugin.saveSettings();
+				}),
+		);
+
+	new Setting(containerEl)
+		.setName("Naming conflict separator")
+		.setDesc("Separator to use for naming conflicts.")
+		.addDropdown((dropdown) =>
+			dropdown
+				.addOption("-", "Dash (-)")
+				.addOption("brackets", "Brackets ()")
+				.setValue(plugin.settings.namingConflictSeparator)
+				.onChange(async (value: "-" | "brackets") => {
+					plugin.settings.namingConflictSeparator = value;
+					await plugin.saveSettings();
+				}),
+		);
+
+	new Setting(containerEl)
+		.setName("Naming conflict order")
+		.setDesc("Order of parent and name in conflicts.")
+		.addDropdown((dropdown) =>
+			dropdown
+				.addOption("parent-first", "Parent first")
+				.addOption("name-first", "Name first")
+				.setValue(plugin.settings.namingConflictOrder)
+				.onChange(async (value: "parent-first" | "name-first") => {
+					plugin.settings.namingConflictOrder = value;
+					await plugin.saveSettings();
+				}),
+		);
 }

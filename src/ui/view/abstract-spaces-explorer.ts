@@ -296,16 +296,19 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             this.contextEngine.getState().activeGroupId
         );
 
+        const visibility = this.plugin.settings.visibility.spaces;
+
         new AbstractFolderToolbar(this.app, this.plugin.settings, this.plugin, this.contextEngine, {
             containerEl: toolbarContainer,
             provider: provider,
-            showSortButton: true,
-            showCreateNoteButton: true,
-            showGroupButton: true, // Groups enabled
-            showFilterButton: true,
-            showExpandButton: true,
-            showCollapseButton: true,
-            showConversionButton: true,
+            showFocusButton: visibility.showFocusActiveFileButton,
+            showConversionButton: visibility.showConversionButton,
+            showCollapseButton: visibility.showCollapseAllButton,
+            showExpandButton: visibility.showExpandAllButton,
+            showSortButton: visibility.showSortButton,
+            showFilterButton: visibility.showFilterButton,
+            showGroupButton: visibility.showGroupButton,
+            showCreateNoteButton: visibility.showCreateNoteButton,
             extraActions: (toolbarEl: HTMLElement) => {
                  // Space specific actions? 
                  // Maybe move "Sync Now" or "Space Dashboard" here if we want? 
@@ -315,6 +318,9 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
     }
 
     private renderSearch(container: HTMLElement) {
+        const visibility = this.plugin.settings.visibility.spaces;
+        if (!visibility.showSearchHeader) return;
+
         const searchContainer = container.createDiv();
         new AbstractSearch(this.app, this.plugin, this.plugin.settings, this.contextEngine, {
             containerEl: searchContainer,

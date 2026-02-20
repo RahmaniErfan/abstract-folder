@@ -530,6 +530,27 @@ this.addCommand({
 		if (this.settings.librarySettings) {
 			this.settings.librarySettings = Object.assign({}, DEFAULT_SETTINGS.librarySettings, loadedData?.librarySettings);
 		}
+
+		// Migration: Move old global visibility settings to per-view settings
+		if (loadedData && !loadedData.visibility) {
+			const oldVisibility = {
+				showFocusActiveFileButton: loadedData.showFocusActiveFileButton ?? DEFAULT_SETTINGS.showFocusActiveFileButton,
+				showConversionButton: loadedData.showConversionButton ?? DEFAULT_SETTINGS.showConversionButton,
+				showCollapseAllButton: loadedData.showCollapseAllButton ?? DEFAULT_SETTINGS.showCollapseAllButton,
+				showExpandAllButton: loadedData.showExpandAllButton ?? DEFAULT_SETTINGS.showExpandAllButton,
+				showSortButton: loadedData.showSortButton ?? DEFAULT_SETTINGS.showSortButton,
+				showFilterButton: loadedData.showFilterButton ?? DEFAULT_SETTINGS.showFilterButton,
+				showGroupButton: loadedData.showGroupButton ?? DEFAULT_SETTINGS.showGroupButton,
+				showCreateNoteButton: loadedData.showCreateNoteButton ?? DEFAULT_SETTINGS.showCreateNoteButton,
+				showSearchHeader: loadedData.showSearchHeader ?? DEFAULT_SETTINGS.showSearchHeader,
+			};
+
+			this.settings.visibility = {
+				default: { ...oldVisibility },
+				spaces: { ...DEFAULT_SETTINGS.visibility.spaces },
+				libraries: { ...DEFAULT_SETTINGS.visibility.libraries },
+			};
+		}
 	}
 
 	async saveSettings() {
