@@ -20,8 +20,33 @@
     color: var(--text-normal);
 }
 
+.library-shelf-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 8px 0;
+}
+
 .abstract-library-explorer .shelf-title {
     text-align: center;
+    margin: 0 !important;
+}
+
+.af-library-info-icon {
+    color: var(--text-muted);
+    transition: color 0.2s ease;
+    display: flex;
+    align-items: center;
+}
+
+.af-library-info-icon:hover {
+    color: var(--text-accent);
+}
+
+.af-library-info-icon svg {
+    width: 16px;
+    height: 16px;
 }
 
 .library-shelf-search-row {

@@ -8,6 +8,7 @@ import { AbstractNode } from "../../core/tree-builder";
 import { ScopedContentProvider } from "../../core/content-provider";
 import { AbstractFolderToolbar } from "../../ui/toolbar/abstract-folder-toolbar";
 import { AbstractDashboardModal } from "../../ui/modals/abstract-dashboard-modal";
+import { LibraryInfoModal } from "../../ui/modals/library-info-modal";
 
 export const VIEW_TYPE_LIBRARY_EXPLORER = "abstract-library-explorer";
 
@@ -192,7 +193,17 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     }
 
     private async renderShelf(container: HTMLElement) {
-        container.createEl("h2", { text: "Libraries", cls: "shelf-title" });
+        const titleRow = container.createDiv({ cls: "library-shelf-title-row" });
+        titleRow.createEl("h2", { text: "Libraries", cls: "shelf-title" });
+        
+        const infoIcon = titleRow.createDiv({ 
+            cls: "clickable-icon af-library-info-icon",
+            attr: { "aria-label": "About Libraries & Registries" }
+        });
+        setIcon(infoIcon, "alert-circle");
+        infoIcon.addEventListener("click", () => {
+            new LibraryInfoModal(this.app).open();
+        });
 
         const searchRow = container.createDiv({ cls: "library-shelf-search-row" });
         this.renderSearch(searchRow, "Search libraries...", () => {

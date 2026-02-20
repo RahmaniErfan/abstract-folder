@@ -26,6 +26,7 @@ export class CollaboratorView {
 
         if (this.isOwner) {
             this.renderInviteForm(collabSection);
+            this.renderInviteLinkSection(collabSection);
             
             // Pending Section
             const pendingSection = this.containerEl.createDiv({ cls: "af-dashboard-section" });
@@ -200,6 +201,40 @@ export class CollaboratorView {
                     }
                 })
             );
+    }
+
+    private async renderInviteLinkSection(container: HTMLElement) {
+        const remoteUrl = await this.plugin.libraryManager.getRemoteUrl(this.vaultPath);
+        if (!remoteUrl) return;
+
+        const repoUrl = remoteUrl.replace(/\.git$/, "").replace(/^git@github\.com:/, "https://github.com/");
+        
+        const section = container.createDiv({ cls: "af-invite-link-section" });
+        section.createEl("h4", { text: "Invite Link", cls: "af-sub-heading" });
+        
+        const linkContainer = section.createDiv({ cls: "af-invite-link-container" });
+        linkContainer.createEl("input", { 
+            attr: { 
+                type: "text", 
+                value: repoUrl, 
+                readonly: true 
+            },
+            cls: "af-invite-link-input"
+        });
+
+        const copyBtn = new ButtonComponent(linkContainer)
+            .setIcon("copy")
+            .setTooltip("Copy Repository Link")
+            .onClick(() => {
+                navigator.clipboard.writeText(repoUrl);
+                new Notice("Copied to clipboard!");
+            });
+        copyBtn.buttonEl.addClass("af-copy-link-btn");
+
+        section.createEl("p", { 
+            cls: "af-invite-note",
+            text: "Note: Collaborators must accept the invite via email or GitHub notifications before they can access this space. Once accepted, they can join via Abstract Spaces (for spaces) or add it to their Abstract Spaces to contribute (for libraries)." 
+        });
     }
 
     private renderSkeleton(container: HTMLElement, count: number) {

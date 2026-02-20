@@ -93,7 +93,7 @@
 .abstract-folder-group-item.is-active {
 	background-color: var(--background-primary-alt) !important;
 	border: 1px solid var(--interactive-accent) !important;
-	box-shadow: 0 0 0 1px var(--interactive-accent-hover) inset;
+	box-shadow: 0 0 0 1px var(--interactive-accent) inset;
 }
 
 .abstract-folder-group-item.is-active .setting-item-name {
@@ -113,4 +113,88 @@
 	flex-shrink: 0;
 	margin-right: 8px;
 	box-shadow: 0 0 2px var(--interactive-accent);
+}
+
+/* Library Info Modal */
+.af-library-info-modal-container {
+    width: 950px;
+    max-width: 90vw;
+}
+
+.af-library-info-modal {
+    padding: 0 !important;
+}
+
+.af-modal-title {
+    margin-bottom: 24px;
+    border-bottom: 2px solid var(--interactive-accent);
+    padding-bottom: 8px;
+    color: var(--text-accent);
+}
+
+.af-info-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.af-info-section {
+    background-color: var(--background-secondary-alt);
+    padding: 16px;
+    border-radius: var(--radius-m);
+    border: 1px solid var(--background-modifier-border);
+}
+
+.af-info-section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 12px;
+}
+
+.af-info-section-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background-color: rgba(var(--interactive-accent-rgb), 0.1);
+    color: var(--text-accent);
+    border-radius: 50%;
+}
+
+.af-info-section-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.af-info-section h3 {
+    margin: 0;
+    font-size: var(--font-ui-medium);
+    font-weight: var(--font-semibold);
+    color: var(--text-accent);
+}
+
+.af-info-section-body p {
+    font-size: var(--font-ui-small);
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 10px;
+}
+
+.af-info-section-body li {
+    font-size: var(--font-ui-small);
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 6px;
+    list-style-type: disc;
+    margin-left: 24px;
+}
+
+.af-modal-footer {
+    margin-top: 32px;
+    padding-top: 16px;
+    border-top: 1px solid var(--background-modifier-border);
+    display: flex;
+    justify-content: flex-end;
 }

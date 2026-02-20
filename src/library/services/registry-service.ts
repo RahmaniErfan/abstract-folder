@@ -3,7 +3,7 @@ import { RegistryItem, LibrarySettings } from "../types";
 
 export class RegistryService {
     // Hardcoded official registry URL
-    private static readonly OFFICIAL_REGISTRY_URL = "https://raw.githubusercontent.com/RahmaniErfan/abstract-registry/main/directory.json";
+    private static readonly OFFICIAL_CATALOG_URL = "https://raw.githubusercontent.com/RahmaniErfan/abstract-catalog/main/directory.json";
 
     constructor(private settings: LibrarySettings) {}
 
@@ -12,7 +12,7 @@ export class RegistryService {
      */
     async fetchAllItems(): Promise<RegistryItem[]> {
         const urls = [
-            RegistryService.OFFICIAL_REGISTRY_URL,
+            RegistryService.OFFICIAL_CATALOG_URL,
             ...this.settings.registries
         ].filter(url => !url.includes("/username/"));
 

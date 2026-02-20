@@ -290,3 +290,46 @@
 .af-dashboard-container {
     min-height: 400px;
 }
+
+/* Invite Link Section */
+.af-invite-link-section {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.af-invite-link-container {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.af-invite-link-input {
+    flex: 1;
+    font-family: var(--font-monospace);
+    font-size: 0.85em;
+    padding: 6px 10px;
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    color: var(--text-normal);
+}
+
+.af-copy-link-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+.af-invite-note {
+    margin-top: 12px;
+    font-size: 0.8em;
+    color: var(--text-muted);
+    font-style: italic;
+    line-height: 1.4;
+}
