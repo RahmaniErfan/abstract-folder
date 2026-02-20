@@ -42,6 +42,10 @@ export async function convertFoldersToPluginFormat(
 
     // Recursively collect all markdown files within the rootFolder
     const collectFiles = (folder: TFolder) => {
+        // Skip specialized roots if we are not explicitly converting them (i.e., operating vault-wide)
+        if (folder.path === settings.librarySettings.librariesPath && rootFolder.path !== folder.path) return;
+        if (folder.path === settings.librarySettings.sharedSpacesRoot && rootFolder.path !== folder.path) return;
+
         for (const child of folder.children) {
             if (child instanceof TFile && child.extension === 'md') {
                 filesToProcess.push(child);
@@ -56,6 +60,10 @@ export async function convertFoldersToPluginFormat(
     const allFoldersInScope: TFolder[] = [];
 
     const collectFolders = (folder: TFolder) => {
+        // Skip specialized roots if we are not explicitly converting them
+        if (folder.path === settings.librarySettings.librariesPath && rootFolder.path !== folder.path) return;
+        if (folder.path === settings.librarySettings.sharedSpacesRoot && rootFolder.path !== folder.path) return;
+
         allFoldersInScope.push(folder);
         for (const child of folder.children) {
             if (child instanceof TFolder) {
@@ -415,9 +423,12 @@ export function generateFolderStructurePlan(
     } else {
         // Identify roots for full vault export
         const roots = graphEngine.getAllRoots();
-        
 
         for (const rootPath of roots) {
+            // Ignore files inside libraries or spaces during a full vault export
+            if (rootPath === settings.librarySettings.librariesPath || rootPath.startsWith(settings.librarySettings.librariesPath + '/')) continue;
+            if (rootPath === settings.librarySettings.sharedSpacesRoot || rootPath.startsWith(settings.librarySettings.sharedSpacesRoot + '/')) continue;
+
             const rootFile = app.vault.getAbstractFileByPath(rootPath);
             if (rootFile instanceof TFile) {
                 // Ensure the root file itself is moved to the destination

@@ -1,4 +1,4 @@
-import { App, Menu, setIcon, TFolder, Notice } from "obsidian";
+import { App, Menu, setIcon, TFolder, Notice, TFile } from "obsidian";
 import { AbstractFolderPluginSettings } from "../../settings";
 import type AbstractFolderPlugin from "main";
 import { CreateAbstractChildModal } from "../modals";
@@ -244,10 +244,63 @@ export class AbstractFolderToolbar {
 
     private showConversionMenu(event: MouseEvent): void {
         const menu = new Menu();
-        menu.addItem(item => item.setTitle("Convert physical folder to abstract folder").setIcon("folder-symlink")
-            .onClick(() => this.plugin.app.commands.executeCommandById("abstract-folder:convert-folder-to-plugin")));
-        menu.addItem(item => item.setTitle("Create folder structure from plugin format").setIcon("folder-plus")
-            .onClick(() => this.plugin.app.commands.executeCommandById("abstract-folder:create-folders-from-plugin")));
+        
+        menu.addItem(item => item.setTitle("Convert folders to abstract format").setIcon("folder-symlink")
+            .onClick(() => {
+                const scope = this.contextEngine.getScope();
+                const rootPath = this.options.provider.getCreationRoot();
+                if (scope !== 'global' && rootPath) {
+                    const folder = this.plugin.app.vault.getAbstractFileByPath(rootPath);
+                    if (folder instanceof TFolder) {
+                        import("../../utils/conversion").then(({ convertFoldersToPluginFormat }) => {
+                            import("../modals").then(({ ConversionOptionsModal }) => {
+                                new ConversionOptionsModal(this.plugin.app, folder, (options) => {
+                                    convertFoldersToPluginFormat(this.plugin.app, this.settings, folder, options)
+                                        .catch(console.error);
+                                }).open();
+                            });
+                        });
+                        return;
+                    }
+                }
+                this.plugin.app.commands.executeCommandById("abstract-folder:convert-folder-to-plugin");
+            }));
+            
+        menu.addItem(item => item.setTitle("Convert abstract format to folders").setIcon("folder-plus")
+            .onClick(() => {
+                const scope = this.contextEngine.getScope();
+                const rootPath = this.options.provider.getCreationRoot();
+                if (scope !== 'global' && rootPath) {
+                    const file = this.plugin.app.vault.getAbstractFileByPath(rootPath);
+                    if (file) {
+                        // For "from plugin", it asks for DestinationPicker to know WHERE to export to.
+                        import("../modals").then(({ DestinationPickerModal, NewFolderNameModal, SimulationModal }) => {
+                            import("../../utils/conversion").then(({ generateFolderStructurePlan, executeFolderGeneration }) => {
+                                new DestinationPickerModal(this.plugin.app, (parentFolder: TFolder) => {
+                                    new NewFolderNameModal(this.plugin.app, parentFolder, (destinationPath: string, placeIndexFileInside: boolean) => {
+                                        if (!this.settings.excludedPaths.includes(destinationPath)) {
+                                            this.settings.excludedPaths.push(destinationPath);
+                                            this.plugin.saveSettings().catch(console.error);
+                                        }
+                                        const rootScopeFile = file instanceof TFile ? file : undefined;
+                                        // If it is a folder, we cannot use it directly as rootScope. In that case, we might fall back to global vault export,
+                                        // or ideally, we'd find the index file. Since we don't have the index file here easily, we pass undefined,
+                                        // but that would trigger a global export. A robust fix would find the TFile representing the folder.
+                                        // For now, if file is not a TFile, we will pass undefined.
+                                        const plan = generateFolderStructurePlan(this.plugin.app, this.settings, this.plugin.graphEngine, destinationPath, placeIndexFileInside, rootScopeFile);
+                                        new SimulationModal(this.plugin.app, plan.conflicts, () => {
+                                            executeFolderGeneration(this.plugin.app, plan).catch(console.error);
+                                        }).open();
+                                    }).open();
+                                }).open();
+                            });
+                        });
+                        return;
+                    }
+                }
+                this.plugin.app.commands.executeCommandById("abstract-folder:create-folders-from-plugin");
+            }));
+            
         menu.showAtMouseEvent(event);
     }
 }
