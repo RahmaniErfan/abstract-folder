@@ -1,4 +1,4 @@
-import { Setting, Notice, Modal, App } from "obsidian";
+import { Setting, Notice, Modal, App, normalizePath } from "obsidian";
 import type AbstractFolderPlugin from "main";
 import { exportDebugDetails } from "../../../utils/debug-exporter";
 import { DEFAULT_SETTINGS } from "../../../settings";
@@ -35,59 +35,19 @@ export function renderDebugSettings(containerEl: HTMLElement, plugin: AbstractFo
 	new Setting(containerEl)
 		.setName("Cleanup legacy data")
 		.setDesc(
-			"If you're experiencing issues after updating from an older version, use this to clean up outdated data from your settings.",
+			"If you're experiencing issues after updating, use this to reset your settings to defaults in memory and re-index. This is a safe first step.",
 		)
 		.addButton((button) =>
 			button
-				.setButtonText("Cleanup settings")
+				.setButtonText("Reset settings")
 				.setWarning()
 				.onClick(async () => {
-					const settingsRecord = plugin.settings as unknown as Record<string, unknown>;
-					let cleaned = false;
-
-					if (settingsRecord.views) {
-						delete settingsRecord.views;
-						cleaned = true;
-					}
-
-					if (
-						Array.isArray(plugin.settings.expandedFolders) &&
-						plugin.settings.expandedFolders.some((f) => typeof f !== "string")
-					) {
-						plugin.settings.expandedFolders = [];
-						cleaned = true;
-					}
-
-					if (plugin.settings.metrics && typeof plugin.settings.metrics !== "object") {
-						plugin.settings.metrics = {};
-						cleaned = true;
-					}
-
-					if (cleaned) {
-						await plugin.saveSettings();
-						new Notice("Legacy data cleaned up.");
-					} else {
-						new Notice("No legacy data found.");
-					}
-				}),
-		);
-
-	new Setting(containerEl)
-		.setName("Factory reset settings")
-		.setDesc(
-			"Reset all plugin configuration to factory defaults. This is a safe alternative to deleting data.json. It only affects plugin settings like UI preferences and excluded paths. It will not touch your notes or frontmatter properties.",
-		)
-		.addButton((button) =>
-			button
-				.setButtonText("Reset all settings")
-				.setWarning()
-				.onClick(() => {
 					const ConfirmModal = class extends Modal {
-						constructor(app: App, onConfirm: () => void) {
+						constructor(app: App, onConfirm: () => Promise<void>) {
 							super(app);
 							this.setTitle("Reset all settings");
 							this.contentEl.createEl("p", {
-								text: "Are you sure you want to reset all settings? This cannot be undone.",
+								text: "Are you sure you want to reset all settings? This will clear all configuration, including your GitHub tokens and custom groups. This cannot be undone.",
 							});
 
 							new Setting(this.contentEl)
@@ -98,22 +58,97 @@ export function renderDebugSettings(containerEl: HTMLElement, plugin: AbstractFo
 									btn
 										.setButtonText("Reset everything")
 										.setWarning()
-										.onClick(() => {
-											onConfirm();
+										.onClick(async () => {
+											await onConfirm();
 											this.close();
 										}),
 								);
 						}
 					};
 
-					new ConfirmModal(plugin.app, () => {
-						plugin.settings = Object.assign({}, DEFAULT_SETTINGS);
-						plugin
-							.saveSettings()
-							.then(() => {
-								new Notice("Settings have been reset to defaults. Please reload Obsidian.");
-							})
-							.catch(console.error);
+					new ConfirmModal(plugin.app, async () => {
+						for (const key in plugin.settings) {
+							delete (plugin.settings as any)[key];
+						}
+						Object.assign(plugin.settings, JSON.parse(JSON.stringify(DEFAULT_SETTINGS)));
+						plugin.metricsManager.clear();
+						
+						try {
+							await plugin.saveSettings();
+							await plugin.graphEngine.forceReindex();
+							new Notice("Settings have been reset to defaults.");
+						} catch (e) {
+							console.error("[Abstract Folder] Reset failed:", e);
+							new Notice("Failed to reset settings.");
+						}
+					}).open();
+				}),
+		);
+
+	new Setting(containerEl)
+		.setName("Hard factory reset")
+		.setDesc(
+			"The 'Nuclear Option'. This creates a backup of your data.json and then physically deletes it from your plugin folder. Use this if the standard reset doesn't fix your issues.",
+		)
+		.addButton((button) =>
+			button
+				.setButtonText("Delete data.json & backup")
+				.setWarning()
+				.onClick(async () => {
+					const ConfirmModal = class extends Modal {
+						constructor(app: App, onConfirm: () => Promise<void>) {
+							super(app);
+							this.setTitle("Hard Factory Reset");
+							this.contentEl.createEl("p", {
+								text: "This will physically delete your data.json file. A backup (data.json.bak) will be created in your plugin folder. You will need to reload Obsidian for this to take full effect.",
+							});
+
+							new Setting(this.contentEl)
+								.addButton((btn) =>
+									btn.setButtonText("Cancel").onClick(() => this.close()),
+								)
+								.addButton((btn) =>
+									btn
+										.setButtonText("Delete & Backup")
+										.setWarning()
+										.onClick(async () => {
+											await onConfirm();
+											this.close();
+										}),
+								);
+						}
+					};
+
+					new ConfirmModal(plugin.app, async () => {
+						const configDir = plugin.app.vault.configDir;
+						const pluginId = plugin.manifest.id;
+						const pluginDir = normalizePath(`${configDir}/plugins/${pluginId}`);
+						const dataPath = `${pluginDir}/data.json`;
+						const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+						const backupPath = `${pluginDir}/data.json.${timestamp}.bak`;
+
+						try {
+							const adapter = plugin.app.vault.adapter;
+							if (await adapter.exists(dataPath)) {
+								await adapter.copy(dataPath, backupPath);
+								await adapter.remove(dataPath);
+								new Notice(`data.json backed up to ${backupPath} and deleted.`);
+							} else {
+								new Notice("data.json not found on disk.");
+							}
+
+							// Reset in-memory too
+							for (const key in plugin.settings) {
+								delete (plugin.settings as any)[key];
+							}
+							Object.assign(plugin.settings, JSON.parse(JSON.stringify(DEFAULT_SETTINGS)));
+							plugin.metricsManager.clear();
+							
+							new Notice("Plugin state reset. Please restart Obsidian.");
+						} catch (e) {
+							console.error("[Abstract Folder] Hard reset failed:", e);
+							new Notice("Hard reset failed. See console for details.");
+						}
 					}).open();
 				}),
 		);

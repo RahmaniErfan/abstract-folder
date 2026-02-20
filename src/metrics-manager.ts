@@ -16,6 +16,10 @@ export class MetricsManager {
         this.loadPersistedMetrics();
     }
 
+    public clear() {
+        this.metrics.clear();
+    }
+
     private loadPersistedMetrics() {
         const persisted = this.plugin.settings.metrics || {};
         for (const [path, data] of Object.entries(persisted)) {
