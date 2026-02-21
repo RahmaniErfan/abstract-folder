@@ -34,29 +34,19 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 
 	new Setting(containerEl).setName("Abstract Catalog & Marketplace").setHeading();
 
-	containerEl.createEl("h3", { text: "Library Catalog Marketplace" });
-
-	new Setting(containerEl)
-		.setName("Official catalog URL")
-		.setDesc("The hardcoded official catalog for abstract libraries.")
-		.addText((text) =>
-			text
-				.setPlaceholder("Official URL")
-				.setValue("https://raw.githubusercontent.com/RahmaniErfan/abstract-catalog/main/catalog.json")
-				.setDisabled(true),
-		);
+	const OFFICIAL_CATALOG_URL = "https://raw.githubusercontent.com/RahmaniErfan/abstract-catalog/main/catalog.json";
 
 	new Setting(containerEl)
 		.setName("Custom catalogs")
-		.setDesc("Add your own catalog link, one per line")
+		.setDesc("Add your own catalog URL, one per line. The official Abstract catalog is always included automatically.")
 		.addTextArea((text) =>
 			text
 				.setPlaceholder("https://example.com/catalog.json")
-				.setValue((plugin.settings.librarySettings?.catalogs || []).join("\n"))
+				.setValue((plugin.settings.librarySettings?.catalogs || []).filter((c) => c !== OFFICIAL_CATALOG_URL).join("\n"))
 				.onChange(async (value) => {
 					plugin.settings.librarySettings.catalogs = value
 						.split("\n")
-						.filter((v) => v.trim() !== "");
+						.filter((v) => v.trim() !== "" && v !== OFFICIAL_CATALOG_URL);
 					await plugin.saveSettings();
 				}),
 		);
