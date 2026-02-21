@@ -5,10 +5,11 @@ import { renderAppearanceSettings } from "./sections/appearance";
 import { renderBehaviorSettings } from "./sections/behavior";
 import { renderGitHubSettings } from "./sections/github";
 import { renderLibrarySettings } from "./sections/library";
+import { renderSpacesSettings } from "./sections/spaces";
 import { renderDebugSettings } from "./sections/debug";
 import { renderStructuresSettings } from "./sections/structures";
 
-type SettingsTabId = 'general' | 'appearance' | 'behavior' | 'structures' | 'github' | 'library' | 'debug';
+type SettingsTabId = 'general' | 'appearance' | 'behavior' | 'structures' | 'github' | 'library' | 'spaces' | 'debug';
 
 interface SettingsTabConfig {
 	id: SettingsTabId;
@@ -27,6 +28,7 @@ export class ModularSettingsTab extends PluginSettingTab {
 		{ id: 'structures', name: 'Structures', icon: 'folder-tree', render: renderStructuresSettings },
 		{ id: 'github', name: 'GitHub', icon: 'github', render: renderGitHubSettings },
 		{ id: 'library', name: 'Library', icon: 'library', render: renderLibrarySettings },
+		{ id: 'spaces', name: 'Spaces', icon: 'users', render: renderSpacesSettings },
 		{ id: 'debug', name: 'Debug', icon: 'bug', render: renderDebugSettings },
 	];
 

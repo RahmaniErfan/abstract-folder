@@ -235,14 +235,15 @@
 }
 
 .af-support-btn.is-github {
-    background-color: #24292f;
-    color: white;
+    background-color: rgba(var(--color-red-rgb), 0.1);
+    color: var(--text-error);
+    border: 1px solid rgba(var(--color-red-rgb), 0.2);
 }
 
 .af-support-btn.is-github:hover {
-    background-color: #000;
+    background-color: rgba(var(--color-red-rgb), 0.2);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 12px rgba(var(--color-red-rgb), 0.15);
 }
 
 .af-support-btn.is-coffee {

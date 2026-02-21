@@ -19,18 +19,7 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 				}),
 		);
 
-	new Setting(containerEl)
-		.setName("Abstract spaces root folder")
-		.setDesc("The folder name used to store your collaborative shared spaces. These are active Git repositories synced with your team.")
-		.addText((text) =>
-			text
-				.setPlaceholder("Abstract Spaces")
-				.setValue(plugin.settings.librarySettings?.sharedSpacesRoot || "Abstract Spaces")
-				.onChange(async (value) => {
-					plugin.settings.librarySettings.sharedSpacesRoot = value;
-					await plugin.saveSettings();
-				}),
-		);
+
 
 	new Setting(containerEl).setName("Abstract Catalog & Marketplace").setHeading();
 
