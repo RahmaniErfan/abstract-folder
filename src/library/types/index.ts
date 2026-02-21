@@ -40,6 +40,7 @@ export interface RegistryItem {
     author: string;
     category: string;
     tags: string[];
+    sourceCatalog?: string;
 }
 
 export interface LibrarySettings {

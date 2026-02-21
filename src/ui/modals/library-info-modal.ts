@@ -19,19 +19,19 @@ export class LibraryInfoModal extends Modal {
         this.renderSection(container, "Catalog vs Library", "library", 
             "A Catalog is a curated collection of Libraries. The official catalog is managed by Abstract Folder and includes a network of libraries contributed by the maintainers or the community.");
 
-        // 2. Standalone & Unofficial
-        this.renderSection(container, "Standalone & Unofficial", "info", 
+        // 2. Standalone Support
+        this.renderSection(container, "Standalone Support", "globe", 
             "Both catalogs and libraries can be standalone (unofficial). You can maintain your own catalog and allow others to add their libraries to it. A catalog simply consists of a configuration file with links to libraries and their specific details.");
 
         // 3. Catalog Management
-        this.renderSection(container, "GitHub-Based Management", "github", 
+        this.renderSection(container, "Catalog Management", "settings", 
             "Managing your own catalog must be done through GitHub; it cannot be managed directly through Obsidian. This ensures that the directory remains structured and easily accessible for contributors and users alike.");
 
-        // 4. Contribution & Syncing
-        this.renderSection(container, "Contribution & Syncing", "git-branch", 
+        // 4. Contributing
+        this.renderSection(container, "Contributing", "git-pull-request", 
             "If you are a contributor to a library, you can easily add it to Abstract Spaces and update things there. Once your library is added to a catalog (such as the official one), other people will sync and see your changes automatically.");
 
-        // 5. Security & Safety
+        // 5. Security rules
         this.renderSection(container, "Security & Catalog Filtering", "shield-check", 
             "To ensure vault safety, catalogs enforce strict security policies:\n" +
             "• Only specific file types are accepted.\n" +
@@ -40,7 +40,8 @@ export class LibraryInfoModal extends Modal {
 
         // 6. Content Safety & Blacklisting
         this.renderSection(container, "Safety Enforcement", "alert-octagon", 
-            "Abstract Folder has a zero-tolerance policy for harmful content (NSFW, illegal, or malicious). Violators will be:\n" +
+            "• Only files and scripts explicitly accepted by the user will be pulled.\n" +
+            "• Attempting to post harmful content will result in the user being:\n" +
             "• Permanently blacklisted in the global catalog.\n" +
             "• If harmful content is added to a catalog—even by accident—the entire catalog will be removed and all responsible parties blacklisted.\n" +
             "Maintenance is critical to protecting the community.");

@@ -9,6 +9,7 @@ import { ScopedContentProvider } from "../../core/content-provider";
 import { AbstractFolderToolbar } from "../../ui/toolbar/abstract-folder-toolbar";
 import { AbstractDashboardModal } from "../../ui/modals/abstract-dashboard-modal";
 import { LibraryInfoModal } from "../../ui/modals/library-info-modal";
+import { CatalogModal } from "../../ui/modals/catalog-modal";
 
 export const VIEW_TYPE_LIBRARY_EXPLORER = "abstract-library-explorer";
 
@@ -211,11 +212,11 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         });
 
         const officialCatalogBtn = searchRow.createEl("button", {
-            text: "Official Catalog",
+            text: "View Catalogs",
             cls: "library-open-center-btn"
         });
         officialCatalogBtn.addEventListener("click", () => {
-            void this.plugin.activateLibraryCenter();
+            new CatalogModal(this.plugin.app, this.plugin).open();
         });
 
         container.createDiv({ cls: "library-header-divider" });
@@ -250,9 +251,9 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
                     text: "No libraries installed. Visit the official catalog to discover and install libraries.",
                     cls: "empty-state"
                 });
-                const openCatalogBtn = container.createEl("button", { text: "Open Official Catalog" });
+                const openCatalogBtn = container.createEl("button", { text: "View Catalogs" });
                 openCatalogBtn.addEventListener("click", () => {
-                    void this.plugin.activateLibraryCenter();
+                    new CatalogModal(this.plugin.app, this.plugin).open();
                 });
             }
             return;

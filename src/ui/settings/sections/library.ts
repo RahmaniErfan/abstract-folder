@@ -1,6 +1,7 @@
 import { Setting, Notice, Modal, App } from "obsidian";
 import type AbstractFolderPlugin from "main";
 import { AuthService } from "../../../library/services/auth-service";
+import { CatalogModal } from "../../modals/catalog-modal";
 
 export function renderLibrarySettings(containerEl: HTMLElement, plugin: AbstractFolderPlugin) {
 	new Setting(containerEl).setName("Abstract library").setHeading();
@@ -80,7 +81,7 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 		.setDesc("Discover and install libraries.")
 		.addButton((btn) =>
 			btn.setButtonText("Official Catalog").onClick(() => {
-				void plugin.activateLibraryCenter().catch(console.error);
+				new CatalogModal(plugin.app, plugin).open();
 			}),
 		);
 }

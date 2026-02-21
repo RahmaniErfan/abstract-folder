@@ -27,6 +27,7 @@ export class RegistryService {
                     if (Array.isArray(items)) {
                         for (const item of items) {
                             if (!seenIds.has(item.id)) {
+                                item.sourceCatalog = url;
                                 allItems.push(item);
                                 seenIds.add(item.id);
                             }

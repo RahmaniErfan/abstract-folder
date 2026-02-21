@@ -1,0 +1,184 @@
+/* Catalog Modal Styles */
+.abstract-catalog-modal {
+    width: 90vw !important;
+    max-width: 1400px !important; /* Cap it at a very wide but safe desktop size */
+    height: 85vh !important;
+    max-height: 900px !important; /* Prevent it from overflowing vertical monitors */
+}
+
+.af-wide-modal {
+    padding: 24px;
+}
+
+.af-modal-header {
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 12px;
+}
+
+.af-catalog-controls {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+    align-items: center;
+}
+
+.af-catalog-search-wrapper {
+    flex: 1;
+}
+
+.af-catalog-search-wrapper input {
+    width: 100%;
+}
+
+.af-catalog-add-section {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    padding: 16px;
+    background-color: var(--background-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--background-modifier-border);
+}
+
+.af-catalog-add-section input {
+    flex: 1;
+}
+
+.af-catalog-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    overflow-y: auto;
+    padding-right: 8px;
+    padding-bottom: 16px;
+}
+
+.source-badge {
+    font-size: 0.75em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background-color: var(--background-modifier-accent);
+    color: var(--text-on-accent);
+    font-weight: 600;
+}
+
+/* Tab Styles */
+.af-catalog-header-with-tabs {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding-bottom: 0;
+}
+
+.af-modal-title {
+    margin-bottom: 12px;
+}
+
+.af-catalog-tabs {
+    display: flex;
+    gap: 16px;
+    border-bottom: 2px solid transparent;
+}
+
+.af-catalog-tab {
+    padding: 8px 12px;
+    font-size: 0.95em;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s ease, border-color 0.15s ease;
+    margin-bottom: -1px;
+}
+
+.af-catalog-tab:hover {
+    color: var(--text-normal);
+}
+
+.af-catalog-tab.is-active {
+    color: var(--text-accent);
+    border-bottom-color: var(--text-accent);
+}
+
+.af-catalog-tab-content-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-top: 16px;
+}
+
+/* Manage Tab Styles */
+.af-catalog-manage-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
+    overflow-y: auto;
+    padding-right: 12px;
+    padding-bottom: 24px;
+}
+
+.af-catalog-manage-section h3 {
+    margin: 0 0 4px 0;
+}
+
+.af-manage-help-text {
+    color: var(--text-muted);
+    font-size: 0.9em;
+    margin: 0 0 12px 0;
+}
+
+.af-manage-input-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.af-manage-input-row input {
+    flex: 1;
+}
+
+.af-catalog-manage-section hr {
+    margin: 24px 0;
+    border: none;
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.af-manage-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.af-manage-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    gap: 12px;
+}
+
+.af-manage-list-item-text {
+    flex: 1;
+    font-family: var(--font-monospace);
+    font-size: 0.9em;
+    color: var(--text-normal);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.empty-text {
+    width: 100%;
+    text-align: center;
+    color: var(--text-muted);
+    margin-top: 24px;
+}

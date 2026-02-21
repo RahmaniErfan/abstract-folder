@@ -22,7 +22,7 @@ import { Group } from './src/types';
 import { LibraryManager } from './src/library/git/library-manager';
 import { AbstractBridge } from './src/library/bridge/abstract-bridge';
 import { ContributionEngine } from './src/library/services/contribution-engine';
-import { LibraryCenterView, VIEW_TYPE_LIBRARY_CENTER } from './src/library/ui/library-center-view';
+import { CatalogModal } from './src/ui/modals/catalog-modal';
 import { LibraryExplorerView, VIEW_TYPE_LIBRARY_EXPLORER } from './src/library/ui/library-explorer-view';
 import { AbstractSpacesExplorerView, ABSTRACT_SPACES_VIEW_TYPE } from './src/ui/view/abstract-spaces-explorer';
 import './src/styles/index.css';
@@ -103,10 +103,6 @@ export default class AbstractFolderPlugin extends Plugin {
 			(leaf) => new AbstractFolderView(leaf, this)
 		);
 
-		this.registerView(
-			VIEW_TYPE_LIBRARY_CENTER,
-			(leaf) => new LibraryCenterView(leaf, this)
-		);
 
 		this.registerView(
 			VIEW_TYPE_LIBRARY_EXPLORER,
@@ -122,9 +118,9 @@ export default class AbstractFolderPlugin extends Plugin {
 
 		this.addCommand({
 			id: "open-library-center",
-			name: "Open official catalog",
+			name: "View catalogs",
 			callback: () => {
-				this.activateLibraryCenter().catch(console.error);
+				new CatalogModal(this.app, this).open();
 			},
 		});
 
@@ -415,28 +411,7 @@ this.addCommand({
 		}
 	}
 
-	async activateLibraryCenter() {
-		Logger.debug("Activating Library Center...");
-		const { workspace } = this.app;
-		let leaf: WorkspaceLeaf | null = null;
-		const leaves = workspace.getLeavesOfType(VIEW_TYPE_LIBRARY_CENTER);
 
-		if (leaves.length > 0) {
-			leaf = leaves[0];
-		} else {
-			leaf = workspace.getRightLeaf(false);
-			if (leaf) {
-				await leaf.setViewState({
-					type: VIEW_TYPE_LIBRARY_CENTER,
-					active: true,
-				});
-			}
-		}
-
-		if (leaf) {
-			await workspace.revealLeaf(leaf);
-		}
-	}
 
 	async activateLibraryExplorer() {
 		Logger.debug("Activating Library Explorer...");
