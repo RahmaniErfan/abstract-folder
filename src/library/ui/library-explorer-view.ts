@@ -261,20 +261,24 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         });
 
         if (libraries.length === 0) {
+            container.addClass("is-empty");
             if (this.searchQuery) {
-                container.createEl("p", { text: "No matching libraries found.", cls: "empty-state" });
+                const emptyState = container.createDiv({ cls: "empty-state-container" });
+                emptyState.createEl("p", { text: "No matching libraries found.", cls: "empty-state" });
             } else {
-                container.createEl("p", {
-                    text: "No libraries installed. Visit the official catalog to discover and install libraries.",
-                    cls: "empty-state"
+                const emptyState = container.createDiv({ cls: "empty-state-container" });
+                const openCatalogBtn = emptyState.createEl("button", { 
+                    text: "View Catalogs",
+                    cls: "library-open-center-btn"
                 });
-                const openCatalogBtn = container.createEl("button", { text: "View Catalogs" });
                 openCatalogBtn.addEventListener("click", () => {
                     new CatalogModal(this.plugin.app, this.plugin).open();
                 });
             }
             return;
         }
+
+        container.removeClass("is-empty");
 
         const cardContainer = container.createDiv({ cls: "library-card-container" });
 

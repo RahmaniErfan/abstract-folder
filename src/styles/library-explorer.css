@@ -3,6 +3,7 @@
     display: flex !important;
     flex-direction: column !important;
     padding: 0 !important;
+    overflow: hidden;
 }
 
 .library-shelf {
@@ -87,6 +88,24 @@
     gap: 10px;
     position: relative;
     z-index: 1;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.library-shelf.is-empty {
+    justify-content: center;
+    align-items: center;
+    padding: 40px 20px;
+}
+
+.empty-state-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    text-align: center;
+    max-width: 300px;
 }
 
 .library-card-container {
@@ -195,12 +214,14 @@
 .empty-state {
     color: var(--text-muted);
     font-style: italic;
-    margin: 20px 0 10px 0;
+    margin: 0;
     text-align: center;
+    line-height: 1.5;
 }
 
-.abstract-library-explorer .empty-state + button {
+.abstract-library-explorer .empty-state-container .library-open-center-btn {
     align-self: center;
+    margin-top: 8px;
 }
 
 .library-header-divider {
