@@ -544,14 +544,14 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             pushBtn.addEventListener("click", async () => {
                 if (!this.selectedLibrary?.file) return;
                 try {
-                    pushBtn.style.opacity = "0.5";
+                    pushBtn.addClass("is-syncing");
                     new Notice("Pushing changes...");
                     await this.plugin.libraryManager.syncBackup(this.selectedLibrary.file.path, "Update library", undefined, true);
                     new Notice("Successfully pushed changes");
                 } catch (e) {
                     new Notice(`Push failed: ${e.message}`);
                 } finally {
-                    pushBtn.style.opacity = "1";
+                    pushBtn.removeClass("is-syncing");
                 }
             });
         }
@@ -567,7 +567,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         pullBtn.addEventListener("click", async () => {
             if (!this.selectedLibrary?.file) return;
             try {
-                pullBtn.style.opacity = "0.5";
+                pullBtn.addClass("is-syncing");
                 new Notice("Updating library...");
                 await this.plugin.libraryManager.updateLibrary(this.selectedLibrary.file.path);
                 new Notice("Library updated");
@@ -575,7 +575,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             } catch (e) {
                 new Notice(`Update failed: ${e.message}`);
             } finally {
-                pullBtn.style.opacity = "1";
+                pullBtn.removeClass("is-syncing");
             }
         });
 

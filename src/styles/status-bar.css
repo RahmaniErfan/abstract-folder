@@ -106,10 +106,11 @@
 }
 
 /* Sync Animation */
-@keyframes af-status-spin {
-    100% { transform: rotate(360deg); }
+.af-status-sync-icon {
+    transition: opacity 0.2s ease;
 }
 
 .is-syncing .af-status-sync-icon {
-    animation: af-status-spin 1.2s linear infinite;
+    opacity: 0.5;
 }
+

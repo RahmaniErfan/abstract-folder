@@ -474,7 +474,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
                 if (!this.selectedSpace) return;
                 
                 // Visual feedback: Fade opacity
-                pushArea.style.opacity = "0.5";
+                pushArea.addClass("is-syncing");
                 
                 try {
                     new Notice(`Pushing ${this.selectedSpace.name}...`);
@@ -484,7 +484,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
                 } catch (e) {
                     new Notice(`Push failed: ${e.message}`);
                 } finally {
-                    pushArea.style.opacity = "1";
+                    pushArea.removeClass("is-syncing");
                 }
             });
         }
@@ -510,7 +510,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         pullArea.addEventListener("click", async () => {
             if (!this.selectedSpace) return;
             
-            pullArea.style.opacity = "0.5";
+            pullArea.addClass("is-syncing");
             
             try {
                 new Notice(`Updating ${this.selectedSpace.name}...`);
@@ -520,7 +520,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             } catch (e) {
                 new Notice(`Update failed: ${e.message}`);
             } finally {
-                pullArea.style.opacity = "1";
+                pullArea.removeClass("is-syncing");
             }
         });
 
