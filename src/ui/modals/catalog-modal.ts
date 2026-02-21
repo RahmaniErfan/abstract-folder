@@ -322,10 +322,21 @@ export class CatalogModal extends Modal {
     }
 
     private renderManageTab(container: HTMLElement) {
+        const OFFICIAL_CATALOG_URL = "https://raw.githubusercontent.com/RahmaniErfan/abstract-catalog/main/catalog.json";
         const manageSection = container.createDiv({ cls: "af-catalog-manage-section" });
         
-        manageSection.createEl("h3", { text: "Manage Custom Catalogs" });
+        manageSection.createEl("h3", { text: "Manage Catalogs" });
         manageSection.createEl("p", { text: "Add the URL of a directory.json file from a custom Abstract Folder catalog.", cls: "af-manage-help-text" });
+
+        // Official catalog — locked, cannot be removed
+        const officialList = manageSection.createDiv({ cls: "af-manage-list" });
+        const officialRow = officialList.createDiv({ cls: "af-manage-list-item af-manage-list-item--official" });
+        const officialBadge = officialRow.createDiv({ cls: "af-manage-list-item-badge" });
+        setIcon(officialBadge, "shield-check");
+        officialBadge.setAttribute("aria-label", "Official");
+        officialRow.createDiv({ cls: "af-manage-list-item-text", text: OFFICIAL_CATALOG_URL });
+        const lockEl = officialRow.createDiv({ cls: "clickable-icon af-manage-list-item-lock", attr: { "aria-label": "Official catalog — cannot be removed" } });
+        setIcon(lockEl, "lock");
         
         const catalogInputWrapper = manageSection.createDiv({ cls: "af-manage-input-row" });
         const catalogInput = catalogInputWrapper.createEl("input", {
@@ -335,7 +346,8 @@ export class CatalogModal extends Modal {
         const addCatalogBtn = catalogInputWrapper.createEl("button", { text: "Add Catalog" });
 
         const cataloguesList = manageSection.createDiv({ cls: "af-manage-list" });
-        this.renderManageList(cataloguesList, this.plugin.settings.librarySettings.catalogs, (url) => {
+        const customCatalogs = this.plugin.settings.librarySettings.catalogs.filter(r => r !== OFFICIAL_CATALOG_URL);
+        this.renderManageList(cataloguesList, customCatalogs, (url) => {
             this.plugin.settings.librarySettings.catalogs = this.plugin.settings.librarySettings.catalogs.filter(r => r !== url);
             this.plugin.saveSettings().then(() => this.renderManageTab(container));
         }, "No custom catalogs added yet.");

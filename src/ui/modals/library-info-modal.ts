@@ -29,7 +29,10 @@ export class LibraryInfoModal extends Modal {
 
         // 4. Contributing
         this.renderSection(container, "Contributing", "git-pull-request", 
-            "If you are a contributor to a library, you can easily add it to Abstract Spaces and update things there. Once your library is added to a catalog (such as the official one), other people will sync and see your changes automatically.");
+            "If you are a contributor to a library, there are two easy ways to work with it:\n" +
+            "• Add it as a standalone library (via the Manage tab in the catalog) to install and edit it directly inside Obsidian.\n" +
+            "• Add it to Abstract Spaces to collaborate with your team — changes sync automatically via Git.\n" +
+            "Once your library is listed in a catalog (such as the official one), other users will see your updates automatically when they refresh.");
 
         // 5. Security rules
         this.renderSection(container, "Security & Catalog Filtering", "shield-check", 

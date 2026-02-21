@@ -285,6 +285,29 @@
     gap: 12px;
 }
 
+.af-manage-list-item--official {
+    background-color: hsla(var(--interactive-accent-hsl), 0.07);
+    border-color: hsla(var(--interactive-accent-hsl), 0.35);
+}
+
+.af-manage-list-item-badge {
+    color: var(--interactive-accent);
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.af-manage-list-item-lock {
+    color: var(--text-faint);
+    cursor: default;
+    flex-shrink: 0;
+}
+
+.af-manage-list-item-lock:hover {
+    color: var(--text-muted);
+    background-color: transparent;
+}
+
 .af-manage-list-item-text {
     flex: 1;
     font-family: var(--font-monospace);
