@@ -166,7 +166,7 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   librarySettings: {
     librariesPath: "Abstract Library",
     sharedSpacesRoot: "Abstract Spaces",
-    registries: ["https://raw.githubusercontent.com/RahmaniErfan/abstract-catalog/main/directory.json"],
+    catalogs: ["https://raw.githubusercontent.com/RahmaniErfan/abstract-catalog/main/catalog.json"],
     standaloneLibraries: [],
     sharedSpaces: [],
     spaceConfigs: {},

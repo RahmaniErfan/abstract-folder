@@ -31,6 +31,8 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
 
     // Search Options
     private searchQuery = "";
+    private isRenderingView = false;
+    private debouncedRenderView: () => void;
 
     constructor(leaf: WorkspaceLeaf, plugin: AbstractFolderPlugin) {
         super(leaf);
@@ -38,6 +40,8 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         const { ContextEngine } = require("../../core/context-engine");
         this.contextEngine = new ContextEngine(plugin, 'library');
         this.debouncedRefreshSpaceTree = debounce(this.refreshSpaceTree.bind(this), 20);
+        // 300ms debounce prevents duplicate renders from rapid file events after a git sync
+        this.debouncedRenderView = debounce(this.renderView.bind(this), 300);
     }
 
     getViewType() {
@@ -62,15 +66,14 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             })
         );
         
-        // Listen for graph updates (e.g. new files) to refresh the tree
+        // Listen for graph updates - only refresh tree content if already in a space,
+        // otherwise debounce the shelf re-render so rapid post-pull events don't duplicate the DOM
         this.registerEvent(
             (this.app.workspace as any).on("abstract-folder:graph-updated", () => {
                 if (this.selectedSpace) {
-                    const header = this.containerEl.querySelector(".abstract-folder-header") as HTMLElement;
-                    if (header) this.renderHeader(header);
                     this.debouncedRefreshSpaceTree();
                 } else {
-                    this.renderView();
+                    this.debouncedRenderView();
                 }
             })
         );
@@ -102,32 +105,29 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
     }
 
     private renderView() {
+        // Guard: prevent concurrent full DOM rebuilds from flooding events
+        if (this.isRenderingView) return;
+        this.isRenderingView = true;
+
         const container = this.containerEl.children[1] as HTMLElement;
         container.empty();
         container.addClass("abstract-library-explorer");
 
+        const finish = () => { this.isRenderingView = false; };
+
         if (this.selectedSpace) {
-            // Re-initialize engine for the space scope if specific, 
-            // OR reuse 'library' scope if we want library settings to apply to all spaces?
-            // The plan said: "Uses dynamic scopes like 'space:Path/To/Space'"
             const { ContextEngine } = require("../../core/context-engine");
             this.contextEngine = new ContextEngine(this.plugin, `space:${this.selectedSpace.path}`);
             
-            // Subscribe to state changes
-            this.contextEngine.on('changed', () => {
-                 this.debouncedRefreshSpaceTree();
-            });
-            this.contextEngine.on('expand-all', () => {
-                 this.debouncedRefreshSpaceTree({ forceExpand: true });
-            });
+            this.contextEngine.on('changed', () => { this.debouncedRefreshSpaceTree(); });
+            this.contextEngine.on('expand-all', () => { this.debouncedRefreshSpaceTree({ forceExpand: true }); });
             
-            void this.renderSpaceTree(container);
+            this.renderSpaceTree(container).then(finish).catch((e) => { Logger.error("renderView", e); finish(); });
         } else {
-            // Back to library scope
             const { ContextEngine } = require("../../core/context-engine");
             this.contextEngine = new ContextEngine(this.plugin, 'library');
             
-            void this.renderShelf(container);
+            this.renderShelf(container).then(finish).catch((e) => { Logger.error("renderView", e); finish(); });
         }
     }
 

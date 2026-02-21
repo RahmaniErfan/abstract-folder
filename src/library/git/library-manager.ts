@@ -2,7 +2,7 @@ import { App, Notice, FileSystemAdapter, EventRef, Platform } from "obsidian";
 import * as git from "isomorphic-git";
 import * as path from 'path';
 import { ObsidianHttpAdapter } from "./http-adapter";
-import { LibraryConfig, LibraryStatus, RegistryItem } from "../types";
+import { LibraryConfig, LibraryStatus, CatalogItem } from "../types";
 import { DataService } from "../services/data-service";
 import { NodeFsAdapter } from "./node-fs-adapter";
 import { SecureFsAdapter } from "./secure-fs-adapter";
@@ -15,6 +15,7 @@ import { GitScopeManager } from "./git-scope-manager";
 import { GitDesktopAdapter } from "./git-desktop-adapter";
 import { GitMobileAdapter } from "./git-mobile-adapter";
 import { GitStatusMatrix, IGitEngine, GitAuthor } from "./types";
+import { ConflictResolutionModal } from "../../ui/modals/conflict-resolution-modal";
 import { Logger } from "../../utils/logger";
 
 /**
@@ -194,7 +195,7 @@ export class LibraryManager {
     /**
      * Clone a library into the vault.
      */
-    async cloneLibrary(repositoryUrl: string, destinationPath: string, item?: RegistryItem, token?: string): Promise<void> {
+    async cloneLibrary(repositoryUrl: string, destinationPath: string, item?: CatalogItem, token?: string): Promise<void> {
         try {
             const absoluteDir = this.getAbsolutePath(destinationPath);
 
@@ -207,7 +208,7 @@ export class LibraryManager {
 
             console.debug(`[LibraryManager] Clone complete for ${absoluteDir}. Verifying contents...`);
             try {
-                const configPath = path.join(absoluteDir, 'library.config.json');
+                const configPath = path.join(absoluteDir, 'library.json');
                 const configExists = await NodeFsAdapter.promises.stat(configPath).catch(() => null);
 
                 if (!configExists) {
@@ -224,12 +225,12 @@ export class LibraryManager {
                         await NodeFsAdapter.promises.writeFile(configPath, JSON.stringify(manifest, null, 2), "utf8");
                         console.debug(`[LibraryManager] Created bootstrap manifest at ${configPath}`);
                     } else {
-                        throw new Error("Library is missing library.config.json and no metadata was provided for bootstrapping.");
+                        throw new Error("Library is missing library.json and no metadata was provided for bootstrapping.");
                     }
                 }
             } catch (e) {
                 console.error(`[LibraryManager] Post-clone verification/bootstrapping failed for ${absoluteDir}:`, e);
-                throw e; // Re-throw to ensure the UI knows installation failed
+                throw e; 
             }
 
             // Refresh the vault so Obsidian sees the new files
@@ -269,6 +270,9 @@ export class LibraryManager {
         }
     }
 
+    // Static flag to prevent multiple conflict modals from opening simultaneously
+    private isConflictModalOpen = false;
+
     /**
      * Pull updates for an existing library.
      */
@@ -286,12 +290,55 @@ export class LibraryManager {
 
             await engine.pull(absoluteDir, "main", author, tokenToUse);
 
-            // Refresh vault
+            // Refresh vault and invalidate bridge cache so the tree shows updated files
             await this.app.vault.adapter.list(vaultPath);
+            (this.app.workspace as any).trigger('abstract-folder:spaces-updated');
 
             new Notice("Library updated successfully");
         } catch (error: any) {
-            if (error.code === 'MergeConflictError' || error.name === 'MergeConflictError' || error.name === 'CheckoutConflictError') {
+            if (error.name === 'CheckoutConflictError') {
+                // Prevent duplicate modals if update is called multiple times rapidly
+                if (this.isConflictModalOpen) return;
+                this.isConflictModalOpen = true;
+
+                const files = error.data?.filepaths || [];
+                new ConflictResolutionModal(this.app, vaultPath, files, async (strategy) => {
+                    this.isConflictModalOpen = false;
+                    if (strategy === 'overwrite') {
+                        try {
+                            const absoluteDir = this.getAbsolutePath(vaultPath);
+                            const engine = await this.getEngine();
+                            const tokenToUse = token || await this.ensureToken(vaultPath);
+                            const gitSettings = this.settings.librarySettings;
+                            const author = {
+                                name: gitSettings.gitName || gitSettings.githubUsername || "Abstract Library Manager",
+                                email: gitSettings.gitEmail || (gitSettings.githubUsername ? `${gitSettings.githubUsername}@users.noreply.github.com` : "manager@abstract.library")
+                            };
+
+                            new Notice("Overwriting local changes and pulling...");
+                            await engine.discardChanges(absoluteDir, files);
+
+                            // Single retry — if this fails again, it's a different error (not conflict)
+                            await engine.pull(absoluteDir, "main", author, tokenToUse);
+
+                            // Invalidate bridge + graph cache so the file tree reflects new state
+                            const bridge = (this.app as any).plugins?.plugins?.['abstract-folder']?.abstractBridge;
+                            if (bridge) bridge.invalidateCache();
+
+                            await this.app.vault.adapter.list(vaultPath);
+                            (this.app.workspace as any).trigger('abstract-folder:spaces-updated');
+
+                            new Notice("Library updated successfully");
+                        } catch (e: any) {
+                            new Notice(`Resolution failed: ${e.message}`);
+                            Logger.error("[LibraryManager] Post-conflict pull failed", e);
+                        }
+                    }
+                }).open();
+                return;
+            }
+
+            if (error.code === 'MergeConflictError' || error.name === 'MergeConflictError') {
                 const absoluteDir = this.getAbsolutePath(vaultPath);
                 const conflicts = await ConflictManager.detectConflicts(absoluteDir);
                 if (conflicts.length > 0) {
@@ -339,7 +386,7 @@ export class LibraryManager {
      */
     async validateLibrary(vaultPath: string): Promise<LibraryConfig> {
         const absoluteDir = this.getAbsolutePath(vaultPath);
-        const configPath = path.join(absoluteDir, 'library.config.json');
+        const configPath = path.join(absoluteDir, 'library.json');
         
         try {
             const configContent = await NodeFsAdapter.promises.readFile(configPath, "utf8");
@@ -596,6 +643,8 @@ export class LibraryManager {
      * Sync changes to the remote (pull, add, commit, push).
      */
     async syncBackup(vaultPath: string, message: string = "Sync via Abstract Folder", token?: string, silent: boolean = false): Promise<void> {
+        // Hoist engine so it's accessible in catch block (for CheckoutConflictError discard)
+        let engine: IGitEngine | null = null;
         try {
             const absoluteDir = this.getAbsolutePath(vaultPath);
             const secureFs = new SecureFsAdapter(this.securityManager, absoluteDir);
@@ -607,7 +656,7 @@ export class LibraryManager {
                 email: gitSettings.gitEmail || (gitSettings.githubUsername ? `${gitSettings.githubUsername}@users.noreply.github.com` : "backup@abstract.folder")
             };
 
-            const engine = await this.getEngine();
+            engine = await this.getEngine();
             
             // 1. Add all files (handles modified & untracked)
             await engine.add(absoluteDir, ".");
@@ -655,7 +704,29 @@ export class LibraryManager {
 
             if (!silent) new Notice("Backup synced successfully");
         } catch (error: any) {
-            if (error.code === 'MergeConflictError' || error.name === 'MergeConflictError' || error.name === 'CheckoutConflictError') {
+            if (error.name === 'CheckoutConflictError') {
+                // Checkout conflict: local uncommitted changes would be overwritten
+                if (this.isConflictModalOpen) return;
+                this.isConflictModalOpen = true;
+                const absoluteDir = this.getAbsolutePath(vaultPath);
+                const files = error.data?.filepaths || [];
+
+                new ConflictResolutionModal(this.app, vaultPath, files, async (strategy) => {
+                    this.isConflictModalOpen = false;
+                    if (strategy === 'overwrite') {
+                        try {
+                            if (engine) await engine.discardChanges(absoluteDir, files);
+                            await this.syncBackup(vaultPath, message, token, silent);
+                        } catch (e: any) {
+                            new Notice(`Sync failed after overwrite: ${e.message}`);
+                            Logger.error("[LibraryManager] Post-checkout-conflict sync failed", e);
+                        }
+                    }
+                }).open();
+                return;
+            }
+
+            if (error.code === 'MergeConflictError' || error.name === 'MergeConflictError') {
                 const absoluteDir = this.getAbsolutePath(vaultPath);
                 const conflicts = await ConflictManager.detectConflicts(absoluteDir, error);
                 

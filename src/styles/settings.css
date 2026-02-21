@@ -261,3 +261,134 @@
         flex-direction: column;
     }
 }
+
+/* Hierarchy Overrides List */
+.af-settings-overrides-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 16px 0;
+}
+
+.af-settings-override-item {
+    background-color: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    padding: 16px;
+    transition: all 0.2s ease;
+}
+
+.af-settings-override-item:hover {
+    border-color: var(--interactive-accent);
+    background-color: var(--background-secondary-alt);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.af-override-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.af-override-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-accent);
+}
+
+.af-override-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.af-override-path {
+    font-weight: var(--font-semibold);
+    font-size: var(--font-ui-medium);
+    color: var(--text-normal);
+    font-family: var(--font-monospace);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.af-override-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.af-override-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background-color: var(--background-primary);
+    border-radius: var(--radius-s);
+    border: 1px solid var(--background-modifier-border);
+}
+
+.af-override-label {
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+}
+
+.af-override-value {
+    font-size: var(--font-ui-smaller);
+    font-weight: var(--font-medium);
+    color: var(--text-accent);
+}
+
+.af-override-row.is-strict {
+    background-color: rgba(var(--success-rgb), 0.1);
+    border-color: rgba(var(--success-rgb), 0.2);
+    color: var(--text-success);
+}
+
+.af-override-row.is-strict .af-strict-label {
+    font-weight: var(--font-semibold);
+}
+
+.af-settings-empty-notice {
+    text-align: center;
+    padding: 32px;
+    color: var(--text-muted);
+    font-style: italic;
+    background-color: var(--background-secondary);
+    border-radius: var(--radius-m);
+    border: 1px dashed var(--background-modifier-border);
+}
+
+
+/* Conflict Resolution Modal */
+.af-conflict-modal {
+    max-width: 500px;
+}
+
+.af-conflict-desc {
+    margin-bottom: 15px;
+}
+
+.af-conflict-list {
+    background: var(--background-secondary);
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+}
+
+.af-conflict-item {
+    font-family: var(--font-monospace);
+    font-size: 0.9em;
+    padding: 2px 0;
+}
+
+.af-conflict-question {
+    font-weight: bold;
+    margin-bottom: 20px;
+}

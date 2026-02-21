@@ -109,6 +109,31 @@ export class GitDesktopAdapter implements IGitEngine {
 
             await execFileAsync('git', args, { cwd: absoluteDir, env });
         } catch (e: any) {
+            const output = (e.stdout || "") + "\n" + (e.stderr || "");
+            
+            if (output.includes('Your local changes to the following files would be overwritten by merge')) {
+                const error: any = new Error("CheckoutConflictError");
+                error.name = 'CheckoutConflictError';
+                
+                // Extract files
+                const lines = output.split('\n');
+                const filepaths: string[] = [];
+                let foundHeader = false;
+                for (const line of lines) {
+                    if (line.includes('Your local changes to the following files would be overwritten by merge')) {
+                        foundHeader = true;
+                        continue;
+                    }
+                    if (foundHeader) {
+                        if (line.trim().includes('Please commit your changes') || line.trim() === 'Aborting') break;
+                        const trimmed = line.trim();
+                        if (trimmed) filepaths.push(trimmed);
+                    }
+                }
+                error.data = { filepaths };
+                throw error;
+            }
+
             if (e.stdout?.includes('CONFLICT') || e.stderr?.includes('CONFLICT') || e.stdout?.includes('Automatic merge failed')) {
                 const error: any = new Error("MergeConflictError");
                 error.code = 'MergeConflictError';
@@ -170,6 +195,11 @@ export class GitDesktopAdapter implements IGitEngine {
         } catch (e) {
             return undefined;
         }
+    }
+
+    async discardChanges(absoluteDir: string, filepaths: string[]): Promise<void> {
+        if (filepaths.length === 0) return;
+        await execFileAsync('git', ['checkout', '--', ...filepaths], { cwd: absoluteDir });
     }
 
     async getStatusMatrix(absoluteDir: string, ignoredPaths?: string[]): Promise<GitStatusMatrix> {

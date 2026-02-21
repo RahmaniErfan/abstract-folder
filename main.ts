@@ -24,6 +24,7 @@ import { AbstractBridge } from './src/library/bridge/abstract-bridge';
 import { ContributionEngine } from './src/library/services/contribution-engine';
 import { CatalogModal } from './src/ui/modals/catalog-modal';
 import { LibraryExplorerView, VIEW_TYPE_LIBRARY_EXPLORER } from './src/library/ui/library-explorer-view';
+import { LibraryCenterView, VIEW_TYPE_LIBRARY_CENTER } from './src/library/ui/library-center-view';
 import { AbstractSpacesExplorerView, ABSTRACT_SPACES_VIEW_TYPE } from './src/ui/view/abstract-spaces-explorer';
 import './src/styles/index.css';
 import './src/styles/library-explorer.css';
@@ -114,6 +115,11 @@ export default class AbstractFolderPlugin extends Plugin {
             (leaf) => new AbstractSpacesExplorerView(leaf, this)
         );
 
+		this.registerView(
+			VIEW_TYPE_LIBRARY_CENTER,
+			(leaf) => new LibraryCenterView(leaf, this)
+		);
+
 		this.updateRibbonIconVisibility();
 
 		this.addCommand({
@@ -139,6 +145,14 @@ export default class AbstractFolderPlugin extends Plugin {
                 this.activateAbstractSpacesExplorer().catch(console.error);
             },
         });
+
+		this.addCommand({
+			id: "open-library-catalog-view",
+			name: "Open marketplace catalog view",
+			callback: () => {
+				this.activateLibraryCatalogView().catch(console.error);
+			},
+		});
 
 		this.addCommand({
 			id: "open-view",
@@ -468,6 +482,29 @@ this.addCommand({
             await workspace.revealLeaf(leaf);
         }
     }
+
+	async activateLibraryCatalogView() {
+		Logger.debug("Activating Library Catalog View...");
+		const { workspace } = this.app;
+		let leaf: WorkspaceLeaf | null = null;
+		const leaves = workspace.getLeavesOfType(VIEW_TYPE_LIBRARY_CENTER);
+
+		if (leaves.length > 0) {
+			leaf = leaves[0];
+		} else {
+			leaf = workspace.getLeaf(true);
+			if (leaf) {
+				await leaf.setViewState({
+					type: VIEW_TYPE_LIBRARY_CENTER,
+					active: true,
+				});
+			}
+		}
+
+		if (leaf) {
+			await workspace.revealLeaf(leaf);
+		}
+	}
 
 	async activateView() {
 		Logger.debug("Activating Abstract Folder View...");

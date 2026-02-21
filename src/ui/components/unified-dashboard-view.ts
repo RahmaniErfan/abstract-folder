@@ -1,4 +1,4 @@
-import { App, Setting, Notice, setIcon, ButtonComponent, TFolder, moment } from "obsidian";
+import { App, Setting, Notice, setIcon, ButtonComponent, TFile, TFolder, moment } from "obsidian";
 import AbstractFolderPlugin from "main";
 import { CollaboratorView } from "./collaborator-view";
 
@@ -11,6 +11,7 @@ export class UnifiedDashboardView {
     private githubUrl: string | null = null;
     private isLoading: boolean = true;
     private history: any[] = [];
+    private activeTab: 'summary' | 'config' = 'summary';
 
     // DOM References for in-place updates
     private summaryHeaderContainer: HTMLElement;
@@ -31,7 +32,7 @@ export class UnifiedDashboardView {
     private async init() {
         this.hasGit = await this.plugin.libraryManager.detectExistingGit(this.vaultPath);
         this.isLoading = true;
-        this.render(); // Initial shell render with skeletons
+        this.render(); // Initial shell render with skeletons (default to summary)
 
         if (this.hasGit) {
             const remoteUrl = await this.plugin.libraryManager.getRemoteUrl(this.vaultPath);
@@ -75,6 +76,42 @@ export class UnifiedDashboardView {
         this.containerEl.empty();
         const container = this.containerEl.createDiv({ cls: "af-dashboard-container" });
 
+        this.renderTabs(container);
+
+        if (this.activeTab === 'summary') {
+            this.renderSummaryTab(container);
+        } else {
+            this.renderConfigTab(container);
+        }
+    }
+
+    private renderTabs(container: HTMLElement) {
+        const tabs = container.createDiv({ cls: "af-dashboard-tabs" });
+        
+        const summaryTab = tabs.createDiv({ 
+            cls: `af-dashboard-tab ${this.activeTab === 'summary' ? 'is-active' : ''}` 
+        });
+        setIcon(summaryTab, "layout-dashboard");
+        summaryTab.createSpan({ text: "Summary" });
+        summaryTab.onClickEvent(() => {
+            if (this.activeTab === 'summary') return;
+            this.activeTab = 'summary';
+            this.render();
+        });
+
+        const configTab = tabs.createDiv({ 
+            cls: `af-dashboard-tab ${this.activeTab === 'config' ? 'is-active' : ''}` 
+        });
+        setIcon(configTab, "settings");
+        configTab.createSpan({ text: "Config" });
+        configTab.onClickEvent(() => {
+            if (this.activeTab === 'config') return;
+            this.activeTab = 'config';
+            this.render();
+        });
+    }
+
+    private renderSummaryTab(container: HTMLElement) {
         this.summaryHeaderContainer = container.createDiv(); // Wrapper for summary
         this.renderSummaryHeader(this.summaryHeaderContainer);
 
@@ -103,6 +140,83 @@ export class UnifiedDashboardView {
         
         // Governance/Security
         this.renderGovernanceSection(container);
+    }
+
+    private async renderConfigTab(container: HTMLElement) {
+        const section = container.createDiv({ cls: "af-dashboard-section af-config-editor-section" });
+        section.createEl("h3", { text: "Library Configuration (library.json)" });
+        section.createEl("p", { 
+            text: "Directly edit the manifest file for this library. Changes here affect relationship property names and sync rules.",
+            cls: "af-config-desc"
+        });
+
+        const configFile = this.app.vault.getAbstractFileByPath(`${this.vaultPath}/library.json`);
+        
+        if (!configFile || !(configFile instanceof TFile)) {
+            const emptyState = section.createDiv({ cls: "af-config-empty" });
+            emptyState.createEl("p", { text: "No library.json found in this folder." });
+            new ButtonComponent(emptyState)
+                .setButtonText("Initialize library.json")
+                .setCta()
+                .onClick(async () => {
+                    const template = {
+                        id: this.name.toLowerCase().replace(/\s+/g, '-'),
+                        name: this.name,
+                        author: "Unknown",
+                        version: "1.0.0",
+                        parentProperty: "parent",
+                        childrenProperty: "children",
+                        forceStandardProperties: false
+                    };
+                    await this.app.vault.create(`${this.vaultPath}/library.json`, JSON.stringify(template, null, 2));
+                    new Notice("Created library.json");
+                    this.render();
+                });
+            return;
+        }
+
+        try {
+            const content = await this.app.vault.read(configFile);
+            const editor = section.createEl("textarea", { 
+                cls: "af-config-textarea",
+                text: content 
+            });
+            editor.rows = 15;
+
+            const actions = section.createDiv({ cls: "af-config-actions" });
+            const saveBtn = new ButtonComponent(actions)
+                .setButtonText("Save Changes")
+                .setCta()
+                .onClick(async () => {
+                    const newContent = editor.value;
+                    try {
+                        const parsed = JSON.parse(newContent);
+                        // Basic validation
+                        if (!parsed.id) throw new Error("Manifest must have an 'id'");
+                        
+                        await this.app.vault.modify(configFile, JSON.stringify(parsed, null, 2));
+                        new Notice("Configuration saved successfully");
+                        
+                        // Invalidate local cache
+                        const bridge = (this.plugin as any).abstractBridge;
+                        if (bridge && bridge.configResolver) {
+                            bridge.configResolver.clearCache();
+                            bridge.invalidateCache();
+                        }
+                    } catch (e) {
+                        new Notice(`Invalid JSON: ${e.message}`);
+                    }
+                });
+
+            new ButtonComponent(actions)
+                .setButtonText("Reset")
+                .onClick(() => {
+                    editor.value = content;
+                });
+
+        } catch (e) {
+            section.createEl("p", { text: `Error reading config: ${e.message}`, cls: "error-text" });
+        }
     }
 
     private renderSummaryHeader(container: HTMLElement) {

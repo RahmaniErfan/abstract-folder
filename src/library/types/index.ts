@@ -8,6 +8,16 @@ export interface SharedSpaceConfig {
     syncIntervalValue: number;
     syncIntervalUnit: 'minutes' | 'hours' | 'days' | 'weeks';
     lastSync?: number;
+    parentProperty?: string;
+    childrenProperty?: string;
+}
+
+export interface LocalConfig {
+    propertyNames?: {
+        parent?: string;
+        children?: string;
+    };
+    forceStandardProperties?: boolean;
 }
 
 export interface LibraryConfig {
@@ -20,19 +30,23 @@ export interface LibraryConfig {
     branch: string;
     lastSync?: number;
     isStandalone?: boolean;
+    fundingUrl?: string;
+    parentProperty?: string;
+    childrenProperty?: string;
+    forceStandardProperties?: boolean;
 }
 
 export interface LibraryNode extends FolderNode {
     isLibrary: true;
     libraryId: string;
-    registryId: string;
+    catalogId: string;
     isPublic: boolean;
     status: LibraryStatus;
     isLocked: boolean;
     children: (FolderNode | LibraryNode)[];
 }
 
-export interface RegistryItem {
+export interface CatalogItem {
     id: string;
     name: string;
     description: string;
@@ -41,12 +55,21 @@ export interface RegistryItem {
     category: string;
     tags: string[];
     sourceCatalog?: string;
+    fundingUrl?: string;
+}
+
+export interface CatalogIndex {
+    version: string;
+    lastUpdated: string;
+    categories: string[];
+    libraries: CatalogItem[];
+    blacklist: string[];
 }
 
 export interface LibrarySettings {
     librariesPath: string; // Default: "Abstract Library"
     sharedSpacesRoot: string; // Default: "Abstract Spaces"
-    registries: string[];  // List of custom registry URLs
+    catalogs: string[];  // List of custom catalog URLs
     standaloneLibraries: string[]; // List of direct repository URLs
     sharedSpaces: string[]; // List of paths that are Shared Spaces (Collaborative)
     spaceConfigs: Record<string, SharedSpaceConfig>; // Per-space configuration

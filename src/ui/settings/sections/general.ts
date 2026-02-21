@@ -69,52 +69,6 @@ export class PathInputSuggest extends AbstractInputSuggest<string> {
 
 export function renderGeneralSettings(containerEl: HTMLElement, plugin: AbstractFolderPlugin) {
     renderSupportBanner(containerEl.createDiv(), plugin);
-	new Setting(containerEl).setName("Properties").setHeading();
-
-	new Setting(containerEl)
-		.setName("Parent property names")
-		.setDesc(
-			"The frontmatter property key(s) used to define parent notes (e.g., 'parent' or 'folder'). Support multiple names, separated by commas. These are case-sensitive.",
-		)
-		.addText((text) =>
-			text
-				.setPlaceholder("Example: parent, up")
-				.setValue(plugin.settings.parentPropertyNames.join(", "))
-				.onChange(async (value) => {
-					const propertyNames = value
-						.split(",")
-						.map((v) => v.trim())
-						.filter((v) => v.length > 0);
-					plugin.settings.parentPropertyNames = propertyNames;
-					if (propertyNames.length > 0) {
-						plugin.settings.propertyName = propertyNames[0];
-					}
-					await plugin.saveSettings();
-				}),
-		);
-
-	new Setting(containerEl)
-		.setName("Children property names")
-		.setDesc(
-			"The frontmatter property key(s) used by a parent to define its children (e.g., 'children' or 'sub_notes'). Support multiple names, separated by commas. These are case-sensitive.",
-		)
-		.addText((text) =>
-			text
-				.setPlaceholder("Example: children, members")
-				.setValue(plugin.settings.childrenPropertyNames.join(", "))
-				.onChange(async (value) => {
-					const propertyNames = value
-						.split(",")
-						.map((v) => v.trim())
-						.filter((v) => v.length > 0);
-					plugin.settings.childrenPropertyNames = propertyNames;
-					if (propertyNames.length > 0) {
-						plugin.settings.childrenPropertyName = propertyNames[0];
-					}
-					await plugin.saveSettings();
-				}),
-		);
-
 	new Setting(containerEl)
 		.setName("Created date field names")
 		.setDesc(

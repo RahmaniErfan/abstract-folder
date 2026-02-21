@@ -333,3 +333,80 @@
     font-style: italic;
     line-height: 1.4;
 }
+
+/* Dashboard Tabs */
+.af-dashboard-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 12px;
+}
+
+.af-dashboard-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: var(--radius-m);
+    cursor: pointer;
+    font-size: var(--font-ui-small);
+    font-weight: var(--font-medium);
+    color: var(--text-muted);
+    transition: all 0.2s ease;
+}
+
+.af-dashboard-tab:hover {
+    background-color: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.af-dashboard-tab.is-active {
+    background-color: var(--background-primary);
+    color: var(--interactive-accent);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--background-modifier-border);
+}
+
+/* Config Editor */
+.af-config-editor-section {
+    display: flex;
+    flex-direction: column;
+}
+
+.af-config-desc {
+    margin-bottom: 16px;
+}
+
+.af-config-textarea {
+    width: 100%;
+    font-family: var(--font-monospace);
+    font-size: var(--font-ui-small);
+    padding: 12px;
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    color: var(--text-normal);
+    resize: vertical;
+    margin-bottom: 16px;
+    line-height: 1.5;
+}
+
+.af-config-textarea:focus {
+    border-color: var(--interactive-accent);
+}
+
+.af-config-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.af-config-empty {
+    text-align: center;
+    padding: 40px;
+    background-color: var(--background-primary);
+    border: 2px dashed var(--background-modifier-border);
+    border-radius: var(--radius-m);
+}
+

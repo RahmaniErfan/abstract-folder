@@ -5,6 +5,7 @@ import { FolderNode, FileID } from "../../types";
 import { DataService } from "../services/data-service";
 import { AbstractFolderPluginSettings } from "../../settings";
 import { FileDefinedRelationships } from "../../core/graph-engine";
+import { ConfigResolver, ResolvedProperties } from "../services/config-resolver";
 
 /**
  * AbstractBridge is responsible for merging physical library nodes
@@ -12,6 +13,8 @@ import { FileDefinedRelationships } from "../../core/graph-engine";
  */
 export class AbstractBridge {
     private parentPropertyNames: string[] = ['parent'];
+    private childrenPropertyNames: string[] = ['children'];
+    private configResolver: ConfigResolver;
     
     // Cache for discovered libraries
     private discoveryCache: LibraryNode[] | null = null;
@@ -33,7 +36,13 @@ export class AbstractBridge {
             if (names.size > 0) {
                 this.parentPropertyNames = Array.from(names);
             }
+            if (settings.childrenPropertyNames) {
+                this.childrenPropertyNames = settings.childrenPropertyNames;
+            } else if (settings.childrenPropertyName) {
+                this.childrenPropertyNames = [settings.childrenPropertyName];
+            }
         }
+        this.configResolver = new ConfigResolver(this.app, (settings as AbstractFolderPluginSettings) || {});
     }
 
     /**
@@ -47,8 +56,25 @@ export class AbstractBridge {
 
         Logger.debug(`AbstractBridge: discoverLibraries called for: ${basePath}`);
         try {
-            const folder = this.app.vault.getAbstractFileByPath(basePath);
+            if (forceRefresh) {
+                await this.app.vault.adapter.list(basePath);
+            }
+
+            let folder = this.app.vault.getAbstractFileByPath(basePath);
+            
+            // If folder is null but just created, give it a tiny moment
+            if (!folder && forceRefresh) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                folder = this.app.vault.getAbstractFileByPath(basePath);
+            }
+
             if (!(folder instanceof TFolder)) return [];
+
+            // If children are empty but we expect something (forceRefresh), wait a bit
+            if (folder.children.length === 0 && forceRefresh) {
+                await this.app.vault.adapter.list(folder.path);
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
 
             const libraries: LibraryNode[] = [];
             
@@ -61,7 +87,7 @@ export class AbstractBridge {
                     isFolder: true,
                     isLibrary: true,
                     libraryId: config.id,
-                    registryId: "default",
+                    catalogId: "default",
                     isPublic: true,
                     status: 'up-to-date',
                     isLocked: true,
@@ -90,7 +116,7 @@ export class AbstractBridge {
      * Helper to read library.config.json from the vault.
      */
     private async getLibraryConfig(dir: string): Promise<LibraryConfig | null> {
-        const configPath = `${dir}/library.config.json`;
+        const configPath = `${dir}/library.json`;
         const file = this.app.vault.getAbstractFileByPath(configPath);
         if (file instanceof TFile) {
             try {
@@ -116,6 +142,9 @@ export class AbstractBridge {
         }
 
         Logger.debug(`AbstractBridge: buildAbstractLibraryTree called for root: ${libraryRoot.path}`);
+        
+        this.configResolver.clearCache();
+
         const files: TFile[] = [];
         const localPathMap = new Map<string, string>(); // basename/name -> path
 
@@ -148,12 +177,16 @@ export class AbstractBridge {
         for (const file of files) {
             allPaths.add(file.path);
             
+            const resolvedProps = await this.configResolver.getProperties(file.path);
+            const currentParentProps = resolvedProps.parentPropertyNames;
+            const currentChildrenProps = resolvedProps.childrenPropertyNames;
+
             // If cache is not ready, parse file content directly
             const cache = this.app.metadataCache.getFileCache(file);
             let frontmatter = cache?.frontmatter as Record<string, unknown> | undefined;
 
-            const hasParentProp = frontmatter && this.parentPropertyNames.some(prop => frontmatter![prop]);
-            const hasChildrenProp = frontmatter && frontmatter['children'];
+            const hasParentProp = frontmatter && currentParentProps.some(prop => frontmatter![prop]);
+            const hasChildrenProp = frontmatter && currentChildrenProps.some(prop => frontmatter![prop]);
 
             if (!frontmatter || (!hasParentProp && !hasChildrenProp)) {
                 try {
@@ -172,8 +205,8 @@ export class AbstractBridge {
                             const val = valParts.join(':').trim();
                             
                             // Check if this key matches any of our parent/children property names (case-insensitive)
-                            const isParentKey = this.parentPropertyNames.some(p => p.toLowerCase() === k.toLowerCase());
-                            const isChildrenKey = k.toLowerCase() === 'children';
+                            const isParentKey = currentParentProps.some(p => p.toLowerCase() === k.toLowerCase());
+                            const isChildrenKey = currentChildrenProps.some(p => p.toLowerCase() === k.toLowerCase());
 
                             if (isParentKey || isChildrenKey) {
                                 let v = val;
@@ -189,7 +222,7 @@ export class AbstractBridge {
                             }
                         }
                         frontmatter = manualFM;
-                        Logger.debug(`[AbstractBridge] Manual parse of ${file.name}:`, { frontmatter, checkedProperties: this.parentPropertyNames });
+                        Logger.debug(`[AbstractBridge] Manual parse of ${file.name}:`, { frontmatter, checkedProperties: currentParentProps });
                     }
                 } catch (e) {
                     Logger.error(`[AbstractBridge] Failed to read ${file.path} for manual metadata:`, e);
@@ -197,7 +230,7 @@ export class AbstractBridge {
             }
             
             // Check all configured parent properties
-            for (const propName of this.parentPropertyNames) {
+            for (const propName of currentParentProps) {
                 let parentValue: unknown = frontmatter ? frontmatter[propName] : null;
 
                 if (parentValue) {
@@ -222,20 +255,22 @@ export class AbstractBridge {
             }
 
             // Process children property (inverted relationship)
-            const childrenValue = frontmatter?.['children'];
-            if (childrenValue) {
-                // Logger.debug(`AbstractBridge: Found children property in ${file.name}:`, childrenValue);
-                const childLinks = Array.isArray(childrenValue) ? childrenValue as unknown[] : [childrenValue];
-                for (const link of childLinks) {
-                    if (typeof link !== 'string') continue;
-                    const childPath = this.resolveLibraryLink(link, file.path, libraryRoot.path, localPathMap);
-                    if (childPath && childPath !== file.path) {
-                        // Logger.debug(`AbstractBridge: Resolved child link "${link}" to ${childPath}`);
-                        if (!parentToChildren[file.path]) parentToChildren[file.path] = new Set();
-                        parentToChildren[file.path].add(childPath);
+            for (const propName of currentChildrenProps) {
+                const childrenValue = frontmatter?.[propName];
+                if (childrenValue) {
+                    // Logger.debug(`AbstractBridge: Found children property in ${file.name}:`, childrenValue);
+                    const childLinks = Array.isArray(childrenValue) ? childrenValue as unknown[] : [childrenValue];
+                    for (const link of childLinks) {
+                        if (typeof link !== 'string') continue;
+                        const childPath = this.resolveLibraryLink(link, file.path, libraryRoot.path, localPathMap);
+                        if (childPath && childPath !== file.path) {
+                            // Logger.debug(`AbstractBridge: Resolved child link "${link}" to ${childPath}`);
+                            if (!parentToChildren[file.path]) parentToChildren[file.path] = new Set();
+                            parentToChildren[file.path].add(childPath);
 
-                        if (!childToParents[childPath]) childToParents[childPath] = new Set();
-                        childToParents[childPath].add(file.path);
+                            if (!childToParents[childPath]) childToParents[childPath] = new Set();
+                            childToParents[childPath].add(file.path);
+                        }
                     }
                 }
             }
@@ -318,15 +353,23 @@ export class AbstractBridge {
         return null;
     }
 
-    private createAbstractNode(path: string, parentToChildren: Record<string, Set<string>>): FolderNode | null {
+    private createAbstractNode(path: string, parentToChildren: Record<string, Set<string>>, visited = new Set<string>()): FolderNode | null {
+        if (visited.has(path)) {
+            Logger.warn(`[AbstractBridge] Cycle detected at ${path}`);
+            return null;
+        }
+
         const file = this.app.vault.getAbstractFileByPath(path);
         if (!(file instanceof TFile)) return null;
+
+        const newVisited = new Set(visited);
+        newVisited.add(path);
 
         const childrenPaths = parentToChildren[path];
         const childrenNodes: FolderNode[] = [];
         if (childrenPaths) {
             for (const childPath of childrenPaths) {
-                const childNode = this.createAbstractNode(childPath, parentToChildren);
+                const childNode = this.createAbstractNode(childPath, parentToChildren, newVisited);
                 if (childNode) childrenNodes.push(childNode);
             }
         }

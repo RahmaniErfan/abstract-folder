@@ -129,6 +129,19 @@ export class GitMobileAdapter implements IGitEngine {
         return typeof val === 'string' ? val : undefined;
     }
 
+    async discardChanges(absoluteDir: string, filepaths: string[]): Promise<void> {
+        if (filepaths.length === 0) return;
+        const secureFs = this.getSecureFs(absoluteDir);
+        for (const filepath of filepaths) {
+            await git.checkout({
+                fs: secureFs,
+                dir: absoluteDir,
+                force: true,
+                filepaths: [filepath]
+            });
+        }
+    }
+
     async getStatusMatrix(absoluteDir: string, ignoredPaths?: string[]): Promise<GitStatusMatrix> {
         if (!this.worker) {
             console.warn('[GitMobileAdapter] Worker not running, returning empty status map.');

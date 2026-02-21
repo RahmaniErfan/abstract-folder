@@ -1,21 +1,32 @@
-import { ItemView, WorkspaceLeaf, Notice, FileSystemAdapter } from "obsidian";
-import { RegistryItem } from "../types";
-import { RegistryService } from "../services/registry-service";
+import { ItemView, WorkspaceLeaf, Notice, FileSystemAdapter, setIcon, requestUrl, MarkdownRenderer } from "obsidian";
+import { Logger } from "../../utils/logger";
+import { CatalogItem } from "../types";
+import { CatalogService } from "../services/catalog-service";
 import { LibraryManager } from "../git/library-manager";
 import type AbstractFolderPlugin from "main";
 
 export const VIEW_TYPE_LIBRARY_CENTER = "abstract-library-center";
 
-/**
- * LibraryCenterView is a dedicated Workspace Leaf for discovering and managing libraries.
- */
 export class LibraryCenterView extends ItemView {
-    private registryService: RegistryService;
+    private catalogService: CatalogService;
     private libraryManager: LibraryManager;
+    private searchInput: HTMLInputElement;
+    private filterSelect: HTMLSelectElement;
+    private categorySelect: HTMLSelectElement;
+    
+    private sidebarEl: HTMLElement;
+    private itemsListEl: HTMLElement;
+    private detailEl: HTMLElement;
+    
+    private searchQuery: string = "";
+    private activeFilter: string = "all";
+    private activeCategory: string = "all";
+    private allItems: CatalogItem[] = [];
+    private selectedItem: CatalogItem | null = null;
 
     constructor(leaf: WorkspaceLeaf, private plugin: AbstractFolderPlugin) {
         super(leaf);
-        this.registryService = new RegistryService(this.plugin.settings.librarySettings);
+        this.catalogService = new CatalogService(this.plugin.settings.librarySettings);
         this.libraryManager = this.plugin.libraryManager;
     }
 
@@ -24,7 +35,7 @@ export class LibraryCenterView extends ItemView {
     }
 
     getDisplayText(): string {
-        return "Official Catalog";
+        return "Library Catalog";
     }
 
     getIcon(): string {
@@ -35,164 +46,276 @@ export class LibraryCenterView extends ItemView {
         const container = this.containerEl.children[1] as HTMLElement;
         container.empty();
         container.addClass("abstract-library-center");
+        container.addClass("af-catalog-tab-content-container"); // Reuse modal tab container styles
 
-        container.createEl("h2", { text: "Official Catalog" });
+        const header = container.createDiv({ cls: "af-modal-header" });
+        header.createEl("h2", { text: "Library Catalog" });
 
-        const searchContainer = container.createDiv({ cls: "library-search-container" });
+        const layout = container.createDiv({ cls: "af-catalog-layout" });
+        layout.style.height = "calc(100% - 60px)";
         
-        // Standalone Installation Section
-        const standaloneSection = container.createDiv({ cls: "library-standalone-install" });
-        const standaloneInput = standaloneSection.createEl("input", {
-            attr: { type: "text", placeholder: "Git repository URL (standalone)..." }
-        });
-        const standaloneBtn = standaloneSection.createEl("button", { text: "Add standalone" });
+        // Sidebar
+        this.sidebarEl = layout.createDiv({ cls: "af-catalog-sidebar" });
+        this.renderSidebarHeader(this.sidebarEl);
+        this.itemsListEl = this.sidebarEl.createDiv({ cls: "af-catalog-items-list" });
         
-        const registryList = container.createDiv({ cls: "library-registry-list" });
+        // Detail Area
+        this.detailEl = layout.createDiv({ cls: "af-catalog-detail" });
+        this.detailEl.createEl("p", { text: "Select a library to see details", cls: "empty-text" });
+        
+        void this.refreshCatalog();
+    }
 
-        const searchInput = searchContainer.createEl("input", {
-            attr: { type: "text", placeholder: "Search marketplace..." }
+    private renderSidebarHeader(container: HTMLElement) {
+        const header = container.createDiv({ cls: "af-catalog-sidebar-header" });
+        
+        const searchWrapper = header.createDiv({ cls: "af-catalog-search-wrapper" });
+        this.searchInput = searchWrapper.createEl("input", {
+            type: "text",
+            placeholder: "Search..."
         });
 
-        standaloneBtn.addEventListener("click", () => {
-            void (async () => {
-                const url = standaloneInput.value.trim();
-                if (!url) return;
-                
-                standaloneBtn.disabled = true;
-                standaloneBtn.setText("Resolving...");
-                
-                const item = await this.registryService.resolveStandalone(url);
-                if (item) {
-                    await this.installLibrary(item);
-                    // Save to settings
-                    if (!this.plugin.settings.librarySettings.standaloneLibraries.includes(url)) {
-                        this.plugin.settings.librarySettings.standaloneLibraries.push(url);
-                        await this.plugin.saveSettings();
-                    }
-                    standaloneInput.value = "";
-                } else {
-                    new Notice("Invalid or inaccessible repository URL");
-                }
-                
-                standaloneBtn.disabled = false;
-                standaloneBtn.setText("Add standalone");
-            })();
+        const filtersRow = header.createDiv({ cls: "af-catalog-filters-row" });
+        this.filterSelect = filtersRow.createEl("select", { cls: "dropdown" });
+        this.categorySelect = filtersRow.createEl("select", { cls: "dropdown" });
+        
+        this.populateFilters();
+
+        this.searchInput.addEventListener("input", () => {
+            this.searchQuery = this.searchInput.value.toLowerCase();
+            this.filterAndRenderItems();
         });
 
-        // Initial render
-        await this.refreshRegistry(registryList);
+        this.filterSelect.addEventListener("change", () => {
+            this.activeFilter = this.filterSelect.value;
+            this.filterAndRenderItems();
+        });
 
-        searchInput.addEventListener("input", () => {
-            void (async () => {
-                const query = searchInput.value.toLowerCase();
-                const allItems = await this.registryService.fetchAllItems();
-                const filtered = allItems.filter(i =>
-                    i.name.toLowerCase().includes(query) ||
-                    i.description.toLowerCase().includes(query) ||
-                    i.tags.some(t => t.toLowerCase().includes(query))
-                );
-                this.renderItems(registryList, filtered);
-            })();
+        this.categorySelect.addEventListener("change", () => {
+            this.activeCategory = this.categorySelect.value;
+            this.filterAndRenderItems();
         });
     }
 
-    private async refreshRegistry(container: HTMLElement) {
-        container.empty();
-        container.createEl("p", { text: "Fetching libraries from registries...", cls: "loading-text" });
+    private populateFilters() {
+        if (!this.filterSelect) return;
+        this.filterSelect.empty();
+        this.filterSelect.createEl("option", { value: "all", text: "All Catalogs" });
+        this.filterSelect.createEl("option", { value: "official", text: "Official" });
+        this.filterSelect.createEl("option", { value: "standalone", text: "Standalone" });
         
-        const items = await this.registryService.fetchAllItems();
-        this.renderItems(container, items);
+        this.plugin.settings.librarySettings.catalogs.forEach((reg, index) => {
+            this.filterSelect.createEl("option", { value: reg, text: `Custom ${index + 1}` });
+        });
+        
+        this.filterSelect.value = this.activeFilter;
+
+        this.categorySelect.empty();
+        this.categorySelect.createEl("option", { value: "all", text: "All Categories" });
+        this.catalogService.categories.forEach(cat => {
+            this.categorySelect.createEl("option", { value: cat, text: cat });
+        });
+        this.categorySelect.value = this.activeCategory;
     }
 
-    private renderItems(container: HTMLElement, items: RegistryItem[]) {
-        container.empty();
+    private async refreshCatalog() {
+        if (!this.itemsListEl) return;
+        
+        this.itemsListEl.empty();
+        this.itemsListEl.createEl("p", { text: "Fetching libraries...", cls: "loading-text" });
+        
+        try {
+            // Consolidated fetching (Official + Custom + Standalones)
+            const items = await this.catalogService.fetchAllItems();
+            this.allItems = items;
+            this.filterAndRenderItems();
+            this.populateFilters();
+        } catch (error) {
+            this.itemsListEl.empty();
+            this.itemsListEl.createEl("p", { text: "Error fetching libraries.", cls: "empty-text" });
+        }
+    }
+
+    private filterAndRenderItems() {
+        let items = [...this.allItems];
+
+        if (this.searchQuery) {
+            items = items.filter(i =>
+                i.name.toLowerCase().includes(this.searchQuery) ||
+                i.description.toLowerCase().includes(this.searchQuery) ||
+                i.tags.some(t => t.toLowerCase().includes(this.searchQuery))
+            );
+        }
+
+        if (this.activeFilter === "official") {
+            const OFFICIAL_URL = "https://raw.githubusercontent.com/RahmaniErfan/abstract-catalog/main/catalog.json";
+            items = items.filter(i => i.sourceCatalog === OFFICIAL_URL);
+        } else if (this.activeFilter === "standalone") {
+            items = items.filter(i => i.sourceCatalog === "standalone");
+        } else if (this.activeFilter !== "all") {
+            items = items.filter(i => i.sourceCatalog === this.activeFilter);
+        }
+
+        if (this.activeCategory !== "all") {
+            items = items.filter(i => i.category === this.activeCategory);
+        }
+
+        this.renderSidebarItems(items);
+    }
+
+    private renderSidebarItems(items: CatalogItem[]) {
+        if (!this.itemsListEl) return;
+        this.itemsListEl.empty();
         
         if (items.length === 0) {
-            container.createEl("p", { text: "No libraries found.", cls: "empty-text" });
+            this.itemsListEl.createEl("p", { text: "No libraries found.", cls: "empty-text" });
             return;
         }
 
-        const librariesPath = this.plugin.settings.librarySettings.librariesPath;
-
         items.forEach(item => {
-            const card = container.createDiv({ cls: "library-card" });
-            card.createEl("h3", { text: item.name });
-            card.createEl("p", { text: item.description });
-            
-            const meta = card.createDiv({ cls: "library-card-meta" });
-            meta.createSpan({ text: `By ${item.author}`, cls: "author" });
-            meta.createSpan({ text: item.category, cls: "category" });
+            const itemEl = this.itemsListEl.createDiv({ cls: "af-catalog-item" });
+            if (this.selectedItem && this.selectedItem.id === item.id) {
+                itemEl.addClass("is-selected");
+            }
 
-            const footer = card.createDiv({ cls: "library-card-footer" });
-            
-            // Check if library is already installed
-            const destPath = `${librariesPath}/${item.name}`;
-            
-            void (async () => {
-                let isInstalled = false;
-                try {
-                    isInstalled = await this.app.vault.adapter.exists(destPath);
-                } catch {
-                    isInstalled = false;
-                }
+            itemEl.createDiv({ text: item.name, cls: "af-catalog-item-title" });
+            itemEl.createDiv({ text: item.category, cls: "af-catalog-item-category" });
 
-                if (isInstalled) {
-                    const uninstallBtn = footer.createEl("button", { text: "Uninstall", cls: "mod-warning" });
-                    uninstallBtn.addEventListener("click", () => {
-                        void this.uninstallLibrary(item, uninstallBtn);
-                    });
-                } else {
-                    const installBtn = footer.createEl("button", { text: "Install" });
-                    installBtn.addEventListener("click", () => {
-                        void this.installLibrary(item, installBtn);
-                    });
-                }
-            })();
+            itemEl.addEventListener("click", () => {
+                this.selectItem(item, itemEl);
+            });
         });
+
+        if (!this.selectedItem && items.length > 0) {
+            this.selectItem(items[0], this.itemsListEl.firstChild as HTMLElement);
+        } else if (this.selectedItem) {
+            const refreshed = items.find(i => i.id === this.selectedItem?.id);
+            if (refreshed) {
+                this.renderLibraryDetail(refreshed);
+            }
+        }
     }
 
-    private async installLibrary(item: RegistryItem, btn?: HTMLButtonElement) {
+    private selectItem(item: CatalogItem, el: HTMLElement) {
+        this.selectedItem = item;
+        this.itemsListEl.querySelectorAll(".af-catalog-item").forEach(i => i.removeClass("is-selected"));
+        el.addClass("is-selected");
+        this.renderLibraryDetail(item);
+    }
+
+    private async renderLibraryDetail(item: CatalogItem) {
+        if (!this.detailEl) return;
+        this.detailEl.empty();
+
+        const header = this.detailEl.createDiv({ cls: "af-library-detail-header" });
+        
+        const titleRow = header.createDiv({ cls: "af-library-detail-title-row" });
+        titleRow.createEl("h2", { text: item.name });
+
+        const meta = header.createDiv({ cls: "af-library-detail-meta" });
+        meta.createSpan({ text: `By ${item.author}`, cls: "author" });
+        meta.createSpan({ text: item.category, cls: "category" });
+
+        const actions = header.createDiv({ cls: "af-library-detail-actions" });
+        
+        if (item.fundingUrl) {
+            const heart = actions.createDiv({ cls: "af-library-detail-action af-library-detail-heart clickable-icon", attr: { "aria-label": "Support" } });
+            setIcon(heart, "heart");
+            heart.addEventListener("click", () => window.open(item.fundingUrl, "_blank"));
+        }
+        
+        const librariesPath = this.plugin.settings.librarySettings.librariesPath;
+        const destPath = `${librariesPath}/${item.name}`;
+        
+        // Robust check: Check if folder exists AND contains library.json with matching ID
+        let isInstalled = false;
+        if (await this.app.vault.adapter.exists(destPath)) {
+            try {
+                const configPath = `${destPath}/library.json`;
+                const content = await this.app.vault.adapter.read(configPath);
+                const config = JSON.parse(content);
+                isInstalled = config.id === item.id;
+            } catch {
+                isInstalled = true; 
+            }
+        }
+
+        if (isInstalled) {
+            const uninstallBtn = actions.createEl("button", { text: "Uninstall", cls: "mod-warning" });
+            uninstallBtn.addEventListener("click", () => this.uninstallLibrary(item, uninstallBtn));
+        } else {
+            const installBtn = actions.createEl("button", { text: "Install", cls: "mod-cta" });
+            installBtn.addEventListener("click", () => this.installLibrary(item, installBtn));
+        }
+
+        const ghBtn = actions.createEl("button", { text: "View on GitHub" });
+        ghBtn.addEventListener("click", () => window.open(item.repositoryUrl, "_blank"));
+
+        const body = this.detailEl.createDiv({ cls: "af-library-detail-body markdown-rendered" });
+        body.createEl("p", { text: "Loading README...", cls: "loading-text" });
+
+        void (async () => {
+            try {
+                if (!item.repositoryUrl) {
+                    body.empty();
+                    body.createEl("p", { text: "No repository URL available." });
+                    return;
+                }
+                
+                let readmeUrl = item.repositoryUrl;
+                if (readmeUrl.includes("github.com")) {
+                    readmeUrl = readmeUrl.replace("github.com", "raw.githubusercontent.com") + "/main/README.md";
+                } else {
+                    body.empty();
+                    body.createEl("p", { text: "README preview only supported for GitHub." });
+                    return;
+                }
+
+                const response = await requestUrl({ url: readmeUrl });
+                if (response.status === 200) {
+                    body.empty();
+                    await MarkdownRenderer.render(this.app, response.text, body, "", this.plugin);
+                } else {
+                    body.empty();
+                    body.createEl("p", { text: "Failed to load README.md" });
+                }
+            } catch (error) {
+                body.empty();
+                body.createEl("p", { text: "Error loading README: " + String(error) });
+            }
+        })();
+    }
+
+    private async installLibrary(item: CatalogItem, btn?: HTMLButtonElement) {
         if (btn) {
             btn.disabled = true;
             btn.setText("Installing...");
         }
 
         try {
-            new Notice(`Installing ${item.name}...`);
             const librariesPath = this.plugin.settings.librarySettings.librariesPath;
             const destPath = `${librariesPath}/${item.name}`;
-            
-            // Log initial state
-            console.debug(`[Library Center] Pre-install check for ${destPath}`);
-            
+
+            Logger.debug(`[LibraryCenterView] installLibrary triggered`);
+            Logger.debug(`[LibraryCenterView] Item ID: ${item.id}`);
+            Logger.debug(`[LibraryCenterView] Item Name: ${item.name}`);
+            Logger.debug(`[LibraryCenterView] Repository URL: ${item.repositoryUrl}`);
+            Logger.debug(`[LibraryCenterView] Destination Path: ${destPath}`);
+
+            new Notice(`Installing ${item.name}...`);
             await this.libraryManager.cloneLibrary(item.repositoryUrl, destPath, item);
             
-            // Post-install verification
-            try {
-                const adapter = this.app.vault.adapter;
-                if (adapter instanceof FileSystemAdapter) {
-                    const entries = await adapter.list(destPath);
-                    console.debug(`[Library Center] Post-install verification for ${destPath}:`, entries);
-                }
-            } catch (e) {
-                console.error(`[Library Center] Post-install verification FAILED for ${destPath}`, e);
-            }
-
             new Notice(`Successfully installed ${item.name}`);
-            if (btn) btn.setText("Installed");
+            if (btn) {
+                btn.setText("Installed");
+                btn.disabled = true;
+            }
             
-            // Trigger graph rebuild to show new virtual files immediately
             this.plugin.app.workspace.trigger("abstract-folder:graph-updated");
-            // Notify that library structure changed so Library Explorer can refresh its shelf
             this.plugin.app.workspace.trigger("abstract-folder:library-changed");
             
-            new Notice("Virtual tree refreshed");
-
-            // Refresh the registry view to swap button to "Uninstall"
-            const container = this.containerEl.children[1] as HTMLElement;
-            const registryList = container.querySelector(".library-registry-list") as HTMLElement;
-            if (registryList) {
-                await this.refreshRegistry(registryList);
+            if (this.selectedItem && this.selectedItem.id === item.id) {
+                this.renderLibraryDetail(item);
             }
         } catch (error) {
             console.error(error);
@@ -204,7 +327,7 @@ export class LibraryCenterView extends ItemView {
         }
     }
 
-    private async uninstallLibrary(item: RegistryItem, btn?: HTMLButtonElement) {
+    private async uninstallLibrary(item: CatalogItem, btn?: HTMLButtonElement) {
         if (btn) {
             btn.disabled = true;
             btn.setText("Uninstalling...");
@@ -217,16 +340,11 @@ export class LibraryCenterView extends ItemView {
             await this.libraryManager.deleteLibrary(destPath);
             new Notice(`Successfully uninstalled ${item.name}`);
             
-            // Trigger graph rebuild to update view
             this.plugin.app.workspace.trigger("abstract-folder:graph-updated");
-            // Notify that library structure changed
             this.plugin.app.workspace.trigger("abstract-folder:library-changed");
             
-            // Refresh the whole registry view to show "Install" button again
-            const container = this.containerEl.children[1] as HTMLElement;
-            const registryList = container.querySelector(".library-registry-list") as HTMLElement;
-            if (registryList) {
-                await this.refreshRegistry(registryList);
+            if (this.selectedItem && this.selectedItem.id === item.id) {
+                this.renderLibraryDetail(item);
             }
         } catch (error) {
             console.error(error);
@@ -238,7 +356,5 @@ export class LibraryCenterView extends ItemView {
         }
     }
 
-    async onClose() {
-        // Cleanup logic
-    }
+    async onClose() {}
 }

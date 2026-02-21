@@ -32,29 +32,29 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 				}),
 		);
 
-	new Setting(containerEl).setName("Abstract Registry & Marketplace").setHeading();
+	new Setting(containerEl).setName("Abstract Catalog & Marketplace").setHeading();
 
 	containerEl.createEl("h3", { text: "Library Catalog Marketplace" });
 
 	new Setting(containerEl)
-		.setName("Official registry URL")
-		.setDesc("The hardcoded official registry for abstract libraries.")
+		.setName("Official catalog URL")
+		.setDesc("The hardcoded official catalog for abstract libraries.")
 		.addText((text) =>
 			text
 				.setPlaceholder("Official URL")
-				.setValue("https://raw.githubusercontent.com/RahmaniErfan/abstract-registry/main/directory.json")
+				.setValue("https://raw.githubusercontent.com/RahmaniErfan/abstract-catalog/main/catalog.json")
 				.setDisabled(true),
 		);
 
 	new Setting(containerEl)
-		.setName("Custom registries")
-		.setDesc("Add your own registry link, one per line")
+		.setName("Custom catalogs")
+		.setDesc("Add your own catalog link, one per line")
 		.addTextArea((text) =>
 			text
-				.setPlaceholder("https://example.com/registry.json")
-				.setValue((plugin.settings.librarySettings?.registries || []).join("\n"))
+				.setPlaceholder("https://example.com/catalog.json")
+				.setValue((plugin.settings.librarySettings?.catalogs || []).join("\n"))
 				.onChange(async (value) => {
-					plugin.settings.librarySettings.registries = value
+					plugin.settings.librarySettings.catalogs = value
 						.split("\n")
 						.filter((v) => v.trim() !== "");
 					await plugin.saveSettings();

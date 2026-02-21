@@ -26,4 +26,5 @@ export interface IGitEngine extends IGitStatusAdapter {
     currentBranch(absoluteDir: string): Promise<string | undefined>;
     resolveRef(absoluteDir: string, ref: string): Promise<string>;
     getConfig(absoluteDir: string, path: string): Promise<string | undefined>;
+    discardChanges(absoluteDir: string, filepaths: string[]): Promise<void>;
 }

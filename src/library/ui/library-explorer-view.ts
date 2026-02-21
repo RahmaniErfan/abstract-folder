@@ -27,11 +27,13 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     private clearSearchBtn: HTMLElement;
     private isRefreshing = false;
     private nextRefreshScheduled = false;
+    private isRenderingView = false;
     private isOwner = false;
     private repositoryUrl: string | null = null;
     private authorName = "Unknown";
     private scopeUnsubscribe: (() => void) | null = null;
     private debouncedRefreshLibraryTree: (options?: { forceExpand?: boolean }) => void;
+    private debouncedRenderView: () => void;
 
 
     // Search Options
@@ -42,6 +44,8 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         super(leaf);
         this.contextEngine = new ContextEngine(plugin, 'library');
         this.debouncedRefreshLibraryTree = debounce(this.refreshLibraryTree.bind(this), 20);
+        // 300ms debounce prevents duplicate renders from rapid file events after a git sync
+        this.debouncedRenderView = debounce(this.renderView.bind(this), 300);
     }
 
     getViewType(): string {
@@ -85,15 +89,22 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             }
         }));
         
-        // Listen for graph updates (e.g. new files) to refresh the tree
+        // Listen for library-removal or full-rebuild events
+        // @ts-ignore
+        this.registerEvent(this.app.workspace.on("abstract-folder:spaces-updated", () => {
+            this.debouncedRenderView();
+        }));
+
+        // Listen for graph updates (e.g. new files) to refresh the tree.
+        // IMPORTANT: use debouncedRefreshLibraryTree (not full renderView) to avoid
+        // rebuilding the entire DOM on every file change that fires after a git pull.
         // @ts-ignore
         this.registerEvent(this.app.workspace.on("abstract-folder:graph-updated", () => {
             if (this.selectedLibrary) {
-                const header = this.containerEl.querySelector(".abstract-folder-header") as HTMLElement;
-                if (header) this.renderHeader(header);
                 this.debouncedRefreshLibraryTree();
             } else {
-                this.renderView();
+                // Debounced so that rapid post-pull file events don't create multiple shelf renders
+                this.debouncedRenderView();
             }
         }));
 
@@ -114,14 +125,20 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     }
 
     private renderView() {
+        // Guard: if a full render is already in progress, skip to avoid DOM duplication
+        if (this.isRenderingView) return;
+        this.isRenderingView = true;
+
         const container = this.containerEl.children[1] as HTMLElement;
         container.empty();
         container.addClass("abstract-library-explorer");
 
+        const finish = () => { this.isRenderingView = false; };
+
         if (this.selectedLibrary) {
-            void this.renderLibraryTree(container);
+            this.renderLibraryTree(container).then(finish).catch((e) => { Logger.error("renderView", e); finish(); });
         } else {
-            void this.renderShelf(container);
+            this.renderShelf(container).then(finish).catch((e) => { Logger.error("renderView", e); finish(); });
         }
     }
 
@@ -235,7 +252,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
 
         try {
             container.empty();
-            const rawLibraries = await this.plugin.abstractBridge.discoverLibraries(this.plugin.settings.librarySettings.librariesPath);
+            const rawLibraries = await this.plugin.abstractBridge.discoverLibraries(this.plugin.settings.librarySettings.librariesPath, true);
         
         const libraries = rawLibraries.filter(lib => {
             if (!this.searchQuery) return true;
