@@ -239,7 +239,7 @@ export class PersonalBackupModal extends Modal {
             return;
         }
 
-        const token = (this.plugin.libraryManager as any).getToken();
+        const token = await this.plugin.libraryManager.getToken();
         if (!token) {
             new Notice("GitHub PAT not found. Please configure it in settings.");
             return;

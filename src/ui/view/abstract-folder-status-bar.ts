@@ -127,7 +127,7 @@ export class AbstractFolderStatusBar {
     private isRefreshingIdentity = false;
     public async updateIdentity() {
         this.identityArea.empty();
-        const token = (this.plugin.libraryManager as any).getToken();
+        const token = await this.plugin.libraryManager.getToken();
         if (!token) {
             this.identityArea.addClass("is-hidden");
             return;
@@ -177,7 +177,7 @@ export class AbstractFolderStatusBar {
     }
 
     private async updateBadges(state: any) {
-        const token = (this.plugin.libraryManager as any).getToken();
+        const token = await this.plugin.libraryManager.getToken();
         if (!token) {
              this.syncArea.addClass("is-hidden");
              this.pushArea.addClass("is-hidden");

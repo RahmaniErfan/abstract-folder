@@ -65,65 +65,43 @@ export async function renderGitHubSettings(containerEl: HTMLElement, plugin: Abs
 		});
 	}
 
-	const hasGit = await plugin.libraryManager.detectExistingGit("");
-	const statusBox = containerEl.createDiv({ cls: "abstract-folder-status-box" });
-	statusBox.setAttr("style", "display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 20px; margin-bottom: 24px;");
+	// Check both: is git binary installed, and is the vault root a git repo?
+	const [gitInstalled, vaultGitInitialized] = await Promise.all([
+		plugin.libraryManager.checkNativeGit(),
+		plugin.libraryManager.detectExistingGit(""),
+	]);
 
-	const leftArea = statusBox.createDiv();
-	leftArea.setAttr("style", "display: flex; align-items: center; gap: 8px;");
+	// --- Row 1: Git Binary Status ---
+	const gitBinaryBox = containerEl.createDiv({ cls: "abstract-folder-status-box" });
+	gitBinaryBox.setAttr("style", "display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 20px; margin-bottom: 8px;");
 
-	const tag = leftArea.createEl("div", { 
-		cls: `status-tag ${hasGit ? 'success' : ''}`
-	});
-	tag.setAttr("style", "display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px;");
-	
+	const gitBinaryLeft = gitBinaryBox.createDiv();
+	gitBinaryLeft.setAttr("style", "display: flex; align-items: center; gap: 8px;");
+
+	const gitBinaryTag = gitBinaryLeft.createEl("div", { cls: `status-tag ${gitInstalled ? 'success' : ''}` });
+	gitBinaryTag.setAttr("style", "display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px;");
 	import("obsidian").then(({ setIcon }) => {
-		setIcon(tag.createDiv(), hasGit ? "check-circle" : "alert-circle");
+		setIcon(gitBinaryTag.createDiv(), gitInstalled ? "check-circle" : "alert-circle");
 	});
-	tag.createSpan({ text: hasGit ? "Vault Git Initialized" : "Git Not Initialized" });
+	gitBinaryTag.createSpan({ text: gitInstalled ? "Git Installed" : "Git Not Found" });
 
-	if (hasGit) {
-		const rightArea = statusBox.createDiv();
-		rightArea.setAttr("style", "display: flex; align-items: center; gap: 10px;");
+	const gitBinaryRight = gitBinaryBox.createDiv();
+	gitBinaryRight.setAttr("style", "display: flex; align-items: center;");
 
-		rightArea.createEl("span", { text: "Your vault is ready to sync." }).setAttr(
-			"style", "font-size: var(--font-ui-smaller); color: var(--text-muted);"
-		);
-
-		const syncBtn = rightArea.createEl("button", { text: "Sync Now", cls: "mod-cta" });
-		syncBtn.setAttr("style", "padding: 4px 16px;");
-		syncBtn.addEventListener("click", async () => {
-			syncBtn.disabled = true;
-			syncBtn.innerText = "Syncing...";
-			try {
-				await plugin.libraryManager.syncBackup("");
-				new Notice("Sync complete");
-				renderGitHubSettings(containerEl, plugin);
-			} catch (e) {
-				new Notice(`Sync failed: ${e.message}`);
-				syncBtn.disabled = false;
-				syncBtn.innerText = "Sync Now";
-			}
-		});
-	} else {
+	if (!gitInstalled) {
 		const detectedOS = Platform.isWin ? "Windows" : Platform.isMacOS ? "macOS" : "Linux";
 		const promptText = `Help me install Git on ${detectedOS}. Keep it simple, explain each command's purpose, and be concise.`;
-
-		// Right side of status bar — short message only
-		const rightArea = statusBox.createDiv();
-		rightArea.setAttr("style", "display: flex; align-items: center;");
-		rightArea.createEl("span", { text: "Install Git to enable vault backup." }).setAttr(
+		gitBinaryRight.createEl("span", { text: "Git binary not detected on this system." }).setAttr(
 			"style", "font-size: var(--font-ui-smaller); color: var(--text-muted);"
 		);
 
-		// Prompt row — sits below the statusBox
+		// Prompt row — sits below the git binary status box
 		const promptRow = containerEl.createDiv();
 		promptRow.setAttr("style",
 			"display: flex; align-items: center; gap: 10px; " +
-			"margin-top: -16px; margin-bottom: 24px;"
+			"margin-top: 0; margin-bottom: 16px;"
 		);
 
-		// Left: prompt text + copy button
 		const promptBox = promptRow.createDiv();
 		promptBox.setAttr("style",
 			"flex: 1; display: flex; align-items: center; gap: 8px; " +
@@ -131,12 +109,10 @@ export async function renderGitHubSettings(containerEl: HTMLElement, plugin: Abs
 			"border: 1px solid var(--background-modifier-border); " +
 			"border-radius: var(--radius-s); padding: 6px 12px;"
 		);
-
 		promptBox.createEl("span", { text: promptText }).setAttr("style",
 			"flex: 1; font-size: var(--font-ui-smaller); color: var(--text-muted); " +
 			"font-family: var(--font-monospace); line-height: 1.4;"
 		);
-
 		const copyBtn = promptBox.createEl("button", { text: "Copy" });
 		copyBtn.setAttr("style", "flex-shrink: 0; padding: 2px 10px; font-size: var(--font-ui-smaller);");
 		copyBtn.addEventListener("click", () => {
@@ -144,32 +120,26 @@ export async function renderGitHubSettings(containerEl: HTMLElement, plugin: Abs
 			copyBtn.textContent = "Copied!";
 			setTimeout(() => { copyBtn.textContent = "Copy"; }, 2000);
 		});
-
-		// Right: Open Gemini button
 		const openLink = promptRow.createEl("a", { text: "✦ Open Gemini" });
 		openLink.setAttr("href", "https://gemini.google.com/app");
 		openLink.setAttr("target", "_blank");
 		openLink.setAttr("rel", "noopener noreferrer");
 		openLink.setAttr("style",
-			"flex-shrink: 0; text-decoration: none; " +
-			"padding: 6px 18px; border-radius: 20px; " +
+			"flex-shrink: 0; text-decoration: none; padding: 6px 18px; border-radius: 20px; " +
 			"font-size: var(--font-ui-smaller); font-weight: 600; " +
 			"display: inline-flex; align-items: center; gap: 6px; " +
-			"background: linear-gradient(135deg, #4f82f7, #9b72f5); " +
-			"color: #fff; border: none; " +
+			"background: linear-gradient(135deg, #4f82f7, #9b72f5); color: #fff; border: none; " +
 			"box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35); " +
-			"transition: filter 0.15s ease, box-shadow 0.15s ease; " +
-			"white-space: nowrap; cursor: pointer;"
+			"transition: filter 0.15s ease, box-shadow 0.15s ease; white-space: nowrap; cursor: pointer;"
 		);
-		openLink.addEventListener("mouseenter", () => {
-			openLink.style.filter = "brightness(1.12)";
-			openLink.style.boxShadow = "0 4px 14px rgba(99, 102, 241, 0.5)";
-		});
-		openLink.addEventListener("mouseleave", () => {
-			openLink.style.filter = "";
-			openLink.style.boxShadow = "0 2px 8px rgba(99, 102, 241, 0.35)";
-		});
+		openLink.addEventListener("mouseenter", () => { openLink.style.filter = "brightness(1.12)"; openLink.style.boxShadow = "0 4px 14px rgba(99, 102, 241, 0.5)"; });
+		openLink.addEventListener("mouseleave", () => { openLink.style.filter = ""; openLink.style.boxShadow = "0 2px 8px rgba(99, 102, 241, 0.35)"; });
+	} else {
+		gitBinaryRight.createEl("span", { text: "Git is available for vault operations." }).setAttr(
+			"style", "font-size: var(--font-ui-smaller); color: var(--text-muted);"
+		);
 	}
+
 
 	new Setting(containerEl).setName("GitHub Authentication").setHeading();
 

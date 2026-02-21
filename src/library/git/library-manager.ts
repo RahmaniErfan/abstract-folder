@@ -80,6 +80,23 @@ export class LibraryManager {
     }
 
     /**
+     * Check if the native git binary is available on this system.
+     * Unlike getEngine(), this is purely a capability probe and does not cache.
+     */
+    async checkNativeGit(): Promise<boolean> {
+        if (!Platform.isDesktop) return false;
+        try {
+            const { promisify } = require('util');
+            const { execFile } = require('child_process');
+            const execFileAsync = promisify(execFile);
+            await execFileAsync('git', ['--version']);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
      * Fetch and cache GitHub user info.
      */
     async refreshIdentity(providedToken?: string): Promise<{ login: string; avatar_url: string; name: string | null; email: string | null } | null> {
@@ -141,7 +158,7 @@ export class LibraryManager {
         }
     }
 
-    private async getToken(): Promise<string | undefined> {
+    public async getToken(): Promise<string | undefined> {
         if (this.app?.secretStorage && typeof this.app.secretStorage.getSecret === 'function') {
             try {
                 return await this.app.secretStorage.getSecret('abstract-folder-github-pat') || undefined;
@@ -688,12 +705,20 @@ export class LibraryManager {
                 
                 await engine.pull(absoluteDir, currentBranch, author, tokenToUse);
             } catch (e: any) {
-                // Handle various "new repo" edge cases
-                const isNotFoundError = e.code === 'NotFoundError' || e.message?.includes('could not find');
+                // Handle various "new repo" edge cases where the remote exists but has no commits/branches yet.
+                // isomorphic-git: 'NotFoundError' / 'could not find'
+                // native git:     "couldn't find remote ref <branch>" (brand-new empty repo)
+                //                 "does not appear to be a git repository" (repo created but unconfigured)
+                const msg = e.message || '';
+                const isNotFoundError = e.code === 'NotFoundError'
+                    || msg.includes('could not find')
+                    || msg.includes("couldn't find remote ref")
+                    || msg.includes('does not appear to be a git repository')
+                    || msg.includes('Repository not found');
                 const isTypeError = e instanceof TypeError;
                 
                 if (isNotFoundError || isTypeError) {
-                    console.debug("[LibraryManager] Skipping pull: Remote branch likely does not exist yet (Empty Repository).", e);
+                    console.debug("[LibraryManager] Skipping pull: Remote is empty or branch does not exist yet. Proceeding with push-only.", e);
                 } else {
                     throw e;
                 }
