@@ -216,11 +216,15 @@ export class VirtualViewport {
                 // We check if it already has an svg child to avoid redundant setIcon calls
                 if (arrow.children.length === 0) {
                     setIcon(arrow, "right-triangle");
-                    arrow.onclick = (e) => {
-                        e.stopPropagation();
-                        this.delegate.onItemToggle(node, e);
-                    };
                 }
+                
+                // ALWAYS set the onclick handler if it has children, to ensure it's not null
+                // from a previous state and that it has the latest node reference.
+                arrow.onclick = (e) => {
+                    e.stopPropagation();
+                    this.delegate.onItemToggle(node, e);
+                };
+                
                 arrow.style.removeProperty("display");
                 arrow.style.visibility = 'visible';
             } else {
