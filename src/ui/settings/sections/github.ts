@@ -65,7 +65,7 @@ export async function renderGitHubSettings(containerEl: HTMLElement, plugin: Abs
 		});
 	}
 
-	const hasGit = false; // TODO: restore → await plugin.libraryManager.detectExistingGit("");
+	const hasGit = await plugin.libraryManager.detectExistingGit("");
 	const statusBox = containerEl.createDiv({ cls: "abstract-folder-status-box" });
 	statusBox.setAttr("style", "display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 20px; margin-bottom: 24px;");
 
