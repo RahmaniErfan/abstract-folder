@@ -10,6 +10,7 @@ export class PathInputSuggest extends AbstractInputSuggest<string> {
 			extension?: string;
 			includeFolders?: boolean;
 			includeFiles?: boolean;
+			excludePaths?: string[];
 		}
 	) {
 		super(plugin.app, inputEl);
@@ -20,7 +21,7 @@ export class PathInputSuggest extends AbstractInputSuggest<string> {
 		const suggestions: string[] = [];
 		const lowerCaseInputStr = inputStr.toLowerCase();
 
-		const { scopePath, extension, includeFolders = true, includeFiles = true } = this.options || {};
+		const { scopePath, extension, includeFolders = true, includeFiles = true, excludePaths = [] } = this.options || {};
 
 		abstractFiles.forEach((file) => {
 			const filePath = file.path;
@@ -34,6 +35,11 @@ export class PathInputSuggest extends AbstractInputSuggest<string> {
 				if (!isExactMatch && !isChildMatch) {
 					return;
 				}
+			}
+
+			// 1b. Filter out explicitly excluded paths
+			if (excludePaths.some(p => filePath === p || filePath.startsWith(p + "/"))) {
+				return;
 			}
 
 			// 2. Filter by Search Query
@@ -134,16 +140,22 @@ export function renderGeneralSettings(containerEl: HTMLElement, plugin: Abstract
 	new Setting(containerEl)
 		.setName("Default new note path")
 		.setDesc(
-			"The default directory where new root-level notes will be created. If left empty, notes will be created in the vault root.",
+			"The folder where new root-level notes will be created. Defaults to 'Abstract Notes'. Abstract Library and Abstract Spaces are managed separately.",
 		)
 		.addText((text) => {
-			text.setPlaceholder("Example: notes/new")
+			text.setPlaceholder("Abstract Notes")
 				.setValue(plugin.settings.defaultNewNotePath)
 				.onChange(async (value) => {
 					plugin.settings.defaultNewNotePath = normalizePath(value);
 					await plugin.saveSettings();
 				});
-			new PathInputSuggest(plugin, text.inputEl);
+			const libraryRoot = plugin.settings.librarySettings?.librariesPath || "Abstract Library";
+			const spacesRoot = plugin.settings.librarySettings?.sharedSpacesRoot || "Abstract Spaces";
+			new PathInputSuggest(plugin, text.inputEl, {
+				includeFolders: true,
+				includeFiles: false,
+				excludePaths: [libraryRoot, spacesRoot],
+			});
 		});
 
 	new Setting(containerEl)

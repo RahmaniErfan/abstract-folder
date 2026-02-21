@@ -158,7 +158,7 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   namingConflictStrategy: 'parent',
   namingConflictSeparator: '-',
   namingConflictOrder: 'parent-first',
-  defaultNewNotePath: '',
+  defaultNewNotePath: 'Abstract Notes',
   anonymizeDebugExport: true,
   hideNonMarkdownOrphans: true,
   showFileIcon: false,
