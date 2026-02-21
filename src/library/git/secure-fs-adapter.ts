@@ -26,7 +26,7 @@ export class SecureFsAdapter {
     public promises = {
         ...fs.promises,
         
-        writeFile: async (file: fs.PathLike | fs.FileHandle, data: any, options?: any): Promise<void> => {
+        writeFile: async (file: Parameters<typeof fs.promises.writeFile>[0], data: any, options?: any): Promise<void> => {
             const filepath = file.toString();
             
             // 1. Get relative path to check against security rules
