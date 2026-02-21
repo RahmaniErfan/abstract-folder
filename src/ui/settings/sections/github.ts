@@ -1,4 +1,4 @@
-import { Setting, Notice } from "obsidian";
+import { Setting, Notice, Platform } from "obsidian";
 import type AbstractFolderPlugin from "main";
 
 export async function renderGitHubSettings(containerEl: HTMLElement, plugin: AbstractFolderPlugin) {
@@ -65,7 +65,7 @@ export async function renderGitHubSettings(containerEl: HTMLElement, plugin: Abs
 		});
 	}
 
-	const hasGit = await plugin.libraryManager.detectExistingGit("");
+	const hasGit = false; // TODO: restore → await plugin.libraryManager.detectExistingGit("");
 	const statusBox = containerEl.createDiv({ cls: "abstract-folder-status-box" });
 	statusBox.setAttr("style", "display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 20px; margin-bottom: 24px;");
 
@@ -83,10 +83,14 @@ export async function renderGitHubSettings(containerEl: HTMLElement, plugin: Abs
 	tag.createSpan({ text: hasGit ? "Vault Git Initialized" : "Git Not Initialized" });
 
 	if (hasGit) {
-		const syncBtn = statusBox.createEl("button", { 
-			text: "Sync Now", 
-			cls: "mod-cta"
-		});
+		const rightArea = statusBox.createDiv();
+		rightArea.setAttr("style", "display: flex; align-items: center; gap: 10px;");
+
+		rightArea.createEl("span", { text: "Your vault is ready to sync." }).setAttr(
+			"style", "font-size: var(--font-ui-smaller); color: var(--text-muted);"
+		);
+
+		const syncBtn = rightArea.createEl("button", { text: "Sync Now", cls: "mod-cta" });
 		syncBtn.setAttr("style", "padding: 4px 16px;");
 		syncBtn.addEventListener("click", async () => {
 			syncBtn.disabled = true;
@@ -102,10 +106,69 @@ export async function renderGitHubSettings(containerEl: HTMLElement, plugin: Abs
 			}
 		});
 	} else {
-		const helpP = statusBox.createEl("p", { 
-			text: "Backup not configured."
+		const detectedOS = Platform.isWin ? "Windows" : Platform.isMacOS ? "macOS" : "Linux";
+		const promptText = `Help me install Git on ${detectedOS}. Keep it simple, explain each command's purpose, and be concise.`;
+
+		// Right side of status bar — short message only
+		const rightArea = statusBox.createDiv();
+		rightArea.setAttr("style", "display: flex; align-items: center;");
+		rightArea.createEl("span", { text: "Install Git to enable vault backup." }).setAttr(
+			"style", "font-size: var(--font-ui-smaller); color: var(--text-muted);"
+		);
+
+		// Prompt row — sits below the statusBox
+		const promptRow = containerEl.createDiv();
+		promptRow.setAttr("style",
+			"display: flex; align-items: center; gap: 10px; " +
+			"margin-top: -16px; margin-bottom: 24px;"
+		);
+
+		// Left: prompt text + copy button
+		const promptBox = promptRow.createDiv();
+		promptBox.setAttr("style",
+			"flex: 1; display: flex; align-items: center; gap: 8px; " +
+			"background: var(--background-primary-alt); " +
+			"border: 1px solid var(--background-modifier-border); " +
+			"border-radius: var(--radius-s); padding: 6px 12px;"
+		);
+
+		promptBox.createEl("span", { text: promptText }).setAttr("style",
+			"flex: 1; font-size: var(--font-ui-smaller); color: var(--text-muted); " +
+			"font-family: var(--font-monospace); line-height: 1.4;"
+		);
+
+		const copyBtn = promptBox.createEl("button", { text: "Copy" });
+		copyBtn.setAttr("style", "flex-shrink: 0; padding: 2px 10px; font-size: var(--font-ui-smaller);");
+		copyBtn.addEventListener("click", () => {
+			navigator.clipboard.writeText(promptText);
+			copyBtn.textContent = "Copied!";
+			setTimeout(() => { copyBtn.textContent = "Copy"; }, 2000);
 		});
-		helpP.setAttr("style", "font-size: var(--font-ui-smaller); color: var(--text-muted); margin: 0;");
+
+		// Right: Open Gemini button
+		const openLink = promptRow.createEl("a", { text: "✦ Open Gemini" });
+		openLink.setAttr("href", "https://gemini.google.com/app");
+		openLink.setAttr("target", "_blank");
+		openLink.setAttr("rel", "noopener noreferrer");
+		openLink.setAttr("style",
+			"flex-shrink: 0; text-decoration: none; " +
+			"padding: 6px 18px; border-radius: 20px; " +
+			"font-size: var(--font-ui-smaller); font-weight: 600; " +
+			"display: inline-flex; align-items: center; gap: 6px; " +
+			"background: linear-gradient(135deg, #4f82f7, #9b72f5); " +
+			"color: #fff; border: none; " +
+			"box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35); " +
+			"transition: filter 0.15s ease, box-shadow 0.15s ease; " +
+			"white-space: nowrap; cursor: pointer;"
+		);
+		openLink.addEventListener("mouseenter", () => {
+			openLink.style.filter = "brightness(1.12)";
+			openLink.style.boxShadow = "0 4px 14px rgba(99, 102, 241, 0.5)";
+		});
+		openLink.addEventListener("mouseleave", () => {
+			openLink.style.filter = "";
+			openLink.style.boxShadow = "0 2px 8px rgba(99, 102, 241, 0.35)";
+		});
 	}
 
 	new Setting(containerEl).setName("GitHub Authentication").setHeading();
