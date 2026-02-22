@@ -17,6 +17,7 @@ import { GitMobileAdapter } from "./git-mobile-adapter";
 import { GitStatusMatrix, IGitEngine, GitAuthor } from "./types";
 import { ConflictResolutionModal } from "../../ui/modals/conflict-resolution-modal";
 import { Logger } from "../../utils/logger";
+import { SyncOrchestrator, SyncOrchestratorConfig, Mutex, SyncAuthor, SyncEventListener } from "./sync";
 
 /**
  * LibraryManager handles Git operations using isomorphic-git.
@@ -34,6 +35,12 @@ export class LibraryManager {
     private syncTimers: Map<string, NodeJS.Timeout> = new Map();
     private windowFocusListener: () => void;
     private vaultRefs: EventRef[] = [];
+
+    // ─── Engine 1: Sync Orchestrators ───────────────────────────
+    /** One SyncOrchestrator per registered vault path. */
+    private syncOrchestrators: Map<string, SyncOrchestrator> = new Map();
+    /** One Mutex per vault path — global, shared across all components and UI windows. */
+    private mutexes: Map<string, Mutex> = new Map();
 
     constructor(
         private app: App, 
@@ -1067,5 +1074,144 @@ export class LibraryManager {
 
         // Safely unregister Obsidian events
         this.vaultRefs.forEach(ref => this.app.vault.offref(ref));
+
+        // Stop all sync engines
+        for (const [, orchestrator] of this.syncOrchestrators) {
+            orchestrator.stop();
+        }
+        this.syncOrchestrators.clear();
+        this.mutexes.clear();
+    }
+
+    // ─── Engine 1: Sync Engine Management ───────────────────────
+
+    /**
+     * Start a SyncOrchestrator for a vault path.
+     * Creates all 4 components with proper DI wiring.
+     * Should be called after initializePersonalBackup or on plugin boot.
+     */
+    async startSyncEngine(vaultPath: string): Promise<void> {
+        if (this.syncOrchestrators.has(vaultPath)) {
+            Logger.debug(`[LibraryManager] Sync engine already running for ${vaultPath}`);
+            return;
+        }
+
+        const absoluteDir = this.getAbsolutePath(vaultPath);
+
+        // Get or create a global mutex for this vault path
+        if (!this.mutexes.has(vaultPath)) {
+            this.mutexes.set(vaultPath, new Mutex());
+        }
+        const mutex = this.mutexes.get(vaultPath)!;
+
+        const config: SyncOrchestratorConfig = {
+            app: this.app,
+            absoluteDir,
+            branch: 'main',
+            mutex,
+            getToken: () => this.getToken(),
+            getAuthor: () => this.getSyncAuthor(),
+            openMergeUI: (dir, conflicts, onResolved) => {
+                // Delegate to the existing ConflictResolutionModal UI
+                const modal = new ConflictResolutionModal(
+                    this.app,
+                    dir,
+                    conflicts,
+                    async (strategy) => {
+                        await onResolved(strategy === 'overwrite');
+                    }
+                );
+                modal.open();
+            },
+            lastGcTime: this.settings.librarySettings.lastGcTime,
+            onGcRun: (timestamp) => {
+                this.settings.librarySettings.lastGcTime = timestamp;
+                // Fire-and-forget settings save
+                const plugin = (this.app as any).plugins?.getPlugin?.("abstract-folder");
+                if (plugin) void plugin.saveSettings();
+            },
+        };
+
+        const orchestrator = new SyncOrchestrator(config);
+
+        // Crash recovery: check for interrupted merge
+        const recovered = await orchestrator.recoverIfNeeded();
+        if (recovered) {
+            Logger.debug(`[LibraryManager] Recovered crashed merge for ${vaultPath}`);
+        }
+
+        orchestrator.start();
+        this.syncOrchestrators.set(vaultPath, orchestrator);
+
+        // Fire-and-forget gc
+        orchestrator.gcIfNeeded();
+
+        Logger.debug(`[LibraryManager] Sync engine started for ${vaultPath}`);
+    }
+
+    /**
+     * Stop a SyncOrchestrator for a vault path.
+     */
+    stopSyncEngine(vaultPath: string): void {
+        const orchestrator = this.syncOrchestrators.get(vaultPath);
+        if (orchestrator) {
+            orchestrator.stop();
+            this.syncOrchestrators.delete(vaultPath);
+            Logger.debug(`[LibraryManager] Sync engine stopped for ${vaultPath}`);
+        }
+    }
+
+    /**
+     * Get the SyncOrchestrator for a vault path (for event subscriptions).
+     */
+    getSyncOrchestrator(vaultPath: string): SyncOrchestrator | undefined {
+        return this.syncOrchestrators.get(vaultPath);
+    }
+
+    /**
+     * Manual push from UI. Flushes pending auto-commits then pushes.
+     */
+    async pushNow(vaultPath: string): Promise<void> {
+        const orchestrator = this.syncOrchestrators.get(vaultPath);
+        if (orchestrator) {
+            await orchestrator.pushNow();
+        } else {
+            // Fallback to legacy syncBackup for unregistered paths
+            await this.syncBackup(vaultPath, "Manual push via Abstract Folder", undefined, true);
+        }
+    }
+
+    /**
+     * Flush all pending auto-commits and push.
+     * Called from plugin.onunload().
+     */
+    async flushAll(): Promise<void> {
+        const promises: Promise<void>[] = [];
+        for (const [path, orchestrator] of this.syncOrchestrators) {
+            Logger.debug(`[LibraryManager] Flushing sync engine for ${path}`);
+            promises.push(orchestrator.flush());
+        }
+        await Promise.allSettled(promises);
+    }
+
+    /**
+     * Subscribe to sync events from a specific orchestrator.
+     */
+    onSyncEvent(vaultPath: string, type: string, listener: SyncEventListener): (() => void) | null {
+        const orchestrator = this.syncOrchestrators.get(vaultPath);
+        if (orchestrator) {
+            return orchestrator.on(type as any, listener);
+        }
+        return null;
+    }
+
+    /**
+     * Get the SyncAuthor from settings.
+     */
+    private getSyncAuthor(): SyncAuthor {
+        return {
+            name: this.settings.librarySettings.gitName || 'Abstract Folder',
+            email: this.settings.librarySettings.gitEmail || 'noreply@abstractfolder.dev',
+        };
     }
 }

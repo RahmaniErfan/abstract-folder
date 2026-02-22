@@ -357,7 +357,7 @@ export class UnifiedDashboardView {
         const section = container.createDiv({ cls: "af-dashboard-section" });
         section.createEl("h3", { text: "Sync Settings" });
 
-        const config = this.getConfig();
+        section.createEl("p", { text: "Auto-sync is active. Changes are automatically committed and pushed every 60 seconds.", cls: "af-dashboard-info-text" });
 
         new Setting(section)
             .setName("Sync Changes Now")
@@ -368,7 +368,7 @@ export class UnifiedDashboardView {
                     btn.setDisabled(true);
                     btn.setButtonText("Syncing...");
                     try {
-                        await this.plugin.libraryManager.syncBackup(this.vaultPath);
+                        await this.plugin.libraryManager.pushNow(this.vaultPath);
                         new Notice("Sync complete");
                         this.onClose();
                     } catch (e) {
@@ -377,46 +377,6 @@ export class UnifiedDashboardView {
                         btn.setButtonText("Sync Now");
                     }
                 }));
-
-        new Setting(section)
-            .setName("Enable scheduled sync")
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(config.enableScheduledSync)
-                    .onChange(async (value) => {
-                        config.enableScheduledSync = value;
-                        await this.plugin.saveSettings();
-                        this.plugin.setupSyncScheduler();
-                    }),
-            );
-
-        new Setting(section)
-            .setName("Sync interval")
-            .addText((text) =>
-                text
-                    .setPlaceholder("1")
-                    .setValue(String(config.syncIntervalValue))
-                    .onChange(async (value) => {
-                        const num = parseInt(value);
-                        if (!isNaN(num) && num > 0) {
-                            config.syncIntervalValue = num;
-                            await this.plugin.saveSettings();
-                            this.plugin.setupSyncScheduler();
-                        }
-                    }),
-            )
-            .addDropdown((dropdown) =>
-                dropdown
-                    .addOption("minutes", "Minutes")
-                    .addOption("hours", "Hours")
-                    .addOption("days", "Days")
-                    .setValue(config.syncIntervalUnit)
-                    .onChange(async (value: any) => {
-                        config.syncIntervalUnit = value;
-                        await this.plugin.saveSettings();
-                        this.plugin.setupSyncScheduler();
-                    }),
-            );
     }
 
     private renderActivitySection(container: HTMLElement) {

@@ -76,50 +76,26 @@ export class SpaceDashboardModal extends Modal {
         const section = container.createDiv({ cls: "af-dashboard-section" });
         section.createEl("h3", { text: "Sync Settings" });
 
-        const config = this.getConfig();
+        section.createEl("p", { text: "Auto-sync is active. Changes are automatically committed and pushed every 60 seconds.", cls: "af-dashboard-info-text" });
 
         new Setting(section)
-            .setName("Enable scheduled sync")
-            .setDesc("Automatically sync this space at regular intervals.")
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(config.enableScheduledSync)
-                    .onChange(async (value) => {
-                        config.enableScheduledSync = value;
-                        await this.plugin.saveSettings();
-                        this.plugin.setupSyncScheduler();
-                    }),
-            );
-
-        new Setting(section)
-            .setName("Sync interval")
-            .setDesc("How often to perform an automatic sync.")
-            .addText((text) =>
-                text
-                    .setPlaceholder("1")
-                    .setValue(String(config.syncIntervalValue))
-                    .onChange(async (value) => {
-                        const num = parseInt(value);
-                        if (!isNaN(num) && num > 0) {
-                            config.syncIntervalValue = num;
-                            await this.plugin.saveSettings();
-                            this.plugin.setupSyncScheduler();
-                        }
-                    }),
-            )
-            .addDropdown((dropdown) =>
-                dropdown
-                    .addOption("minutes", "Minutes")
-                    .addOption("hours", "Hours")
-                    .addOption("days", "Days")
-                    .addOption("weeks", "Weeks")
-                    .setValue(config.syncIntervalUnit)
-                    .onChange(async (value: "minutes" | "hours" | "days" | "weeks") => {
-                        config.syncIntervalUnit = value;
-                        await this.plugin.saveSettings();
-                        this.plugin.setupSyncScheduler();
-                    }),
-            );
+            .setName("Sync Changes Now")
+            .setDesc("Push and pull updates manually.")
+            .addButton(btn => btn
+                .setButtonText("Sync Now")
+                .onClick(async () => {
+                    btn.setDisabled(true);
+                    btn.setButtonText("Syncing...");
+                    try {
+                        await this.plugin.libraryManager.pushNow(this.folder.path);
+                        new Notice("Sync complete");
+                    } catch (e) {
+                        new Notice(`Sync failed: ${e.message}`);
+                    } finally {
+                        btn.setDisabled(false);
+                        btn.setButtonText("Sync Now");
+                    }
+                }));
     }
 
     private async renderActivitySection(container: HTMLElement) {

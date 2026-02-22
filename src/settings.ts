@@ -181,5 +181,6 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
     syncIntervalValue: 1,
     syncIntervalUnit: 'hours',
     securityExclusions: ['.obsidian/', '.trash/', 'node_modules/', '*.log'],
+    autoSyncEnabled: true,
   },
 };

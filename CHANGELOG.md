@@ -5,8 +5,14 @@
 - **Unified Dashboard UI**: Consolidated "Space Dashboard," "Personal Backup," and "Collaborator" modals into a single, high-performance `AbstractDashboardModal`. Features a context-aware `UnifiedDashboardView` with sync settings, recent activity, and collaboration tools.
 - **Global Sync Status Indicators**: Enabled real-time Git synchronization feedback (colored dots) in the main Abstract Folder view, providing vault-wide backup visibility.
 - **VS Code-style Tree Polish**: Sync indicators are now aligned to the absolute right of each tree item, and file names truncate gracefully with ellipses (...) to prevent layout breakage.
-- **Git Merge Conflict Resolution**: A full UI for detecting and resolving Git merge conflicts directly within Obsidian. Includes a 2-pane comparison view and intelligent conflict parsing.
-- **Robust Sync Recovery**: The sync engine now gracefully handles interruption and merge states, preventing infinite loops during complex updates.
+- **Git Merge Conflict Resolution**: A full UI for detecting and resolving Git merge conflicts directly within Obsidian. Includes a 3-pane comparison view, markers-based parsing, and intelligent resolution of binary vs. text conflicts.
+- **Engine 1 (Git Sync) Refactor**: Complete rewrite of the synchronization engine into a 4-component state machine.
+  - **Auto-Commit Engine**: High-frequency, per-file 5s debounced commits for local history preservation.
+  - **Network Sync Queue**: Low-frequency 60s background distribution loop with "Smart Push" gating to optimize battery/API usage.
+  - **Orchestrator Lock**: A "Holding Breath" mechanism that pauses background sync while the Merge UI is active to prevent recursion and HEAD invalidation.
+  - **Large File Guard**: Automatic 50MB safety threshold to prevent GitHub push rejections.
+  - **Cursor Preservation**: Editor position is automatically saved and restored during complex remote merges.
+- **Robust Sync Recovery**: Native Git `.git/MERGE_HEAD` detection during boot to auto-abort crashed merges and ensure vault integrity.
 
 - **Strategic Cache Ingestion**: New synchronization bridge between proactive manual scans and reactive graph updates.
 - **V2 SOVM Architecture**: Complete architectural overhaul to a Service-Oriented View Model for massive vault support.
@@ -17,8 +23,7 @@
 - **Scoped Highlighting**: Visual "focus" mode that highlights all descendants of the currently selected node.
 - **Enhanced Search**: Time-sliced search construction with automatic parent expansion for matches.
 - **Mobile Optimized**: Adaptive row heights and touch-friendly targets for iOS and Android.
-- **VS Code-style Status Bar**: A slim, persistent status bar at the bottom of the Abstract Folder view for local backup and sync awareness.
-- **Scheduled Sync**: Automated, interval-based synchronization for personal backups. Configurable frequency (minutes to weeks) within the Backup & Sync Center.
+- **VS Code-style Status Bar**: A slim, persistent status bar for real-time backup and sync awareness.
 - **GitHub Identity Integration**: Real-time display of the logged-in user's GitHub avatar and username in the status bar.
 - **Visual Sync Indicators**: Notification badges for uncommitted/unpushed changes and high-performance sync animations (rotating refresh arrows).
 - **Quick-Sync Action**: Interactive status bar controls for one-click background synchronization and instant access to the Backup & Sync Center.
@@ -29,9 +34,9 @@
   - **Dedicated Toolbar**: Each space view includes a full toolbar for Search, Sort, New Note, and New Folder actions.
   - **Context-Aware Sync**: A bottom status bar specific to each space for granular Push/Pull operations.
 
-### Removed
 - **Legacy Components**: Removed monolithic `FolderIndexer`, `TreeCoordinator`, and all class-based `Facets`.
-- **Shadow V1 Logic**: Completely purged legacy rendering paths and `useV2Engine` toggle; the V2 stack is now the sole engine.
+- **Scheduled Sync Settings**: Removed legacy settings (`syncInterval`, `enableScheduledSync`) in favor of the always-on Engine 1 architecture.
+- **Shadow V1 Logic**: Completely purged legacy rendering paths and `useV2Engine` toggle.
 
 ### Improved
 - **Toolbar Refinement**: Reverted sync-related toolbar clutter to maintain a clean, action-focused top navigation.

@@ -65,50 +65,10 @@ export class PersonalBackupModal extends Modal {
                 }));
 
         container.createEl("hr");
-        container.createEl("h3", { text: "Scheduled Sync" });
+        container.createEl("h3", { text: "Auto Sync" });
 
-        new Setting(container)
-            .setName("Enable scheduled sync")
-            .setDesc("Automatically sync your personal backup at regular intervals.")
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(this.plugin.settings.librarySettings.enableScheduledSync)
-                    .onChange(async (value) => {
-                        this.plugin.settings.librarySettings.enableScheduledSync = value;
-                        await this.plugin.saveSettings();
-                        this.plugin.setupSyncScheduler();
-                    }),
-            );
-
-        new Setting(container)
-            .setName("Sync interval")
-            .setDesc("How often to perform an automatic sync.")
-            .addText((text) =>
-                text
-                    .setPlaceholder("1")
-                    .setValue(String(this.plugin.settings.librarySettings.syncIntervalValue))
-                    .onChange(async (value) => {
-                        const num = parseInt(value);
-                        if (!isNaN(num) && num > 0) {
-                            this.plugin.settings.librarySettings.syncIntervalValue = num;
-                            await this.plugin.saveSettings();
-                            this.plugin.setupSyncScheduler();
-                        }
-                    }),
-            )
-            .addDropdown((dropdown) =>
-                dropdown
-                    .addOption("minutes", "Minutes")
-                    .addOption("hours", "Hours")
-                    .addOption("days", "Days")
-                    .addOption("weeks", "Weeks")
-                    .setValue(this.plugin.settings.librarySettings.syncIntervalUnit)
-                    .onChange(async (value: "minutes" | "hours" | "days" | "weeks") => {
-                        this.plugin.settings.librarySettings.syncIntervalUnit = value;
-                        await this.plugin.saveSettings();
-                        this.plugin.setupSyncScheduler();
-                    }),
-            );
+        const infoEl = container.createDiv({ cls: "abstract-folder-info-box" });
+        infoEl.createEl("p", { text: "Auto-sync is active. Your changes are automatically committed and pushed to GitHub every 60 seconds." });
     }
 
     private renderSetupGuide(container: HTMLElement) {

@@ -1,6 +1,8 @@
-import { App, Modal, Setting, Notice } from "obsidian";
+import { App, Modal, Setting } from "obsidian";
 
 export class ConflictResolutionModal extends Modal {
+    private resolved = false;
+
     constructor(
         app: App,
         private vaultPath: string,
@@ -37,18 +39,23 @@ export class ConflictResolutionModal extends Modal {
                 .setButtonText("Overwrite Local Changes")
                 .setWarning()
                 .onClick(() => {
+                    this.resolved = true;
                     this.onResolve('overwrite');
                     this.close();
                 }))
             .addButton(btn => btn
                 .setButtonText("Cancel")
                 .onClick(() => {
+                    this.resolved = true;
                     this.onResolve('cancel');
                     this.close();
                 }));
     }
 
     onClose() {
+        if (!this.resolved) {
+            this.onResolve('cancel');
+        }
         this.contentEl.empty();
     }
 }

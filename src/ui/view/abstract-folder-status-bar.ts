@@ -83,7 +83,7 @@ export class AbstractFolderStatusBar {
             
             this.pushArea.addClass("is-syncing");
             try {
-                await this.plugin.libraryManager.syncBackup("", "Manual push from Status Bar", undefined, true);
+                await this.plugin.libraryManager.pushNow("");
                 new Notice("Push complete");
             } catch (e) {
                 new Notice(`Push failed: ${e.message}`);

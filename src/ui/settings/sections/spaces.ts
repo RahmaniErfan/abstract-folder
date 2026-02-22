@@ -24,14 +24,13 @@ export function renderSpacesSettings(containerEl: HTMLElement, plugin: AbstractF
 
     new Setting(containerEl)
         .setName("Auto-fetch updates")
-        .setDesc("Automatically fetch updates for shared spaces in the background.")
+        .setDesc("Automatically sync shared spaces in the background (60 second interval).")
         .addToggle((toggle) =>
             toggle
-                .setValue(plugin.settings.librarySettings?.enableScheduledSync || false)
+                .setValue(plugin.settings.librarySettings?.autoSyncEnabled ?? true)
                 .onChange(async (value) => {
-                    plugin.settings.librarySettings.enableScheduledSync = value;
+                    plugin.settings.librarySettings.autoSyncEnabled = value;
                     await plugin.saveSettings();
-                    plugin.setupSyncScheduler();
                 })
         );
 }

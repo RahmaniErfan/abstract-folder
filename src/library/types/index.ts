@@ -85,4 +85,6 @@ export interface LibrarySettings {
     syncIntervalUnit: 'minutes' | 'hours' | 'days' | 'weeks';
     lastScheduledSync?: number;
     securityExclusions: string[]; // Patterns for files to exclude from sync
+    autoSyncEnabled: boolean; // Whether auto-sync engine is active
+    lastGcTime?: number; // Timestamp of last git gc run
 }
