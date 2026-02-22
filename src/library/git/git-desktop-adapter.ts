@@ -1,10 +1,37 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { stat } from 'fs/promises';
 import { IGitEngine, GitStatusMatrix, GitAuthor } from './types';
 
 const execFileAsync = promisify(execFile);
 
 export class GitDesktopAdapter implements IGitEngine {
+    private gitPath: string = 'git';
+
+    constructor() {
+        this.resolveGitPath();
+    }
+
+    private async resolveGitPath() {
+        const candidates = ['/usr/bin/git', '/usr/local/bin/git', '/bin/git', '/usr/sbin/git', '/sbin/git', '/opt/git/bin/git'];
+        for (const candidate of candidates) {
+            try {
+                await stat(candidate);
+                this.gitPath = candidate;
+                return;
+            } catch {
+                continue;
+            }
+        }
+    }
+
+    private getBaseEnv(): Record<string, string> {
+        return {
+            ...process.env,
+            PATH: (process.env.PATH || '') + ':/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/git/bin'
+        };
+    }
+
     isDesktopNative(): boolean {
         return true;
     }
@@ -22,21 +49,21 @@ export class GitDesktopAdapter implements IGitEngine {
     }
 
     async init(absoluteDir: string, defaultBranch: string = 'main'): Promise<void> {
-        await execFileAsync('git', ['init', '-b', defaultBranch], { cwd: absoluteDir });
+        await execFileAsync(this.gitPath, ['init', '-b', defaultBranch], { cwd: absoluteDir, env: this.getBaseEnv() });
     }
 
     async clone(absoluteDir: string, url: string, token?: string): Promise<void> {
         const authUrl = this.injectAuthUrl(url, token);
-        await execFileAsync('git', ['clone', '--depth', '1', '--single-branch', authUrl, '.'], { cwd: absoluteDir });
+        await execFileAsync(this.gitPath, ['clone', '--depth', '1', '--single-branch', authUrl, '.'], { cwd: absoluteDir, env: this.getBaseEnv() });
     }
 
     async add(absoluteDir: string, filepath: string): Promise<void> {
-        await execFileAsync('git', ['add', filepath], { cwd: absoluteDir });
+        await execFileAsync(this.gitPath, ['add', filepath], { cwd: absoluteDir, env: this.getBaseEnv() });
     }
 
     async remove(absoluteDir: string, filepath: string): Promise<void> {
         try {
-            await execFileAsync('git', ['rm', '--cached', '--ignore-unmatch', filepath], { cwd: absoluteDir });
+            await execFileAsync(this.gitPath, ['rm', '--cached', '--ignore-unmatch', filepath], { cwd: absoluteDir, env: this.getBaseEnv() });
         } catch (e: any) {
             // ignore if not tracked
         }
@@ -44,14 +71,14 @@ export class GitDesktopAdapter implements IGitEngine {
 
     async commit(absoluteDir: string, message: string, author: GitAuthor, parents?: string[]): Promise<void> {
         const env = {
-            ...process.env,
+            ...this.getBaseEnv(),
             GIT_AUTHOR_NAME: author.name,
             GIT_AUTHOR_EMAIL: author.email,
             GIT_COMMITTER_NAME: author.name,
             GIT_COMMITTER_EMAIL: author.email
         };
         try {
-            await execFileAsync('git', ['commit', '-m', message], { cwd: absoluteDir, env });
+            await execFileAsync(this.gitPath, ['commit', '-m', message], { cwd: absoluteDir, env });
         } catch (e: any) {
              const output = (e.stdout || '') + '\n' + (e.stderr || '');
              if (output.includes('nothing to commit')) {
@@ -72,13 +99,13 @@ export class GitDesktopAdapter implements IGitEngine {
                  }
                  if (dirsToFix.size > 0) {
                      console.warn('[GitDesktopAdapter] Detected nested submodule index conflict. Attempting auto-resolution strategy:', Array.from(dirsToFix));
-                     for (const dir of dirsToFix) {
-                         try {
-                              // Unstage the contents inside the submodule directory that isomorphic-git erroneously added
-                              await execFileAsync('git', ['rm', '--cached', '-r', '-f', dir], { cwd: absoluteDir });
-                              // Add the directory as a standard submodule gitlink
-                              await execFileAsync('git', ['add', dir], { cwd: absoluteDir });
-                         } catch (fixErr) {
+                      for (const dir of dirsToFix) {
+                          try {
+                               // Unstage the contents inside the submodule directory that isomorphic-git erroneously added
+                               await execFileAsync(this.gitPath, ['rm', '--cached', '-r', '-f', dir], { cwd: absoluteDir, env: this.getBaseEnv() });
+                               // Add the directory as a standard submodule gitlink
+                               await execFileAsync(this.gitPath, ['add', dir], { cwd: absoluteDir, env: this.getBaseEnv() });
+                          } catch (fixErr) {
                               console.warn(`[GitDesktopAdapter] Failed to automatically resolve tree boundary for ${dir}`, fixErr);
                          }
                      }
@@ -86,13 +113,16 @@ export class GitDesktopAdapter implements IGitEngine {
                      return this.commit(absoluteDir, message, author, parents);
                  }
              }
-             throw e;
+             const error: any = new Error(`Git commit failed: ${output}`);
+             error.stdout = e.stdout;
+             error.stderr = e.stderr;
+             throw error;
         }
     }
 
     async pull(absoluteDir: string, branch: string, author: GitAuthor, token?: string): Promise<void> {
         const env = {
-            ...process.env,
+            ...this.getBaseEnv(),
             GIT_AUTHOR_NAME: author.name,
             GIT_AUTHOR_EMAIL: author.email,
             GIT_COMMITTER_NAME: author.name,
@@ -107,7 +137,7 @@ export class GitDesktopAdapter implements IGitEngine {
             }
             args.push('pull', originUrl ? 'origin' : 'origin', branch, '--no-edit'); // always using origin
 
-            await execFileAsync('git', args, { cwd: absoluteDir, env });
+            await execFileAsync(this.gitPath, args, { cwd: absoluteDir, env });
         } catch (e: any) {
             const output = (e.stdout || "") + "\n" + (e.stderr || "");
             
@@ -153,15 +183,15 @@ export class GitDesktopAdapter implements IGitEngine {
         
         args.push('push', 'origin', branch);
         if (force) args.push('--force');
-        await execFileAsync('git', args, { cwd: absoluteDir });
+        await execFileAsync(this.gitPath, args, { cwd: absoluteDir, env: this.getBaseEnv() });
     }
 
     async addRemote(absoluteDir: string, remote: string, url: string): Promise<void> {
         try {
-             await execFileAsync('git', ['remote', 'add', remote, url], { cwd: absoluteDir });
+             await execFileAsync(this.gitPath, ['remote', 'add', remote, url], { cwd: absoluteDir, env: this.getBaseEnv() });
         } catch (e: any) {
              if (e.message && e.message.includes('already exists')) {
-                  await execFileAsync('git', ['remote', 'set-url', remote, url], { cwd: absoluteDir });
+                  await execFileAsync(this.gitPath, ['remote', 'set-url', remote, url], { cwd: absoluteDir, env: this.getBaseEnv() });
              } else {
                   throw e;
              }
@@ -170,7 +200,7 @@ export class GitDesktopAdapter implements IGitEngine {
 
     async currentBranch(absoluteDir: string): Promise<string | undefined> {
         try {
-            const { stdout } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: absoluteDir });
+            const { stdout } = await execFileAsync(this.gitPath, ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: absoluteDir, env: this.getBaseEnv() });
             return stdout.trim();
         } catch (e) {
             return undefined;
@@ -179,7 +209,7 @@ export class GitDesktopAdapter implements IGitEngine {
 
     async resolveRef(absoluteDir: string, ref: string): Promise<string> {
         try {
-            const { stdout } = await execFileAsync('git', ['rev-parse', ref], { cwd: absoluteDir });
+            const { stdout } = await execFileAsync(this.gitPath, ['rev-parse', ref], { cwd: absoluteDir, env: this.getBaseEnv() });
             return stdout.trim();
         } catch (e) {
             const error: any = new Error(`NotFoundError: could not find ${ref}`);
@@ -190,7 +220,7 @@ export class GitDesktopAdapter implements IGitEngine {
 
     async getConfig(absoluteDir: string, configPath: string): Promise<string | undefined> {
         try {
-            const { stdout } = await execFileAsync('git', ['config', '--get', configPath], { cwd: absoluteDir });
+            const { stdout } = await execFileAsync(this.gitPath, ['config', '--get', configPath], { cwd: absoluteDir, env: this.getBaseEnv() });
             return stdout.trim() || undefined;
         } catch (e) {
             return undefined;
@@ -199,7 +229,7 @@ export class GitDesktopAdapter implements IGitEngine {
 
     async discardChanges(absoluteDir: string, filepaths: string[]): Promise<void> {
         if (filepaths.length === 0) return;
-        await execFileAsync('git', ['checkout', '--', ...filepaths], { cwd: absoluteDir });
+        await execFileAsync(this.gitPath, ['checkout', '--', ...filepaths], { cwd: absoluteDir, env: this.getBaseEnv() });
     }
 
     async getStatusMatrix(absoluteDir: string, ignoredPaths?: string[]): Promise<GitStatusMatrix> {
@@ -209,7 +239,7 @@ export class GitDesktopAdapter implements IGitEngine {
             // First, get all tracked files and mark them as synced
             // -c core.quotePath=false ensures paths with spaces aren't quoted/escaped
             try {
-                const { stdout: lsFilesOut } = await execFileAsync('git', ['-c', 'core.quotePath=false', 'ls-files'], { cwd: absoluteDir });
+                const { stdout: lsFilesOut } = await execFileAsync(this.gitPath, ['-c', 'core.quotePath=false', 'ls-files'], { cwd: absoluteDir, env: this.getBaseEnv() });
                 const trackedFiles = lsFilesOut.split('\n');
                 for (const f of trackedFiles) {
                     const trimmed = f.trim();
@@ -226,7 +256,7 @@ export class GitDesktopAdapter implements IGitEngine {
             }
 
             // --porcelain outputs a stable, parseable format for changes
-            const { stdout } = await execFileAsync('git', ['-c', 'core.quotePath=false', 'status', '--porcelain'], { cwd: absoluteDir });
+            const { stdout } = await execFileAsync(this.gitPath, ['-c', 'core.quotePath=false', 'status', '--porcelain'], { cwd: absoluteDir, env: this.getBaseEnv() });
             
             const lines = stdout.split('\n');
             for (const line of lines) {

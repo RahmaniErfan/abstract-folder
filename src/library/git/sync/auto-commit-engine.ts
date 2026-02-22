@@ -49,10 +49,12 @@ export class AutoCommitEngine implements ISyncEngine {
     constructor(
         private app: App,
         private absoluteDir: string,
+        private vaultPath: string,
         private runner: GitCommandRunner,
         private mutex: Mutex,
         private getAuthor: () => SyncAuthor,
         private isPaused: () => boolean,
+        private getIgnoredPaths?: () => string[],
     ) {}
 
     // ─── ISyncEngine ────────────────────────────────────────────
@@ -60,21 +62,61 @@ export class AutoCommitEngine implements ISyncEngine {
     start(): void {
         if (this.running) return;
         this.running = true;
+        console.log(`[AutoCommitEngine] Started for ${this.absoluteDir}`);
+
+        // Heartbeat to confirm engine is alive
+        const heartbeat = setInterval(() => {
+            if (this.running) {
+                console.log(`[AutoCommitEngine] Heartbeat: alive for ${this.absoluteDir} (merging: ${this.isMerging}, paused: ${this.isPaused()})`);
+            } else {
+                clearInterval(heartbeat);
+            }
+        }, 30000); // Every 30s
 
         // Bind to Obsidian's editor-change event
         this.editorChangeRef = this.app.workspace.on('editor-change', (editor, info) => {
-            if (this.isMerging || this.isPaused()) return; // Muted during merge or conflict resolution
+            if (this.isMerging || this.isPaused()) {
+                console.debug('[AutoCommitEngine] Change ignored (paused/merging)');
+                return;
+            }
 
             // info.file is the TFile being edited
             const file = (info as any)?.file;
             if (!file?.path) return;
 
             const posixPath = toPosixPath(file.path);
-            this.scheduleCommit(posixPath);
+
+            // 1. Check if the file is inside this engine's directory
+            if (this.vaultPath !== "" && !posixPath.startsWith(this.vaultPath + '/')) {
+                return; 
+            }
+
+            // 2. Nested Repo Guard: If this is the Root engine, ignore changes in sub-repos
+            if (this.vaultPath === "" && this.getIgnoredPaths) {
+                const ignoredPaths = this.getIgnoredPaths();
+                const isNested = ignoredPaths.some(subPath => 
+                    posixPath === subPath || posixPath.startsWith(subPath + '/')
+                );
+                if (isNested) {
+                    console.debug(`[AutoCommitEngine] Root engine ignoring change in nested repo: ${posixPath}`);
+                    return;
+                }
+            }
+
+            const repoRelativePath = this.toRepoRelativePath(posixPath);
+            console.debug(`[AutoCommitEngine] Change detected in ${this.vaultPath || 'root'}: ${repoRelativePath}`);
+            this.scheduleCommit(repoRelativePath);
         });
     }
 
+    private toRepoRelativePath(vaultPath: string): string {
+        if (this.vaultPath === "") return vaultPath;
+        // Strip vaultPath prefix + trailing slash
+        return vaultPath.substring(this.vaultPath.length + 1);
+    }
+
     stop(): void {
+        console.log(`[AutoCommitEngine] Stopping for ${this.absoluteDir}`);
         if (!this.running) return;
         this.running = false;
 

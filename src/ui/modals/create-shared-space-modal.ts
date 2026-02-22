@@ -2,12 +2,15 @@
 import { App, Modal, Setting, Notice, TFolder } from "obsidian";
 import AbstractFolderPlugin from "main";
 import { LibraryManager } from "../../library/git/library-manager";
+import { AuthService } from "../../library/services/auth-service";
 
 export class CreateSharedSpaceModal extends Modal {
     plugin: AbstractFolderPlugin;
     libraryManager: LibraryManager;
     spaceName: string = "";
     isGitInit: boolean = true;
+    publishToGitHub: boolean = false;
+    isPrivate: boolean = true;
 
     constructor(app: App, plugin: AbstractFolderPlugin) {
         super(app);
@@ -41,8 +44,12 @@ export class CreateSharedSpaceModal extends Modal {
                     .setValue(this.isGitInit)
                     .onChange((value) => {
                         this.isGitInit = value;
+                        this.renderSettings();
                     })
             );
+
+        this.settingsContainer = contentEl.createDiv();
+        this.renderSettings();
 
         new Setting(contentEl)
             .addButton((btn) =>
@@ -54,10 +61,53 @@ export class CreateSharedSpaceModal extends Modal {
                             new Notice("Please enter a space name");
                             return;
                         }
-                        await this.createSpace();
-                        this.close();
+                        
+                        btn.setDisabled(true);
+                        btn.setButtonText("Creating...");
+                        
+                        try {
+                            await this.createSpace();
+                            this.close();
+                        } catch (e) {
+                            new Notice(`Failed to create space: ${e.message}`);
+                            btn.setDisabled(false);
+                            btn.setButtonText("Create Space");
+                        }
                     })
             );
+    }
+
+    private settingsContainer: HTMLElement;
+
+    private renderSettings() {
+        this.settingsContainer.empty();
+
+        if (this.isGitInit) {
+            new Setting(this.settingsContainer)
+                .setName("Publish to GitHub")
+                .setDesc("Automatically create a repository and push this space to GitHub")
+                .addToggle((toggle) =>
+                    toggle
+                        .setValue(this.publishToGitHub)
+                        .onChange((value) => {
+                            this.publishToGitHub = value;
+                            this.renderSettings();
+                        })
+                );
+
+            if (this.publishToGitHub) {
+                new Setting(this.settingsContainer)
+                    .setName("Private Repository")
+                    .setDesc("If disabled, the repository will be public")
+                    .addToggle((toggle) =>
+                        toggle
+                            .setValue(this.isPrivate)
+                            .onChange((value) => {
+                                this.isPrivate = value;
+                            })
+                    );
+            }
+        }
     }
 
     async createSpace() {
@@ -92,17 +142,35 @@ export class CreateSharedSpaceModal extends Modal {
             // 3. Initialize Git
             if (this.isGitInit) {
                 try {
-                    // We need the adapter to perform git init
-                    // LibraryManager doesn't expose a direct 'init' method for arbitrary folders easily,
-                    // but we can use the simple-git interface or the adapter directly if exposed.
-                    // For now, let's try to ask LibraryManager to "initializeLibrary" which might do similarly.
-                    // Or better, just use the file system adapter.
-                    
-                    // Since specific git command access is limited, let's reuse logic from LibraryManager if available,
-                    // or implement a basic init. 
-                    // Let's assume LibraryManager has a `initRepository(path)` method or we add one.
                     await this.libraryManager.initRepository(path);
-                    new Notice("Git repository initialized");
+                    
+                    if (this.publishToGitHub) {
+                        const token = await this.libraryManager.getToken();
+                        if (!token) {
+                            new Notice("GitHub token missing. Space created locally, but failed to publish.");
+                        } else {
+                            // Ensure credentials are ready before publishing
+                            await this.libraryManager.getAuthorCredentials();
+                            
+                            const repoName = this.spaceName.toLowerCase().replace(/\s+/g, '-');
+                            
+                            new Notice(`Creating repository "${repoName}"...`);
+                            const repo = await AuthService.createRepository(token, repoName, this.isPrivate);
+                            
+                            if (repo) {
+                                await this.libraryManager.addRemote(path, repo.url);
+                                new Notice("Performing initial sync...");
+                                await this.libraryManager.syncBackup(path, "Initial publish to GitHub", undefined, true);
+                                new Notice("Successfully published to GitHub!");
+                            } else {
+                                new Notice("Failed to create GitHub repository. Space is local-only.");
+                            }
+                        }
+                    }
+
+                    // Start sync engine immediately
+                    await this.libraryManager.startSyncEngine(path);
+                    new Notice("Sync engine active for new space");
                     
                     // visual refresh
                     this.plugin.graphEngine.forceReindex();

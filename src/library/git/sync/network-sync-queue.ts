@@ -51,6 +51,7 @@ export class NetworkSyncQueue implements ISyncEngine {
         if (this.running) return;
         this.running = true;
         this.authHalted = false;
+        console.log(`[NetworkSyncQueue] Started for branch ${this.branch}`);
 
         // Run immediately on start, then every 60s
         void this.tick();
@@ -60,6 +61,7 @@ export class NetworkSyncQueue implements ISyncEngine {
     }
 
     stop(): void {
+        console.log(`[NetworkSyncQueue] Stopping queue...`);
         if (!this.running) return;
         this.running = false;
 
@@ -115,7 +117,11 @@ export class NetworkSyncQueue implements ISyncEngine {
      * The 60-second tick. Skips if already syncing (zombie protection).
      */
     private async tick(): Promise<void> {
-        if (!this.running || this.authHalted || this.isPaused()) return;
+        console.log(`[NetworkSyncQueue] Tick starting for ${this.branch}`);
+        if (!this.running || this.authHalted || this.isPaused()) {
+            console.debug(`[NetworkSyncQueue] Tick skipped: running=${this.running}, halted=${this.authHalted}, paused=${this.isPaused()}`);
+            return;
+        }
 
         // ─── Overlapping Process Guard (Zombie Danger) ──────────
         // If a previous push is still running (e.g., 2G network), skip this tick.
@@ -132,6 +138,7 @@ export class NetworkSyncQueue implements ISyncEngine {
      * One full sync cycle: fetch → detect conflicts → resolve → push.
      */
     private async syncCycle(): Promise<void> {
+        console.log(`[NetworkSyncQueue] Sync cycle starting for ${this.branch}...`);
         this.isNetworkSyncing = true;
         const release = await this.mutex.acquire();
 

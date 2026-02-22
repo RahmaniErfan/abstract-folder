@@ -291,4 +291,26 @@ export class AuthService {
             return false;
         }
     }
+
+    /**
+     * Delete a repository from GitHub
+     */
+    static async deleteRepository(token: string, owner: string, repo: string): Promise<boolean> {
+        try {
+            const response = await requestUrl({
+                url: `https://api.github.com/repos/${owner}/${repo}`,
+                method: "DELETE",
+                headers: {
+                    "Authorization": `token ${token}`,
+                    "Accept": "application/json",
+                },
+                throw: false
+            });
+            // 204 No Content is the success response for deletion
+            return response.status === 204;
+        } catch (error) {
+            console.error("Failed to delete repository", error);
+            return false;
+        }
+    }
 }

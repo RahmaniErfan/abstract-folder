@@ -27,6 +27,7 @@ import { toPosixDir } from './path-utils';
 export interface SyncOrchestratorConfig {
     app: App;
     absoluteDir: string;
+    vaultPath: string; // The vault-relative path to the repository root (e.g., "Abstract Spaces/test-bed")
     branch: string;
     mutex: Mutex;
     getToken: () => Promise<string | undefined>;
@@ -36,6 +37,8 @@ export interface SyncOrchestratorConfig {
     lastGcTime?: number;
     /** Callback to persist lastGcTime to settings. */
     onGcRun?: (timestamp: number) => void;
+    /** Optional callback to get paths to ignore (for root repo nested guard). */
+    getIgnoredPaths?: () => string[];
 }
 
 export class SyncOrchestrator implements ISyncEngine {
@@ -63,10 +66,12 @@ export class SyncOrchestrator implements ISyncEngine {
         this.autoCommit = new AutoCommitEngine(
             config.app,
             this.absoluteDir,
+            config.vaultPath,
             this.runner,
             config.mutex,
             config.getAuthor,
             () => this.isPausedForConflict,
+            config.getIgnoredPaths,
         );
 
         this.conflictDetector = new ConflictDetector(this.runner);

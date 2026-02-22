@@ -96,7 +96,8 @@ export class LibraryManager {
             const { promisify } = require('util');
             const { execFile } = require('child_process');
             const execFileAsync = promisify(execFile);
-            await execFileAsync('git', ['--version']);
+            const augmentedPath = (process.env.PATH || '') + ':/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/git/bin';
+            await execFileAsync('git', ['--version'], { env: { ...process.env, PATH: augmentedPath } });
             return true;
         } catch (e) {
             return false;
@@ -492,7 +493,12 @@ export class LibraryManager {
                            lowerRepo.includes(`github.com:${lowerUser}/`);
             }
 
-            return { isOwner: nameMatch || repoMatch, author, repositoryUrl: checkUrl ?? null };
+            // 3. Fallback for Shared Spaces (Local Only)
+        // If it's in the Shared Spaces root and has NO remote, it's a local project created by the user.
+        const spacesRoot = this.settings.librarySettings.sharedSpacesRoot || "Abstract Spaces";
+        const isLocalOnlySpace = vaultPath.startsWith(spacesRoot) && !actualRemote;
+
+        return { isOwner: nameMatch || repoMatch || isLocalOnlySpace, author, repositoryUrl: checkUrl ?? null };
         } catch (error) {
             console.error("[LibraryManager] Failed to determine library ownership", error);
             return { isOwner: false, author: "Unknown", repositoryUrl: null };
@@ -1091,6 +1097,7 @@ export class LibraryManager {
      * Should be called after initializePersonalBackup or on plugin boot.
      */
     async startSyncEngine(vaultPath: string): Promise<void> {
+        console.log(`[LibraryManager] Starting sync engine for: "${vaultPath}"`);
         if (this.syncOrchestrators.has(vaultPath)) {
             Logger.debug(`[LibraryManager] Sync engine already running for ${vaultPath}`);
             return;
@@ -1107,6 +1114,7 @@ export class LibraryManager {
         const config: SyncOrchestratorConfig = {
             app: this.app,
             absoluteDir,
+            vaultPath,
             branch: 'main',
             mutex,
             getToken: () => this.getToken(),
@@ -1130,6 +1138,14 @@ export class LibraryManager {
                 const plugin = (this.app as any).plugins?.getPlugin?.("abstract-folder");
                 if (plugin) void plugin.saveSettings();
             },
+            getIgnoredPaths: () => {
+                // Only the root engine needs to ignore sub-repos
+                if (vaultPath !== "") return [];
+                return [
+                    ...(this.settings.librarySettings.sharedSpaces || []),
+                    ...(this.settings.librarySettings.personalBackups || []),
+                ];
+            }
         };
 
         const orchestrator = new SyncOrchestrator(config);
@@ -1159,6 +1175,70 @@ export class LibraryManager {
             this.syncOrchestrators.delete(vaultPath);
             Logger.debug(`[LibraryManager] Sync engine stopped for ${vaultPath}`);
         }
+    }
+
+    /**
+     * Delete a shared space locally and optionally on remote.
+     */
+    async deleteSharedSpace(vaultPath: string, deleteRemote: boolean): Promise<void> {
+        try {
+            // 1. Stop Sync Engine
+            this.stopSyncEngine(vaultPath);
+
+            // 2. Get Remote Info (if needed for remote deletion)
+            let remoteUrl: string | null = "";
+            if (deleteRemote) {
+                remoteUrl = await this.getRemoteUrl(vaultPath);
+            }
+
+            // 3. Delete Local Folder
+            const absPath = this.getAbsolutePath(vaultPath);
+            // Use NodeFsAdapter to recursively delete
+            await NodeFsAdapter.promises.rm(absPath, { recursive: true, force: true });
+            Logger.debug(`[LibraryManager] Deleted local folder: ${absPath}`);
+
+            // 4. Remove from settings
+            if (this.settings.librarySettings.sharedSpaces) {
+                this.settings.librarySettings.sharedSpaces = this.settings.librarySettings.sharedSpaces.filter(p => p !== vaultPath);
+                // Fire-and-forget settings save
+                const plugin = (this.app as any).plugins?.getPlugin?.("abstract-folder");
+                if (plugin) await plugin.saveSettings();
+            }
+
+            // 5. Delete on GitHub (Optional)
+            if (deleteRemote && remoteUrl) {
+                const token = await this.getToken();
+                if (token) {
+                    const info = this.parseGitHubUrl(remoteUrl);
+                    if (info) {
+                        const success = await AuthService.deleteRepository(token, info.owner, info.repo);
+                        if (success) {
+                            new Notice(`Deleted repository "${info.owner}/${info.repo}" on GitHub.`);
+                        } else {
+                            new Notice(`Failed to delete repository on GitHub. Check your token permissions (delete_repo scope).`);
+                        }
+                    }
+                }
+            }
+
+            this.app.workspace.trigger("abstract-folder:spaces-updated");
+            new Notice(`Successfully deleted space: ${path.basename(vaultPath)}`);
+        } catch (error) {
+            Logger.error(`[LibraryManager] Failed to delete space ${vaultPath}`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Helper to parse owner/repo from a GitHub HTTPS or SSH URL.
+     */
+    private parseGitHubUrl(url: string): { owner: string; repo: string } | null {
+        const httpsRegex = /github\.com[\/|:]([^\/]+)\/([^\/\.]+)(\.git)?$/;
+        const match = url.match(httpsRegex);
+        if (match) {
+            return { owner: match[1], repo: match[2] };
+        }
+        return null;
     }
 
     /**
@@ -1206,7 +1286,35 @@ export class LibraryManager {
     }
 
     /**
-     * Get the SyncAuthor from settings.
+     * Get the Author credentials from settings.
+     * Centralized method to ensure consistency across the plugin.
+     * If credentials are missing, it attempts a background refresh if a token exists.
+     */
+    public async getAuthorCredentials(): Promise<SyncAuthor> {
+        let name = this.settings.librarySettings.gitName;
+        let email = this.settings.librarySettings.gitEmail;
+
+        if (!name || !email) {
+            const token = await this.getToken();
+            if (token) {
+                Logger.debug("[LibraryManager] Author credentials missing. Attempting background refresh.");
+                const userInfo = await this.refreshIdentity(token);
+                if (userInfo) {
+                    name = this.settings.librarySettings.gitName;
+                    email = this.settings.librarySettings.gitEmail;
+                }
+            }
+        }
+
+        return {
+            name: name || 'Abstract Folder',
+            email: email || 'noreply@abstractfolder.dev',
+        };
+    }
+
+    /**
+     * Get the SyncAuthor from settings (Synchronous).
+     * Used as a callback for sync engines.
      */
     private getSyncAuthor(): SyncAuthor {
         return {

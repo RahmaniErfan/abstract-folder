@@ -70,16 +70,39 @@ function classifyError(error: any): GitCommandError {
         return { kind: 'offline', message: 'Network unreachable', raw: error };
     }
 
-    return { kind: 'unknown', message: error.message || String(error), raw: error };
+    const errorMsg = error.message || String(error);
+    const finalMessage = `${errorMsg}\n\nSTDOUT:\n${stdout}\n\nSTDERR:\n${stderr}`;
+
+    return { kind: 'unknown', message: finalMessage, raw: error };
 }
 
 // ─── GitCommandRunner ───────────────────────────────────────────────
 
 export class GitCommandRunner {
+    private gitPath: string = 'git';
+
     constructor(
         private absoluteDir: string,
         private getToken: () => Promise<string | undefined>,
-    ) {}
+    ) {
+        this.resolveGitPath();
+    }
+
+    /** Find absolute git path to avoid ENOENT in Electron. */
+    private async resolveGitPath() {
+        const candidates = ['/usr/bin/git', '/usr/local/bin/git', '/bin/git', '/usr/sbin/git', '/sbin/git', '/opt/git/bin/git'];
+        for (const candidate of candidates) {
+            try {
+                await stat(candidate);
+                this.gitPath = candidate;
+                console.debug(`[GitCommandRunner] Resolved absolute git path: ${this.gitPath}`);
+                return;
+            } catch {
+                continue;
+            }
+        }
+        console.warn('[GitCommandRunner] Could not resolve absolute git path, falling back to "git"');
+    }
 
     // ─── Core Execution ─────────────────────────────────────────
 
@@ -90,9 +113,17 @@ export class GitCommandRunner {
      */
     async exec(args: string[], env?: Record<string, string>): Promise<GitCommandResult> {
         try {
-            const result = await execFileAsync('git', args, {
+            // Electron apps on Linux/macOS don't inherit terminal $PATH.
+            // Augment with standard Git locations to avoid ENOENT.
+            const augmentedPath = (process.env.PATH || '') + ':/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/git/bin';
+            
+            const result = await execFileAsync(this.gitPath, args, {
                 cwd: this.absoluteDir,
-                env: env ? { ...process.env, ...env } : undefined,
+                env: { 
+                    ...process.env, 
+                    ...env,
+                    PATH: augmentedPath
+                },
                 maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large status outputs
             });
             return { stdout: result.stdout, stderr: result.stderr };
@@ -141,6 +172,7 @@ export class GitCommandRunner {
 
     /** Build environment variables for git commit with author info. */
     authorEnv(author: SyncAuthor): Record<string, string> {
+        console.debug(`[GitCommandRunner] Using author for commit: ${author.name} <${author.email}>`);
         return {
             GIT_AUTHOR_NAME: author.name,
             GIT_AUTHOR_EMAIL: author.email,
@@ -247,9 +279,12 @@ export class GitCommandRunner {
 
     /** git gc --auto — fire and forget */
     gc(): void {
+        const augmentedPath = (process.env.PATH || '') + ':/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/git/bin';
         // Intentionally not awaited. Runs as detached background process.
-        execFileAsync('git', ['gc', '--auto'], { cwd: this.absoluteDir })
-            .catch(e => console.warn('[GitCommandRunner] git gc --auto failed (non-fatal):', e));
+        execFileAsync(this.gitPath, ['gc', '--auto'], { 
+            cwd: this.absoluteDir,
+            env: { ...process.env, PATH: augmentedPath }
+        }).catch(e => console.warn('[GitCommandRunner] git gc --auto failed (non-fatal):', e));
     }
 
     // ─── Large File Guard ───────────────────────────────────────

@@ -33,13 +33,12 @@ export class ConflictDetector {
      * Does NOT modify the working tree — purely inspects merge-tree output.
      */
     async detect(): Promise<ConflictDetectionResult> {
-        // 1. Check if FETCH_HEAD even exists (maybe fetch had nothing)
-        let fetchHeadExists = false;
+        // 1. Check if HEAD and FETCH_HEAD even exist (maybe fetch had nothing)
         try {
-            await this.runner.exec(['rev-parse', 'FETCH_HEAD']);
-            fetchHeadExists = true;
+            await this.runner.exec(['rev-parse', '--verify', 'HEAD']);
+            await this.runner.exec(['rev-parse', '--verify', 'FETCH_HEAD']);
         } catch {
-            // No FETCH_HEAD — nothing was fetched, or remote is empty
+            // No FETCH_HEAD or HEAD — nothing to merge or first commit
             return { hasConflicts: false, files: [], canFastForward: true };
         }
 
@@ -69,12 +68,14 @@ export class ConflictDetector {
                 return { hasConflicts: false, files: [], canFastForward: false };
             }
 
-            // Both sides have diverged — run merge-tree to check for conflicts
             const mergeTreeOutput = await this.runner.mergeTree();
             return this.parseMergeTreeOutput(mergeTreeOutput);
         } catch (e: any) {
-            // If merge-base fails (no common ancestor), treat as conflict
-            console.warn('[ConflictDetector] merge-base failed:', e);
+            // Silence common "no common ancestor" errors
+            const msg = e.message || String(e);
+            if (!msg.includes('Not a valid object name') && !msg.includes('no common ancestor')) {
+                console.warn('[ConflictDetector] merge-base failed:', e);
+            }
             return { hasConflicts: false, files: [], canFastForward: false };
         }
     }

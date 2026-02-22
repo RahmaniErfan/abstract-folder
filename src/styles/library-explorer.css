@@ -131,6 +131,25 @@
     border-color: var(--interactive-accent);
 }
 
+.af-card-delete-btn {
+    opacity: 0.1;
+    transition: opacity 0.2s ease, color 0.2s ease;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+}
+
+.library-explorer-card:hover .af-card-delete-btn {
+    opacity: 0.6;
+}
+
+.af-card-delete-btn:hover {
+    opacity: 1 !important;
+    color: var(--color-red) !important;
+}
+
 .library-explorer-card:active {
     background-color: var(--background-modifier-active-hover);
 }

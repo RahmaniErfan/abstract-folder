@@ -116,6 +116,10 @@ export class JoinSharedSpaceModal extends Modal {
 
             new Notice("Successfully joined shared space!");
             
+            // Start sync engine immediately
+            await this.libraryManager.startSyncEngine(path);
+            new Notice("Sync engine active for space");
+            
             // Visual refresh
             this.plugin.graphEngine.forceReindex();
             this.app.workspace.trigger("abstract-folder:spaces-updated");

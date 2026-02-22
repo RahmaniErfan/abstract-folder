@@ -57,6 +57,7 @@ export default class AbstractFolderPlugin extends Plugin {
 	transactionManager: TransactionManager;
 
 	async onload() {
+		console.log("[Abstract Folder] onload starting...");
 		Logger.debug("Starting onload...");
 		await this.loadSettings();
 
@@ -334,8 +335,10 @@ this.addCommand({
 
 		// ─── Engine 1: Start sync engines for registered personal backups ───
 		this.app.workspace.onLayoutReady(async () => {
+			console.log("[Abstract Folder] onLayoutReady: Checking for sync engines...");
 			if (this.settings.librarySettings.autoSyncEnabled) {
 				const personalBackups = this.settings.librarySettings.personalBackups || [];
+				console.log(`[Abstract Folder] Starting engines for ${personalBackups.length} personal backups`);
 				for (const backupPath of personalBackups) {
 					try {
 						await this.libraryManager.startSyncEngine(backupPath);
@@ -343,14 +346,38 @@ this.addCommand({
 						Logger.error(`Failed to start sync engine for ${backupPath}`, e);
 					}
 				}
+
+				const sharedSpaces = this.settings.librarySettings.sharedSpaces || [];
+				console.log(`[Abstract Folder] Starting engines for ${sharedSpaces.length} shared spaces`);
+				for (const spacePath of sharedSpaces) {
+					try {
+						await this.libraryManager.startSyncEngine(spacePath);
+					} catch (e) {
+						Logger.error(`Failed to start sync engine for ${spacePath}`, e);
+					}
+				}
+
+				// ─── Root Sync: Check if vault root is a git repo ───
+				const isRootGit = await this.libraryManager.detectExistingGit("");
+				if (isRootGit) {
+					console.log("[Abstract Folder] Vault root is a git repository. Starting sync engine...");
+					try {
+						await this.libraryManager.startSyncEngine("");
+					} catch (e) {
+						Logger.error("Failed to start sync engine for vault root", e);
+					}
+				}
+			} else {
+				console.log("[Abstract Folder] Auto-sync is disabled in settings");
 			}
 		});
 
-		// Auto-refresh identity if missing Git info
-		const token = this.settings.librarySettings.githubToken;
-		if (token && (!this.settings.librarySettings.gitName || !this.settings.librarySettings.gitEmail)) {
-			void this.libraryManager.refreshIdentity().catch(e => Logger.error("Failed to auto-refresh identity", e));
-		}
+		// Standardize Git Credentials: Fetch from GitHub if missing on startup
+		this.app.workspace.onLayoutReady(() => {
+			void this.libraryManager.getAuthorCredentials().catch(e => {
+				console.warn("[Abstract Folder] Background identity refresh failed", e);
+			});
+		});
 	}
 
 

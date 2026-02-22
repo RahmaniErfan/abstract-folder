@@ -4,6 +4,7 @@ import AbstractFolderPlugin from "main";
 import { CreateSharedSpaceModal } from "../modals/create-shared-space-modal";
 import { JoinSharedSpaceModal } from "../modals/join-shared-space-modal";
 import { LinkSharedSpaceModal } from "../modals/link-shared-space-modal";
+import { DeleteSharedSpaceModal } from "../modals/delete-shared-space-modal";
 import { AbstractDashboardModal } from "../modals/abstract-dashboard-modal";
 import { SpacesInfoModal } from "../modals/spaces-info-modal";
 import { VirtualViewport, ViewportDelegate } from "../components/virtual-viewport";
@@ -168,6 +169,17 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             card.addEventListener("click", () => {
                 this.selectedSpace = child as TFolder;
                 this.renderView();
+            });
+
+            // Delete Button
+            const deleteBtn = card.createDiv({ 
+                cls: "af-card-delete-btn clickable-icon",
+                attr: { "aria-label": "Delete Space" }
+            });
+            setIcon(deleteBtn, "trash-2");
+            deleteBtn.addEventListener("click", (e) => {
+                e.stopPropagation(); // Don't trigger card selection
+                new DeleteSharedSpaceModal(this.app, this.plugin, child.path, child.name).open();
             });
 
             // Context Menu for management

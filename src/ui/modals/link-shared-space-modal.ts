@@ -113,6 +113,10 @@ export class LinkSharedSpaceModal extends Modal {
                             new Notice("Performing initial sync...");
                             await this.plugin.libraryManager.syncBackup(this.spacePath, "Initial publish to GitHub");
                             
+                            // Start sync engine immediately
+                            await this.plugin.libraryManager.startSyncEngine(this.spacePath);
+                            new Notice("Sync engine active for space");
+
                             this.onSuccess();
                             this.close();
                         } catch (e) {
