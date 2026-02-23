@@ -274,6 +274,48 @@ export class TreeBuilder {
         return { items, locationMap };
     }
 
+    /**
+     * Given a synthetic URI, returns all parent URIs that need expansion.
+     */
+    getParentURIs(uri: string): string[] {
+        const segments = uri.split('/');
+        const parents: string[] = [];
+        let current = "";
+        for (let i = 0; i < segments.length - 1; i++) {
+            current = current ? `${current}/${segments[i]}` : segments[i];
+            parents.push(current);
+        }
+        return parents;
+    }
+
+    /**
+     * Resolves a synthetic URI for a given FileID by searching upstream to the active roots.
+     */
+    resolveURIFromGraph(id: FileID, roots: FileID[]): string | null {
+        // BFS upstream from child to roots
+        const queue: { id: FileID, path: FileID[] }[] = [{ id, path: [id] }];
+        const visited = new Set<FileID>();
+        
+        const rootSet = new Set(roots);
+
+        while (queue.length > 0) {
+            const { id: current, path } = queue.shift()!;
+            
+            if (rootSet.has(current)) {
+                return path.reverse().join('/');
+            }
+            
+            if (visited.has(current)) continue;
+            visited.add(current);
+            
+            const parents = this.graph.getParents(current);
+            for (const p of parents) {
+                queue.push({ id: p, path: [...path, p] });
+            }
+        }
+        return null;
+    }
+
     private getNodeName(path: string): string {
         return path.split('/').pop() || path;
     }

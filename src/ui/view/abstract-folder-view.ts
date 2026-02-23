@@ -114,6 +114,16 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
 
         // 3. Status Bar (Bottom)
         this.statusBar = new AbstractFolderStatusBar(this.app, this.plugin.settings, this.plugin, contentEl);
+
+        // 4. Sync with active file on open
+        this.registerEvent(this.app.workspace.on('file-open', () => this.syncWithActiveFile()));
+        this.syncWithActiveFile();
+    }
+
+    private syncWithActiveFile() {
+        if (this.plugin.settings.autoScrollToActiveFile) {
+            void this.focusActiveFile();
+        }
     }
 
     private renderHeader() {
@@ -183,11 +193,50 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
         }
     }
 
-    public focusFile(path: string) {
-        // Logic to highlight/focus a specific path
-        const snapshot = this.currentSnapshot;
-        if (snapshot) {
-            const matchingNode = snapshot.items.find(item => item.id === path);
+    public async focusFile(path: string) {
+        let snapshot = this.currentSnapshot;
+        if (!snapshot) return;
+
+        let matchingNode = snapshot.items.find(item => item.id === path);
+        let uri: string | null = matchingNode?.uri || null;
+
+        // If not found in current snapshot, attempt to resolve from graph
+        if (!uri) {
+            const state = this.contextEngine.getState();
+            const provider = new GlobalContentProvider(this.app, this.plugin.settings, state.activeGroupId);
+            const roots = provider.getRoots(this.plugin.graphEngine);
+            uri = this.plugin.treeBuilder.resolveURIFromGraph(path, roots);
+        }
+
+        if (uri) {
+            let stateChanged = false;
+
+            // 1. Expand Parents
+            if (this.plugin.settings.autoExpandParents) {
+                const parentURIs = this.plugin.treeBuilder.getParentURIs(uri);
+                for (const p of parentURIs) {
+                    if (!this.contextEngine.isExpanded(p)) {
+                        this.contextEngine.setExpanded(p, true);
+                        stateChanged = true;
+                    }
+                }
+            }
+
+            // 2. Expand Children (if enabled)
+            if (this.plugin.settings.autoExpandChildren) {
+                if (!this.contextEngine.isExpanded(uri)) {
+                    this.contextEngine.setExpanded(uri, true);
+                    stateChanged = true;
+                }
+            }
+
+            // 3. Refresh if we changed expansion state
+            if (stateChanged) {
+                await this.refreshTree();
+                snapshot = this.currentSnapshot!;
+            }
+            
+            matchingNode = snapshot.items.find(item => item.uri === uri);
             if (matchingNode) {
                 this.contextEngine.select(matchingNode.uri, { multi: false });
                 this.viewport.scrollToItem(matchingNode.uri);
