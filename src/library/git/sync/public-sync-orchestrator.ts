@@ -35,8 +35,8 @@ export interface PublicSyncConfig {
     getLocalVersion: () => string;
     /** Persist the new version after successful sync. */
     setLocalVersion: (version: string) => void;
-    /** Optional: sparse checkout folders. */
-    subscribedFolders?: string[];
+    /** Optional: sparse checkout topics. */
+    subscribedTopics?: string[];
     /** Timestamp of last gc --prune=now. */
     lastGcTime?: number;
     /** Callback to persist lastGcTime. */
@@ -81,7 +81,7 @@ export class PublicSyncOrchestrator implements ISyncEngine {
             runner: this.runner,
             mutex: this.mutex,
             branch: this.branch,
-            subscribedFolders: config.subscribedFolders,
+            subscribedTopics: config.subscribedTopics,
             lastGcTime: config.lastGcTime,
             onGcRun: config.onGcRun,
         });

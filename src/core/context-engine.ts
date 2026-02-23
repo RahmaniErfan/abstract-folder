@@ -18,6 +18,8 @@ export interface ContextState {
     activeGroupId: string | null;
     /** Sorting preference */
     sortConfig: SortConfig;
+    /** Currently active Topic filter */
+    activeTopic: string | null;
 }
 
 /**
@@ -50,7 +52,8 @@ export class ContextEngine extends EventEmitter {
             focusedURI: initialState?.focusedURI || null,
             activeFilter: initialState?.activeFilter || null,
             activeGroupId: initialState?.activeGroupId || scopeConfig?.activeGroupId || null,
-            sortConfig: initialState?.sortConfig || scopeConfig?.sort || { sortBy: 'name', sortOrder: 'asc' }
+            sortConfig: initialState?.sortConfig || scopeConfig?.sort || { sortBy: 'name', sortOrder: 'asc' },
+            activeTopic: initialState?.activeTopic || null
         };
     }
 
@@ -196,6 +199,12 @@ export class ContextEngine extends EventEmitter {
         this.settings.scopes[this.scope].activeGroupId = groupId;
         this.plugin.saveSettings().catch(Logger.error);
         
+        this.emit('changed', this.getState());
+    }
+
+    setActiveTopic(topic: string | null): void {
+        Logger.debug(`Context: Setting active topic to ${topic} for scope ${this.scope}`);
+        this.state.activeTopic = topic;
         this.emit('changed', this.getState());
     }
 

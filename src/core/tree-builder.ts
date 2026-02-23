@@ -23,6 +23,7 @@ export interface AbstractNode {
     isShared?: boolean;
     isBackup?: boolean;
     syncStatus?: 'synced' | 'modified' | 'conflict' | 'untracked';
+    topic?: string;
 }
 
 export interface TreeSnapshot {
@@ -83,7 +84,8 @@ export class TreeBuilder {
             groupRoots: new Set(), 
             excludeExtensions: activeFilterConfig.excludeExtensions,
             searchShowDescendants: searchShowDescendants,
-            searchShowAncestors: searchShowAncestors
+            searchShowAncestors: searchShowAncestors,
+            activeTopic: state.activeTopic
         });
 
         // 4. Structural Root Resolution
@@ -234,7 +236,8 @@ export class TreeBuilder {
                 isLibrary: meta?.isLibrary,
                 isShared: meta?.isShared,
                 isBackup: meta?.isBackup,
-                syncStatus: syncStatus
+                syncStatus: syncStatus,
+                topic: meta?.topic
             });
             
             // Track physical -> synthetic mapping

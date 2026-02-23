@@ -49,6 +49,7 @@ export class StandardTreePipeline implements TreePipeline {
             excludeExtensions: string[];
             searchShowDescendants: boolean;
             searchShowAncestors: boolean;
+            activeTopic: string | null;
         }
     ) {
         this.excludedExtensions = new Set(
@@ -100,7 +101,14 @@ export class StandardTreePipeline implements TreePipeline {
     }
 
     matches(id: FileID, meta: NodeMeta | undefined, parentId?: FileID): boolean {
-        // Search Filtering
+        // 1. Topic Filtering (Strict logical boundary)
+        if (this.config.activeTopic) {
+            if (meta?.topic !== this.config.activeTopic) {
+                return false;
+            }
+        }
+
+        // 2. Search Filtering
         if (this.config.filterQuery && this.config.filterQuery.trim().length > 0) {
             const query = this.config.filterQuery.toLowerCase();
             const cacheKey = `${id}:${parentId || ""}`;

@@ -115,11 +115,16 @@ export class AbstractFolderToolbar {
 
     private handleCreateNote() {
         const creationRoot = this.options.provider.getCreationRoot();
+        const activeTopic = this.contextEngine.getState().activeTopic;
         
         if (creationRoot) {
             // Direct creation in the specific root
             new CreateAbstractChildModal(this.app, this.settings, (name, type) => {
-                this.createFileInPath(creationRoot, name, type);
+                let targetPath = creationRoot;
+                if (activeTopic) {
+                    targetPath = `${creationRoot}/${activeTopic}`;
+                }
+                this.createFileInPath(targetPath, name, type);
             }, 'note').open();
         } else {
             // Standard abstract creation
@@ -149,10 +154,32 @@ export class AbstractFolderToolbar {
         }
 
         try {
+            // Ensure parent directory exists
+            await this.ensureDirectoryExists(path);
+            
             const newFile = await this.app.vault.create(finalPath, content);
             this.app.workspace.getLeaf(false).openFile(newFile);
         } catch (e) {
             new Notice(`Failed to create file: ${e.message}`);
+        }
+    }
+
+    private async ensureDirectoryExists(path: string) {
+        if (!path || path === "/") return;
+        const exists = this.app.vault.getAbstractFileByPath(path);
+        if (exists instanceof TFolder) return;
+        if (exists instanceof TFile) throw new Error(`Cannot create folder at ${path} because a file exists at that path.`);
+
+        const segments = path.split('/');
+        let current = "";
+        for (const segment of segments) {
+            current = current ? `${current}/${segment}` : segment;
+            const check = this.app.vault.getAbstractFileByPath(current);
+            if (!check) {
+                await this.app.vault.createFolder(current);
+            } else if (!(check instanceof TFolder)) {
+                throw new Error(`Path conflict at ${current}`);
+            }
         }
     }
 

@@ -270,6 +270,37 @@ export class VirtualViewport {
                 label = inner.createSpan("af-item-label");
             }
             label.textContent = basename;
+
+            // 3.1 Topic Badge
+            let topicBadge = inner.querySelector(".af-topic-badge") as HTMLElement;
+            if (node.topic) {
+                if (!topicBadge) {
+                    // Prepend or Append? User said "next to the file name". Prepending for better visibility.
+                    topicBadge = document.createElement("span");
+                    topicBadge.className = "af-topic-badge";
+                    inner.insertBefore(topicBadge, label);
+
+                    topicBadge.addEventListener("click", (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        const currentTopic = this.context.getState().activeTopic;
+                        if (currentTopic === node.topic) {
+                            this.context.setActiveTopic(null); // Toggle off
+                        } else {
+                            this.context.setActiveTopic(node.topic!); // Filter by this topic
+                        }
+                    });
+                }
+                topicBadge.textContent = node.topic;
+                topicBadge.style.display = "";
+                
+                // Active state styling
+                const isActive = this.context.getState().activeTopic === node.topic;
+                topicBadge.toggleClass("is-active", isActive);
+            } else if (topicBadge) {
+                topicBadge.style.display = "none";
+            }
         }
 
         // 3.5 Extension Tag

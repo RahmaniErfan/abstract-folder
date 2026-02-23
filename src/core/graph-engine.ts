@@ -19,6 +19,7 @@ export interface NodeMeta {
     isLibrary?: boolean;
     isShared?: boolean;
     isBackup?: boolean;
+    topic?: string;
 }
 
 /**
@@ -571,10 +572,55 @@ export class GraphEngine implements IGraphEngine {
                     icon: this.app.metadataCache.getFileCache(file)?.frontmatter?.icon as string | undefined,
                     isLibrary: this.isLibraryPath(id),
                     isShared: this.isSharedSpacePath(id),
-                    isBackup: this.isPersonalBackupPath(id)
+                    isBackup: this.isPersonalBackupPath(id),
+                    topic: this.getTopicForPath(id)
                 });
             }
         }
+    }
+
+    private getTopicForPath(path: string): string | undefined {
+        const libraryPath = this.settings.librarySettings?.librariesPath;
+        const sharedSpaces = this.settings.librarySettings?.sharedSpaces || [];
+        const personalRoot = this.settings.defaultNewNotePath;
+
+        let root: string | null = null;
+
+        // 1. Check Libraries
+        if (libraryPath && path.startsWith(libraryPath + '/')) {
+            // Path: Abstract Library/LibraryName/Topic/File.md
+            // The user specification says library.json defines topics which match top-level folders.
+            // So: Abstract Library/MedicalWiki/Neuroscience/Brain.md -> MedicalWiki is the library, Neuroscience is the topic.
+            const relativeToLibrary = path.substring(libraryPath.length + 1);
+            const segments = relativeToLibrary.split('/');
+            if (segments.length >= 2) {
+                return segments[1]; // segment[0] is LibraryName, segment[1] is Topic
+            }
+        }
+
+        // 2. Check Shared Spaces
+        for (const space of sharedSpaces) {
+            if (path.startsWith(space + '/')) {
+                // Path: Abstract Spaces/DevTeam/Frontend/NewNote.md
+                // Abstract Spaces/DevTeam is the space, Frontend is the topic.
+                const relativeToSpace = path.substring(space.length + 1);
+                const segments = relativeToSpace.split('/');
+                if (segments.length >= 1) {
+                    return segments[0];
+                }
+            }
+        }
+
+        // 3. Check Personal Notes
+        if (personalRoot && path.startsWith(personalRoot + '/')) {
+            const relativeToPersonal = path.substring(personalRoot.length + 1);
+            const segments = relativeToPersonal.split('/');
+            if (segments.length >= 1) {
+                return segments[0];
+            }
+        }
+
+        return undefined;
     }
 
     private isLibraryPath(path: string): boolean {
@@ -663,7 +709,8 @@ export class GraphEngine implements IGraphEngine {
                 icon: this.app.metadataCache.getFileCache(file)?.frontmatter?.icon as string | undefined,
                 isLibrary: this.isLibraryPath(file.path),
                 isShared: this.isSharedSpacePath(file.path),
-                isBackup: this.isPersonalBackupPath(file.path)
+                isBackup: this.isPersonalBackupPath(file.path),
+                topic: this.getTopicForPath(file.path)
             });
             return false;
         }
@@ -710,7 +757,8 @@ export class GraphEngine implements IGraphEngine {
             icon: this.app.metadataCache.getFileCache(file)?.frontmatter?.icon as string | undefined,
             isLibrary: this.isLibraryPath(file.path),
             isShared: this.isSharedSpacePath(file.path),
-            isBackup: this.isPersonalBackupPath(file.path)
+            isBackup: this.isPersonalBackupPath(file.path),
+            topic: this.getTopicForPath(file.path)
         });
         return changed;
     }

@@ -9,7 +9,7 @@
  *   user modifications before hard reset — prevents Obsidian file cache desync
  * - Shallow fetch: `git fetch --depth 1 origin <branch>`
  * - Hard reset: `git reset --hard origin/<branch>`
- * - Sparse checkout: if subscribedFolders is configured, only those folders are checked out
+ * - Sparse checkout: if subscribedTopics is configured, only those topics are checked out
  * - GC: `git gc --prune=now` on configurable interval (default 14 days)
  * - UI refresh: reloads open markdown tabs affected by the reset
  *
@@ -35,7 +35,7 @@ export interface ShallowSyncExecutorConfig {
     runner: GitCommandRunner;
     mutex: Mutex;
     branch: string;
-    subscribedFolders?: string[];
+    subscribedTopics?: string[];
     lastGcTime?: number;
     onGcRun?: (timestamp: number) => void;
 }
@@ -76,7 +76,7 @@ export class ShallowSyncExecutor {
             }
 
             // 3. Sparse checkout (if configured, one-time init)
-            if (this.config.subscribedFolders?.length) {
+            if (this.config.subscribedTopics?.length) {
                 await this.ensureSparseCheckout();
             }
 
@@ -181,8 +181,8 @@ export class ShallowSyncExecutor {
      * Initialize sparse checkout (once) and set subscribed folders.
      */
     private async ensureSparseCheckout(): Promise<void> {
-        const { runner, subscribedFolders } = this.config;
-        if (!subscribedFolders?.length) return;
+        const { runner, subscribedTopics } = this.config;
+        if (!subscribedTopics?.length) return;
 
         try {
             if (!this.sparseCheckoutInitialized) {
@@ -190,8 +190,8 @@ export class ShallowSyncExecutor {
                 this.sparseCheckoutInitialized = true;
                 console.log('[ShallowSyncExecutor] Sparse checkout initialized');
             }
-            await runner.sparseCheckoutSet(subscribedFolders);
-            console.log(`[ShallowSyncExecutor] Sparse checkout set to: ${subscribedFolders.join(', ')}`);
+            await runner.sparseCheckoutSet(subscribedTopics);
+            console.log(`[ShallowSyncExecutor] Sparse checkout set to: ${subscribedTopics.join(', ')}`);
         } catch (e) {
             console.error('[ShallowSyncExecutor] Sparse checkout failed:', e);
             // Non-fatal: fall back to full checkout

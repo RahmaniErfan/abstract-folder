@@ -36,7 +36,7 @@ export interface LibraryConfig {
     forceStandardProperties?: boolean;
     // Engine 2 (Public Library Sync)
     localVersion?: string;           // Locally synced version (persisted for SemVer comparison)
-    subscribedFolders?: string[];    // Sparse checkout: only sync these folders
+    subscribedTopics?: string[];     // Sparse checkout: only sync these topics
     lastEngine2GcTime?: number;      // Last git gc --prune=now timestamp
 }
 

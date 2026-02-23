@@ -152,7 +152,7 @@ export class SyncManager {
                 const plugin = (this.app as any).plugins?.getPlugin?.("abstract-folder");
                 if (plugin) void plugin.saveSettings();
             },
-            subscribedFolders: libraryConfig.subscribedFolders,
+            subscribedTopics: libraryConfig.subscribedTopics,
             lastGcTime: libraryConfig.lastEngine2GcTime,
             onGcRun: (timestamp: number) => {
                 libraryConfig.lastEngine2GcTime = timestamp;
