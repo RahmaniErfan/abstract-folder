@@ -336,6 +336,10 @@ this.addCommand({
 		// ─── Engine 1: Start sync engines for registered personal backups ───
 		this.app.workspace.onLayoutReady(async () => {
 			console.log("[Abstract Folder] onLayoutReady: Checking for sync engines...");
+
+			// Prune missing repositories from settings to prevent log spam and invalid sync attempts
+			await this.libraryManager.pruneMissingRepositories();
+
 			if (this.settings.librarySettings.autoSyncEnabled) {
 				const personalBackups = this.settings.librarySettings.personalBackups || [];
 				console.log(`[Abstract Folder] Starting engines for ${personalBackups.length} personal backups`);

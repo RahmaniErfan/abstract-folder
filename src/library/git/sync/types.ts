@@ -12,7 +12,7 @@
  * Engine 2: start() initializes CDN polling; flush() is a no-op.
  */
 export interface ISyncEngine {
-    start(): void;
+    start(): void | Promise<void | boolean>;
     stop(): void;
     /** Flush all pending operations (e.g., commit dirty files before app close). */
     flush(): Promise<void>;

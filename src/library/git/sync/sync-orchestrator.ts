@@ -119,14 +119,25 @@ export class SyncOrchestrator implements ISyncEngine {
 
     // ─── ISyncEngine Lifecycle ──────────────────────────────────
 
-    start(): void {
-        if (this.running) return;
+    async start(): Promise<boolean> {
+        if (this.running) return true;
+
+        // ─── Pre-flight check: Ensure directory exists ──────────
+        try {
+            const { stat } = require('fs/promises');
+            await stat(this.absoluteDir);
+        } catch {
+            console.error(`[SyncOrchestrator] Cannot start sync for ${this.absoluteDir}: Directory missing.`);
+            return false;
+        }
+
         this.running = true;
 
         this.autoCommit.start();
         this.networkQueue.start();
 
         console.log(`[SyncOrchestrator] Started for ${this.absoluteDir} (branch: ${this.branch})`);
+        return true;
     }
 
     stop(): void {
@@ -148,6 +159,14 @@ export class SyncOrchestrator implements ISyncEngine {
      * Called from plugin.onunload() — must complete before process dies.
      */
     async flush(): Promise<void> {
+        // Skip if directory is gone (e.g. manually deleted) to avoid log spam
+        try {
+            const { stat } = require('fs/promises');
+            await stat(this.absoluteDir);
+        } catch {
+            return;
+        }
+
         console.log(`[SyncOrchestrator] Flushing ${this.absoluteDir}...`);
 
         // 1. Flush all pending auto-commits

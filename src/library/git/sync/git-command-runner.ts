@@ -89,19 +89,22 @@ export class GitCommandRunner {
     }
 
     /** Find absolute git path to avoid ENOENT in Electron. */
-    private async resolveGitPath() {
+    private async resolveGitPath(): Promise<string> {
+        if (this.gitPath !== 'git') return this.gitPath;
+
         const candidates = ['/usr/bin/git', '/usr/local/bin/git', '/bin/git', '/usr/sbin/git', '/sbin/git', '/opt/git/bin/git'];
         for (const candidate of candidates) {
             try {
                 await stat(candidate);
                 this.gitPath = candidate;
                 console.debug(`[GitCommandRunner] Resolved absolute git path: ${this.gitPath}`);
-                return;
+                return this.gitPath;
             } catch {
                 continue;
             }
         }
         console.warn('[GitCommandRunner] Could not resolve absolute git path, falling back to "git"');
+        return this.gitPath;
     }
 
     // ─── Core Execution ─────────────────────────────────────────
@@ -112,12 +115,25 @@ export class GitCommandRunner {
      * Throws GitCommandError on failure.
      */
     async exec(args: string[], env?: Record<string, string>): Promise<GitCommandResult> {
+        // 1. Ensure CWD exists. Spawn throws ENOENT if cwd is missing.
+        try {
+            await stat(this.absoluteDir);
+        } catch {
+            throw {
+                kind: 'git-error',
+                message: `Repository directory missing: ${this.absoluteDir}`,
+            };
+        }
+
+        // 2. Ensure git path is resolved (Electron pathing issue)
+        const gitPath = await this.resolveGitPath();
+
         try {
             // Electron apps on Linux/macOS don't inherit terminal $PATH.
             // Augment with standard Git locations to avoid ENOENT.
             const augmentedPath = (process.env.PATH || '') + ':/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/git/bin';
             
-            const result = await execFileAsync(this.gitPath, args, {
+            const result = await execFileAsync(gitPath, args, {
                 cwd: this.absoluteDir,
                 env: { 
                     ...process.env, 
@@ -279,12 +295,17 @@ export class GitCommandRunner {
 
     /** git gc --auto — fire and forget */
     gc(): void {
-        const augmentedPath = (process.env.PATH || '') + ':/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/git/bin';
-        // Intentionally not awaited. Runs as detached background process.
-        execFileAsync(this.gitPath, ['gc', '--auto'], { 
-            cwd: this.absoluteDir,
-            env: { ...process.env, PATH: augmentedPath }
-        }).catch(e => console.warn('[GitCommandRunner] git gc --auto failed (non-fatal):', e));
+        // Run check as part of the detached chain to avoid ENOENT spams
+        stat(this.absoluteDir).then(() => {
+            const augmentedPath = (process.env.PATH || '') + ':/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/git/bin';
+            // Intentionally not awaited. Runs as detached background process.
+            execFileAsync(this.gitPath, ['gc', '--auto'], { 
+                cwd: this.absoluteDir,
+                env: { ...process.env, PATH: augmentedPath }
+            }).catch(e => console.warn('[GitCommandRunner] git gc --auto failed (non-fatal):', e));
+        }).catch(() => {
+            // Directory missing, skip GC silently.
+        });
     }
 
     // ─── Large File Guard ───────────────────────────────────────

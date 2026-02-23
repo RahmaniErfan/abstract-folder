@@ -1156,13 +1156,15 @@ export class LibraryManager {
             Logger.debug(`[LibraryManager] Recovered crashed merge for ${vaultPath}`);
         }
 
-        orchestrator.start();
-        this.syncOrchestrators.set(vaultPath, orchestrator);
+        const success = await orchestrator.start();
+        if (success) {
+            this.syncOrchestrators.set(vaultPath, orchestrator);
+            
+            // Fire-and-forget gc
+            orchestrator.gcIfNeeded();
 
-        // Fire-and-forget gc
-        orchestrator.gcIfNeeded();
-
-        Logger.debug(`[LibraryManager] Sync engine started for ${vaultPath}`);
+            Logger.debug(`[LibraryManager] Sync engine started for ${vaultPath}`);
+        }
     }
 
     /**
@@ -1321,5 +1323,48 @@ export class LibraryManager {
             name: this.settings.librarySettings.gitName || 'Abstract Folder',
             email: this.settings.librarySettings.gitEmail || 'noreply@abstractfolder.dev',
         };
+    }
+
+    /**
+     * Prunes missing directories from settings.
+     * Checks both sharedSpaces and personalBackups.
+     */
+    public async pruneMissingRepositories(): Promise<void> {
+        let changed = false;
+        const { stat } = require('fs/promises');
+
+        const prune = async (list: string[]) => {
+            const newList: string[] = [];
+            for (const vaultPath of list) {
+                // Skip vault root
+                if (vaultPath === "") {
+                    newList.push(vaultPath);
+                    continue;
+                }
+
+                const absPath = this.getAbsolutePath(vaultPath);
+                try {
+                    await stat(absPath);
+                    newList.push(vaultPath);
+                } catch {
+                    Logger.warn(`[LibraryManager] Pruning missing repository from settings: "${vaultPath}"`);
+                    changed = true;
+                }
+            }
+            return newList;
+        };
+
+        if (this.settings.librarySettings.sharedSpaces) {
+            this.settings.librarySettings.sharedSpaces = await prune(this.settings.librarySettings.sharedSpaces);
+        }
+
+        if (this.settings.librarySettings.personalBackups) {
+            this.settings.librarySettings.personalBackups = await prune(this.settings.librarySettings.personalBackups);
+        }
+
+        if (changed) {
+            const plugin = (this.app as any).plugins?.getPlugin?.("abstract-folder");
+            if (plugin) await plugin.saveSettings();
+        }
     }
 }
