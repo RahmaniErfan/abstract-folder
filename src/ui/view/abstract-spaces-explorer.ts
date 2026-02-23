@@ -93,7 +93,10 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
                         for (const node of this.currentItems) {
                             const relativePath = (repoPath !== "" && node.id.startsWith(repoPath)) ? 
                                 (node.id === repoPath ? "" : node.id.substring(repoPath.length + 1)) : node.id;
-                            const status = matrix.get(relativePath);
+                            
+                            // Normalize: Native git --porcelain sometimes prefixes with ./
+                            const lookupPath = relativePath.startsWith('./') ? relativePath.substring(2) : relativePath;
+                            const status = matrix.get(lookupPath);
                             node.syncStatus = status || undefined;
                         }
                         

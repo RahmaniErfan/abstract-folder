@@ -98,7 +98,9 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
                     
                     // 2. Update the syncStatus on our current flat list of nodes
                     for (const node of this.currentSnapshot.items) {
-                        const status = matrix.get(node.id);
+                        // Normalize: Ensure we match against keys in the matrix
+                        const lookupPath = node.id.startsWith('./') ? node.id.substring(2) : node.id;
+                        const status = matrix.get(lookupPath);
                         node.syncStatus = status || undefined;
                     }
                     

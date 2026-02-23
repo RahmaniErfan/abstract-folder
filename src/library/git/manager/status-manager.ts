@@ -127,7 +127,14 @@ export class StatusManager {
 
             // Background Promise
             this.gitService.getStatusMatrix(absoluteDir, ignoredPaths)
-                .then((freshMatrix) => {
+                .then((matrix) => {
+                    // Normalize keys: Native git --porcelain sometimes prefixes with ./ depending on version/config
+                    const freshMatrix: GitStatusMatrix = new Map();
+                    for (const [path, status] of matrix.entries()) {
+                        const normalizedPath = path.startsWith('./') ? path.substring(2) : path;
+                        freshMatrix.set(normalizedPath, status);
+                    }
+
                     const currentCache = this.cache.get(vaultPath);
                     if (currentCache) {
                         currentCache.dirty = false;
