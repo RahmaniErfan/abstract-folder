@@ -280,4 +280,24 @@ export class LibraryService {
             return null;
         }
     }
+
+    /**
+     * Engine 2 Handshake: Bootstraps local library.json before initial sync.
+     */
+    async bootstrapLibrary(vaultPath: string, config: LibraryConfig): Promise<void> {
+        const absoluteDir = this.gitService.getAbsolutePath(vaultPath);
+        const configPath = path.join(absoluteDir, 'library.json');
+
+        try {
+            await NodeFsAdapter.promises.mkdir(absoluteDir, { recursive: true });
+            await NodeFsAdapter.promises.writeFile(configPath, JSON.stringify(config, null, 2), "utf8");
+            console.debug(`[LibraryService] Bootstrap complete for ${vaultPath}`);
+            
+            // Refresh vault
+            await this.app.vault.adapter.list(vaultPath);
+        } catch (error) {
+            console.error(`[LibraryService] Failed to bootstrap library at ${vaultPath}`, error);
+            throw error;
+        }
+    }
 }

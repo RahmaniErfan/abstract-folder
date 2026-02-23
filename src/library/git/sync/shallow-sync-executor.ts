@@ -35,6 +35,7 @@ export interface ShallowSyncExecutorConfig {
     runner: GitCommandRunner;
     mutex: Mutex;
     branch: string;
+    repositoryUrl: string; // Ensure URL is available for initial init
     subscribedTopics?: string[];
     lastGcTime?: number;
     onGcRun?: (timestamp: number) => void;
@@ -62,11 +63,14 @@ export class ShallowSyncExecutor {
         const release = await mutex.acquire();
 
         try {
-            // 1. Detect dirty working tree
+            // 1. Ensure Git repo is initialized (Engine 2 Handshake)
+            await this.ensureGitRepo();
+
+            // 2. Detect dirty working tree
             const dirtyFiles = await runner.statusPorcelain();
             let recoveredFiles: string[] = [];
 
-            // 2. Recover user modifications before destructive reset
+            // 3. Recover user modifications before destructive reset
             if (dirtyFiles.length > 0) {
                 recoveredFiles = await this.recoverDirtyFiles(dirtyFiles);
                 this.emit({
@@ -75,18 +79,22 @@ export class ShallowSyncExecutor {
                 });
             }
 
-            // 3. Sparse checkout (if configured, one-time init)
+            // 4. Shallow fetch — only the tip of the tree
+            await runner.fetchShallow(branch);
+
+            // 5. Sparse checkout (if configured)
+            // Now that we've fetched, we can use ls-tree to resolve correctly cased topics
             if (this.config.subscribedTopics?.length) {
                 await this.ensureSparseCheckout();
             }
 
-            // 4. Shallow fetch — only the tip of the tree
-            await runner.fetchShallow(branch);
-
-            // 5. Hard reset — force local to match remote exactly
+            // 6. Hard reset — force local to match remote exactly
             await runner.resetHard(branch);
 
-            // 6. Refresh Obsidian's file cache and reload open tabs
+            // 7. Ghost Topic Check: Verify that subscribed topics actually exist
+            await this.validateSubscriptionResults();
+
+            // 8. Refresh Obsidian's file cache and reload open tabs
             await this.refreshUI();
 
             this.emit({
@@ -105,6 +113,58 @@ export class ShallowSyncExecutor {
             return { updated: false, recoveredFiles: [] };
         } finally {
             release();
+        }
+    }
+
+    /**
+     * Engine 2 Handshake: Ensure the repository is initialized and origin is set.
+     */
+    private async ensureGitRepo(): Promise<void> {
+        const { runner, absoluteDir } = this.config;
+        const gitDir = `${absoluteDir}/.git`;
+        
+        try {
+            const { stat } = require('fs/promises');
+            await stat(gitDir);
+        } catch {
+            console.log(`[ShallowSyncExecutor] initializing new git repo at ${absoluteDir}`);
+            await runner.init();
+            
+            // We need the repository URL for the initial remote add
+            const repoUrl = this.config.repositoryUrl;
+            if (!repoUrl) {
+                throw new Error("Cannot initialize Git repo: missing repositoryUrl");
+            }
+            await runner.remoteAdd(repoUrl);
+        }
+    }
+
+    /**
+     * Ghost Topic Detection: Warns user if a subscribed topic yielded 0 files.
+     */
+    private async validateSubscriptionResults(): Promise<void> {
+        const { app, vaultPath, subscribedTopics } = this.config;
+        if (!subscribedTopics || subscribedTopics.length === 0) return;
+
+        // Get actual folders on disk to check against
+        const diskFolders = await app.vault.adapter.list(vaultPath || "/");
+        const diskFolderNames = diskFolders.folders.map(f => {
+            const parts = f.split("/");
+            return parts[parts.length - 1];
+        });
+
+        const missingTopics: string[] = [];
+        for (const topic of subscribedTopics) {
+            const match = diskFolderNames.find(d => d.toLowerCase() === topic.toLowerCase());
+            if (!match) {
+                missingTopics.push(topic);
+            }
+        }
+
+        if (missingTopics.length > 0) {
+            const { Notice } = require("obsidian");
+            new Notice(`Warning: Some subscribed topics were not found in the remote repository: ${missingTopics.join(", ")}`, 10000);
+            console.warn(`[ShallowSyncExecutor] Ghost Topics detected: ${missingTopics.join(", ")}`);
         }
     }
 
@@ -181,7 +241,7 @@ export class ShallowSyncExecutor {
      * Initialize sparse checkout (once) and set subscribed folders.
      */
     private async ensureSparseCheckout(): Promise<void> {
-        const { runner, subscribedTopics } = this.config;
+        const { runner, branch, subscribedTopics } = this.config;
         if (!subscribedTopics?.length) return;
 
         try {
@@ -190,12 +250,37 @@ export class ShallowSyncExecutor {
                 this.sparseCheckoutInitialized = true;
                 console.log('[ShallowSyncExecutor] Sparse checkout initialized');
             }
-            await runner.sparseCheckoutSet(subscribedTopics);
-            console.log(`[ShallowSyncExecutor] Sparse checkout set to: ${subscribedTopics.join(', ')}`);
+
+            // Case Sensitivity Fix: Resolve correctly cased topic folders from remote
+            const actualRemoteFolders = await runner.lsTreeRemote(branch);
+            const correctlyCasedSubscribedTopics = this.resolveCorrectlyCasedTopics(subscribedTopics, actualRemoteFolders);
+
+            await runner.sparseCheckoutSet(correctlyCasedSubscribedTopics);
+            console.log(`[ShallowSyncExecutor] Sparse checkout set to (normalized): ${correctlyCasedSubscribedTopics.join(', ')}`);
         } catch (e) {
             console.error('[ShallowSyncExecutor] Sparse checkout failed:', e);
             // Non-fatal: fall back to full checkout
         }
+    }
+
+    /**
+     * Normalizes subscribed topics to match the actual casing found in the repository.
+     * Essential for Linux where Git is case-sensitive, but manifests might have slight casing mismatches.
+     */
+    private resolveCorrectlyCasedTopics(subscribed: string[], actualFolders: string[]): string[] {
+        const normalized: string[] = [];
+        
+        for (const requested of subscribed) {
+            const match = actualFolders.find(actual => actual.toLowerCase() === requested.toLowerCase());
+            if (match) {
+                normalized.push(match);
+            } else {
+                // If no case-insensitive match found, keep requested name (Git will handle it)
+                normalized.push(requested);
+            }
+        }
+        
+        return normalized;
     }
 
     // ─── UI Refresh ─────────────────────────────────────────────

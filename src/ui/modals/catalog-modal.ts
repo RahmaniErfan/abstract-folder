@@ -1,9 +1,10 @@
 import { App, Modal, Notice, setIcon, requestUrl, MarkdownRenderer } from "obsidian";
 import { Logger } from "../../utils/logger";
 import type AbstractFolderPlugin from "main";
-import { CatalogItem } from "../../library/types";
+import { CatalogItem, LibraryConfig } from "../../library/types";
 import { CatalogService } from "../../library/services/catalog-service";
 import { LibraryManager } from "../../library/git/library-manager";
+import { TopicSubscriptionModal } from "./topic-subscription-modal";
 
 export class CatalogModal extends Modal {
     private catalogService: CatalogService;
@@ -275,11 +276,51 @@ export class CatalogModal extends Modal {
         }
 
         if (isInstalled) {
-            const uninstallBtn = actions.createEl("button", { text: "Uninstall", cls: "mod-warning" });
+            const actionsRow = actions.createDiv({ cls: "af-library-installed-actions" });
+            const uninstallBtn = actionsRow.createEl("button", { text: "Uninstall", cls: "mod-warning" });
             uninstallBtn.addEventListener("click", () => this.uninstallLibrary(item, uninstallBtn));
+
+            // Handshake to see if we can manage subscriptions
+            void (async () => {
+                const configPath = `${destPath}/library.json`;
+                try {
+                    const content = await this.app.vault.adapter.read(configPath);
+                    const config = JSON.parse(content) as LibraryConfig;
+                    if (config.availableTopics && config.availableTopics.length > 0) {
+                        const manageBtn = actionsRow.createEl("button", { text: "Manage Subscriptions", cls: "af-manage-sub-btn" });
+                        manageBtn.addEventListener("click", () => {
+                            new TopicSubscriptionModal(this.app, config, destPath, this.libraryManager, () => {
+                                this.renderLibraryDetail(item);
+                            }).open();
+                        });
+                    }
+                } catch (e) {}
+            })();
         } else {
             const installBtn = actions.createEl("button", { text: "Install", cls: "mod-cta" });
-            installBtn.addEventListener("click", () => this.installLibrary(item, installBtn));
+            installBtn.addEventListener("click", async () => {
+                installBtn.disabled = true;
+                installBtn.setText("Checking topics...");
+
+                try {
+                    // Handshake: Fetch remote library.json
+                    const remoteConfig = await this.catalogService.fetchRemoteLibraryConfig(item.repositoryUrl);
+                    
+                    if (remoteConfig && remoteConfig.availableTopics && remoteConfig.availableTopics.length > 0) {
+                        // Topic-aware library: Open subscription modal
+                        new TopicSubscriptionModal(this.app, remoteConfig, destPath, this.libraryManager, () => {
+                            this.renderLibraryDetail(item);
+                        }).open();
+                        installBtn.setText("Install");
+                        installBtn.disabled = false;
+                    } else {
+                        // Standard library: Traditional install
+                        this.installLibrary(item, installBtn);
+                    }
+                } catch (error) {
+                    this.installLibrary(item, installBtn); // Fallback to standard
+                }
+            });
         }
 
         const ghBtn = actions.createEl("button", { text: "View on GitHub" });

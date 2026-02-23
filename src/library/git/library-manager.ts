@@ -220,6 +220,18 @@ export class LibraryManager {
     }
 
     /**
+     * Engine 2 Subscription Flow: Bootstraps local metadata and starts the sync engine.
+     */
+    async subscribeToLibrary(vaultPath: string, config: LibraryConfig): Promise<void> {
+        // 1. Bootstrap local library.json
+        await this.libraryService.bootstrapLibrary(vaultPath, config);
+
+        // 2. Start the Public Sync Engine (Engine 2)
+        // This will trigger the sparse-checkout based on subscribedTopics
+        await this.startPublicSyncEngine(vaultPath, config);
+    }
+
+    /**
      * Cleanup resources before plugin unload.
      */
     cleanup() {

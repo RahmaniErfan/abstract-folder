@@ -277,3 +277,32 @@ body.is-mobile .af-item .af-item-inner {
     line-height: var(--line-height-tight, 1.2);
 }
 
+/* Topic Badge Stylings (The "Genius"Interactivity) */
+.af-topic-badge {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1px 6px;
+    border-radius: 12px;
+    background-color: var(--background-modifier-border);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    margin-left: 4px;
+    border: 1px solid transparent;
+}
+
+.af-topic-badge:hover {
+    background-color: var(--background-modifier-hover);
+    color: var(--text-normal);
+    border-color: var(--interactive-accent);
+}
+
+.af-topic-badge.is-active {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+}
+

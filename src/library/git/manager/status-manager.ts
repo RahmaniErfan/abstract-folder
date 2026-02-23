@@ -114,6 +114,16 @@ export class StatusManager {
 
             const absoluteDir = this.gitService.getAbsolutePath(vaultPath);
             
+            // 3. Pre-flight check: Ensure directory exists to avoid ENOENT in Git runner (which triggers false-positive fallbacks)
+            try {
+                const { stat } = require('fs/promises');
+                await stat(absoluteDir);
+            } catch {
+                cached.isFetching = false;
+                cached.dirty = false; // No point in retrying until directory exists
+                return cached.data;
+            }
+            
             const ignoredPaths: string[] = [];
             for (const otherPath of this.cache.keys()) {
                 if (otherPath === vaultPath) continue;

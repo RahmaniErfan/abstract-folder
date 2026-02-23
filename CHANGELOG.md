@@ -14,10 +14,14 @@
   - **Cursor Preservation**: Editor position is automatically saved and restored during complex remote merges.
 - **Robust Sync Recovery**: Native Git `.git/MERGE_HEAD` detection during boot to auto-abort crashed merges and ensure vault integrity.
 - **Engine 2 (Public Library Sync)**: A new, high-scale distribution pipeline for public knowledge bases.
+  - **Selective Topic Subscription**: Integrated a dedicated "Topic Selection Modal" that allows users to choose specific folders from a library's manifest.
+  - **Sparse Checkout Optimization**: Engine 2 now utilizes selective subscriptions to minimize vault footprint by only downloading user-selected topics.
+  - **Engine 2 Handshake**: Automated Git initialization and remote configuration for fresh library installations, eliminating setup race conditions.
+  - **Case-Insensitive Topic Matching**: Implemented remote directory resolution via `git ls-tree` to ensure topic selection works regardless of folder casing (essential for Linux).
   - **CDN-Gated Polling**: Uses a lightweight `manifest.json` at the repo root to detect updates via CDN edges (GitHub/Fastly), significantly reducing API usage.
   - **Shallow Synchronization**: Utilizes `git fetch --depth 1` and `git reset --hard` for fast, unidirectional content delivery.
   - **User Change Recovery**: Automatically detects and moves your accidental modifications in public libraries to a `_recovered/` folder before updates, ensuring you never lose data with vault-aware copying.
-  - **Sparse Checkout Support**: Architectural support for subscribing to specific folders in large repositories.
+  - **Ghost Topic Detection**: Added post-sync validation that notifies users if a manifest-defined topic is missing from the remote repository.
   - **Auto-Maintenance**: Automatically prunes and cleans local library history every 14 days to keep your vault slim.
 
 - **Strategic Cache Ingestion**: New synchronization bridge between proactive manual scans and reactive graph updates.

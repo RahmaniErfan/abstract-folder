@@ -331,3 +331,46 @@
     color: var(--text-muted);
     margin-top: 24px;
 }
+
+/* Subscription Modal Styles */
+.af-topic-subscription-modal {
+    max-width: 500px !important;
+}
+
+.af-modal-description {
+    font-size: 0.9em;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+}
+
+.af-topics-checklist {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    margin-bottom: 20px;
+    padding: 8px;
+    background-color: var(--background-secondary);
+}
+
+.af-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+/* Catalog Modal - Installed Library Actions */
+.af-library-installed-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.af-manage-sub-btn {
+    background-color: transparent !important;
+    border: 1px solid var(--interactive-accent) !important;
+    color: var(--interactive-accent) !important;
+}
+
+.af-manage-sub-btn:hover {
+    background-color: hsla(var(--interactive-accent-hsl), 0.1) !important;
+}

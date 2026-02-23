@@ -308,6 +308,25 @@ export class GitCommandRunner {
         });
     }
 
+    /** git init (Engine 2: initialize fresh repo) */
+    async init(): Promise<void> {
+        await this.exec(['init']);
+    }
+
+    /** git remote add origin <url> (Engine 2: set remote) */
+    async remoteAdd(url: string): Promise<void> {
+        await this.exec(['remote', 'add', 'origin', url]);
+    }
+
+    /** 
+     * git ls-tree -d origin/<branch> (Engine 2: discover directories in remote)
+     * Returns a list of top-level directory names.
+     */
+    async lsTreeRemote(branch: string): Promise<string[]> {
+        const { stdout } = await this.exec(['ls-tree', '-d', '--name-only', `origin/${branch}`]);
+        return stdout.split('\n').filter(line => line.trim().length > 0);
+    }
+
     // ─── Engine 2: Shallow Sync Operations ────────────────────────
 
     /** git fetch --depth 1 origin <branch> (Engine 2: shallow tip-only fetch) */

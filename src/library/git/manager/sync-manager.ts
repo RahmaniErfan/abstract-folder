@@ -130,12 +130,6 @@ export class SyncManager {
      * Uses CDN manifest polling + shallow fetch instead of Engine 1's bidirectional sync.
      */
     async startPublicSyncEngine(vaultPath: string, libraryConfig: LibraryConfig): Promise<void> {
-        console.log(`[SyncManager] Starting public sync engine (Engine 2) for: "${vaultPath}"`);
-        if (this.publicOrchestrators.has(vaultPath)) {
-            Logger.debug(`[SyncManager] Public sync engine already running for ${vaultPath}`);
-            return;
-        }
-
         const absoluteDir = this.gitService.getAbsolutePath(vaultPath);
 
         const config: PublicSyncConfig = {
@@ -161,6 +155,14 @@ export class SyncManager {
             },
         };
 
+        const existing = this.publicOrchestrators.get(vaultPath);
+        if (existing) {
+            console.log(`[SyncManager] Updating public sync engine config for: "${vaultPath}"`);
+            await existing.updateConfig(config);
+            return;
+        }
+
+        console.log(`[SyncManager] Starting new public sync engine (Engine 2) for: "${vaultPath}"`);
         const orchestrator = new PublicSyncOrchestrator(config);
         const success = await orchestrator.start();
         if (success) {

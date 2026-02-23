@@ -81,6 +81,7 @@ export class PublicSyncOrchestrator implements ISyncEngine {
             runner: this.runner,
             mutex: this.mutex,
             branch: this.branch,
+            repositoryUrl: config.repositoryUrl,
             subscribedTopics: config.subscribedTopics,
             lastGcTime: config.lastGcTime,
             onGcRun: config.onGcRun,
@@ -160,6 +161,31 @@ export class PublicSyncOrchestrator implements ISyncEngine {
     /** Current locally synced version. */
     get currentVersion(): string {
         return this.versionCtrl.currentVersion;
+    }
+
+    /**
+     * Update configuration (e.g. subscribedTopics) without stopping the engine.
+     * Triggers an immediate sync to apply changes.
+     */
+    async updateConfig(newConfig: PublicSyncConfig): Promise<void> {
+        this.config = newConfig;
+        
+        // Re-inject config into components
+        this.executor = new ShallowSyncExecutor({
+            app: this.config.app,
+            absoluteDir: this.absoluteDir,
+            vaultPath: this.config.vaultPath,
+            runner: this.runner,
+            mutex: this.mutex,
+            branch: this.branch,
+            repositoryUrl: this.config.repositoryUrl,
+            subscribedTopics: this.config.subscribedTopics,
+            lastGcTime: this.config.lastGcTime,
+            onGcRun: this.config.onGcRun,
+        });
+
+        console.log(`[PublicSyncOrchestrator] Configuration updated for ${this.absoluteDir}. Triggering sync...`);
+        await this.syncNow();
     }
 
     // ─── Core Logic ─────────────────────────────────────────────

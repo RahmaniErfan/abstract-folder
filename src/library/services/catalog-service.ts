@@ -1,5 +1,5 @@
 import { requestUrl } from "obsidian";
-import { CatalogItem, LibrarySettings } from "../types";
+import { CatalogItem, LibrarySettings, LibraryConfig } from "../types";
 
 export class CatalogService {
     // Hardcoded official catalog URL
@@ -124,5 +124,43 @@ export class CatalogService {
         } catch {
             return null;
         }
+    }
+
+    /**
+     * Handshake: Fetches the library.json from a remote repository.
+     */
+    async fetchRemoteLibraryConfig(repositoryUrl: string): Promise<LibraryConfig | null> {
+        if (!repositoryUrl) return null;
+
+        let metadataUrl = repositoryUrl;
+        if (repositoryUrl.includes("github.com")) {
+            // Normalize: remove .git suffix if present
+            const cleanUrl = repositoryUrl.replace(/\.git$/, "");
+            metadataUrl = cleanUrl.replace("github.com", "raw.githubusercontent.com") + "/main/library.json";
+        } else {
+            // For non-github, we might not have a reliable raw URL pattern yet
+            return null;
+        }
+
+        try {
+            const response = await requestUrl({ url: metadataUrl });
+            if (response.status === 200) {
+                const data = response.json;
+                return {
+                    id: data.id,
+                    name: data.name,
+                    author: data.author,
+                    description: data.description,
+                    version: data.version,
+                    repositoryUrl: repositoryUrl,
+                    branch: data.branch || "main",
+                    subscribedTopics: [], // Initialize empty
+                    availableTopics: data.topics || [] // Read topics from JSON
+                };
+            }
+        } catch (error) {
+            console.error(`Failed to fetch remote library config from ${metadataUrl}:`, error);
+        }
+        return null;
     }
 }

@@ -37,6 +37,7 @@ export interface LibraryConfig {
     // Engine 2 (Public Library Sync)
     localVersion?: string;           // Locally synced version (persisted for SemVer comparison)
     subscribedTopics?: string[];     // Sparse checkout: only sync these topics
+    availableTopics?: string[];      // Full list of topics available in technical manifest
     lastEngine2GcTime?: number;      // Last git gc --prune=now timestamp
 }
 
