@@ -3,16 +3,20 @@ import { GitService } from "./git-service";
 import { StatusManager } from "./status-manager";
 import { AbstractFolderPluginSettings } from "../../../settings";
 import { SyncOrchestrator, SyncOrchestratorConfig, Mutex, SyncEventListener } from "../sync";
+import { PublicSyncOrchestrator, PublicSyncConfig } from "../sync/public-sync-orchestrator";
 import { ConflictResolutionModal } from "../../../ui/modals/conflict-resolution-modal";
 import { Logger } from "../../../utils/logger";
+import { LibraryConfig } from "../../types";
 
 /**
  * SyncManager handles the lifecycle of SyncOrchestrator instances.
  * One orchestrator is created per sub-repository (space, library, or vault root).
  */
 export class SyncManager {
-    /** One SyncOrchestrator per registered vault path. */
+    /** One SyncOrchestrator per registered vault path (Engine 1). */
     private syncOrchestrators: Map<string, SyncOrchestrator> = new Map();
+    /** One PublicSyncOrchestrator per library vault path (Engine 2). */
+    private publicOrchestrators: Map<string, PublicSyncOrchestrator> = new Map();
     /** One Mutex per vault path — global, shared across all components and UI windows. */
     private mutexes: Map<string, Mutex> = new Map();
 
@@ -109,6 +113,67 @@ export class SyncManager {
             this.syncOrchestrators.delete(vaultPath);
             Logger.debug(`[SyncManager] Sync engine stopped for ${vaultPath}`);
         }
+
+        // Also check Engine 2
+        const publicOrch = this.publicOrchestrators.get(vaultPath);
+        if (publicOrch) {
+            publicOrch.stop();
+            this.publicOrchestrators.delete(vaultPath);
+            Logger.debug(`[SyncManager] Public sync engine stopped for ${vaultPath}`);
+        }
+    }
+
+    // ─── Engine 2: Public Library Sync ───────────────────────────
+
+    /**
+     * Start Engine 2 (PublicSyncOrchestrator) for a public library path.
+     * Uses CDN manifest polling + shallow fetch instead of Engine 1's bidirectional sync.
+     */
+    async startPublicSyncEngine(vaultPath: string, libraryConfig: LibraryConfig): Promise<void> {
+        console.log(`[SyncManager] Starting public sync engine (Engine 2) for: "${vaultPath}"`);
+        if (this.publicOrchestrators.has(vaultPath)) {
+            Logger.debug(`[SyncManager] Public sync engine already running for ${vaultPath}`);
+            return;
+        }
+
+        const absoluteDir = this.gitService.getAbsolutePath(vaultPath);
+
+        const config: PublicSyncConfig = {
+            app: this.app,
+            absoluteDir,
+            vaultPath,
+            repositoryUrl: libraryConfig.repositoryUrl,
+            branch: libraryConfig.branch || 'main',
+            getToken: () => this.gitService.getToken(),
+            getLocalVersion: () => libraryConfig.localVersion || '',
+            setLocalVersion: (v: string) => {
+                libraryConfig.localVersion = v;
+                // Fire-and-forget settings save
+                const plugin = (this.app as any).plugins?.getPlugin?.("abstract-folder");
+                if (plugin) void plugin.saveSettings();
+            },
+            subscribedFolders: libraryConfig.subscribedFolders,
+            lastGcTime: libraryConfig.lastEngine2GcTime,
+            onGcRun: (timestamp: number) => {
+                libraryConfig.lastEngine2GcTime = timestamp;
+                const plugin = (this.app as any).plugins?.getPlugin?.("abstract-folder");
+                if (plugin) void plugin.saveSettings();
+            },
+        };
+
+        const orchestrator = new PublicSyncOrchestrator(config);
+        const success = await orchestrator.start();
+        if (success) {
+            this.publicOrchestrators.set(vaultPath, orchestrator);
+            Logger.debug(`[SyncManager] Public sync engine started for ${vaultPath}`);
+        }
+    }
+
+    /**
+     * Get the PublicSyncOrchestrator for a library vault path.
+     */
+    getPublicSyncOrchestrator(vaultPath: string): PublicSyncOrchestrator | undefined {
+        return this.publicOrchestrators.get(vaultPath);
     }
 
     /**
@@ -141,6 +206,11 @@ export class SyncManager {
             Logger.debug(`[SyncManager] Flushing sync engine for ${path}`);
             promises.push(orchestrator.flush());
         }
+        // Engine 2 flush is no-op but include for completeness
+        for (const [path, orchestrator] of this.publicOrchestrators) {
+            Logger.debug(`[SyncManager] Flushing public sync engine for ${path}`);
+            promises.push(orchestrator.flush());
+        }
         await Promise.allSettled(promises);
     }
 
@@ -163,5 +233,10 @@ export class SyncManager {
             orchestrator.stop();
         }
         this.syncOrchestrators.clear();
+
+        for (const orchestrator of this.publicOrchestrators.values()) {
+            orchestrator.stop();
+        }
+        this.publicOrchestrators.clear();
     }
 }

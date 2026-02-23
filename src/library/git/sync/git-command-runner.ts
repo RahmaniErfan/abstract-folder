@@ -308,6 +308,60 @@ export class GitCommandRunner {
         });
     }
 
+    // ─── Engine 2: Shallow Sync Operations ────────────────────────
+
+    /** git fetch --depth 1 origin <branch> (Engine 2: shallow tip-only fetch) */
+    async fetchShallow(branch: string): Promise<void> {
+        await this.execWithAuth(['fetch', '--depth', '1', 'origin', branch]);
+    }
+
+    /** git reset --hard origin/<branch> (Engine 2: overwrite local to match remote) */
+    async resetHard(branch: string): Promise<void> {
+        await this.exec(['reset', '--hard', `origin/${branch}`]);
+    }
+
+    /**
+     * git status --porcelain (Engine 2: detect dirty working tree).
+     * Returns array of modified file paths (relative to repo root).
+     */
+    async statusPorcelain(): Promise<string[]> {
+        try {
+            const { stdout } = await this.exec(['status', '--porcelain']);
+            return stdout
+                .split('\n')
+                .filter(line => line.trim().length > 0)
+                .map(line => line.substring(3).trim()); // Strip status prefix (e.g. " M ", "?? ")
+        } catch {
+            return [];
+        }
+    }
+
+    /** git sparse-checkout init --cone (Engine 2: init sparse checkout mode) */
+    async sparseCheckoutInit(): Promise<void> {
+        await this.exec(['sparse-checkout', 'init', '--cone']);
+    }
+
+    /** git sparse-checkout set <folders> (Engine 2: subscribe to specific folders) */
+    async sparseCheckoutSet(folders: string[]): Promise<void> {
+        await this.exec(['sparse-checkout', 'set', ...folders]);
+    }
+
+    /**
+     * git gc --prune=now (Engine 2: aggressive cleanup for shallow repos).
+     * Fire-and-forget, same pattern as gc().
+     */
+    gcPrune(): void {
+        stat(this.absoluteDir).then(() => {
+            const augmentedPath = (process.env.PATH || '') + ':/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/git/bin';
+            execFileAsync(this.gitPath, ['gc', '--prune=now'], {
+                cwd: this.absoluteDir,
+                env: { ...process.env, PATH: augmentedPath }
+            }).catch(e => console.warn('[GitCommandRunner] git gc --prune=now failed (non-fatal):', e));
+        }).catch(() => {
+            // Directory missing, skip GC silently.
+        });
+    }
+
     // ─── Large File Guard ───────────────────────────────────────
 
     /**

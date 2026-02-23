@@ -31,7 +31,13 @@ export type SyncEventType =
     | 'error'            // Recoverable error
     | 'auth-error'       // PAT expired (401)
     | 'offline'          // Network unreachable
-    | 'large-file';      // File exceeds size threshold
+    | 'large-file'       // File exceeds size threshold
+    // Engine 2 (Public Library)
+    | 'manifest-check'   // CDN poll initiated
+    | 'update-available' // New version found
+    | 'update-applied'   // Hard reset complete
+    | 'update-skipped'   // Already up-to-date (304)
+    | 'dirty-recovered'; // User changes salvaged before reset
 
 export interface SyncEvent {
     type: SyncEventType;
@@ -82,3 +88,11 @@ export const MAX_AUTO_COMMIT_FILE_SIZE = 50 * 1024 * 1024;
 
 /** Git GC interval — run at most once per 7 days. */
 export const GC_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+
+// ─── Engine 2 Constants ─────────────────────────────────────────────
+
+/** CDN manifest poll interval — every 5 minutes. */
+export const CDN_POLL_INTERVAL_MS = 5 * 60 * 1000;
+
+/** Engine 2 GC interval — every 14 days (shallow repos accumulate orphaned blobs faster). */
+export const ENGINE2_GC_INTERVAL_MS = 14 * 24 * 60 * 60 * 1000;

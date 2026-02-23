@@ -13,6 +13,12 @@
   - **Large File Guard**: Automatic 50MB safety threshold to prevent GitHub push rejections.
   - **Cursor Preservation**: Editor position is automatically saved and restored during complex remote merges.
 - **Robust Sync Recovery**: Native Git `.git/MERGE_HEAD` detection during boot to auto-abort crashed merges and ensure vault integrity.
+- **Engine 2 (Public Library Sync)**: A new, high-scale distribution pipeline for public knowledge bases.
+  - **CDN-Gated Polling**: Uses a lightweight `manifest.json` at the repo root to detect updates via CDN edges (GitHub/Fastly), significantly reducing API usage.
+  - **Shallow Synchronization**: Utilizes `git fetch --depth 1` and `git reset --hard` for fast, unidirectional content delivery.
+  - **User Change Recovery**: Automatically detects and moves your accidental modifications in public libraries to a `_recovered/` folder before updates, ensuring you never lose data with vault-aware copying.
+  - **Sparse Checkout Support**: Architectural support for subscribing to specific folders in large repositories.
+  - **Auto-Maintenance**: Automatically prunes and cleans local library history every 14 days to keep your vault slim.
 
 - **Strategic Cache Ingestion**: New synchronization bridge between proactive manual scans and reactive graph updates.
 - **V2 SOVM Architecture**: Complete architectural overhaul to a Service-Oriented View Model for massive vault support.

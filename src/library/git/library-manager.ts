@@ -5,6 +5,7 @@ import { GitScopeManager } from "./git-scope-manager";
 import { LibraryConfig, LibraryStatus, CatalogItem } from "../types";
 import { GitStatusMatrix } from "./types";
 import { SyncOrchestrator, SyncAuthor, SyncEventListener } from "./sync";
+import { PublicSyncOrchestrator } from "./sync/public-sync-orchestrator";
 
 import { GitService } from "./manager/git-service";
 import { StatusManager } from "./manager/status-manager";
@@ -206,6 +207,16 @@ export class LibraryManager {
 
     onSyncEvent(vaultPath: string, type: string, listener: SyncEventListener) {
         return this.syncManager.onSyncEvent(vaultPath, type, listener);
+    }
+
+    // --- Engine 2: Public Library Sync (Delegated to SyncManager) ---
+
+    async startPublicSyncEngine(vaultPath: string, libraryConfig: LibraryConfig) {
+        return this.syncManager.startPublicSyncEngine(vaultPath, libraryConfig);
+    }
+
+    getPublicSyncOrchestrator(vaultPath: string): PublicSyncOrchestrator | undefined {
+        return this.syncManager.getPublicSyncOrchestrator(vaultPath);
     }
 
     /**

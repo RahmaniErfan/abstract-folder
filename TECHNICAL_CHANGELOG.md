@@ -1,5 +1,26 @@
 # Technical Changelog
 
+## [2026-02-23] Engine 2: CDN-Gated Public Library Sync Pipeline
+
+### 1. High-Scale CDN Polling (`CDNManifestPoller`)
+*   **ETag-Aware Invalidation**: Implemented a lightweight poller for `manifest.json` using Node `https`. It leverages `ETag` and `If-None-Match` headers to achieve near-zero bandwidth synchronization (304 Not Modified).
+*   **Weak ETag Normalization**: Strips `W/` prefixes from CDN headers to ensure cross-provider compatibility with GitHub/Fastly.
+*   **Exponential Backoff**: Reschedules poll intervals (5min -> 15min -> 30min) on `429` or `503` errors.
+
+### 2. Semantic Distribution Control (`VersionController`)
+*   **Inline SemVer Comparison**: Built a zero-dependency SemVer parser for `major.minor.patch` validation.
+*   **Downgrade Logic**: Implemented strict protection against version reverts, requiring an explicit `forceResync` flag for rollbacks.
+
+### 3. Destruction-Safe Execution (`ShallowSyncExecutor`)
+*   **Atomic Hard Reset**: Replaced `git pull` with `git fetch --depth 1` + `git reset --hard` to enforce a shared unidirectional state.
+*   **Vault-Native Recovery**: Uses `app.vault.adapter.copy()` (NOT Node `fs`) to salvage user-modified files detected via `git status --porcelain` into a `_recovered/` directory. This prevents Obsidian internal index corruption during destructive resets.
+*   **Tab Reloading**: Orchestrates `leaf.setViewState()` for all open markdown files in the affected path, forcing an immediate reload of the editor buffer from the updated disk content.
+*   **Aggressive GC**: Implemented `git gc --prune=now` triggers on a 14-day cycle to maintain shallow repository performance.
+
+### 4. Git Plumbing Hardening
+*   **Sparse Checkout Support**: Extended `GitCommandRunner` with `sparseCheckoutSet` and `sparseCheckoutInit` to allow subdirectory-specific subscriptions.
+*   **Aggressive Pruning**: Added `gcPrune()` to the runner for immediate orphan cleanup.
+
 ## [2026-02-20] Smart Background Git Coordinator & Reactive Sync Indicators
 
 ### 1. The Smart Background Coordinator
