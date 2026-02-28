@@ -108,27 +108,74 @@
     max-width: 300px;
 }
 
-.library-card-container {
+.library-card-grid {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); /* Slightly wider min width */
+    gap: 24px; /* Increased separation */
+    padding: 32px 40px; /* Increased side padding for breathing room */
 }
 
 .library-explorer-card {
     background-color: var(--background-secondary);
     border: 1px solid var(--background-modifier-border);
-    border-radius: 6px;
-    padding: 10px;
-    cursor: pointer;
-    transition: background-color 0.15s ease, border-color 0.15s ease;
+    border-radius: 12px; /* Standardized radius */
+    padding: 24px; /* Spacious padding */
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .library-explorer-card:hover {
     background-color: var(--background-secondary-alt);
     border-color: var(--interactive-accent);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+.library-card-icon {
+    width: 48px;
+    height: 48px;
+    background-color: var(--background-primary);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+    color: var(--text-muted);
+    transition: all 0.3s ease;
+}
+
+.library-explorer-card:hover .library-card-icon {
+    transform: scale(1.1);
+}
+
+.library-card-name {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--text-normal);
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+}
+
+.library-card-author {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    opacity: 0.8;
+}
+
+.library-topic-screen {
+    height: 100%;
+    overflow-y: auto;
+    background-color: var(--background-primary);
 }
 
 .af-card-delete-btn {
@@ -154,31 +201,10 @@
     background-color: var(--background-modifier-active-hover);
 }
 
-.library-card-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-muted);
-}
-
-.library-card-icon svg {
-    width: 18px;
-    height: 18px;
-}
-
 .library-card-info {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-}
-
-.library-card-name {
-    font-weight: 500;
-    font-size: 0.95em;
-    color: var(--text-normal);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .abstract-folder-header-title-container {
@@ -186,10 +212,10 @@
     align-items: center;
     justify-content: center;
     width: 100%;
-    padding: 6px 12px;
+    padding: 12px 24px; /* Increased from 6px 12px to match grid padding */
     border-bottom: 1px solid var(--background-modifier-border);
     position: relative;
-    min-height: 40px;
+    min-height: 48px; /* Slightly taller for more presence */
 }
 
 .af-header-back-button {

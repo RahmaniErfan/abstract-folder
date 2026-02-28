@@ -19,6 +19,7 @@ import { ISyncEngine, SyncEvent, SyncEventListener, SyncEventType, CDN_POLL_INTE
 export interface ManifestData {
     version: string;
     timestamp: number;
+    availableTopics?: string[]; // Recommended topics in this version
 }
 
 type ManifestCallback = (manifest: ManifestData) => void;
@@ -164,6 +165,7 @@ export class CDNManifestPoller implements ISyncEngine {
                     manifest = {
                         version: parsed.version,
                         timestamp: parsed.timestamp || Date.now(),
+                        availableTopics: parsed.availableTopics || parsed.topics // Support both names
                     };
                 } catch (parseError) {
                     // Malformed JSON — fall back to last known good, don't crash the poll loop

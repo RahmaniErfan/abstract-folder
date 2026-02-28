@@ -20,6 +20,7 @@ import { App } from 'obsidian';
 import { GitCommandRunner } from './git-command-runner';
 import { SyncEvent, SyncEventListener, SyncEventType, ENGINE2_GC_INTERVAL_MS } from './types';
 import { Mutex } from './mutex';
+import { sanitizeTopicName } from '../../../utils/sanitization';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -36,6 +37,7 @@ export interface ShallowSyncExecutorConfig {
     mutex: Mutex;
     branch: string;
     repositoryUrl: string; // Ensure URL is available for initial init
+    libraryName: string;   // For Group registration
     subscribedTopics?: string[];
     lastGcTime?: number;
     onGcRun?: (timestamp: number) => void;
@@ -91,8 +93,10 @@ export class ShallowSyncExecutor {
             // 6. Hard reset — force local to match remote exactly
             await runner.resetHard(branch);
 
-            // 7. Ghost Topic Check: Verify that subscribed topics actually exist
-            await this.validateSubscriptionResults();
+            // 7. V2 Architecture Pivot: Re-apply user config to library.json
+            // Since reset --hard might have overwritten library.json with the technical manifest from the repo,
+            // we must ensure our locally-known subscribedTopics and other metadata are preserved.
+            await this.patchLibraryConfig();
 
             // 8. Refresh Obsidian's file cache and reload open tabs
             await this.refreshUI();
@@ -167,6 +171,7 @@ export class ShallowSyncExecutor {
             console.warn(`[ShallowSyncExecutor] Ghost Topics detected: ${missingTopics.join(", ")}`);
         }
     }
+
 
     /**
      * Fire-and-forget GC for shallow repos.
@@ -281,6 +286,49 @@ export class ShallowSyncExecutor {
         }
         
         return normalized;
+    }
+
+    /**
+     * Patch the local library.json with user-specific configuration.
+     * This ensures fields like subscribedTopics survive a git reset --hard.
+     */
+    public async patchLibraryConfig(availableTopics?: string[]): Promise<void> {
+        const { absoluteDir, subscribedTopics } = this.config;
+        const configPath = `${absoluteDir}/library.json`;
+        const { readFile, writeFile } = require('fs/promises');
+
+        try {
+            let config: any = {};
+            try {
+                const content = await readFile(configPath, 'utf8');
+                config = JSON.parse(content);
+            } catch (e) {
+                console.warn('[ShallowSyncExecutor] library.json not found or invalid after reset, creating new one.');
+            }
+
+            // Patch with local state
+            console.debug(`[ShallowSyncExecutor] Patching library.json for ${absoluteDir}. Local subscribedTopics:`, subscribedTopics);
+            if (subscribedTopics) {
+                config.subscribedTopics = subscribedTopics;
+            }
+            
+            // Patch with latest available topics from technical manifest
+            if (availableTopics) {
+                console.debug(`[ShallowSyncExecutor] Patching availableTopics:`, availableTopics);
+                config.availableTopics = availableTopics;
+            }
+
+            // Also preserve GC timestamp if we have it
+            if (this.config.lastGcTime) {
+                config.lastEngine2GcTime = this.config.lastGcTime;
+            }
+
+            const patchedContent = JSON.stringify(config, null, 2);
+            await writeFile(configPath, patchedContent, 'utf8');
+            console.log(`[ShallowSyncExecutor] Patched library.json at ${configPath}. Final content:`, patchedContent);
+        } catch (error) {
+            console.error('[ShallowSyncExecutor] Failed to patch library.json:', error);
+        }
     }
 
     // ─── UI Refresh ─────────────────────────────────────────────

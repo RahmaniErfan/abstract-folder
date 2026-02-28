@@ -1,6 +1,5 @@
-import { ItemView, WorkspaceLeaf, setIcon, TFolder, TFile, Platform, Notice, debounce } from "obsidian";
+import { ItemView, WorkspaceLeaf, setIcon, TFolder, TFile, Platform, Notice, debounce, requestUrl, MarkdownRenderer } from "obsidian";
 import type AbstractFolderPlugin from "../../../main";
-import { LibraryNode } from "../types";
 import { Logger } from "../../utils/logger";
 import { VirtualViewport, ViewportDelegate } from "../../ui/components/virtual-viewport";
 import { ContextEngine } from "../../core/context-engine";
@@ -10,6 +9,9 @@ import { AbstractFolderToolbar } from "../../ui/toolbar/abstract-folder-toolbar"
 import { AbstractDashboardModal } from "../../ui/modals/abstract-dashboard-modal";
 import { LibraryInfoModal } from "../../ui/modals/library-info-modal";
 import { CatalogModal } from "../../ui/modals/catalog-modal";
+import { CatalogService } from "../../library/services/catalog-service";
+import { CatalogItem, LibraryConfig, LibraryNode } from "../types";
+import { TopicSubscriptionModal } from "../../ui/modals/topic-subscription-modal";
 
 export const VIEW_TYPE_LIBRARY_EXPLORER = "abstract-library-explorer";
 
@@ -20,7 +22,10 @@ export const VIEW_TYPE_LIBRARY_EXPLORER = "abstract-library-explorer";
 export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     private viewport: VirtualViewport | null = null;
     private contextEngine: ContextEngine;
+    private catalogService: CatalogService;
     private selectedLibrary: LibraryNode | null = null;
+    private selectedTopic: string | null = null; // V2: Track selected topic (Level 2 -> Level 3)
+    private selectedCatalogItem: CatalogItem | null = null;
     private currentItems: AbstractNode[] = [];
     private searchQuery: string = "";
     private searchInput: HTMLInputElement;
@@ -43,6 +48,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     constructor(leaf: WorkspaceLeaf, private plugin: AbstractFolderPlugin) {
         super(leaf);
         this.contextEngine = new ContextEngine(plugin, 'library');
+        this.catalogService = new CatalogService(plugin.settings.librarySettings);
         this.debouncedRefreshLibraryTree = debounce(this.refreshLibraryTree.bind(this), 20);
         // 300ms debounce prevents duplicate renders from rapid file events after a git sync
         this.debouncedRenderView = debounce(this.renderView.bind(this), 300);
@@ -63,6 +69,11 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     async onOpen() {
         // @ts-ignore - Internal workspace event
         this.registerEvent(this.app.workspace.on("abstract-folder:library-changed", () => {
+            this.renderView();
+        }));
+
+        // @ts-ignore
+        this.registerEvent(this.app.workspace.on("abstract-folder:group-changed", () => {
             this.renderView();
         }));
         // @ts-ignore - Internal workspace event
@@ -136,7 +147,13 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         const finish = () => { this.isRenderingView = false; };
 
         if (this.selectedLibrary) {
-            this.renderLibraryTree(container).then(finish).catch((e) => { Logger.error("renderView", e); finish(); });
+            if (this.selectedTopic) {
+                this.renderLibraryTree(container).then(finish).catch((e) => { Logger.error("renderView", e); finish(); });
+            } else {
+                this.renderTopicScreen(container).then(finish).catch((e) => { Logger.error("renderView", e); finish(); });
+            }
+        } else if (this.selectedCatalogItem) {
+            this.renderDiscoveryDetail(container).then(finish).catch((e) => { Logger.error("renderView", e); finish(); });
         } else {
             this.renderShelf(container).then(finish).catch((e) => { Logger.error("renderView", e); finish(); });
         }
@@ -279,24 +296,63 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         }
 
         container.removeClass("is-empty");
+        const cardContainer = container.createDiv({ cls: "library-card-grid" });
 
-        const cardContainer = container.createDiv({ cls: "library-card-container" });
+        // 1. Fetch Remote Catalog
+        const catalogItems = await this.catalogService.fetchAllItems();
 
+        // 2. Build Unified Map
+        const installedMap = new Map<string, LibraryNode>();
         libraries.forEach(lib => {
-            const card = cardContainer.createDiv({ cls: "library-explorer-card" });
-            const iconContainer = card.createDiv({ cls: "library-card-icon" });
-            setIcon(iconContainer, "folder-closed");
-            
-            const info = card.createDiv({ cls: "library-card-info" });
+            // Find library.json to get the real ID
             if (lib.file instanceof TFolder) {
-                info.createDiv({ cls: "library-card-name", text: lib.file.name });
+                // This is a bit slow, but discovery needs it to match IDs
+                const configPath = `${lib.file.path}/library.json`;
+                const file = this.app.vault.getAbstractFileByPath(configPath);
+                if (file instanceof TFile) {
+                    // We can't await reading every file here, let's use name-based match if file not readily available
+                    // or just rely on the Discovery ID if we have it cached.
+                    // For now, let's trust name-based clustering if ID is unknown.
+                }
+                installedMap.set(lib.file.name.toLowerCase(), lib);
             }
-            
-            card.addEventListener("click", () => {
-                this.selectedLibrary = lib;
-                this.searchQuery = ""; // Reset search when entering a library
-                this.renderView();
-            });
+        });
+
+        // 3. Render Cards
+        const renderedLibraryNames = new Set<string>();
+
+        // First, show installed libraries that are in the catalog
+        catalogItems.forEach(item => {
+            const installed = installedMap.get(item.name.toLowerCase());
+            if (installed) {
+                this.renderLibraryCard(cardContainer, item, installed);
+                renderedLibraryNames.add(item.name.toLowerCase());
+            }
+        });
+
+        // Then, show installed libraries NOT in the catalog (Custom/Local)
+        libraries.forEach(lib => {
+            if (lib.file instanceof TFolder && !renderedLibraryNames.has(lib.file.name.toLowerCase())) {
+                this.renderLibraryCard(cardContainer, {
+                    id: lib.libraryId || lib.file.name,
+                    name: lib.file.name,
+                    author: "Local",
+                    description: "Personally installed or custom library.",
+                    repositoryUrl: "",
+                    category: "Local",
+                    tags: []
+                }, lib);
+                renderedLibraryNames.add(lib.file.name.toLowerCase());
+            }
+        });
+
+        // Finally, show discoverable libraries
+        catalogItems.forEach(item => {
+            if (!renderedLibraryNames.has(item.name.toLowerCase())) {
+                if (!this.searchQuery || item.name.toLowerCase().includes(this.searchQuery.toLowerCase())) {
+                    this.renderLibraryCard(cardContainer, item, null);
+                }
+            }
         });
         } catch (error) {
             Logger.error("LibraryExplorerView: Failed to refresh shelf", error);
@@ -309,13 +365,190 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         }
     }
 
+    private renderLibraryCard(container: HTMLElement, item: CatalogItem, installed: LibraryNode | null) {
+        const card = container.createDiv({ cls: "library-explorer-card" });
+        if (installed) card.addClass("is-installed");
+
+        const iconContainer = card.createDiv({ cls: "library-card-icon" });
+        setIcon(iconContainer, installed ? "library" : "cloud-download");
+        
+        const info = card.createDiv({ cls: "library-card-info" });
+        info.createDiv({ cls: "library-card-name", text: item.name });
+        info.createDiv({ cls: "library-card-author", text: `by ${item.author}` });
+        
+        if (installed) {
+            card.createDiv({ cls: "library-card-badge", text: "Installed" });
+        }
+
+        card.addEventListener("click", () => {
+            if (installed) {
+                this.selectedLibrary = installed;
+                // V2: Set specific library scope to enable Topic Groups
+                this.contextEngine = new ContextEngine(this.plugin, `library:${installed.libraryId}`);
+            } else {
+                this.selectedCatalogItem = item;
+            }
+            this.searchQuery = ""; 
+            this.renderView();
+        });
+    }
+
+    private async renderTopicScreen(container: HTMLElement) {
+        if (!this.selectedLibrary || !this.selectedLibrary.file) return;
+
+        // Level 2: Dedicated Topic Selection Screen
+        // We do NOT call renderHeader here because we want a clean shelf-like view without the toolbar.
+        const header = container.createDiv({ cls: "abstract-folder-header topic-screen-header" });
+        const titleRow = header.createDiv({ cls: "abstract-folder-header-title-container" });
+        
+        const backBtn = titleRow.createDiv({ 
+            cls: "af-header-back-button abstract-folder-toolbar-action clickable-icon", 
+            attr: { "aria-label": "Back to Shelf" } 
+        });
+        setIcon(backBtn, "arrow-left");
+        backBtn.addEventListener("click", () => {
+            this.selectedLibrary = null;
+            this.selectedTopic = null;
+            this.renderView();
+        });
+
+        const titleEl = titleRow.createEl("h3", { cls: "abstract-folder-header-title" });
+        titleEl.createSpan({ text: this.selectedLibrary.file.name });
+        titleEl.createSpan({ cls: "af-header-subtitle", text: " » Select a Topic" });
+
+        // Removed redundant library-header-divider as the title container already has a border-bottom
+
+        const body = container.createDiv({ cls: "library-topic-screen" });
+        // Use library-card-grid for consistent 24px padding and 20px gap matching the main shelf
+        const grid = body.createDiv({ cls: "library-card-grid" });
+
+        // 1. "All" Button (Always present)
+        const allCard = grid.createDiv({ cls: "library-explorer-card all-card" });
+        const allIcon = allCard.createDiv({ cls: "library-card-icon" });
+        setIcon(allIcon, "layers");
+        
+        const allInfo = allCard.createDiv({ cls: "library-card-info" });
+        allInfo.createDiv({ cls: "library-card-name", text: "All Notes" });
+        allInfo.createDiv({ cls: "library-card-author", text: "View everything in this library." });
+        
+        allCard.addEventListener("click", () => {
+            this.selectedTopic = 'all';
+            this.contextEngine.setActiveTopic('all');
+            this.renderView();
+        });
+
+        // 2. Fetch Subscribed Topics
+        const libPath = this.selectedLibrary.file.path;
+        console.log(`[LibraryExplorerView] Loading config for: ${libPath}`);
+        const config = await this.plugin.libraryManager.validateLibrary(libPath).catch((e) => {
+            console.error(`[LibraryExplorerView] validateLibrary failed for ${libPath}:`, e);
+            return null;
+        });
+        
+        const subscribed = config?.subscribedTopics || [];
+        const available = config?.availableTopics || [];
+        
+        // Merge them for display (unique list)
+        const topics = Array.from(new Set([...subscribed, ...available]));
+        
+        console.log(`[LibraryExplorerView] Subscribed:`, subscribed, `Available:`, available);
+        console.log(`[LibraryExplorerView] Combined topics for display:`, topics);
+        console.debug(`[LibraryExplorerView] Full config:`, config);
+
+        topics.forEach((topic: string) => {
+            const topicCard = grid.createDiv({ cls: "library-explorer-card" });
+            const topicIcon = topicCard.createDiv({ cls: "library-card-icon" });
+            setIcon(topicIcon, "folder");
+            
+            const topicInfo = topicCard.createDiv({ cls: "library-card-info" });
+            topicInfo.createDiv({ cls: "library-card-name", text: topic });
+            topicInfo.createDiv({ cls: "library-card-author", text: "Topic" });
+            
+            topicCard.addEventListener("click", () => {
+                this.selectedTopic = topic;
+                this.contextEngine.setActiveTopic(topic);
+                this.renderView();
+            });
+        });
+
+        if (topics.length === 0) {
+            const emptyHint = body.createDiv({ cls: "topic-empty-hint" });
+            emptyHint.createEl("p", { text: "No topics subscribed. You can manage subscriptions in Library Settings." });
+        }
+    }
+
+    private async renderDiscoveryDetail(container: HTMLElement) {
+        if (!this.selectedCatalogItem) return;
+        const item = this.selectedCatalogItem;
+
+        const header = container.createDiv({ cls: "abstract-folder-header" });
+        const titleRow = header.createDiv({ cls: "abstract-folder-header-title-container" });
+        const backBtn = titleRow.createDiv({ cls: "af-header-back-button abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Back to shelf" } });
+        setIcon(backBtn, "arrow-left");
+        backBtn.addEventListener("click", () => {
+            this.selectedCatalogItem = null;
+            this.renderView();
+        });
+
+        const titleEl = titleRow.createEl("h3", { cls: "abstract-folder-header-title", text: item.name });
+        
+        // Removed redundant library-header-divider
+
+        const body = container.createDiv({ cls: "library-discovery-body" });
+        const hero = body.createDiv({ cls: "library-hero" });
+        hero.createEl("p", { text: item.description, cls: "library-description" });
+        
+        const installBtn = hero.createEl("button", { text: "Install & Subscribe", cls: "mod-cta" });
+        installBtn.addEventListener("click", async () => {
+            installBtn.disabled = true;
+            installBtn.setText("Checking topics...");
+            const remoteConfig = await this.catalogService.fetchRemoteLibraryConfig(item.repositoryUrl);
+            const librariesPath = this.plugin.settings.librarySettings.librariesPath;
+            const destPath = `${librariesPath}/${item.name}`;
+
+            if (remoteConfig && remoteConfig.availableTopics && remoteConfig.availableTopics.length > 0) {
+                new TopicSubscriptionModal(this.app, remoteConfig, destPath, this.plugin.libraryManager, () => {
+                    this.selectedCatalogItem = null;
+                    this.renderView();
+                }).open();
+            } else {
+                new Notice(`Installing ${item.name}...`);
+                await this.plugin.libraryManager.cloneLibrary(item.repositoryUrl, destPath, item);
+                new Notice("Installation complete");
+                this.selectedCatalogItem = null;
+                this.renderView();
+            }
+        });
+
+        // Preview README
+        const readmeArea = body.createDiv({ cls: "library-readme-preview markdown-rendered" });
+        readmeArea.createEl("p", { text: "Loading details...", cls: "loading-text" });
+        
+        void (async () => {
+            try {
+                let readmeUrl = item.repositoryUrl;
+                if (readmeUrl.includes("github.com")) {
+                    readmeUrl = readmeUrl.replace("github.com", "raw.githubusercontent.com") + "/main/README.md";
+                    const response = await requestUrl({ url: readmeUrl });
+                    if (response.status === 200) {
+                        readmeArea.empty();
+                        await MarkdownRenderer.render(this.app, response.text, readmeArea, "", this.plugin);
+                    }
+                }
+            } catch (e) {
+                readmeArea.empty();
+                readmeArea.createEl("p", { text: "Press Install to view this library." });
+            }
+        })();
+    }
+
     private async renderLibraryTree(container: HTMLElement) {
         if (!this.selectedLibrary) return;
 
         const header = container.createDiv({ cls: "abstract-folder-header" });
         await this.renderHeader(header);
 
-        header.createDiv({ cls: "library-header-divider" });
+        // Removed redundant library-header-divider
 
         const treeContainer = container.createDiv({ cls: "abstract-folder-tree-container" });
         const scrollContainer = treeContainer.createDiv({ cls: "abstract-folder-viewport-scroll-container nav-files-container" });
@@ -345,23 +578,39 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         const backBtn = titleRow.createDiv({ cls: "af-header-back-button abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Back to shelf" } });
         setIcon(backBtn, "arrow-left");
         backBtn.addEventListener("click", () => {
+            if (this.selectedTopic) {
+                // From Level 3 to Level 2
+                this.selectedTopic = null;
+                this.contextEngine.setActiveTopic(null);
+                this.renderView();
+                return;
+            }
+
             if (this.viewport) {
                 this.viewport.destroy();
                 this.viewport = null;
             }
             this.selectedLibrary = null;
+            this.selectedTopic = null;
             this.searchQuery = ""; // Reset search when going back to shelf
             this.renderView();
         });
 
-        if (this.selectedLibrary!.file instanceof TFolder) {
+        if (this.selectedLibrary && this.selectedLibrary.file instanceof TFolder) {
             const meta = this.plugin.graphEngine?.getNodeMeta?.(this.selectedLibrary!.file.path);
             const iconToUse = meta?.icon || "library";
             
             const titleEl = titleRow.createEl("h3", { cls: "abstract-folder-header-title" });
             const iconEl = titleEl.createDiv({ cls: "af-header-icon" });
-            setIcon(iconEl, iconToUse);
-            titleEl.createSpan({ text: this.selectedLibrary!.file.name });
+            
+            if (this.selectedTopic) {
+                setIcon(iconEl, this.selectedTopic === 'all' ? "layers" : "folder");
+                titleEl.createSpan({ text: this.selectedTopic === 'all' ? "All Notes" : this.selectedTopic });
+                titleEl.createSpan({ cls: "af-header-subtitle", text: ` in ${this.selectedLibrary!.file.name}` });
+            } else {
+                setIcon(iconEl, iconToUse);
+                titleEl.createSpan({ text: this.selectedLibrary!.file.name });
+            }
             
             // Pre-fetch ownership and repo info for toolbars
             const status = await this.plugin.libraryManager.isLibraryOwner(this.selectedLibrary!.file.path);
@@ -394,22 +643,54 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         try {
             const libraryFile = this.selectedLibrary.file;
             const libraryPath = libraryFile ? libraryFile.path : null;
+            
+            // Adjust scoping path if a specific topic is selected
+            let effectiveScopingPath = libraryPath;
+            if (this.selectedTopic && this.selectedTopic !== 'all' && libraryPath) {
+                const requestedPath = `${libraryPath}/${this.selectedTopic}`;
+                
+                // Case-sensitivity Fix for Linux:
+                // If the exact case doesn't exist, look for a case-insensitive match in the library folder.
+                const abstractFile = this.app.vault.getAbstractFileByPath(requestedPath);
+                if (!abstractFile) {
+                    const libFolder = this.app.vault.getAbstractFileByPath(libraryPath);
+                    if (libFolder instanceof TFolder) {
+                        const match = libFolder.children.find(c => c.name.toLowerCase() === this.selectedTopic?.toLowerCase());
+                        if (match) {
+                            console.log(`[LibraryExplorerView] Case-correction: Resolved "${this.selectedTopic}" to "${match.name}"`);
+                            effectiveScopingPath = match.path;
+                        } else {
+                            console.warn(`[LibraryExplorerView] Could not resolve topic path: ${requestedPath}`);
+                            effectiveScopingPath = requestedPath;
+                        }
+                    } else {
+                        effectiveScopingPath = requestedPath;
+                    }
+                } else {
+                    effectiveScopingPath = requestedPath;
+                }
+            }
+            
+            console.log(`[LibraryExplorerView] Effective scoping path: ${effectiveScopingPath}`);
         
             // Strategic Cache Ingestion
-            if (libraryPath) {
-                const relationships = this.plugin.abstractBridge.getLibraryRelationships(libraryPath);
+            if (effectiveScopingPath) {
+                // If it's a specific topic, we might still want the library's relationships seeded
+                // but for V2 Pure Mirror, seeding is less critical than scoping.
+                // However, seeding the whole library helps maintain links across topics.
+                const relationships = this.plugin.abstractBridge.getLibraryRelationships(libraryPath || "");
                 if (relationships) {
                     this.plugin.graphEngine.seedRelationships(relationships);
                 }
             }
 
-            // Create Scoped Provider for Library
+            // Create Scoped Provider for Library/Topic
             // Use 'library' scope ID to match ContextEngine
             const provider = new ScopedContentProvider(
                 this.plugin.app,
                 this.plugin.settings,
-                libraryPath || "",
-                "library",
+                effectiveScopingPath || "",
+                this.contextEngine.getScope(),
                 true, // Enable groupings
                 this.contextEngine.getState().activeGroupId
             );
@@ -458,7 +739,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             this.plugin.app, 
             this.plugin.settings, 
             libraryPath, 
-            "library",
+            this.contextEngine.getScope(),
             true, 
             this.contextEngine.getState().activeGroupId
         );

@@ -185,6 +185,7 @@ export class LibraryService {
         
         try {
             const configContent = await NodeFsAdapter.promises.readFile(configPath, "utf8");
+            console.debug(`[LibraryService] Raw library.json content for ${vaultPath}:`, configContent);
             return DataService.parseLibraryConfig(configContent);
         } catch (error) {
             // Only alert if the file exists but we failed to parse it

@@ -41,6 +41,8 @@ export interface PublicSyncConfig {
     lastGcTime?: number;
     /** Callback to persist lastGcTime. */
     onGcRun?: (timestamp: number) => void;
+    /** V2: Unique library name for group identification. */
+    libraryName: string;
 }
 
 // ─── Public Sync Orchestrator ───────────────────────────────────────
@@ -85,6 +87,7 @@ export class PublicSyncOrchestrator implements ISyncEngine {
             subscribedTopics: config.subscribedTopics,
             lastGcTime: config.lastGcTime,
             onGcRun: config.onGcRun,
+            libraryName: config.libraryName,
         });
 
         this.poller = new CDNManifestPoller(
@@ -182,6 +185,7 @@ export class PublicSyncOrchestrator implements ISyncEngine {
             subscribedTopics: this.config.subscribedTopics,
             lastGcTime: this.config.lastGcTime,
             onGcRun: this.config.onGcRun,
+            libraryName: this.config.libraryName,
         });
 
         console.log(`[PublicSyncOrchestrator] Configuration updated for ${this.absoluteDir}. Triggering sync...`);
@@ -224,8 +228,14 @@ export class PublicSyncOrchestrator implements ISyncEngine {
             const result = await this.executor.execute();
 
             if (result.updated) {
+                console.log(`[PublicSyncOrchestrator] Shallow sync successful, updating version to ${manifest.version}`);
                 // Persist the new version
                 this.versionCtrl.applyVersion(manifest.version);
+
+                // V2 Architecture Pivot: Re-apply user config and technical availableTopics
+                // This ensures subscribedTopics survive a reset --hard and availableTopics stay fresh.
+                console.log(`[PublicSyncOrchestrator] Patching library.json with availableTopics:`, manifest.availableTopics);
+                await this.executor.patchLibraryConfig(manifest.availableTopics);
 
                 // Fire-and-forget GC
                 this.executor.gcIfNeeded();

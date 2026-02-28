@@ -115,19 +115,33 @@ export class AbstractFolderToolbar {
 
     private handleCreateNote() {
         const creationRoot = this.options.provider.getCreationRoot();
-        const activeTopic = this.contextEngine.getState().activeTopic;
-        
-        if (creationRoot) {
-            // Direct creation in the specific root
+        const state = this.contextEngine.getState();
+        const activeTopic = state.activeTopic;
+        const activeGroupId = state.activeGroupId;
+
+        // V2 Architecture Correction: Check if we are in an active Library Group
+        let libraryGroupPath: string | null = null;
+        if (activeGroupId) {
+            const group = this.settings.groups.find(g => g.id === activeGroupId);
+            if (group && group.scope.startsWith('library:') && group.parentFolders.length > 0) {
+                // In V2 Master Library Group, the parent folder IS the library root
+                libraryGroupPath = group.parentFolders[0];
+            }
+        }
+
+        if (libraryGroupPath) {
+            // Creation inside a Library (V2 Master Group Style)
             new CreateAbstractChildModal(this.app, this.settings, (name, type) => {
-                let targetPath = creationRoot;
-                if (activeTopic) {
-                    targetPath = `${creationRoot}/${activeTopic}`;
-                }
-                this.createFileInPath(targetPath, name, type);
+                this.createFileInPath(libraryGroupPath!, name, type);
+            }, 'note').open();
+        } else if (creationRoot) {
+            // Direct creation in the specific scope (e.g. Scoped Library or Topic)
+            new CreateAbstractChildModal(this.app, this.settings, (name, type) => {
+                // provider.getCreationRoot() in Library view already includes the Topic if selected
+                this.createFileInPath(creationRoot, name, type);
             }, 'note').open();
         } else {
-            // Standard abstract creation
+            // Standard abstract creation (Global Orphans)
             new CreateAbstractChildModal(this.app, this.settings, (name, type) => {
                 createAbstractChildFile(this.app, this.settings, name, null, type, this.plugin.graphEngine).catch(Logger.error);
             }, 'note').open();

@@ -7,6 +7,7 @@ import { PublicSyncOrchestrator, PublicSyncConfig } from "../sync/public-sync-or
 import { ConflictResolutionModal } from "../../../ui/modals/conflict-resolution-modal";
 import { Logger } from "../../../utils/logger";
 import { LibraryConfig } from "../../types";
+import { Group } from "../../../types";
 
 /**
  * SyncManager handles the lifecycle of SyncOrchestrator instances.
@@ -153,7 +154,32 @@ export class SyncManager {
                 const plugin = (this.app as any).plugins?.getPlugin?.("abstract-folder");
                 if (plugin) void plugin.saveSettings();
             },
+            libraryName: libraryConfig.name,
         };
+
+        // V2 Architecture Correction: Register ONE Master Group for the entire Library
+        const libraryRootPath = vaultPath;
+        const groupName = `[Library] ${libraryConfig.name}`;
+        const existingGroup = this.settings.groups.find(g => 
+            g.name === groupName && g.parentFolders.includes(libraryRootPath)
+        );
+
+        if (!existingGroup) {
+            console.log(`[SyncManager] Registering Master Library Group for: "${libraryConfig.name}"`);
+            const masterGroup: Group = {
+                id: `library-${libraryConfig.id}-master`,
+                name: groupName,
+                scope: `library:${libraryConfig.id}`,
+                parentFolders: [libraryRootPath]
+            };
+            this.settings.groups.push(masterGroup);
+            
+            const plugin = (this.app as any).plugins?.getPlugin?.("abstract-folder");
+            if (plugin) {
+                await plugin.saveSettings();
+                this.app.workspace.trigger('abstract-folder:group-changed');
+            }
+        }
 
         const existing = this.publicOrchestrators.get(vaultPath);
         if (existing) {

@@ -106,6 +106,7 @@ export class LibraryManager {
     // --- Library Operations (Delegated to LibraryService) ---
 
     async cloneLibrary(repositoryUrl: string, destinationPath: string, item?: CatalogItem, token?: string) {
+        console.log(`[LibraryManager] cloneLibrary triggered for ${repositoryUrl} -> ${destinationPath}`);
         return this.libraryService.cloneLibrary(repositoryUrl, destinationPath, item, token);
     }
 
@@ -223,6 +224,7 @@ export class LibraryManager {
      * Engine 2 Subscription Flow: Bootstraps local metadata and starts the sync engine.
      */
     async subscribeToLibrary(vaultPath: string, config: LibraryConfig): Promise<void> {
+        console.log(`[LibraryManager] subscribeToLibrary triggered for ${vaultPath}. Config:`, config);
         // 1. Bootstrap local library.json
         await this.libraryService.bootstrapLibrary(vaultPath, config);
 
