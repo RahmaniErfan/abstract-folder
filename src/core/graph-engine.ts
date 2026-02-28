@@ -19,6 +19,8 @@ export interface NodeMeta {
     isLibrary?: boolean;
     isShared?: boolean;
     isBackup?: boolean;
+    topic?: string;     // Topic from frontmatter
+    frontmatter?: Record<string, any>; // Full frontmatter for dynamic display names
 }
 
 /**Architecture Correction: Raw Topic Simplification
@@ -644,11 +646,14 @@ export class GraphEngine implements IGraphEngine {
                 for (const c of rels.definedChildren) this.index.addEdge(id, c);
 
                 // Update node metadata
+                const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
                 this.index.addNode(id, {
                     extension: file.extension,
                     mtime: file.stat.mtime,
                     isOrphan: rels.definedParents.size === 0,
-                    icon: this.app.metadataCache.getFileCache(file)?.frontmatter?.icon as string | undefined,
+                    icon: frontmatter?.icon as string | undefined,
+                    topic: frontmatter?.topic as string | undefined,
+                    frontmatter: frontmatter,
                     isLibrary: this.isLibraryPath(id),
                     isShared: this.isSharedSpacePath(id),
                     isBackup: this.isPersonalBackupPath(id)
@@ -733,19 +738,30 @@ export class GraphEngine implements IGraphEngine {
 
         const oldRelationships = this.fileRelationships.get(file.path);
         const newRelationships = this.getFileRelationships(file);
+        const oldMeta = this.index.getNode(file.path)?.meta;
+        const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
         
         // Skip topology processing if relationships are identical
         if (oldRelationships && this.areRelationshipsEqual(oldRelationships, newRelationships)) {
-            // Still update metadata (mtime/icon) but skip structure changes
+            // Still update metadata (mtime/icon/frontmatter) but check if UI needs refresh
+            const metadataChanged = !oldMeta || 
+                oldMeta.mtime !== file.stat.mtime || 
+                oldMeta.icon !== frontmatter?.icon ||
+                oldMeta.topic !== frontmatter?.topic ||
+                JSON.stringify(oldMeta.frontmatter) !== JSON.stringify(frontmatter);
+
             this.index.addNode(file.path, {
                 mtime: file.stat.mtime,
                 extension: file.extension,
-                icon: this.app.metadataCache.getFileCache(file)?.frontmatter?.icon as string | undefined,
+                icon: frontmatter?.icon as string | undefined,
+                topic: frontmatter?.topic as string | undefined,
+                frontmatter: frontmatter,
                 isLibrary: this.isLibraryPath(file.path),
                 isShared: this.isSharedSpacePath(file.path),
                 isBackup: this.isPersonalBackupPath(file.path)
             });
-            return false;
+            
+            return metadataChanged; // Trigger refresh if metadata changed even if topology didn't
         }
 
         // Logger.debug(`GraphEngine: Incremental update for ${file.path}`);
@@ -787,7 +803,9 @@ export class GraphEngine implements IGraphEngine {
             mtime: file.stat.mtime,
             extension: file.extension,
             isOrphan: existingNode ? existingNode.parents.size === 0 : true,
-            icon: this.app.metadataCache.getFileCache(file)?.frontmatter?.icon as string | undefined,
+            icon: frontmatter?.icon as string | undefined,
+            topic: frontmatter?.topic as string | undefined,
+            frontmatter: frontmatter,
             isLibrary: this.isLibraryPath(file.path),
             isShared: this.isSharedSpacePath(file.path),
             isBackup: this.isPersonalBackupPath(file.path)

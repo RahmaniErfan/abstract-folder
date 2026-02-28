@@ -1,10 +1,12 @@
 import { App } from "obsidian";
-import { FileID, IGraphEngine } from "./graph-engine";
+import { FileID, IGraphEngine, NodeMeta } from "./graph-engine";
 import { ContextEngine } from "./context-engine";
 import { TreePipeline, StandardTreePipeline } from "./tree-pipeline";
 import { Logger } from "../utils/logger";
 import { ContentProvider } from "./content-provider";
 import { MetricsManager } from "../metrics-manager";
+import { AbstractFolderPluginSettings } from '../settings';
+import { SortConfig } from "../types";
 
 export interface AbstractNode {
     /** The Physical Path (Obsidian Path) */
@@ -12,6 +14,7 @@ export interface AbstractNode {
     /** The Synthetic Path (UI Unique Identity) */
     uri: string;
     name: string;
+    displayName: string; // The resolved display name based on priority
     level: number;
     isExpanded: boolean;
     isSelected: boolean;
@@ -222,10 +225,14 @@ export class TreeBuilder {
                 syncStatus = syncStatusMap ? syncStatusMap.get(id) : undefined;
             }
 
+            const basename = this.getNodeName(id);
+            const displayName = this.resolveDisplayName(id, meta, context.settings);
+
             items.push({
                 id,
                 uri,
-                name: this.getNodeName(id),
+                name: basename,
+                displayName: displayName,
                 level,
                 isExpanded,
                 isSelected: context.isSelected(uri),
@@ -321,6 +328,46 @@ export class TreeBuilder {
 
     private getNodeName(path: string): string {
         return path.split('/').pop() || path;
+    }
+
+    private resolveDisplayName(id: FileID, meta: NodeMeta | undefined, settings: AbstractFolderPluginSettings): string {
+        const basename = this.getNodeName(id);
+        const fileNameWithoutExt = basename.includes('.') ? basename.substring(0, basename.lastIndexOf('.')) : basename;
+        
+        if (!meta?.frontmatter || !settings.displayNameOrder) {
+            return fileNameWithoutExt;
+        }
+
+        const order = settings.displayNameOrder;
+        for (const key of order) {
+            if (key === 'basename') {
+                return fileNameWithoutExt;
+            }
+
+            if (key === 'aliases') {
+                const aliases = meta.frontmatter.aliases;
+                if (aliases) {
+                    if (Array.isArray(aliases) && aliases.length > 0) {
+                        const firstAlias = String(aliases[0]).trim();
+                        if (firstAlias.length > 0) return firstAlias;
+                    } else if (typeof aliases === 'string' && aliases.trim().length > 0) {
+                        return aliases.trim();
+                    }
+                }
+                continue;
+            }
+
+            const value = meta.frontmatter[key];
+            if (value !== undefined && value !== null) {
+                const strValue = String(value).trim();
+                // If the field is an empty string, continue to next priority
+                if (strValue.length > 0) {
+                    return strValue;
+                }
+            }
+        }
+
+        return fileNameWithoutExt;
     }
 
     private isDescendantOf(childId: FileID, distinctAncestors: Set<FileID>): boolean {

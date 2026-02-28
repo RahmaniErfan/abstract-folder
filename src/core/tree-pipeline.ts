@@ -3,6 +3,7 @@ import { FileID, IGraphEngine, NodeMeta } from "./graph-engine";
 import { SortConfig } from "../types";
 import { MetricsManager } from "../metrics-manager";
 import { Logger } from "../utils/logger";
+import { AbstractFolderPluginSettings } from '../settings';
 
 export interface TreePipeline {
     /**
@@ -148,8 +149,53 @@ export class StandardTreePipeline implements TreePipeline {
     }
 
     public isDirectMatch(id: FileID, query: string): boolean {
-        const name = this.getNodeName(id).toLowerCase();
-        return name.includes(query);
+        // 1. Check basename
+        const basename = this.getNodeName(id).toLowerCase();
+        if (basename.includes(query)) return true;
+
+        // 2. Check Display Name if it differs from basename
+        // Note: During initial root search (DFS in buildTree), 
+        // we might not have the full AbstractNode yet, so we check frontmatter if available.
+        const meta = this.graph.getNodeMeta(id);
+        const displayName = this.resolveDisplayNameSync(id, meta).toLowerCase();
+        if (displayName !== basename && displayName.includes(query)) return true;
+
+        return false;
+    }
+
+    private resolveDisplayNameSync(id: FileID, meta: NodeMeta | undefined): string {
+        const basename = this.getNodeName(id);
+        const fileNameWithoutExt = basename.includes('.') ? basename.substring(0, basename.lastIndexOf('.')) : basename;
+        
+        const settings = (this.app as any).plugins.plugins['abstract-folder'].settings as AbstractFolderPluginSettings;
+        const order = settings.displayNameOrder || ['title', 'aliases', 'basename'];
+
+        if (!meta?.frontmatter) {
+            return fileNameWithoutExt;
+        }
+
+        for (const key of order) {
+            if (key === 'basename') return fileNameWithoutExt;
+            if (key === 'aliases') {
+                const aliases = meta.frontmatter.aliases;
+                if (aliases) {
+                    if (Array.isArray(aliases) && aliases.length > 0) {
+                        const firstAlias = String(aliases[0]).trim();
+                        if (firstAlias.length > 0) return firstAlias;
+                    } else if (typeof aliases === 'string' && aliases.trim().length > 0) {
+                        return aliases.trim();
+                    }
+                }
+                continue;
+            }
+            const value = meta.frontmatter[key];
+            if (value !== undefined && value !== null) {
+                const strValue = String(value).trim();
+                // If the field is an empty string, continue to next priority
+                if (strValue.length > 0) return strValue;
+            }
+        }
+        return fileNameWithoutExt;
     }
 
     private hasMatchingAncestor(id: FileID, query: string, visited: Set<FileID> = new Set(), specificParentId?: FileID): boolean {
@@ -254,8 +300,10 @@ export class StandardTreePipeline implements TreePipeline {
         for (const id of ids) {
             const file = this.app.vault.getAbstractFileByPath(id);
             const isFolder = file instanceof TFolder;
-            const name = this.getNodeName(id);
             const graphMeta = this.graph.getNodeMeta(id);
+            
+            // Use resolved display name for sorting if it's a name sort
+            const name = this.resolveDisplayNameSync(id, graphMeta);
 
             let mtime = 0;
             let ctime = 0;

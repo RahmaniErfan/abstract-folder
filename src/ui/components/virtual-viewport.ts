@@ -229,13 +229,8 @@ export class VirtualViewport {
         const self = el.querySelector(".af-item-self") as HTMLElement;
         if (!self) return;
 
-        let basename = node.name;
-        let extension = "";
-        const lastDotIndex = node.name.lastIndexOf('.');
-        if (lastDotIndex > 0) {
-            basename = node.name.substring(0, lastDotIndex);
-            extension = node.name.substring(lastDotIndex + 1);
-        }
+        const displayName = node.displayName;
+        const extension = node.extension || "";
 
         // 1. Disclosure Arrow (Chevron)
         const arrow = self.querySelector(".af-collapse-icon") as HTMLElement;
@@ -298,7 +293,7 @@ export class VirtualViewport {
             if (!label) {
                 label = inner.createSpan("af-item-label");
             }
-            label.textContent = basename;
+            label.textContent = displayName;
 
             // 3.1 Topic Badge
             let topicBadge = inner.querySelector(".af-topic-badge") as HTMLElement;
