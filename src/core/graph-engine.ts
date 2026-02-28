@@ -149,6 +149,7 @@ export interface IGraphEngine {
     
     // Analysis
     getAllRoots(activeGroupId?: string | null, scopingPath?: string | null): FileID[];
+    isAncestorOf(ancestorId: FileID, descendantId: FileID): boolean;
     
     // Lifecycle
     initialize(): Promise<void>;
@@ -526,6 +527,30 @@ export class GraphEngine implements IGraphEngine {
             }
         }
         return Array.from(processedRoots);
+    }
+
+    /**
+     * Returns true if ancestorId is an ancestor of descendantId in the graph.
+     */
+    isAncestorOf(ancestorId: FileID, descendantId: FileID): boolean {
+        if (ancestorId === descendantId) return true;
+        
+        // BFS to check for descendants
+        const visited = new Set<FileID>();
+        const queue = [ancestorId];
+
+        while (queue.length > 0) {
+            const current = queue.shift()!;
+            if (visited.has(current)) continue;
+            visited.add(current);
+
+            const children = this.getChildren(current);
+            for (const child of children) {
+                if (child === descendantId) return true;
+                queue.push(child);
+            }
+        }
+        return false;
     }
 
     private resolveGroupRoot(includedPath: string): string | null {

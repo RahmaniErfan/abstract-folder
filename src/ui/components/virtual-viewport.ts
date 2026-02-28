@@ -15,6 +15,8 @@ export interface ViewportDelegate {
     onItemContextMenu(node: AbstractNode, event: MouseEvent): void;
     /** Drag and drop */
     onItemDrop(draggedPath: string, targetNode: AbstractNode): void;
+    /** Validates if a drop is legal */
+    validateDrop(draggedPath: string, targetNode: AbstractNode): boolean;
 }
 
 export interface ViewportOptions {
@@ -34,6 +36,9 @@ export class VirtualViewport {
     private contextListener: () => void;
     private selectionListener: () => void;
     private options: ViewportOptions;
+    
+    // Track dragged path globally for all viewport instances
+    private static draggedPath: string | null = null;
     
     constructor(
         private containerEl: HTMLElement,
@@ -163,6 +168,7 @@ export class VirtualViewport {
             if (e.dataTransfer) {
                 e.dataTransfer.setData("text/plain", node.id); 
                 e.dataTransfer.effectAllowed = "move";
+                VirtualViewport.draggedPath = node.id;
             }
         });
 
@@ -171,20 +177,43 @@ export class VirtualViewport {
             if (e.dataTransfer) {
                 e.dataTransfer.dropEffect = "move";
             }
-            row.classList.add("abstract-folder-drag-over");
+            
+            const dragged = VirtualViewport.draggedPath || (e.dataTransfer ? e.dataTransfer.getData("text/plain") : null);
+            if (dragged) {
+                const isValid = this.delegate.validateDrop(dragged, node);
+                if (isValid) {
+                    row.classList.add("abstract-folder-drag-over");
+                    row.classList.remove("abstract-folder-drag-invalid");
+                } else {
+                    row.classList.add("abstract-folder-drag-invalid");
+                    row.classList.remove("abstract-folder-drag-over");
+                }
+            } else {
+                row.classList.add("abstract-folder-drag-over");
+            }
         });
 
         row.addEventListener("dragleave", () => {
             row.classList.remove("abstract-folder-drag-over");
+            row.classList.remove("abstract-folder-drag-invalid");
         });
 
         row.addEventListener("drop", (e) => {
             e.preventDefault();
             row.classList.remove("abstract-folder-drag-over");
+            row.classList.remove("abstract-folder-drag-invalid");
             if (e.dataTransfer) {
                 const draggedPath = e.dataTransfer.getData("text/plain");
-                this.delegate.onItemDrop(draggedPath, node);
+                const isValid = this.delegate.validateDrop(draggedPath, node);
+                if (isValid) {
+                    this.delegate.onItemDrop(draggedPath, node);
+                }
             }
+            VirtualViewport.draggedPath = null;
+        });
+
+        row.addEventListener("dragend", () => {
+            VirtualViewport.draggedPath = null;
         });
 
         return row;

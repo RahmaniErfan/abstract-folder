@@ -7,8 +7,8 @@
 }
 
 .abstract-folder-drag-invalid {
-	background-color: rgba(var(--color-red-rgb), 0.15) !important;
-	outline: 1px dashed var(--text-muted) !important;
+	background-color: rgba(255, 0, 0, 0.05) !important;
+	outline: 1px dashed var(--text-error) !important;
 	outline-offset: -2px;
 	border-radius: var(--radius-s);
 	cursor: no-drop !important;

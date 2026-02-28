@@ -300,6 +300,14 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
             });
     }
 
+    validateDrop(draggedPath: string, targetNode: AbstractNode): boolean {
+        // Prevent dropping onto itself or its own descendants (circular dependency)
+        if (this.plugin.graphEngine.isAncestorOf(draggedPath, targetNode.id)) {
+            return false;
+        }
+        return true;
+    }
+
     private async refreshTree(options: { forceExpand?: boolean, repair?: boolean } = {}) {
         if (this.isRefreshing) {
             this.nextRefreshScheduled = true;

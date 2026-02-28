@@ -981,6 +981,29 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
 
     onItemDrop(draggedPath: string, targetNode: AbstractNode): void {
         // Library view might be read-only or have different D&D rules
+        if (!this.isOwner) return;
+        
+        const draggedFile = this.app.vault.getAbstractFileByPath(draggedPath);
+        if (!(draggedFile instanceof TFile)) return;
+
+        this.plugin.transactionManager.moveNode(draggedFile, targetNode.id)
+            .then(() => {
+                new Notice(`Moved ${draggedFile.basename} to ${targetNode.name}`);
+                void this.refreshLibraryTree();
+            })
+            .catch((error) => {
+                console.error("Failed to move node", error);
+                new Notice("Failed to move node. See console for details.");
+            });
+    }
+
+    validateDrop(draggedPath: string, targetNode: AbstractNode): boolean {
+        if (!this.isOwner) return false;
+        // Prevent dropping onto itself or its own descendants
+        if (this.plugin.graphEngine.isAncestorOf(draggedPath, targetNode.id)) {
+            return false;
+        }
+        return true;
     }
 
     async onClose() {
