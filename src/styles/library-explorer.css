@@ -175,7 +175,6 @@
 .library-topic-screen {
     height: 100%;
     overflow-y: auto;
-    background-color: var(--background-primary);
 }
 
 .af-card-delete-btn {
@@ -205,6 +204,57 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.af-library-detail-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: auto;
+    width: 100%;
+    opacity: 0;
+    transition: all 0.3s ease;
+    padding-top: 12px;
+}
+
+.library-explorer-card:hover .af-library-detail-actions {
+    opacity: 1;
+}
+
+.af-library-detail-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    transition: all 0.2s ease;
+    padding: 6px;
+    border-radius: 8px;
+    background-color: transparent !important;
+}
+
+.af-library-detail-action:hover {
+    color: var(--text-normal);
+    background-color: var(--background-modifier-hover);
+    transform: scale(1.1);
+}
+
+.af-library-detail-heart:hover {
+    color: var(--color-red) !important;
+}
+
+.af-library-detail-uninstall:hover {
+    color: var(--color-red) !important;
+}
+
+.af-library-detail-github:hover {
+    color: var(--text-accent) !important;
+}
+
+.af-library-detail-action svg {
+    width: 18px;
+    height: 18px;
 }
 
 .abstract-folder-header-title-container {

@@ -378,6 +378,55 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         
         if (installed) {
             card.createDiv({ cls: "library-card-badge", text: "Installed" });
+
+            // Add Actions for installed libraries
+            const actions = card.createDiv({ cls: "af-library-detail-actions" });
+            
+            // 1. Support Button (Heart)
+            const supportBtn = actions.createDiv({ 
+                cls: "af-library-detail-action af-library-detail-heart",
+                attr: { "aria-label": "Support" }
+            });
+            setIcon(supportBtn, "heart");
+            supportBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const url = item.fundingUrl || (this.selectedLibrary ? (this.selectedLibrary as any).fundingUrl : null);
+                if (url) {
+                    window.open(url, "_blank");
+                } else {
+                    new Notice("No support link available.");
+                }
+            });
+
+            // 2. Uninstall Action
+            const uninstallBtn = actions.createDiv({ 
+                cls: "af-library-detail-action af-library-detail-uninstall",
+                attr: { "aria-label": "Uninstall" }
+            });
+            setIcon(uninstallBtn, "trash");
+            uninstallBtn.addEventListener("click", async (e) => {
+                e.stopPropagation();
+                if (installed.file) {
+                    if (confirm(`Are you sure you want to uninstall ${item.name}?`)) {
+                        await this.plugin.libraryManager.deleteLibrary(installed.file.path);
+                        new Notice(`Uninstalled ${item.name}`);
+                        this.renderView();
+                    }
+                }
+            });
+
+            // 3. View on GitHub
+            const githubBtn = actions.createDiv({ 
+                cls: "af-library-detail-action af-library-detail-github",
+                attr: { "aria-label": "View on GitHub" }
+            });
+            setIcon(githubBtn, "github");
+            githubBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                if (item.repositoryUrl) {
+                    window.open(item.repositoryUrl, "_blank");
+                }
+            });
         }
 
         card.addEventListener("click", () => {
