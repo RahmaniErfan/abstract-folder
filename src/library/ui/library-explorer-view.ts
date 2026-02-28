@@ -477,7 +477,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         setIcon(allIcon, "layers");
         
         const allInfo = allCard.createDiv({ cls: "library-card-info" });
-        allInfo.createDiv({ cls: "library-card-name", text: "All Notes" });
+        allInfo.createDiv({ cls: "library-card-name", text: "All Topics" });
         allInfo.createDiv({ cls: "library-card-author", text: "View everything in this library." });
         
         allCard.addEventListener("click", () => {
@@ -654,7 +654,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             
             if (this.selectedTopic) {
                 setIcon(iconEl, this.selectedTopic === 'all' ? "layers" : "folder");
-                titleEl.createSpan({ text: this.selectedTopic === 'all' ? "All Notes" : this.selectedTopic });
+                titleEl.createSpan({ text: this.selectedTopic === 'all' ? "All Topics" : this.selectedTopic });
                 titleEl.createSpan({ cls: "af-header-subtitle", text: ` in ${this.selectedLibrary!.file.name}` });
             } else {
                 setIcon(iconEl, iconToUse);

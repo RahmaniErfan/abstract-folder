@@ -4,16 +4,29 @@
     max-width: 1400px !important;
     height: 85vh !important;
     max-height: 900px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+.abstract-catalog-modal .modal-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100%;
+    padding: 24px;
 }
 
 .af-wide-modal {
-    padding: 24px;
+    padding: 0; /* Let .modal-content handle padding */
 }
 
 .af-modal-header {
     margin-bottom: 0px;
     border-bottom: 1px solid var(--background-modifier-border);
     padding-bottom: 12px;
+    flex-shrink: 0;
 }
 
 /* Tab Styles */
@@ -57,18 +70,20 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    /* Removed large padding-top to keep layout tight */
+    margin-top: 16px;
 }
 
 /* Browse Tab - Master Detail Layout */
 .af-catalog-browse-tab {
-    height: 100%;
-    margin-top: 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .af-catalog-layout {
     display: flex;
-    height: 100%;
+    flex: 1;
     border: 1px solid var(--background-modifier-border);
     border-radius: 8px;
     overflow: hidden;
@@ -82,6 +97,7 @@
     display: flex;
     flex-direction: column;
     background-color: var(--background-secondary-alt);
+    flex-shrink: 0;
 }
 
 .af-catalog-sidebar-header {
@@ -90,6 +106,7 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+    flex-shrink: 0;
 }
 
 .af-catalog-search-wrapper input {
@@ -157,6 +174,7 @@
     padding: 24px;
     border-bottom: 1px solid var(--background-modifier-border);
     background-color: var(--background-secondary-alt);
+    flex-shrink: 0;
 }
 
 .af-library-detail-title-row {
@@ -330,6 +348,62 @@
     text-align: center;
     color: var(--text-muted);
     margin-top: 24px;
+}
+
+/* Welcome Page Styles */
+.af-catalog-welcome {
+    padding: 60px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto;
+    color: var(--text-normal);
+}
+
+.af-catalog-welcome h2 {
+    font-size: 2em;
+    margin-bottom: 24px;
+    color: var(--text-accent);
+}
+
+.af-catalog-welcome p {
+    font-size: 1.1em;
+    line-height: 1.6;
+    margin-bottom: 32px;
+    color: var(--text-muted);
+}
+
+.af-catalog-welcome-hints {
+    text-align: left;
+    background-color: var(--background-secondary);
+    padding: 24px 32px;
+    border-radius: 12px;
+    border: 1px solid var(--background-modifier-border);
+    margin-bottom: 32px;
+    width: 100%;
+}
+
+.af-catalog-welcome-hints h3 {
+    margin-top: 0;
+    margin-bottom: 16px;
+    font-size: 1.2em;
+}
+
+.af-catalog-welcome-hints ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.af-catalog-welcome-hints li {
+    margin-bottom: 12px;
+    color: var(--text-normal);
+}
+
+.af-catalog-welcome-footer {
+    font-style: italic;
+    color: var(--text-faint);
 }
 
 /* Subscription Modal Styles */

@@ -68,6 +68,10 @@ export class CatalogModal extends Modal {
 
         // Initial render
         this.renderTabContent(tabContentContainer);
+        
+        // Ensure the modal structure is ready for flexbox
+        this.modalEl.style.display = 'flex';
+        this.modalEl.style.flexDirection = 'column';
     }
 
     private renderTabContent(container: HTMLElement) {
@@ -91,7 +95,7 @@ export class CatalogModal extends Modal {
         
         // Detail Area
         this.detailEl = layout.createDiv({ cls: "af-catalog-detail" });
-        this.detailEl.createEl("p", { text: "Select a library to see details", cls: "empty-text" });
+        this.renderWelcomePage();
         
         void this.refreshCatalog();
     }
@@ -222,9 +226,7 @@ export class CatalogModal extends Modal {
         });
 
         // Auto-select first item if nothing selected or current selection is gone
-        if (!this.selectedItem && items.length > 0) {
-            this.selectItem(items[0], this.itemsListEl.firstChild as HTMLElement);
-        } else if (this.selectedItem) {
+        if (this.selectedItem) {
             const refreshed = items.find(i => i.id === this.selectedItem?.id);
             if (refreshed) {
                 this.renderLibraryDetail(refreshed);
@@ -538,6 +540,30 @@ export class CatalogModal extends Modal {
                 btn.setText("Uninstall");
             }
         }
+    }
+
+    private renderWelcomePage() {
+        if (!this.detailEl) return;
+        this.detailEl.empty();
+        
+        const welcome = this.detailEl.createDiv({ cls: "af-catalog-welcome" });
+        welcome.createEl("h2", { text: "Welcome to Library Catalogs" });
+        welcome.createEl("p", { 
+            text: "This catalog allows you to discover and install community-maintained libraries for Abstract Folder. " +
+                  "Libraries can be everything from community-based knowledge bases (University Notes, Personal Notes, topic-specific wikis) " +
+                  "to pre-configured folder structures, templates, and scripts to enhance your Obsidian workflow."
+        });
+        
+        const hints = welcome.createDiv({ cls: "af-catalog-welcome-hints" });
+        hints.createEl("h3", { text: "How it works" });
+        const list = hints.createEl("ul");
+        list.createEl("li", { text: "Browse the available libraries in the sidebar." });
+        list.createEl("li", { text: "Select a library to view its README and details." });
+        list.createEl("li", { text: "Click 'Install' to add the library to your vault." });
+        list.createEl("li", { text: "Managing Catalogs: You can add custom catalog URLs in the 'Manage Catalogs' tab." });
+
+        const footer = welcome.createDiv({ cls: "af-catalog-welcome-footer" });
+        footer.createEl("p", { text: "Select a library from the sidebar to get started." });
     }
 
     onClose() {
