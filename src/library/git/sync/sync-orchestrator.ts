@@ -136,6 +136,9 @@ export class SyncOrchestrator implements ISyncEngine {
         this.autoCommit.start();
         this.networkQueue.start();
 
+        // Initial catch-up sync for changes made while Obsidian was closed
+        void this.autoCommit.syncWorkingTree();
+
         console.log(`[SyncOrchestrator] Started for ${this.absoluteDir} (branch: ${this.branch})`);
         return true;
     }
@@ -198,7 +201,9 @@ export class SyncOrchestrator implements ISyncEngine {
 
     /** Manual push from UI. */
     async pushNow(): Promise<void> {
-        // First, flush any pending auto-commits so they get pushed
+        // First, perform a catch-up sync to stage any external changes (e.g. manual deletes)
+        await this.autoCommit.syncWorkingTree();
+        // Then, flush any pending auto-commits so they get pushed
         await this.autoCommit.flush();
         await this.networkQueue.pushNow();
     }

@@ -349,7 +349,15 @@ export class GitCommandRunner {
             return stdout
                 .split('\n')
                 .filter(line => line.trim().length > 0)
-                .map(line => line.substring(3).trim()); // Strip status prefix (e.g. " M ", "?? ")
+                .map(line => {
+                    // git status --porcelain output is "XY path"
+                    let filePath = line.substring(3).trim();
+                    // Strip quotes if git quoted the path due to spaces
+                    if (filePath.startsWith('"') && filePath.endsWith('"')) {
+                        filePath = filePath.substring(1, filePath.length - 1);
+                    }
+                    return filePath;
+                });
         } catch {
             return [];
         }

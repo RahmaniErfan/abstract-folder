@@ -16,7 +16,7 @@
  */
 
 import { App, EventRef } from 'obsidian';
-import { ISyncEngine, SyncEvent, SyncEventListener, SyncAuthor, AUTO_COMMIT_DEBOUNCE_MS } from './types';
+import { ISyncEngine, SyncEvent, SyncEventListener, SyncAuthor, AUTO_COMMIT_DEBOUNCE_MS, MAX_AUTO_COMMIT_FILE_SIZE } from './types';
 import { GitCommandRunner } from './git-command-runner';
 import { Mutex } from './mutex';
 import { toPosixPath } from './path-utils';
@@ -40,6 +40,9 @@ export class AutoCommitEngine implements ISyncEngine {
     private pendingFiles: Set<string> = new Set();
 
     private editorChangeRef: EventRef | null = null;
+    private vaultCreateRef: EventRef | null = null;
+    private vaultDeleteRef: EventRef | null = null;
+    private vaultRenameRef: EventRef | null = null;
     private running = false;
     private listeners: Map<string, Set<SyncEventListener>> = new Map();
 
@@ -75,38 +78,52 @@ export class AutoCommitEngine implements ISyncEngine {
 
         // Bind to Obsidian's editor-change event
         this.editorChangeRef = this.app.workspace.on('editor-change', (editor, info) => {
-            if (this.isMerging || this.isPaused()) {
-                console.debug('[AutoCommitEngine] Change ignored (paused/merging)');
-                return;
-            }
-
-            // info.file is the TFile being edited
             const file = (info as any)?.file;
             if (!file?.path) return;
-
-            const posixPath = toPosixPath(file.path);
-
-            // 1. Check if the file is inside this engine's directory
-            if (this.vaultPath !== "" && !posixPath.startsWith(this.vaultPath + '/')) {
-                return; 
-            }
-
-            // 2. Nested Repo Guard: If this is the Root engine, ignore changes in sub-repos
-            if (this.vaultPath === "" && this.getIgnoredPaths) {
-                const ignoredPaths = this.getIgnoredPaths();
-                const isNested = ignoredPaths.some(subPath => 
-                    posixPath === subPath || posixPath.startsWith(subPath + '/')
-                );
-                if (isNested) {
-                    console.debug(`[AutoCommitEngine] Root engine ignoring change in nested repo: ${posixPath}`);
-                    return;
-                }
-            }
-
-            const repoRelativePath = this.toRepoRelativePath(posixPath);
-            console.debug(`[AutoCommitEngine] Change detected in ${this.vaultPath || 'root'}: ${repoRelativePath}`);
-            this.scheduleCommit(repoRelativePath);
+            this.handleFileChange(file.path);
         });
+
+        // 3. Bind to Obsidian's vault events
+        this.vaultCreateRef = this.app.vault.on('create', (file) => {
+            this.handleFileChange(file.path);
+        });
+
+        this.vaultDeleteRef = this.app.vault.on('delete', (file) => {
+            this.handleFileChange(file.path);
+        });
+
+        this.vaultRenameRef = this.app.vault.on('rename', (file, oldPath) => {
+            this.handleFileChange(file.path);
+            this.handleFileChange(oldPath);
+        });
+    }
+
+    private handleFileChange(filePath: string): void {
+        if (!this.running || this.isMerging || this.isPaused()) {
+            return;
+        }
+
+        const posixPath = toPosixPath(filePath);
+
+        // 1. Check if the file is inside this engine's directory
+        if (this.vaultPath !== "" && !posixPath.startsWith(this.vaultPath + '/')) {
+            return;
+        }
+
+        // 2. Nested Repo Guard
+        if (this.vaultPath === "" && this.getIgnoredPaths) {
+            const ignoredPaths = this.getIgnoredPaths();
+            const isNested = ignoredPaths.some(subPath =>
+                posixPath === subPath || posixPath.startsWith(subPath + '/')
+            );
+            if (isNested) {
+                return;
+            }
+        }
+
+        const repoRelativePath = this.toRepoRelativePath(posixPath);
+        console.debug(`[AutoCommitEngine] Change detected in ${this.vaultPath || 'root'}: ${repoRelativePath}`);
+        this.scheduleCommit(repoRelativePath);
     }
 
     private toRepoRelativePath(vaultPath: string): string {
@@ -120,10 +137,22 @@ export class AutoCommitEngine implements ISyncEngine {
         if (!this.running) return;
         this.running = false;
 
-        // Unregister editor change listener
+        // Unregister listeners
         if (this.editorChangeRef) {
             this.app.workspace.offref(this.editorChangeRef);
             this.editorChangeRef = null;
+        }
+        if (this.vaultCreateRef) {
+            this.app.vault.offref(this.vaultCreateRef);
+            this.vaultCreateRef = null;
+        }
+        if (this.vaultDeleteRef) {
+            this.app.vault.offref(this.vaultDeleteRef);
+            this.vaultDeleteRef = null;
+        }
+        if (this.vaultRenameRef) {
+            this.app.vault.offref(this.vaultRenameRef);
+            this.vaultRenameRef = null;
         }
 
         // Clear all pending debounce timers (but don't commit — stop means stop)
@@ -221,8 +250,10 @@ export class AutoCommitEngine implements ISyncEngine {
 
         // Large file guard: check file size before committing
         const absPath = path.join(this.absoluteDir, filepath);
-        const safe = await this.runner.isFileSafeForAutoCommit(absPath);
-        if (!safe) {
+        
+        // If file exists, check size. If not (DELETED), it's safe to stage the deletion.
+        const size = await this.runner.checkFileSize(absPath);
+        if (size > MAX_AUTO_COMMIT_FILE_SIZE) {
             this.emit({
                 type: 'large-file',
                 detail: { filepath, absolutePath: absPath }
@@ -254,6 +285,63 @@ export class AutoCommitEngine implements ISyncEngine {
                 console.error(`[AutoCommitEngine] Failed to auto-commit ${filepath}:`, e);
                 this.emit({ type: 'error', detail: { filepath, error: e } });
             }
+        } finally {
+            release();
+        }
+    }
+
+    /**
+     * Scan the working tree for changes that were missed (e.g. while Obsidian was closed).
+     * This is a "catch-up" scan that ensures the index matches the working tree.
+     */
+    public async syncWorkingTree(): Promise<void> {
+        if (!this.running || this.isMerging) return;
+
+        const changes = await this.runner.statusPorcelain();
+        if (changes.length === 0) return;
+
+        const filesToSync: string[] = [];
+        for (const relPath of changes) {
+            // Path normalization for guard
+            const posixPath = toPosixPath(this.vaultPath ? `${this.vaultPath}/${relPath}` : relPath);
+
+            // Nested Repo Guard
+            if (this.vaultPath === "" && this.getIgnoredPaths) {
+                const ignoredPaths = this.getIgnoredPaths();
+                if (ignoredPaths.some(p => posixPath === p || posixPath.startsWith(p + '/'))) continue;
+            }
+            filesToSync.push(relPath);
+        }
+
+        if (filesToSync.length === 0) return;
+
+        const release = await this.mutex.acquire();
+        try {
+            for (const file of filesToSync) {
+                const absPath = path.join(this.absoluteDir, file);
+                const size = await this.runner.checkFileSize(absPath);
+                // If size is -1 (deleted), it's safe. If > threshold, skip.
+                if (size > MAX_AUTO_COMMIT_FILE_SIZE) continue;
+
+                try {
+                    await this.runner.add(file);
+                } catch {
+                    // File might have been moved/deleted again
+                }
+            }
+
+            const author = this.getAuthor();
+            const hash = Date.now().toString(36).slice(-6);
+            const committed = await this.runner.commit(
+                `auto: catch-up ${filesToSync.length} files [${hash}]`,
+                author
+            );
+
+            if (committed) {
+                this.emit({ type: 'commit', detail: { files: filesToSync, catchUp: true } });
+            }
+        } catch (e: any) {
+            console.error('[AutoCommitEngine] Catch-up sync failed:', e);
         } finally {
             release();
         }
