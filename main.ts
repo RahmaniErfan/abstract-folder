@@ -27,7 +27,7 @@ import { LibraryExplorerView, VIEW_TYPE_LIBRARY_EXPLORER } from './src/features/
 import { LibraryCenterView, VIEW_TYPE_LIBRARY_CENTER } from './src/features/library/ui/library-center-view';
 import { AbstractSpacesExplorerView, ABSTRACT_SPACES_VIEW_TYPE } from './src/features/spaces/abstract-spaces-explorer';
 import './src/styles/index.css';
-import './src/styles/library-explorer.css';
+// import './src/styles/library-explorer.css'; // Removed redundant import
 import './src/styles/merge-view.css';
 import { TreeBuilder } from './src/core/tree-builder';
 import { ContextEngine } from './src/core/context-engine';

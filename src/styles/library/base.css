@@ -1,0 +1,91 @@
+/* Base Library Explorer Styles */
+.abstract-library-explorer {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 0 !important;
+    overflow: hidden;
+}
+
+.abstract-folder-header-title-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    position: relative;
+    min-height: 48px;
+}
+
+.af-header-back-button {
+    position: absolute;
+    left: 8px;
+    z-index: 10;
+}
+
+.abstract-library-explorer .abstract-folder-header-title {
+    margin: 0 !important;
+    font-size: 1.1em;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-normal);
+    border-bottom: none !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.af-header-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.af-header-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.af-header-subtitle {
+    font-weight: normal;
+    font-size: 0.8em;
+    color: var(--text-muted);
+    margin-left: 8px;
+    opacity: 0.8;
+}
+
+.library-header-divider {
+    border-top: 1px solid var(--background-modifier-border);
+    opacity: 0.6;
+    margin: 4px 12px;
+}
+
+.abstract-folder-tree-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    height: 100%;
+}
+
+.abstract-folder-tree-container .abstract-folder-viewport-scroll-container {
+    flex: 1;
+    overflow-y: auto;
+    height: 100% !important; 
+}
+
+@keyframes af-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.af-spin svg {
+    animation: af-spin 2s linear infinite;
+}

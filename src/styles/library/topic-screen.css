@@ -1,0 +1,28 @@
+/* Topic Screen Styles */
+.library-topic-screen {
+    height: 100%;
+    overflow-y: auto;
+}
+
+.library-explorer-card.all-card {
+    background: linear-gradient(145deg, var(--background-primary-alt) 0%, var(--background-secondary) 100%);
+    border-style: dashed;
+    border-width: 2px;
+}
+
+.topic-empty-hint {
+    margin: 60px auto;
+    max-width: 400px;
+    padding: 30px;
+    background-color: var(--background-secondary);
+    border-radius: 20px;
+    border: 1px dashed var(--background-modifier-border);
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.topic-empty-hint p {
+    font-size: 1em;
+    font-style: italic;
+    margin: 0;
+}
