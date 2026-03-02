@@ -513,8 +513,8 @@ export class GraphEngine implements IGraphEngine {
         }
 
         // Default Mode: Global Orphans
-        const libraryPath = this.settings.librarySettings.librariesPath;
-        const sharedSpacesRoot = this.settings.librarySettings.sharedSpacesRoot || "Abstract Spaces";
+        const libraryPath = this.settings.library.librariesPath;
+        const sharedSpacesRoot = this.settings.spaces.sharedSpacesRoot || "Abstract Spaces";
 
         for (const id of this.index.getAllFileIds()) {
             const node = this.index.getNode(id);
@@ -663,20 +663,20 @@ export class GraphEngine implements IGraphEngine {
     }
 
     private isLibraryPath(path: string): boolean {
-        const libraryPath = this.settings.librarySettings?.librariesPath;
+        const libraryPath = this.settings.library?.librariesPath;
         return !!libraryPath && (path === libraryPath || path.startsWith(libraryPath + '/'));
     }
 
     private isSharedSpacePath(path: string): boolean {
         // Check if the path is a root shared space or inside one
-        return (this.settings.librarySettings?.sharedSpaces || []).some(space => 
+        return (this.settings.spaces?.sharedSpaces || []).some(space => 
             path === space || path.startsWith(space + '/')
         );
     }
 
     private isPersonalBackupPath(path: string): boolean {
         // Check if the path is a root backup or inside one
-        return (this.settings.librarySettings?.personalBackups || []).some(backup => 
+        return (this.settings.personal?.personalBackups || []).some(backup => 
             path === backup || path.startsWith(backup + '/')
         );
     }

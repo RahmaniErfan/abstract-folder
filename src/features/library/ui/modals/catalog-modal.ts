@@ -1,8 +1,8 @@
 import { App, Modal, Notice, setIcon, requestUrl, MarkdownRenderer } from "obsidian";
-import { Logger } from "../../utils/logger";
-import type AbstractFolderPlugin from "main";
+import { Logger } from "../../../../utils/logger";
+import type AbstractFolderPlugin from "../../../../../main";
 import { CatalogItem, LibraryConfig } from "../../types";
-import { CatalogService } from "../services/catalog-service";
+import { CatalogService } from "../../services/catalog-service";
 import { LibraryManager } from "../../../../core/git/library-manager";
 import { TopicSubscriptionModal } from "./topic-subscription-modal";
 
@@ -27,7 +27,7 @@ export class CatalogModal extends Modal {
 
     constructor(app: App, private plugin: AbstractFolderPlugin) {
         super(app);
-        this.catalogService = new CatalogService(this.plugin.settings.librarySettings);
+        this.catalogService = new CatalogService(this.plugin.settings.library);
         this.libraryManager = this.plugin.libraryManager;
     }
 
@@ -141,7 +141,7 @@ export class CatalogModal extends Modal {
         this.filterSelect.createEl("option", { value: "official", text: "Official" });
         this.filterSelect.createEl("option", { value: "standalone", text: "Standalone" });
         
-        this.plugin.settings.librarySettings.catalogs.forEach((reg, index) => {
+        this.plugin.settings.library.catalogs.forEach((reg, index) => {
             this.filterSelect.createEl("option", { value: reg, text: `Custom ${index + 1}` });
         });
         
@@ -149,7 +149,7 @@ export class CatalogModal extends Modal {
 
         this.categorySelect.empty();
         this.categorySelect.createEl("option", { value: "all", text: "All Categories" });
-        this.catalogService.categories.forEach(cat => {
+        this.catalogService.categories.forEach((cat: string) => {
             this.categorySelect.createEl("option", { value: cat, text: cat });
         });
         this.categorySelect.value = this.activeCategory;
@@ -182,7 +182,7 @@ export class CatalogModal extends Modal {
             items = items.filter(i =>
                 i.name.toLowerCase().includes(this.searchQuery) ||
                 i.description.toLowerCase().includes(this.searchQuery) ||
-                i.tags.some(t => t.toLowerCase().includes(this.searchQuery))
+                (i.tags && i.tags.some(t => t.toLowerCase().includes(this.searchQuery)))
             );
         }
 
@@ -260,7 +260,7 @@ export class CatalogModal extends Modal {
             heart.addEventListener("click", () => window.open(item.fundingUrl, "_blank"));
         }
         
-        const librariesPath = this.plugin.settings.librarySettings.librariesPath;
+        const librariesPath = this.plugin.settings.library.librariesPath;
         const destPath = `${librariesPath}/${item.name}`;
         
         // Robust check: Check if folder exists AND contains library.json with matching ID
@@ -393,9 +393,9 @@ export class CatalogModal extends Modal {
         const addCatalogBtn = catalogInputWrapper.createEl("button", { text: "Add Catalog" });
 
         const cataloguesList = manageSection.createDiv({ cls: "af-manage-list" });
-        const customCatalogs = this.plugin.settings.librarySettings.catalogs.filter(r => r !== OFFICIAL_CATALOG_URL);
+        const customCatalogs = this.plugin.settings.library.catalogs.filter(r => r !== OFFICIAL_CATALOG_URL);
         this.renderManageList(cataloguesList, customCatalogs, (url) => {
-            this.plugin.settings.librarySettings.catalogs = this.plugin.settings.librarySettings.catalogs.filter(r => r !== url);
+            this.plugin.settings.library.catalogs = this.plugin.settings.library.catalogs.filter(r => r !== url);
             this.plugin.saveSettings().then(() => this.renderManageTab(container));
         }, "No custom catalogs added yet.");
 
@@ -412,8 +412,8 @@ export class CatalogModal extends Modal {
         const addStandaloneBtn = standaloneInputWrapper.createEl("button", { text: "Add Standalone" });
 
         const standaloneList = manageSection.createDiv({ cls: "af-manage-list" });
-        this.renderManageList(standaloneList, this.plugin.settings.librarySettings.standaloneLibraries, (url) => {
-            this.plugin.settings.librarySettings.standaloneLibraries = this.plugin.settings.librarySettings.standaloneLibraries.filter(r => r !== url);
+        this.renderManageList(standaloneList, this.plugin.settings.library.standaloneLibraries, (url) => {
+            this.plugin.settings.library.standaloneLibraries = this.plugin.settings.library.standaloneLibraries.filter(r => r !== url);
             this.plugin.saveSettings().then(() => this.renderManageTab(container));
         }, "No standalone libraries added yet.");
 
@@ -421,8 +421,8 @@ export class CatalogModal extends Modal {
         addCatalogBtn.addEventListener("click", () => {
             const url = catalogInput.value.trim();
             if (!url) return;
-            if (!this.plugin.settings.librarySettings.catalogs.includes(url)) {
-                this.plugin.settings.librarySettings.catalogs.push(url);
+            if (!this.plugin.settings.library.catalogs.includes(url)) {
+                this.plugin.settings.library.catalogs.push(url);
                 this.plugin.saveSettings().then(() => {
                     new Notice("Added custom catalog");
                     this.renderManageTab(container);
@@ -443,8 +443,8 @@ export class CatalogModal extends Modal {
                 const item = await this.catalogService.resolveStandalone(url);
                 if (item) {
                     await this.installLibrary(item);
-                    if (!this.plugin.settings.librarySettings.standaloneLibraries.includes(url)) {
-                        this.plugin.settings.librarySettings.standaloneLibraries.push(url);
+                    if (!this.plugin.settings.library.standaloneLibraries.includes(url)) {
+                        this.plugin.settings.library.standaloneLibraries.push(url);
                         await this.plugin.saveSettings();
                     }
                     this.renderManageTab(container);
@@ -483,7 +483,7 @@ export class CatalogModal extends Modal {
         }
 
         try {
-            const librariesPath = this.plugin.settings.librarySettings.librariesPath;
+            const librariesPath = this.plugin.settings.library.librariesPath;
             const destPath = `${librariesPath}/${item.name}`;
 
             Logger.debug(`[CatalogModal] installLibrary triggered`);
@@ -524,7 +524,7 @@ export class CatalogModal extends Modal {
         }
 
         try {
-            const librariesPath = this.plugin.settings.librarySettings.librariesPath;
+            const librariesPath = this.plugin.settings.library.librariesPath;
             const destPath = `${librariesPath}/${item.name}`;
             
             await this.libraryManager.deleteLibrary(destPath);

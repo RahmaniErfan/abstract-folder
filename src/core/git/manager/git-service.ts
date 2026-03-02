@@ -1,13 +1,13 @@
 import { App, Notice, FileSystemAdapter, Platform } from "obsidian";
 import * as path from 'path';
-import { AbstractFolderPluginSettings } from "../../../../settings";
-import { AuthService } from "../../services/auth-service";
-import { SecurityManager } from "../../../../core/security-manager";
+import { AbstractFolderPluginSettings } from "../../../settings";
+import { AuthService } from "./auth-service";
+import { SecurityManager } from "../../security-manager";
 import { GitDesktopAdapter } from "../git-desktop-adapter";
 import { GitMobileAdapter } from "../git-mobile-adapter";
 import { IGitEngine, GitStatusMatrix } from "../types";
 import { SyncAuthor } from "../sync/types";
-import { Logger } from "../../../../utils/logger";
+import { Logger } from "../../../utils/logger";
 
 /**
  * GitService handles core Git engine management, capability probes,
@@ -68,14 +68,14 @@ export class GitService {
 
         const userInfo = await AuthService.getUserInfo(token);
         if (userInfo) {
-            this.settings.librarySettings.githubUsername = userInfo.login;
-            this.settings.librarySettings.githubAvatar = userInfo.avatar_url;
+            this.settings.git.githubUsername = userInfo.login;
+            this.settings.git.githubAvatar = userInfo.avatar_url;
             
             const name = userInfo.name || userInfo.login;
             const email = userInfo.email || `${userInfo.login}@users.noreply.github.com`;
             
-            this.settings.librarySettings.gitName = name;
-            this.settings.librarySettings.gitEmail = email;
+            this.settings.git.gitName = name;
+            this.settings.git.gitEmail = email;
             
             try {
                 const plugin = (this.app as any).plugins.getPlugin("abstract-folder");
@@ -107,7 +107,7 @@ export class GitService {
                 }
             }
         }
-        return this.settings?.librarySettings?.githubToken;
+        return this.settings?.git?.githubToken;
     }
 
     async ensureToken(vaultPath?: string, onFail?: () => void): Promise<string> {
@@ -128,8 +128,8 @@ export class GitService {
     }
 
     async getAuthorCredentials(): Promise<SyncAuthor> {
-        let name = this.settings.librarySettings.gitName;
-        let email = this.settings.librarySettings.gitEmail;
+        let name = this.settings.git.gitName;
+        let email = this.settings.git.gitEmail;
 
         if (!name || !email) {
             const token = await this.getToken();
@@ -137,8 +137,8 @@ export class GitService {
                 Logger.debug("[GitService] Author credentials missing. Attempting background refresh.");
                 const userInfo = await this.refreshIdentity(token);
                 if (userInfo) {
-                    name = this.settings.librarySettings.gitName;
-                    email = this.settings.librarySettings.gitEmail;
+                    name = this.settings.git.gitName;
+                    email = this.settings.git.gitEmail;
                 }
             }
         }
@@ -151,8 +151,8 @@ export class GitService {
 
     getSyncAuthor(): SyncAuthor {
         return {
-            name: this.settings.librarySettings.gitName || 'Abstract Folder',
-            email: this.settings.librarySettings.gitEmail || 'noreply@abstractfolder.dev',
+            name: this.settings.git.gitName || 'Abstract Folder',
+            email: this.settings.git.gitEmail || 'noreply@abstractfolder.dev',
         };
     }
 

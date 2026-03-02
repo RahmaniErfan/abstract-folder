@@ -1,6 +1,6 @@
 import { Modal, App, Setting, TFolder, Notice } from "obsidian";
 import type AbstractFolderPlugin from "../../../main";
-import { AuthService } from "../library/services/auth-service";
+import { AuthService } from "../../core/git/manager/auth-service";
 
 export class PersonalBackupModal extends Modal {
     private repoName: string;
@@ -163,7 +163,7 @@ export class PersonalBackupModal extends Modal {
         container.createEl("hr");
         container.createEl("h3", { text: "Security & Exclusions" });
 
-        const exclusions = this.plugin.settings.librarySettings.securityExclusions || [];
+        const exclusions = this.plugin.settings.git.securityExclusions || [];
         const exclusionText = exclusions.map(e => `• ${e}`).join("\n");
         
         container.createEl("p", { text: "The following patterns are automatically ignored to keep your vault clean and secure:" });

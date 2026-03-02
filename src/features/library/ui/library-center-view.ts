@@ -2,8 +2,8 @@ import { ItemView, WorkspaceLeaf, Notice, FileSystemAdapter, setIcon, requestUrl
 import { Logger } from "../../../utils/logger";
 import { CatalogItem } from "../types";
 import { CatalogService } from "../services/catalog-service";
-import { LibraryManager } from "../git/library-manager";
-import type AbstractFolderPlugin from "main";
+import { LibraryManager } from "../../../core/git/library-manager";
+import type AbstractFolderPlugin from "../../../../main";
 
 export const VIEW_TYPE_LIBRARY_CENTER = "abstract-library-center";
 
@@ -26,7 +26,7 @@ export class LibraryCenterView extends ItemView {
 
     constructor(leaf: WorkspaceLeaf, private plugin: AbstractFolderPlugin) {
         super(leaf);
-        this.catalogService = new CatalogService(this.plugin.settings.librarySettings);
+        this.catalogService = new CatalogService(this.plugin.settings.library);
         this.libraryManager = this.plugin.libraryManager;
     }
 
@@ -104,7 +104,7 @@ export class LibraryCenterView extends ItemView {
         this.filterSelect.createEl("option", { value: "official", text: "Official" });
         this.filterSelect.createEl("option", { value: "standalone", text: "Standalone" });
         
-        this.plugin.settings.librarySettings.catalogs.forEach((reg, index) => {
+        this.plugin.settings.library.catalogs.forEach((reg, index) => {
             this.filterSelect.createEl("option", { value: reg, text: `Custom ${index + 1}` });
         });
         
@@ -224,7 +224,7 @@ export class LibraryCenterView extends ItemView {
             heart.addEventListener("click", () => window.open(item.fundingUrl, "_blank"));
         }
         
-        const librariesPath = this.plugin.settings.librarySettings.librariesPath;
+        const librariesPath = this.plugin.settings.library.librariesPath;
         const destPath = `${librariesPath}/${item.name}`;
         
         // Robust check: Check if folder exists AND contains library.json with matching ID
@@ -293,7 +293,7 @@ export class LibraryCenterView extends ItemView {
         }
 
         try {
-            const librariesPath = this.plugin.settings.librarySettings.librariesPath;
+            const librariesPath = this.plugin.settings.library.librariesPath;
             const destPath = `${librariesPath}/${item.name}`;
 
             Logger.debug(`[LibraryCenterView] installLibrary triggered`);
@@ -334,7 +334,7 @@ export class LibraryCenterView extends ItemView {
         }
 
         try {
-            const librariesPath = this.plugin.settings.librarySettings.librariesPath;
+            const librariesPath = this.plugin.settings.library.librariesPath;
             const destPath = `${librariesPath}/${item.name}`;
             
             await this.libraryManager.deleteLibrary(destPath);

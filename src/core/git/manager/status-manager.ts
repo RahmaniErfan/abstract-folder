@@ -1,7 +1,7 @@
 import { App, Platform } from "obsidian";
 import { GitService } from "./git-service";
 import { GitStatusMatrix } from "../types";
-import { Logger } from "../../../../utils/logger";
+import { Logger } from "../../../utils/logger";
 
 /**
  * StatusManager handles Git status caching and matrix calculations.

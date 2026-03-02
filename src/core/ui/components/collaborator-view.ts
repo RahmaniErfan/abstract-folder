@@ -57,7 +57,7 @@ export class CollaboratorView {
         const owner = match[1];
         const repo = match[2].replace(/\.git$/, "");
 
-        const { AuthService } = await import("../../../features/library/services/auth-service");
+        const { AuthService } = await import("../../git/manager/auth-service");
 
         // 1. Refresh Collaborators
         try {
@@ -130,7 +130,7 @@ export class CollaboratorView {
                 .setTooltip("Remove Collaborator")
                 .onClick(async () => {
                     if (!confirm(`Are you sure you want to remove ${collab.login}?`)) return;
-                    const { AuthService } = await import("../../../features/library/services/auth-service");
+                    const { AuthService } = await import("../../git/manager/auth-service");
                     const success = await AuthService.removeCollaborator(token, owner, repo, collab.login);
                     if (success) {
                         new Notice(`Removed ${collab.login}`);
@@ -151,7 +151,7 @@ export class CollaboratorView {
             .setButtonText("Revoke")
             .setWarning()
             .onClick(async () => {
-                const { AuthService } = await import("../../../features/library/services/auth-service");
+                const { AuthService } = await import("../../git/manager/auth-service");
                 const success = await AuthService.deleteInvitation(token, owner, repo, invite.id);
                 if (success) {
                     new Notice(`Revoked invitation`);
@@ -190,7 +190,7 @@ export class CollaboratorView {
                     const match = remoteUrl.match(/github\.com[/:]([^/]+)\/([^/]+)$/);
                     if (!match) return;
 
-                    const { AuthService } = await import("../../../features/library/services/auth-service");
+                    const { AuthService } = await import("../../git/manager/auth-service");
                     const result = await AuthService.inviteCollaborator(token, match[1], match[2].replace(/\.git$/, ""), inviteName, permission);
 
                     if (result.success) {

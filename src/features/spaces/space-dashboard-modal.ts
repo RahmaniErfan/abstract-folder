@@ -1,6 +1,6 @@
 import { App, Modal, Setting, Notice, setIcon, ButtonComponent, TFolder, moment } from "obsidian";
 import AbstractFolderPlugin from "main";
-import { CollaboratorView } from "../../../../core/ui/components/collaborator-view";
+import { CollaboratorView } from "../../core/ui/components/collaborator-view";
 
 export class SpaceDashboardModal extends Modal {
     private collaboratorView: CollaboratorView;
@@ -16,18 +16,18 @@ export class SpaceDashboardModal extends Modal {
     }
 
     private getConfig() {
-        if (!this.plugin.settings.librarySettings.spaceConfigs) {
-            this.plugin.settings.librarySettings.spaceConfigs = {};
+        if (!this.plugin.settings.spaces.spaceConfigs) {
+            this.plugin.settings.spaces.spaceConfigs = {};
         }
-        if (!this.plugin.settings.librarySettings.spaceConfigs[this.folder.path]) {
-            this.plugin.settings.librarySettings.spaceConfigs[this.folder.path] = {
+        if (!this.plugin.settings.spaces.spaceConfigs[this.folder.path]) {
+            this.plugin.settings.spaces.spaceConfigs[this.folder.path] = {
                 path: this.folder.path,
                 enableScheduledSync: false,
                 syncIntervalValue: 1,
                 syncIntervalUnit: 'hours'
             };
         }
-        return this.plugin.settings.librarySettings.spaceConfigs[this.folder.path];
+        return this.plugin.settings.spaces.spaceConfigs[this.folder.path];
     }
 
     async onOpen() {

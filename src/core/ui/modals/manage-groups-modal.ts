@@ -1,8 +1,8 @@
 import { App, Modal, Setting } from "obsidian";
-import { Group } from "../../../../types";
+import { Group } from "../../../types";
 import { CreateEditGroupModal } from "./create-edit-group-modal";
 import type AbstractFolderPlugin from "main";
-import { ContextEngine } from "../../../../core/context-engine";
+import { ContextEngine } from "../../context-engine";
 
 export class ManageGroupsModal extends Modal {
   private contextEngine: ContextEngine;

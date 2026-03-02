@@ -2,7 +2,7 @@ import { App, setIcon, Notice } from "obsidian";
 import type AbstractFolderPlugin from "main";
 import { Logger } from "../../utils/logger";
 import { AbstractFolderPluginSettings } from "../../settings";
-import { AbstractDashboardModal } from "../library/ui/modals/abstract-dashboard-modal";
+import { AbstractDashboardModal } from "../../core/ui/modals/abstract-dashboard-modal";
 
 export class AbstractFolderStatusBar {
     private containerEl: HTMLElement;
@@ -134,13 +134,13 @@ export class AbstractFolderStatusBar {
         }
         this.identityArea.removeClass("is-hidden");
 
-        const username = this.settings.librarySettings.githubUsername || "GitHub";
+        const username = this.settings.git.githubUsername || "GitHub";
         
-        if (this.settings.librarySettings.githubAvatar) {
+        if (this.settings.git.githubAvatar) {
             const avatarContainer = this.identityArea.createDiv({ cls: "af-status-avatar" });
             avatarContainer.createEl("img", {
                 attr: { 
-                    src: this.settings.librarySettings.githubAvatar,
+                    src: this.settings.git.githubAvatar,
                     width: "18",
                     height: "18"
                 }
@@ -152,17 +152,17 @@ export class AbstractFolderStatusBar {
         this.identityArea.createSpan({ text: `@${username}`, cls: "af-status-username" });
 
         // Auto-refresh if missing (with guard)
-        if (!this.settings.librarySettings.githubUsername && !this.isRefreshingIdentity) {
+        if (!this.settings.git.githubUsername && !this.isRefreshingIdentity) {
             this.isRefreshingIdentity = true;
             try {
                 Logger.debug("[Abstract Folder] StatusBar: Refreshing identity...");
                 await this.plugin.libraryManager.refreshIdentity();
                 // After refresh, update the UI once more
-                const newUsername = this.settings.librarySettings.githubUsername || "GitHub";
+                const newUsername = this.settings.git.githubUsername || "GitHub";
                 const usernameSpan = this.identityArea.querySelector(".af-status-username");
                 if (usernameSpan) usernameSpan.textContent = `@${newUsername}`;
                 
-                if (this.settings.librarySettings.githubAvatar) {
+                if (this.settings.git.githubAvatar) {
                     this.updateIdentity(); // One-time re-render if avatar appearing
                 }
             } finally {

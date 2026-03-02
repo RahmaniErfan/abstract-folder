@@ -3,14 +3,14 @@ import * as path from 'path';
 import * as git from "isomorphic-git";
 import { GitService } from "./git-service";
 import { StatusManager } from "./status-manager";
-import { SecurityManager } from "../../../../core/security-manager";
-import { AbstractFolderPluginSettings } from "../../../../settings";
+import { SecurityManager } from "../../security-manager";
+import { AbstractFolderPluginSettings } from "../../../settings";
 import { NodeFsAdapter } from "../node-fs-adapter";
 import { ConflictManager } from "../conflict-manager";
-import { MergeModal } from "../../../../ui/modals/merge/merge-modal";
-import { ConflictResolutionModal } from "../../../../ui/modals/conflict-resolution-modal";
-import { Logger } from "../../../../utils/logger";
-import { AuthService } from "../../services/auth-service";
+import { MergeModal } from "../../ui/modals/merge/merge-modal";
+import { ConflictResolutionModal } from "../../ui/modals/conflict-resolution-modal";
+import { Logger } from "../../../utils/logger";
+import { AuthService } from "./auth-service";
 import { GitScopeManager } from "../git-scope-manager";
 import { IGitEngine } from "../types";
 
@@ -163,7 +163,7 @@ export class SpaceService {
      */
     async initializePersonalBackup(vaultPath: string, repositoryUrl: string, token?: string): Promise<void> {
         // 1. Check for library conflict
-        const librariesPath = this.settings.librarySettings?.librariesPath || "Abstract Library";
+        const librariesPath = this.settings.library?.librariesPath || "Abstract Library";
         if (vaultPath.startsWith(librariesPath)) {
             throw new Error("Cannot backup folders within the Abstract Library directory.");
         }
@@ -424,8 +424,8 @@ export class SpaceService {
             await NodeFsAdapter.promises.rm(absPath, { recursive: true, force: true });
 
             // 4. Remove from settings
-            if (this.settings.librarySettings.sharedSpaces) {
-                this.settings.librarySettings.sharedSpaces = this.settings.librarySettings.sharedSpaces.filter(p => p !== vaultPath);
+            if (this.settings.spaces.sharedSpaces) {
+                this.settings.spaces.sharedSpaces = this.settings.spaces.sharedSpaces.filter(p => p !== vaultPath);
                 const plugin = (this.app as any).plugins?.getPlugin?.("abstract-folder");
                 if (plugin) await plugin.saveSettings();
             }
@@ -488,12 +488,12 @@ export class SpaceService {
             return newList;
         };
 
-        if (this.settings.librarySettings.sharedSpaces) {
-            this.settings.librarySettings.sharedSpaces = await prune(this.settings.librarySettings.sharedSpaces);
+        if (this.settings.spaces.sharedSpaces) {
+            this.settings.spaces.sharedSpaces = await prune(this.settings.spaces.sharedSpaces);
         }
 
-        if (this.settings.librarySettings.personalBackups) {
-            this.settings.librarySettings.personalBackups = await prune(this.settings.librarySettings.personalBackups);
+        if (this.settings.personal.personalBackups) {
+            this.settings.personal.personalBackups = await prune(this.settings.personal.personalBackups);
         }
 
         if (changed) {

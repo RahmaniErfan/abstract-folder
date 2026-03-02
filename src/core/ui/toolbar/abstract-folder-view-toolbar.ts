@@ -3,7 +3,6 @@ import { AbstractFolderPluginSettings } from "../../../settings";
 import type AbstractFolderPlugin from "main";
 import { CreateAbstractChildModal, PersonalBackupModal } from "../modals";
 import { createAbstractChildFile } from "../../../utils/file-operations";
-import { ManageSortingModal } from "../../../features/library/ui/modals/manage-sorting-modal";
 import { AbstractFolderToolbar } from "./abstract-folder-toolbar";
 import { GlobalContentProvider } from "../../content-provider";
 

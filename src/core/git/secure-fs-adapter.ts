@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { SecurityManager } from '../../../core/security-manager';
+import { SecurityManager } from '../security-manager';
 
 /**
  * SecureFsAdapter wraps the standard Node FS adapter to enforce security policies

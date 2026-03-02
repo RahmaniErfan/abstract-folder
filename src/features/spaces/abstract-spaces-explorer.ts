@@ -5,8 +5,8 @@ import { CreateSharedSpaceModal } from "./create-shared-space-modal";
 import { JoinSharedSpaceModal } from "./join-shared-space-modal";
 import { LinkSharedSpaceModal } from "./link-shared-space-modal";
 import { DeleteSharedSpaceModal } from "./delete-shared-space-modal";
-import { AbstractDashboardModal } from "../library/ui/modals/abstract-dashboard-modal";
-import { SpacesInfoModal } from "../library/ui/modals/spaces-info-modal";
+import { AbstractDashboardModal } from "../../core/ui/modals/abstract-dashboard-modal";
+import { SpacesInfoModal } from "./spaces-info-modal";
 import { VirtualViewport, ViewportDelegate } from "../../core/ui/components/virtual-viewport";
 import { ContextEngine } from "../../core/context-engine";
 import { AbstractNode } from "../../core/tree-builder";
@@ -145,7 +145,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         const listContainer = container.createDiv({ cls: "nav-files-container" });
         listContainer.style.position = "relative";
         
-        const spacesRoot = this.plugin.settings.librarySettings.sharedSpacesRoot || "Abstract Spaces";
+        const spacesRoot = this.plugin.settings.spaces.sharedSpacesRoot || "Abstract Spaces";
         const rootFolder = this.app.vault.getAbstractFileByPath(spacesRoot);
 
         if (!rootFolder || !(rootFolder as any).children || (rootFolder as any).children.length === 0) {

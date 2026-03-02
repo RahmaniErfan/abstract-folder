@@ -545,6 +545,6 @@ export class SimulationModal extends Modal {
     }
 }
 
-export { CreateEditGroupModal } from "../../features/library/ui/modals/create-edit-group-modal";
-export { AbstractDashboardModal } from "../../features/library/ui/modals/abstract-dashboard-modal";
+export { CreateEditGroupModal } from "./modals/create-edit-group-modal";
+export { AbstractDashboardModal } from "./modals/abstract-dashboard-modal";
 export { PersonalBackupModal } from "../../features/personal/personal-backup-modal";

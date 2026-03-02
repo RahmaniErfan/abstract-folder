@@ -1,6 +1,6 @@
 import { App, Modal, TFolder } from "obsidian";
 import AbstractFolderPlugin from "main";
-import { CollaboratorView } from "../../../../core/ui/components/collaborator-view";
+import { CollaboratorView } from "../components/collaborator-view";
 
 export class CollaboratorModal extends Modal {
     constructor(

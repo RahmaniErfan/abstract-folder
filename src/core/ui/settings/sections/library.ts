@@ -1,6 +1,6 @@
 import { Setting, Notice, Modal, App } from "obsidian";
 import type AbstractFolderPlugin from "main";
-import { AuthService } from "../../../../features/library/services/auth-service";
+import { AuthService } from "../../../git/manager/auth-service";
 import { CatalogModal } from "../../../../features/library/ui/modals/catalog-modal";
 
 export function renderLibrarySettings(containerEl: HTMLElement, plugin: AbstractFolderPlugin) {
@@ -12,9 +12,9 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 		.addText((text) =>
 			text
 				.setPlaceholder("Abstract library")
-				.setValue(plugin.settings.librarySettings?.librariesPath || "Abstract Library")
+				.setValue(plugin.settings.library?.librariesPath || "Abstract Library")
 				.onChange(async (value) => {
-					plugin.settings.librarySettings.librariesPath = value;
+					plugin.settings.library.librariesPath = value;
 					await plugin.saveSettings();
 				}),
 		);
@@ -31,9 +31,9 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 		.addTextArea((text) =>
 			text
 				.setPlaceholder("https://example.com/catalog.json")
-				.setValue((plugin.settings.librarySettings?.catalogs || []).filter((c) => c !== OFFICIAL_CATALOG_URL).join("\n"))
+				.setValue((plugin.settings.library?.catalogs || []).filter((c) => c !== OFFICIAL_CATALOG_URL).join("\n"))
 				.onChange(async (value) => {
-					plugin.settings.librarySettings.catalogs = value
+					plugin.settings.library.catalogs = value
 						.split("\n")
 						.filter((v) => v.trim() !== "" && v !== OFFICIAL_CATALOG_URL);
 					await plugin.saveSettings();
@@ -46,9 +46,9 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 		.addTextArea((text) =>
 			text
 				.setPlaceholder("https://github.com/user/repo")
-				.setValue((plugin.settings.librarySettings?.standaloneLibraries || []).join("\n"))
+				.setValue((plugin.settings.library?.standaloneLibraries || []).join("\n"))
 				.onChange(async (value) => {
-					plugin.settings.librarySettings.standaloneLibraries = value
+					plugin.settings.library.standaloneLibraries = value
 						.split("\n")
 						.filter((v) => v.trim() !== "");
 					await plugin.saveSettings();

@@ -1,7 +1,7 @@
 import { App, Modal, Setting } from "obsidian";
-import { AbstractFolderPluginSettings } from "../../../../settings";
-import { Group, SortBy, SortConfig } from "../../../../types";
-import { ContextEngine } from "../../../../core/context-engine";
+import { AbstractFolderPluginSettings } from "../../../settings";
+import { Group, SortBy, SortConfig } from "../../../types";
+import { ContextEngine } from "../../context-engine";
 import type AbstractFolderPlugin from "main";
 
 export class ManageSortingModal extends Modal {

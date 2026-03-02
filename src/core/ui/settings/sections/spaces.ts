@@ -10,9 +10,9 @@ export function renderSpacesSettings(containerEl: HTMLElement, plugin: AbstractF
 		.addText((text) =>
 			text
 				.setPlaceholder("Abstract Spaces")
-				.setValue(plugin.settings.librarySettings?.sharedSpacesRoot || "Abstract Spaces")
+				.setValue(plugin.settings.spaces?.sharedSpacesRoot || "Abstract Spaces")
 				.onChange(async (value) => {
-					plugin.settings.librarySettings.sharedSpacesRoot = value;
+					plugin.settings.spaces.sharedSpacesRoot = value;
 					await plugin.saveSettings();
 				}),
 		);
@@ -27,9 +27,9 @@ export function renderSpacesSettings(containerEl: HTMLElement, plugin: AbstractF
         .setDesc("Automatically sync shared spaces in the background (60 second interval).")
         .addToggle((toggle) =>
             toggle
-                .setValue(plugin.settings.librarySettings?.autoSyncEnabled ?? true)
+                .setValue(plugin.settings.git?.autoSyncEnabled ?? true)
                 .onChange(async (value) => {
-                    plugin.settings.librarySettings.autoSyncEnabled = value;
+                    plugin.settings.git.autoSyncEnabled = value;
                     await plugin.saveSettings();
                 })
         );

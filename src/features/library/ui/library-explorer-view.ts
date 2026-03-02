@@ -6,7 +6,7 @@ import { ContextEngine } from "../../../core/context-engine";
 import { AbstractNode } from "../../../core/tree-builder";
 import { ScopedContentProvider } from "../../../core/content-provider";
 import { AbstractFolderToolbar } from "../../../core/ui/toolbar/abstract-folder-toolbar";
-import { AbstractDashboardModal } from "./modals/abstract-dashboard-modal";
+import { AbstractDashboardModal } from "../../../core/ui/modals/abstract-dashboard-modal";
 import { LibraryInfoModal } from "./modals/library-info-modal";
 import { CatalogModal } from "./modals/catalog-modal";
 import { CatalogService } from "../services/catalog-service";
@@ -49,7 +49,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     constructor(leaf: WorkspaceLeaf, private plugin: AbstractFolderPlugin) {
         super(leaf);
         this.contextEngine = new ContextEngine(plugin, 'library');
-        this.catalogService = new CatalogService(plugin.settings.librarySettings);
+        this.catalogService = new CatalogService(this.plugin.settings.library);
         this.debouncedRefreshLibraryTree = debounce(this.refreshLibraryTree.bind(this), 20);
         // 300ms debounce prevents duplicate renders from rapid file events after a git sync
         this.debouncedRenderView = debounce(this.renderView.bind(this), 300);
@@ -291,7 +291,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
 
         try {
             container.empty();
-            const rawLibraries = await this.plugin.abstractBridge.discoverLibraries(this.plugin.settings.librarySettings.librariesPath, true);
+            const rawLibraries = await this.plugin.abstractBridge.discoverLibraries(this.plugin.settings.library.librariesPath, true);
         
         const libraries = rawLibraries.filter(lib => {
             if (!this.searchQuery) return true;
@@ -588,7 +588,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             installBtn.disabled = true;
             installBtn.setText("Checking topics...");
             const remoteConfig = await this.catalogService.fetchRemoteLibraryConfig(item.repositoryUrl);
-            const librariesPath = this.plugin.settings.librarySettings.librariesPath;
+            const librariesPath = this.plugin.settings.library.librariesPath;
             const destPath = `${librariesPath}/${item.name}`;
 
             if (remoteConfig && remoteConfig.availableTopics && remoteConfig.availableTopics.length > 0) {

@@ -1,5 +1,7 @@
 import { Group, SortConfig, FilterConfig, ScopeConfig } from "./types";
-import { LibrarySettings } from "./features/library/types";
+import { LibraryFeatureSettings, GitFeatureSettings } from "./features/library/types";
+import { SpacesFeatureSettings } from "./features/spaces/types";
+import { PersonalFeatureSettings } from "./features/personal/types";
 
 export interface VisibilitySettings {
 	[key: string]: boolean;
@@ -75,7 +77,10 @@ export interface AbstractFolderPluginSettings {
   hideNonMarkdownOrphans: boolean; // Whether to hide non-markdown files that have no parents
   showFileIcon: boolean; // Whether to show file icons
   showFolderIcon: boolean; // Whether to show folder icons
-  librarySettings: LibrarySettings;
+  library: LibraryFeatureSettings;
+  spaces: SpacesFeatureSettings;
+  personal: PersonalFeatureSettings;
+  git: GitFeatureSettings;
 }
 
 export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
@@ -163,14 +168,21 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
   hideNonMarkdownOrphans: true,
   showFileIcon: false,
   showFolderIcon: false,
-  librarySettings: {
+  library: {
     librariesPath: "Abstract Library",
-    sharedSpacesRoot: "Abstract Spaces",
     catalogs: [],
     standaloneLibraries: [],
+    libraryStates: {},
+  },
+  spaces: {
+    sharedSpacesRoot: "Abstract Spaces",
     sharedSpaces: [],
     spaceConfigs: {},
+  },
+  personal: {
     personalBackups: [],
+  },
+  git: {
     githubToken: "",
     githubUsername: "",
     githubAvatar: "",
@@ -182,6 +194,5 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
     syncIntervalUnit: 'hours',
     securityExclusions: ['.obsidian/', '.trash/', 'node_modules/', '*.log'],
     autoSyncEnabled: true,
-    libraryStates: {},
   },
 };

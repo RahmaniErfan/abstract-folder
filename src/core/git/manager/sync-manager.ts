@@ -1,13 +1,13 @@
 import { App } from "obsidian";
 import { GitService } from "./git-service";
 import { StatusManager } from "./status-manager";
-import { AbstractFolderPluginSettings } from "../../../../settings";
+import { AbstractFolderPluginSettings } from "../../../settings";
 import { SyncOrchestrator, SyncOrchestratorConfig, Mutex, SyncEventListener } from "../sync";
 import { PublicSyncOrchestrator, PublicSyncConfig } from "../sync/public-sync-orchestrator";
-import { ConflictResolutionModal } from "../../../../ui/modals/conflict-resolution-modal";
-import { Logger } from "../../../../utils/logger";
-import { LibraryConfig } from "../../types";
-import { Group } from "../../../../types";
+import { ConflictResolutionModal } from "../../ui/modals/conflict-resolution-modal";
+import { Logger } from "../../../utils/logger";
+import { LibraryConfig } from "../../../features/library/types/index";
+import { Group } from "../../../types";
 
 /**
  * SyncManager handles the lifecycle of SyncOrchestrator instances.
@@ -68,9 +68,9 @@ export class SyncManager {
                 );
                 modal.open();
             },
-            lastGcTime: this.settings.librarySettings.lastGcTime,
+            lastGcTime: this.settings.git.lastGcTime,
             onGcRun: (timestamp) => {
-                this.settings.librarySettings.lastGcTime = timestamp;
+                this.settings.git.lastGcTime = timestamp;
                 // Fire-and-forget settings save
                 const plugin = (this.app as any).plugins?.getPlugin?.("abstract-folder");
                 if (plugin) void plugin.saveSettings();
@@ -79,9 +79,9 @@ export class SyncManager {
                 // Only the root engine needs to ignore sub-repos
                 if (vaultPath !== "") return [];
                 return [
-                    ...(this.settings.librarySettings.sharedSpaces || []),
-                    ...(this.settings.librarySettings.personalBackups || []),
-                    this.settings.librarySettings.librariesPath,
+                    ...(this.settings.spaces.sharedSpaces || []),
+                    ...(this.settings.personal.personalBackups || []),
+                    this.settings.library.librariesPath,
                 ];
             }
         };
@@ -142,7 +142,7 @@ export class SyncManager {
             branch: libraryConfig.branch || 'main',
             getToken: () => this.gitService.getToken(),
             getLocalVersion: () => {
-                const state = this.settings.librarySettings.libraryStates[libraryConfig.id];
+                const state = this.settings.library.libraryStates[libraryConfig.id];
                 return state?.localVersion ?? "";
             },
             setLocalVersion: (v: string) => {
@@ -150,8 +150,8 @@ export class SyncManager {
                 state.localVersion = v;
                 this.saveSettingsSilently();
             },
-            subscribedTopics: this.settings.librarySettings.libraryStates[libraryConfig.id]?.subscribedTopics || [],
-            lastGcTime: this.settings.librarySettings.libraryStates[libraryConfig.id]?.lastEngine2GcTime,
+            subscribedTopics: this.settings.library.libraryStates[libraryConfig.id]?.subscribedTopics || [],
+            lastGcTime: this.settings.library.libraryStates[libraryConfig.id]?.lastEngine2GcTime,
             onGcRun: (timestamp: number) => {
                 const state = this.getOrCreateLibraryState(vaultPath, libraryConfig);
                 state.lastEngine2GcTime = timestamp;
@@ -297,7 +297,7 @@ export class SyncManager {
      * Get or create a local state entry for a library.
      */
     private getOrCreateLibraryState(vaultPath: string, libraryConfig: LibraryConfig): any {
-        let state = this.settings.librarySettings.libraryStates[libraryConfig.id];
+        let state = this.settings.library.libraryStates[libraryConfig.id];
         if (!state) {
             state = {
                 id: libraryConfig.id,
@@ -306,7 +306,7 @@ export class SyncManager {
                 subscribedTopics: [],
                 availableTopics: libraryConfig.topics || []
             };
-            this.settings.librarySettings.libraryStates[libraryConfig.id] = state;
+            this.settings.library.libraryStates[libraryConfig.id] = state;
         }
         return state;
     }

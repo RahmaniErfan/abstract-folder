@@ -20,7 +20,7 @@ import { App } from 'obsidian';
 import { GitCommandRunner } from './git-command-runner';
 import { SyncEvent, SyncEventListener, SyncEventType, ENGINE2_GC_INTERVAL_MS } from './types';
 import { Mutex } from './mutex';
-import { sanitizeTopicName } from '../../../../utils/sanitization';
+import { sanitizeTopicName } from '../../../utils/sanitization';
 
 // ─── Types ──────────────────────────────────────────────────────────
 

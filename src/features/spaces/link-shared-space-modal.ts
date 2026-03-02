@@ -1,6 +1,6 @@
 import { App, Modal, Setting, Notice } from "obsidian";
 import AbstractFolderPlugin from "main";
-import { AuthService } from "../library/services/auth-service";
+import { AuthService } from "../../core/git/manager/auth-service";
 
 export class LinkSharedSpaceModal extends Modal {
     private repositoryUrl: string = "";

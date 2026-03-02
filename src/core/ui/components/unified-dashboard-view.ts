@@ -47,7 +47,7 @@ export class UnifiedDashboardView {
                     const token = await this.plugin.libraryManager.getToken();
                     if (token) {
                         try {
-                            const { AuthService } = await import("../../../features/library/services/auth-service");
+                            const { AuthService } = await import("../../git/manager/auth-service");
                             this.repoInfo = await AuthService.getRepository(token, owner, repo);
                             if (this.repoInfo) {
                                 this.githubUrl = this.repoInfo.html_url;
@@ -324,7 +324,7 @@ export class UnifiedDashboardView {
                     btn.setDisabled(true);
                     btn.setButtonText("Creating...");
                     
-                    const { AuthService } = await import("../../../features/library/services/auth-service");
+                    const { AuthService } = await import("../../git/manager/auth-service");
                     const repoData = await AuthService.createRepository(token, repoName, isPrivate);
                     if (repoData) {
                         await this.plugin.libraryManager.initializePersonalBackup(this.vaultPath, repoData.url, token);
@@ -339,18 +339,18 @@ export class UnifiedDashboardView {
     }
 
     private getConfig() {
-        if (!this.plugin.settings.librarySettings.spaceConfigs) {
-            this.plugin.settings.librarySettings.spaceConfigs = {};
+        if (!this.plugin.settings.spaces.spaceConfigs) {
+            this.plugin.settings.spaces.spaceConfigs = {};
         }
-        if (!this.plugin.settings.librarySettings.spaceConfigs[this.vaultPath]) {
-            this.plugin.settings.librarySettings.spaceConfigs[this.vaultPath] = {
+        if (!this.plugin.settings.spaces.spaceConfigs[this.vaultPath]) {
+            this.plugin.settings.spaces.spaceConfigs[this.vaultPath] = {
                 path: this.vaultPath,
                 enableScheduledSync: false,
                 syncIntervalValue: 1,
                 syncIntervalUnit: 'hours'
             };
         }
-        return this.plugin.settings.librarySettings.spaceConfigs[this.vaultPath];
+        return this.plugin.settings.spaces.spaceConfigs[this.vaultPath];
     }
 
     private renderSyncSection(container: HTMLElement) {
@@ -423,7 +423,7 @@ export class UnifiedDashboardView {
         const section = container.createDiv({ cls: "af-dashboard-section" });
         section.createEl("h3", { text: "Exclusions & Health" });
 
-        const exclusions = this.plugin.settings.librarySettings.securityExclusions || [];
+        const exclusions = this.plugin.settings.git.securityExclusions || [];
         section.createEl("p", { 
             text: `Automatically ignored: ${exclusions.join(", ") || "none"}`,
             cls: "af-dashboard-exclusions-text" 

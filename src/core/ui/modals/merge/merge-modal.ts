@@ -1,6 +1,6 @@
 import { Modal, App, Setting, ButtonComponent } from "obsidian";
 import { MergeController, MergeState } from "./merge-controller";
-import { diffLines } from "../../../../../utils/diff";
+import { diffLines } from "../../../../utils/diff";
 
 export class MergeModal extends Modal {
     private controller: MergeController;

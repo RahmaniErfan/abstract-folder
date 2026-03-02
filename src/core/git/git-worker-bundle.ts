@@ -18576,16 +18576,16 @@ tagger \${formatAuthor(obj.tagger)}
     }
   });
 
-  // src/library/git/git-worker.ts
+  // src/core/git/git-worker.ts
   var git = __toESM(require_isomorphic_git());
 
-  // src/library/git/node-fs-adapter.ts
+  // src/core/git/node-fs-adapter.ts
   var fs = __toESM(__require("fs"));
   var NodeFsAdapter = {
     promises: fs.promises
   };
 
-  // src/library/git/git-worker.ts
+  // src/core/git/git-worker.ts
   function processMatrix(matrix) {
     const statusMapData = {};
     for (const row of matrix) {

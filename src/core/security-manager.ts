@@ -13,7 +13,7 @@ export class SecurityManager {
      * and hardcoded safety rules.
      */
     public isPathExcluded(filepath: string): boolean {
-        const exclusions = this.settings.librarySettings.securityExclusions || [];
+        const exclusions = this.settings.git.securityExclusions || [];
         const normalizedPath = filepath.replace(/\\/g, '/');
 
         // 1. Check against configurable exclusions
@@ -25,7 +25,7 @@ export class SecurityManager {
 
         // 2. Hardcoded safety: Always exclude the Abstract Library folder from Personal Backup
         // to avoid recursive git issues.
-        const librariesPath = this.settings.librarySettings.librariesPath || "Abstract Library";
+        const librariesPath = this.settings.library.librariesPath || "Abstract Library";
         if (normalizedPath === librariesPath || normalizedPath.startsWith(librariesPath + '/')) {
             return true;
         }
@@ -156,8 +156,8 @@ export class SecurityManager {
      * Generates content for a .gitignore file based on current security settings.
      */
     public generateGitIgnoreContent(): string {
-        const exclusions = this.settings.librarySettings.securityExclusions || [];
-        const librariesPath = this.settings.librarySettings.librariesPath || "Abstract Library";
+        const exclusions = this.settings.git.securityExclusions || [];
+        const librariesPath = this.settings.library.librariesPath || "Abstract Library";
         
         const allPatterns = new Set(exclusions);
         allPatterns.add(librariesPath + '/');

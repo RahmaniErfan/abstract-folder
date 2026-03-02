@@ -2,14 +2,14 @@ import { App, Notice } from "obsidian";
 import * as path from 'path';
 import { GitService } from "./git-service";
 import { StatusManager } from "./status-manager";
-import { AbstractFolderPluginSettings } from "../../../../settings";
-import { LibraryConfig, LibraryStatus, CatalogItem } from "../../types";
+import { AbstractFolderPluginSettings } from "../../../settings";
+import { LibraryConfig, LibraryStatus, CatalogItem } from "../../../features/library/types";
 import { NodeFsAdapter } from "../node-fs-adapter";
-import { DataService } from "../../services/data-service";
+import { DataService } from "../../../features/library/services/data-service";
 import { ConflictManager } from "../conflict-manager";
-import { MergeModal } from "../../../../ui/modals/merge/merge-modal";
-import { ConflictResolutionModal } from "../../../../ui/modals/conflict-resolution-modal";
-import { Logger } from "../../../../utils/logger";
+import { MergeModal } from "../../ui/modals/merge/merge-modal";
+import { ConflictResolutionModal } from "../../ui/modals/conflict-resolution-modal";
+import { Logger } from "../../../utils/logger";
 import { GitScopeManager } from "../git-scope-manager";
 
 /**
@@ -191,7 +191,7 @@ export class LibraryService {
             const manifest = DataService.parseLibraryConfig(configContent);
             
             // Merge with local state from settings
-            const state = this.settings.librarySettings.libraryStates[manifest.id];
+            const state = this.settings.library.libraryStates[manifest.id];
             if (state) {
                 return {
                     ...manifest,
@@ -263,7 +263,7 @@ export class LibraryService {
             // 4. Resolve ID and remove local state BEFORE deleting files
             const config = await this.validateLibrary(vaultPath).catch(() => null);
             if (config?.id) {
-                delete this.settings.librarySettings.libraryStates[config.id];
+                delete this.settings.library.libraryStates[config.id];
                 const plugin = (this.app as any).plugins?.getPlugin?.("abstract-folder");
                 if (plugin) await plugin.saveSettings();
                 console.debug(`[LibraryService] Cleared local state for library: ${config.id}`);
@@ -293,8 +293,8 @@ export class LibraryService {
             const config = await this.validateLibrary(vaultPath).catch(() => null);
             const author = config?.author || "Unknown";
             
-            const username = this.settings.librarySettings.githubUsername;
-            const gitName = this.settings.librarySettings.gitName;
+            const username = this.settings.git.githubUsername;
+            const gitName = this.settings.git.gitName;
             
             const nameMatch = config ? ((username?.toLowerCase() === author.toLowerCase()) || 
                              (gitName?.toLowerCase() === author.toLowerCase())) : false;
@@ -311,7 +311,7 @@ export class LibraryService {
                            lowerRepo.includes(`github.com:${lowerUser}/`);
             }
 
-            const spacesRoot = this.settings.librarySettings.sharedSpacesRoot || "Abstract Spaces";
+            const spacesRoot = this.settings.spaces.sharedSpacesRoot || "Abstract Spaces";
             const isLocalOnlySpace = vaultPath.startsWith(spacesRoot) && !actualRemote;
 
             return { isOwner: nameMatch || repoMatch || isLocalOnlySpace, author, repositoryUrl: checkUrl ?? null };
@@ -344,7 +344,7 @@ export class LibraryService {
 
         try {
             // Save local state to settings
-            this.settings.librarySettings.libraryStates[config.id] = {
+            this.settings.library.libraryStates[config.id] = {
                 id: config.id,
                 vaultPath,
                 localVersion: "", // Set to empty to force first sync to run correctly

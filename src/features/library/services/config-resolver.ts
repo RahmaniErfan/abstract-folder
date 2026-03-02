@@ -87,7 +87,7 @@ export class ConfigResolver {
             }
 
             // 3. Check Shared Space config in settings
-            const spaceConfig = this.settings.librarySettings.spaceConfigs[current];
+            const spaceConfig = this.settings.spaces.spaceConfigs[current];
             if (spaceConfig && (spaceConfig.parentProperty || spaceConfig.childrenProperty)) {
                 return {
                     parentPropertyNames: spaceConfig.parentProperty ? [spaceConfig.parentProperty] : globalProps.parentPropertyNames,

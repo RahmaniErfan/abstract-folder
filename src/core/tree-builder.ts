@@ -120,8 +120,8 @@ export class TreeBuilder {
                         }
                     }
                 } else {
-                     const libraryPath = context.settings.librarySettings.librariesPath;
-                     const sharedSpacesRoot = context.settings.librarySettings.sharedSpacesRoot || "Abstract Spaces";
+                     const libraryPath = context.settings.library.librariesPath;
+                     const sharedSpacesRoot = context.settings.spaces.sharedSpacesRoot || "Abstract Spaces";
                      
                      let isExcluded = false;
                      if (libraryPath && (file.path === libraryPath || file.path.startsWith(libraryPath + '/'))) isExcluded = true;

@@ -149,8 +149,8 @@ export function renderGeneralSettings(containerEl: HTMLElement, plugin: Abstract
 					plugin.settings.defaultNewNotePath = normalizePath(value);
 					await plugin.saveSettings();
 				});
-			const libraryRoot = plugin.settings.librarySettings?.librariesPath || "Abstract Library";
-			const spacesRoot = plugin.settings.librarySettings?.sharedSpacesRoot || "Abstract Spaces";
+			const libraryRoot = plugin.settings.library?.librariesPath || "Abstract Library";
+			const spacesRoot = plugin.settings.spaces?.sharedSpacesRoot || "Abstract Spaces";
 			new PathInputSuggest(plugin, text.inputEl, {
 				includeFolders: true,
 				includeFiles: false,
@@ -277,7 +277,7 @@ async function renderSupportBanner(containerEl: HTMLElement, plugin: AbstractFol
         }
         
         try {
-            const { AuthService } = await import("../../../../features/library/services/auth-service");
+            const { AuthService } = await import("../../../git/manager/auth-service");
             const success = await AuthService.starRepository(token, "RahmaniErfan", "abstract-folder");
             if (success) {
                 new Notice("Successfully starred Abstract Folder! Thank you!");
@@ -307,7 +307,7 @@ async function renderSupportBanner(containerEl: HTMLElement, plugin: AbstractFol
     try {
         const token = await (plugin.libraryManager as any).getToken();
         if (token) {
-            const { AuthService } = await import("../../../../features/library/services/auth-service");
+            const { AuthService } = await import("../../../git/manager/auth-service");
             const isStarred = await AuthService.isStarred(token, "RahmaniErfan", "abstract-folder");
             if (isStarred) {
                 starBtn.addClass("is-starred");

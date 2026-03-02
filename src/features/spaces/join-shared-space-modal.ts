@@ -84,7 +84,7 @@ export class JoinSharedSpaceModal extends Modal {
     }
 
     async joinSpace() {
-        const spacesRoot = this.plugin.settings.librarySettings.sharedSpacesRoot || "Abstract Spaces";
+        const spacesRoot = this.plugin.settings.spaces.sharedSpacesRoot || "Abstract Spaces";
         const path = `${spacesRoot}/${this.spaceName}`;
 
         try {
@@ -105,11 +105,11 @@ export class JoinSharedSpaceModal extends Modal {
             await this.libraryManager.cloneSpace(this.repoUrl, path);
             
             // Add to settings
-            if (!this.plugin.settings.librarySettings.sharedSpaces) {
-                this.plugin.settings.librarySettings.sharedSpaces = [];
+            if (!this.plugin.settings.spaces.sharedSpaces) {
+                this.plugin.settings.spaces.sharedSpaces = [];
             }
-            if (!this.plugin.settings.librarySettings.sharedSpaces.includes(path)) {
-                this.plugin.settings.librarySettings.sharedSpaces.push(path);
+            if (!this.plugin.settings.spaces.sharedSpaces.includes(path)) {
+                this.plugin.settings.spaces.sharedSpaces.push(path);
                 await this.plugin.saveSettings();
             }
 

@@ -4,7 +4,7 @@ import { NodeFsAdapter } from './node-fs-adapter';
 import { SecureFsAdapter } from './secure-fs-adapter';
 import { IGitEngine, GitStatusMatrix, GitAuthor } from './types';
 import { getGitWorkerBlobUrl } from './git-worker-bundle';
-import { SecurityManager } from '../../../core/security-manager';
+import { SecurityManager } from '../security-manager';
 
 export class GitMobileAdapter implements IGitEngine {
     private worker: Worker | null = null;

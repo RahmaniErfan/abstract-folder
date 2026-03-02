@@ -1,7 +1,7 @@
 import { App, Modal, Setting, Notice } from "obsidian";
 import { LibraryConfig } from "../../types";
 import { Logger } from "../../../../utils/logger";
-import { LibraryManager } from "../../features/library/git/library-manager";
+import { LibraryManager } from "../../../../core/git/library-manager";
 
 export class TopicSubscriptionModal extends Modal {
     private selectedTopics: Set<string> = new Set();
@@ -18,7 +18,7 @@ export class TopicSubscriptionModal extends Modal {
         // Usually, users want something. Let's default to empty for strict sparse-checkout "genius".
         // Actually, let's pre-select all if they are installing for the first time.
         if (libraryMetadata.availableTopics) {
-            libraryMetadata.availableTopics.forEach(t => this.selectedTopics.add(t));
+            libraryMetadata.availableTopics.forEach((t: string) => this.selectedTopics.add(t));
         }
     }
 
@@ -79,7 +79,7 @@ export class TopicSubscriptionModal extends Modal {
             new Notice("Subscription successful!");
             this.onComplete?.();
             this.close();
-        } catch (error) {
+        } catch (error: any) {
             Logger.error("Failed to subscribe", error);
             new Notice(`Subscription failed: ${error.message}`);
             btnEl.disabled = false;

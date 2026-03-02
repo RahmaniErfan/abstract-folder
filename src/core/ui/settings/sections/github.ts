@@ -149,7 +149,7 @@ export async function renderGitHubSettings(containerEl: HTMLElement, plugin: Abs
 		.addText(async (text) => {
 			text.inputEl.type = "password";
 			
-			let savedToken = plugin.settings.librarySettings.githubToken;
+			let savedToken = plugin.settings.git.githubToken;
 			if (isSecretStorageAvailable) {
 				if (requiresAppBinding) {
 					savedToken = await secretStorage.getSecret.call(plugin.app, 'abstract-folder-github-pat');
@@ -176,12 +176,12 @@ export async function renderGitHubSettings(containerEl: HTMLElement, plugin: Abs
 						}
 						
 						// Clear old plaintext token
-						if (plugin.settings.librarySettings.githubToken) {
-							plugin.settings.librarySettings.githubToken = "";
+						if (plugin.settings.git.githubToken) {
+							plugin.settings.git.githubToken = "";
 							await plugin.saveSettings();
 						}
 					} else {
-						plugin.settings.librarySettings.githubToken = token;
+						plugin.settings.git.githubToken = token;
 						await plugin.saveSettings();
 					}
 
@@ -204,8 +204,8 @@ export async function renderGitHubSettings(containerEl: HTMLElement, plugin: Abs
 		);
 
 
-	if (plugin.settings.librarySettings.githubUsername) {
-		const username = plugin.settings.librarySettings.githubUsername;
+	if (plugin.settings.git.githubUsername) {
+		const username = plugin.settings.git.githubUsername;
 		new Setting(containerEl)
 			.setName("Authenticated as")
 			.setDesc(username)
@@ -225,11 +225,11 @@ export async function renderGitHubSettings(containerEl: HTMLElement, plugin: Abs
 			)
 			.addButton((btn) =>
 				btn.setButtonText("Logout").onClick(async () => {
-					plugin.settings.librarySettings.githubToken = "";
-					plugin.settings.librarySettings.githubUsername = "";
-					plugin.settings.librarySettings.githubAvatar = "";
-					plugin.settings.librarySettings.gitName = "";
-					plugin.settings.librarySettings.gitEmail = "";
+					plugin.settings.git.githubToken = "";
+					plugin.settings.git.githubUsername = "";
+					plugin.settings.git.githubAvatar = "";
+					plugin.settings.git.gitName = "";
+					plugin.settings.git.gitEmail = "";
 					await plugin.saveSettings();
 					renderGitHubSettings(containerEl, plugin);
 				}),
@@ -243,9 +243,9 @@ export async function renderGitHubSettings(containerEl: HTMLElement, plugin: Abs
 			.addText((text) =>
 				text
 					.setPlaceholder("Your Name")
-					.setValue(plugin.settings.librarySettings.gitName || "")
+					.setValue(plugin.settings.git.gitName || "")
 					.onChange(async (value) => {
-						plugin.settings.librarySettings.gitName = value;
+						plugin.settings.git.gitName = value;
 						await plugin.saveSettings();
 					}),
 			);
@@ -256,9 +256,9 @@ export async function renderGitHubSettings(containerEl: HTMLElement, plugin: Abs
 			.addText((text) =>
 				text
 					.setPlaceholder("email@example.com")
-					.setValue(plugin.settings.librarySettings.gitEmail || "")
+					.setValue(plugin.settings.git.gitEmail || "")
 					.onChange(async (value) => {
-						plugin.settings.librarySettings.gitEmail = value;
+						plugin.settings.git.gitEmail = value;
 						await plugin.saveSettings();
 					}),
 			);

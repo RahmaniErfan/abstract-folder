@@ -22,8 +22,8 @@ const mockApp = {
 
 const settings: AbstractFolderPluginSettings = {
     ...DEFAULT_SETTINGS,
-    librarySettings: {
-        ...DEFAULT_SETTINGS.librarySettings,
+    spaces: {
+        ...DEFAULT_SETTINGS.spaces,
         sharedSpacesRoot: "Abstract Spaces"
     }
 };

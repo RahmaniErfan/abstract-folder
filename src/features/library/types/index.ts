@@ -2,15 +2,7 @@ import { FolderNode } from "../../../types";
 
 export type LibraryStatus = 'up-to-date' | 'update-available' | 'dirty' | 'syncing' | 'error';
 
-export interface SharedSpaceConfig {
-    path: string;
-    enableScheduledSync: boolean;
-    syncIntervalValue: number;
-    syncIntervalUnit: 'minutes' | 'hours' | 'days' | 'weeks';
-    lastSync?: number;
-    parentProperty?: string;
-    childrenProperty?: string;
-}
+// Moved SharedSpaceConfig to features/spaces/types.ts
 
 export interface LocalConfig {
     propertyNames?: {
@@ -32,6 +24,8 @@ export interface LibraryConfig {
     isStandalone?: boolean;
     fundingUrl?: string;
     parentProperty?: string;
+    childrenProperty?: string;
+    forceStandardProperties?: boolean;
     // --- Manifest Fields (Tracked in Git) ---
     topics?: string[];               // Topics defined in the remote manifest.json or library.json
     // --- Local Runtime State (Merged from LibraryState) ---
@@ -76,22 +70,17 @@ export interface CatalogItem {
     fundingUrl?: string;
 }
 
-export interface CatalogIndex {
-    version: string;
-    lastUpdated: string;
-    categories: string[];
-    libraries: CatalogItem[];
-    blacklist: string[];
-}
-
-export interface LibrarySettings {
+export interface LibraryFeatureSettings {
     librariesPath: string; // Default: "Abstract Library"
-    sharedSpacesRoot: string; // Default: "Abstract Spaces"
     catalogs: string[];  // List of custom catalog URLs
     standaloneLibraries: string[]; // List of direct repository URLs
-    sharedSpaces: string[]; // List of paths that are Shared Spaces (Collaborative)
-    spaceConfigs: Record<string, SharedSpaceConfig>; // Per-space configuration
-    personalBackups: string[]; // List of paths that are Personal Backups
+    libraryStates: Record<string, LibraryState>; // Per-library local state (metadata, subscriptions)
+}
+
+/**
+ * Shared Git settings used across all features (Library, Spaces, Personal)
+ */
+export interface GitFeatureSettings {
     githubToken?: string;
     githubUsername?: string;
     githubAvatar?: string;
@@ -105,5 +94,4 @@ export interface LibrarySettings {
     securityExclusions: string[]; // Patterns for files to exclude from sync
     autoSyncEnabled: boolean; // Whether auto-sync engine is active
     lastGcTime?: number; // Timestamp of last git gc run
-    libraryStates: Record<string, LibraryState>; // Per-library local state (metadata, subscriptions)
 }

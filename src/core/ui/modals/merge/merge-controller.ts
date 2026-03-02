@@ -1,5 +1,5 @@
-import { ConflictInfo, ConflictManager } from "../../../core/git/conflict-manager";
-import { DiffBlock, diffLines } from "../../../utils/diff";
+import { ConflictInfo, ConflictManager } from "../../../git/conflict-manager";
+import { DiffBlock, diffLines } from "../../../../utils/diff";
 
 export interface MergeState {
     conflicts: ConflictInfo[];

@@ -1,7 +1,7 @@
 import { App, Modal, Setting, Notice, normalizePath } from "obsidian";
-import { AbstractFolderPluginSettings } from "../../../../settings";
-import { Group } from "../../../../types";
-import { PathInputSuggest } from "../../../../core/ui/settings/sections/general";
+import { AbstractFolderPluginSettings } from "../../../settings";
+import { Group } from "../../../types";
+import { PathInputSuggest } from "../settings/sections/general";
 import type AbstractFolderPlugin from "main";
 
 export class CreateEditGroupModal extends Modal {
@@ -94,7 +94,7 @@ export class CreateEditGroupModal extends Modal {
         if (this.groupScope.startsWith('space:')) {
           scopePath = this.groupScope.replace('space:', '');
         } else if (this.groupScope === 'library') {
-          scopePath = this.plugin.settings.librarySettings.librariesPath;
+          scopePath = this.plugin.settings.library.librariesPath;
         }
 
         new PathInputSuggest(this.plugin, text.inputEl, {

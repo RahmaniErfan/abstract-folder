@@ -2,7 +2,7 @@
 import { App, Modal, Setting, Notice, TFolder } from "obsidian";
 import AbstractFolderPlugin from "main";
 import { LibraryManager } from "../../core/git/library-manager";
-import { AuthService } from "../library/services/auth-service";
+import { AuthService } from "../../core/git/manager/auth-service";
 
 export class CreateSharedSpaceModal extends Modal {
     plugin: AbstractFolderPlugin;
@@ -111,7 +111,7 @@ export class CreateSharedSpaceModal extends Modal {
     }
 
     async createSpace() {
-        const spacesRoot = this.plugin.settings.librarySettings.sharedSpacesRoot || "Abstract Spaces";
+        const spacesRoot = this.plugin.settings.spaces.sharedSpacesRoot || "Abstract Spaces";
         const path = `${spacesRoot}/${this.spaceName}`;
 
         // 1. Create Folder
@@ -131,11 +131,11 @@ export class CreateSharedSpaceModal extends Modal {
             new Notice(`Created folder: ${path}`);
             
             // 2. Add to Shared Spaces List (if not already there)
-            if (!this.plugin.settings.librarySettings.sharedSpaces) {
-                this.plugin.settings.librarySettings.sharedSpaces = [];
+            if (!this.plugin.settings.spaces.sharedSpaces) {
+                this.plugin.settings.spaces.sharedSpaces = [];
             }
-            if (!this.plugin.settings.librarySettings.sharedSpaces.includes(path)) {
-                this.plugin.settings.librarySettings.sharedSpaces.push(path);
+            if (!this.plugin.settings.spaces.sharedSpaces.includes(path)) {
+                this.plugin.settings.spaces.sharedSpaces.push(path);
                 await this.plugin.saveSettings();
             }
 

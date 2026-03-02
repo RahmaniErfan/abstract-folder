@@ -1,5 +1,5 @@
 import { requestUrl } from "obsidian";
-import { CatalogItem, LibrarySettings, LibraryConfig } from "../types";
+import { CatalogItem, LibraryFeatureSettings as LibrarySettings, LibraryConfig } from "../types";
 
 export class CatalogService {
     // Hardcoded official catalog URL

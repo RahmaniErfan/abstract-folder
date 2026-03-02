@@ -16,7 +16,7 @@ try {
 	console.log("Bundling git worker...");
 	// 1. Build the worker to a string conceptually:
 	const workerResult = await esbuild.build({
-		entryPoints: ['src/library/git/git-worker.ts'],
+		entryPoints: ['src/core/git/git-worker.ts'],
 		bundle: true,
 		write: false,
 		format: 'iife',
@@ -41,7 +41,7 @@ export function getGitWorkerBlobUrl(): string {
     return URL.createObjectURL(blob);
 }
 `;
-	fs.writeFileSync('src/library/git/git-worker-bundle.ts', bundleTemplate);
+	fs.writeFileSync('src/core/git/git-worker-bundle.ts', bundleTemplate);
 	console.log("Worker bundled successfully.");
 } catch (e) {
 	console.error("Worker bundling failed:", e);

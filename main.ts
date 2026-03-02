@@ -13,13 +13,13 @@ import { MetricsManager } from './src/metrics-manager';
 import { AbstractFolderView, VIEW_TYPE_ABSTRACT_FOLDER } from './src/features/personal/abstract-folder-view';
 import { GraphEngine } from './src/core/graph-engine';
 import { CreateAbstractChildModal, ParentPickerModal, ChildFileType, FolderSelectionModal, ConversionOptionsModal, DestinationPickerModal, NewFolderNameModal, SimulationModal, ScopeSelectionModal } from './src/core/ui/modals';
-import { CreateEditGroupModal } from './src/features/library/ui/modals/create-edit-group-modal';
-import { ManageGroupsModal } from './src/features/library/ui/modals/manage-groups-modal';
+import { CreateEditGroupModal } from './src/core/ui/modals/create-edit-group-modal';
+import { ManageGroupsModal } from './src/core/ui/modals/manage-groups-modal';
 import { ModularSettingsTab as AbstractFolderSettingTab } from './src/core/ui/settings/index';
 import { createAbstractChildFile } from './src/utils/file-operations';
 import { convertFoldersToPluginFormat, generateFolderStructurePlan, executeFolderGeneration } from './src/utils/conversion';
 import { Group } from './src/types';
-import { LibraryManager } from './src/features/library/git/library-manager';
+import { LibraryManager } from './src/core/git/library-manager';
 import { AbstractBridge } from './src/features/library/bridge/abstract-bridge';
 import { ContributionEngine } from './src/features/library/services/contribution-engine';
 import { CatalogModal } from './src/features/library/ui/modals/catalog-modal';
@@ -323,7 +323,7 @@ this.addCommand({
 			}
 
 			// Ensure library sandbox directory exists
-			const sandboxPath = this.settings.librarySettings.librariesPath;
+			const sandboxPath = this.settings.library.librariesPath;
 			if (!(this.app.vault.getAbstractFileByPath(sandboxPath))) {
 				try {
 					await this.app.vault.createFolder(sandboxPath);
@@ -340,8 +340,8 @@ this.addCommand({
 			// Prune missing repositories from settings to prevent log spam and invalid sync attempts
 			await this.libraryManager.pruneMissingRepositories();
 
-			if (this.settings.librarySettings.autoSyncEnabled) {
-				const personalBackups = this.settings.librarySettings.personalBackups || [];
+			if (this.settings.git.autoSyncEnabled) {
+				const personalBackups = this.settings.personal.personalBackups || [];
 				console.log(`[Abstract Folder] Starting engines for ${personalBackups.length} personal backups`);
 				for (const backupPath of personalBackups) {
 					try {
@@ -351,7 +351,7 @@ this.addCommand({
 					}
 				}
 
-				const sharedSpaces = this.settings.librarySettings.sharedSpaces || [];
+				const sharedSpaces = this.settings.spaces.sharedSpaces || [];
 				console.log(`[Abstract Folder] Starting engines for ${sharedSpaces.length} shared spaces`);
 				for (const spacePath of sharedSpaces) {
 					try {
@@ -527,10 +527,11 @@ this.addCommand({
 	async loadSettings() {
 		const loadedData = await this.loadData();
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData);
-		// Ensure nested librarySettings have defaults
-		if (this.settings.librarySettings) {
-			this.settings.librarySettings = Object.assign({}, DEFAULT_SETTINGS.librarySettings, loadedData?.librarySettings);
-		}
+		// Ensure domain-specific settings have defaults
+		this.settings.library = Object.assign({}, DEFAULT_SETTINGS.library, loadedData?.library);
+		this.settings.spaces = Object.assign({}, DEFAULT_SETTINGS.spaces, loadedData?.spaces);
+		this.settings.personal = Object.assign({}, DEFAULT_SETTINGS.personal, loadedData?.personal);
+		this.settings.git = Object.assign({}, DEFAULT_SETTINGS.git, loadedData?.git);
 
 		// Migration: Move old global visibility settings to per-view settings
 		if (loadedData && !loadedData.visibility) {

@@ -1,8 +1,8 @@
 import { App, EventRef } from "obsidian";
-import { AbstractFolderPluginSettings } from "../../../settings";
-import { SecurityManager } from "../../../core/security-manager";
+import { AbstractFolderPluginSettings } from "../../settings";
+import { SecurityManager } from "../security-manager";
 import { GitScopeManager } from "./git-scope-manager";
-import { LibraryConfig, LibraryStatus, CatalogItem } from "../types";
+import { LibraryConfig, LibraryStatus, CatalogItem } from "../../features/library/types";
 import { GitStatusMatrix } from "./types";
 import { SyncOrchestrator, SyncAuthor, SyncEventListener } from "./sync";
 import { PublicSyncOrchestrator } from "./sync/public-sync-orchestrator";
