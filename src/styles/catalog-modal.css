@@ -215,11 +215,12 @@
     color: var(--text-normal);
 }
 
-.af-library-detail-actions {
+.af-catalog-detail .af-library-detail-actions {
     display: flex;
     align-items: center;
     gap: 12px;
     margin-top: 16px;
+    opacity: 1 !important; /* Override shared class from library-explorer.css */
 }
 
 .af-library-detail-body {

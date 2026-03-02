@@ -41,16 +41,10 @@ export class DataService {
             branch: config.branch || "main",
             lastSync: config.lastSync,
             parentProperty: config.parentProperty,
-            childrenProperty: config.childrenProperty,
-            forceStandardProperties: config.forceStandardProperties,
-            // Engine 2: Pure Mirror
-            localVersion: config.localVersion,
-            subscribedTopics: config.subscribedTopics || [],
-            availableTopics: availableTopics,
-            lastEngine2GcTime: config.lastEngine2GcTime
+            topics: config.topics || []
         };
 
-        console.debug(`[DataService] Parsed LibraryConfig:`, configObj);
+        console.debug(`[DataService] Parsed LibraryConfig (Manifest):`, configObj);
         return configObj;
     }
 

@@ -268,12 +268,18 @@ export class CatalogModal extends Modal {
         if (await this.app.vault.adapter.exists(destPath)) {
             try {
                 const configPath = `${destPath}/library.json`;
-                const content = await this.app.vault.adapter.read(configPath);
-                const config = JSON.parse(content);
-                isInstalled = config.id === item.id;
+                if (await this.app.vault.adapter.exists(configPath)) {
+                    const content = await this.app.vault.adapter.read(configPath);
+                    const config = JSON.parse(content);
+                    isInstalled = (config.id === item.id) || (config.name === item.name);
+                } else {
+                    // Folder exists but no library.json. Check if it's empty or has other files.
+                    const list = await this.app.vault.adapter.list(destPath);
+                    isInstalled = list.files.length > 0 || list.folders.length > 0;
+                }
             } catch {
-                // If no library.json or parse error, fallback to name-based check (legacy)
-                isInstalled = true; 
+                // Fallback for errors
+                isInstalled = false; 
             }
         }
 
@@ -284,10 +290,8 @@ export class CatalogModal extends Modal {
 
             // Handshake to see if we can manage subscriptions
             void (async () => {
-                const configPath = `${destPath}/library.json`;
                 try {
-                    const content = await this.app.vault.adapter.read(configPath);
-                    const config = JSON.parse(content) as LibraryConfig;
+                    const config = await this.libraryManager.validateLibrary(destPath);
                     if (config.availableTopics && config.availableTopics.length > 0) {
                         const manageBtn = actionsRow.createEl("button", { text: "Manage Subscriptions", cls: "af-manage-sub-btn" });
                         manageBtn.addEventListener("click", () => {

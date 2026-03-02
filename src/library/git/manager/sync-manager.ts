@@ -81,6 +81,7 @@ export class SyncManager {
                 return [
                     ...(this.settings.librarySettings.sharedSpaces || []),
                     ...(this.settings.librarySettings.personalBackups || []),
+                    this.settings.librarySettings.librariesPath,
                 ];
             }
         };
@@ -140,19 +141,26 @@ export class SyncManager {
             repositoryUrl: libraryConfig.repositoryUrl,
             branch: libraryConfig.branch || 'main',
             getToken: () => this.gitService.getToken(),
-            getLocalVersion: () => libraryConfig.localVersion || '',
-            setLocalVersion: (v: string) => {
-                libraryConfig.localVersion = v;
-                // Fire-and-forget settings save
-                const plugin = (this.app as any).plugins?.getPlugin?.("abstract-folder");
-                if (plugin) void plugin.saveSettings();
+            getLocalVersion: () => {
+                const state = this.settings.librarySettings.libraryStates[libraryConfig.id];
+                return state?.localVersion ?? "";
             },
-            subscribedTopics: libraryConfig.subscribedTopics,
-            lastGcTime: libraryConfig.lastEngine2GcTime,
+            setLocalVersion: (v: string) => {
+                const state = this.getOrCreateLibraryState(vaultPath, libraryConfig);
+                state.localVersion = v;
+                this.saveSettingsSilently();
+            },
+            subscribedTopics: this.settings.librarySettings.libraryStates[libraryConfig.id]?.subscribedTopics || [],
+            lastGcTime: this.settings.librarySettings.libraryStates[libraryConfig.id]?.lastEngine2GcTime,
             onGcRun: (timestamp: number) => {
-                libraryConfig.lastEngine2GcTime = timestamp;
-                const plugin = (this.app as any).plugins?.getPlugin?.("abstract-folder");
-                if (plugin) void plugin.saveSettings();
+                const state = this.getOrCreateLibraryState(vaultPath, libraryConfig);
+                state.lastEngine2GcTime = timestamp;
+                this.saveSettingsSilently();
+            },
+            onAvailableTopicsUpdated: (topics: string[]) => {
+                const state = this.getOrCreateLibraryState(vaultPath, libraryConfig);
+                state.availableTopics = topics;
+                this.saveSettingsSilently();
             },
             libraryName: libraryConfig.name,
         };
@@ -202,6 +210,14 @@ export class SyncManager {
      */
     getPublicSyncOrchestrator(vaultPath: string): PublicSyncOrchestrator | undefined {
         return this.publicOrchestrators.get(vaultPath);
+    }
+
+    /**
+     * Check if a specific library is currently performing a public sync.
+     */
+    isPublicSyncing(vaultPath: string): boolean {
+        const orchestrator = this.publicOrchestrators.get(vaultPath);
+        return orchestrator?.isPublicSyncing() ?? false;
     }
 
     /**
@@ -266,5 +282,32 @@ export class SyncManager {
             orchestrator.stop();
         }
         this.publicOrchestrators.clear();
+    }
+    /**
+     * Persist settings without blocking or alerting the user.
+     */
+    private saveSettingsSilently(): void {
+        const plugin = (this.app as any).plugins?.getPlugin?.("abstract-folder");
+        if (plugin) {
+            void plugin.saveSettings();
+        }
+    }
+
+    /**
+     * Get or create a local state entry for a library.
+     */
+    private getOrCreateLibraryState(vaultPath: string, libraryConfig: LibraryConfig): any {
+        let state = this.settings.librarySettings.libraryStates[libraryConfig.id];
+        if (!state) {
+            state = {
+                id: libraryConfig.id,
+                vaultPath: vaultPath,
+                localVersion: "", // Force first sync
+                subscribedTopics: [],
+                availableTopics: libraryConfig.topics || []
+            };
+            this.settings.librarySettings.libraryStates[libraryConfig.id] = state;
+        }
+        return state;
     }
 }

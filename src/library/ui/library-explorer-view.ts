@@ -33,6 +33,7 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     private isRefreshing = false;
     private nextRefreshScheduled = false;
     private isRenderingView = false;
+    private renderViewPending = false;
     private isOwner = false;
     private repositoryUrl: string | null = null;
     private authorName = "Unknown";
@@ -136,15 +137,25 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
     }
 
     private renderView() {
-        // Guard: if a full render is already in progress, skip to avoid DOM duplication
-        if (this.isRenderingView) return;
+        // Guard: if a full render is already in progress, queue it instead of dropping
+        if (this.isRenderingView) {
+            this.renderViewPending = true;
+            return;
+        }
         this.isRenderingView = true;
+        this.renderViewPending = false;
 
         const container = this.containerEl.children[1] as HTMLElement;
         container.empty();
         container.addClass("abstract-library-explorer");
 
-        const finish = () => { this.isRenderingView = false; };
+        const finish = () => { 
+            this.isRenderingView = false; 
+            if (this.renderViewPending) {
+                this.renderViewPending = false;
+                this.debouncedRenderView();
+            }
+        };
 
         if (this.selectedLibrary) {
             if (this.selectedTopic) {
@@ -369,15 +380,26 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
         const card = container.createDiv({ cls: "library-explorer-card" });
         if (installed) card.addClass("is-installed");
 
+        const isSyncing = installed ? this.plugin.libraryManager.isPublicSyncing(installed.path) : false;
+
         const iconContainer = card.createDiv({ cls: "library-card-icon" });
-        setIcon(iconContainer, installed ? "library" : "cloud-download");
+        if (isSyncing) {
+            setIcon(iconContainer, "refresh-cw");
+            iconContainer.addClass("af-spin");
+        } else {
+            setIcon(iconContainer, installed ? "library" : "cloud-download");
+        }
         
         const info = card.createDiv({ cls: "library-card-info" });
         info.createDiv({ cls: "library-card-name", text: item.name });
         info.createDiv({ cls: "library-card-author", text: `by ${item.author}` });
         
         if (installed) {
-            card.createDiv({ cls: "library-card-badge", text: "Installed" });
+            if (isSyncing) {
+                card.createDiv({ cls: "library-card-badge is-syncing", text: "Syncing..." });
+            } else {
+                card.createDiv({ cls: "library-card-badge", text: "Installed" });
+            }
 
             // Add Actions for installed libraries
             const actions = card.createDiv({ cls: "af-library-detail-actions" });
@@ -409,6 +431,8 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
                 if (installed.file) {
                     if (confirm(`Are you sure you want to uninstall ${item.name}?`)) {
                         await this.plugin.libraryManager.deleteLibrary(installed.file.path);
+                        // Force a fresh discovery by invalidating the bridge cache
+                        this.plugin.abstractBridge.invalidateCache();
                         new Notice(`Uninstalled ${item.name}`);
                         this.renderView();
                     }
@@ -556,8 +580,18 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
             const destPath = `${librariesPath}/${item.name}`;
 
             if (remoteConfig && remoteConfig.availableTopics && remoteConfig.availableTopics.length > 0) {
-                new TopicSubscriptionModal(this.app, remoteConfig, destPath, this.plugin.libraryManager, () => {
+                new TopicSubscriptionModal(this.app, remoteConfig, destPath, this.plugin.libraryManager, async () => {
                     this.selectedCatalogItem = null;
+                    
+                    // V2: Immediate Transition
+                    // Instead of just refreshing the shelf, we try to find the newly created local library
+                    // and switch to it immediately.
+                    const libs = await this.plugin.abstractBridge.discoverLibraries(librariesPath, true);
+                    const matching = libs.find(l => l.path === destPath);
+                    if (matching) {
+                        this.selectedLibrary = matching;
+                        this.contextEngine = new ContextEngine(this.plugin, `library:${matching.libraryId}`);
+                    }
                     this.renderView();
                 }).open();
             } else {
@@ -565,6 +599,14 @@ export class LibraryExplorerView extends ItemView implements ViewportDelegate {
                 await this.plugin.libraryManager.cloneLibrary(item.repositoryUrl, destPath, item);
                 new Notice("Installation complete");
                 this.selectedCatalogItem = null;
+                
+                // V2: Immediate Transition
+                const libs = await this.plugin.abstractBridge.discoverLibraries(librariesPath, true);
+                const matching = libs.find(l => l.path === destPath);
+                if (matching) {
+                    this.selectedLibrary = matching;
+                    this.contextEngine = new ContextEngine(this.plugin, `library:${matching.libraryId}`);
+                }
                 this.renderView();
             }
         });

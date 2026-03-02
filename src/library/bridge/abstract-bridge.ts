@@ -56,29 +56,48 @@ export class AbstractBridge {
 
         Logger.debug(`AbstractBridge: discoverLibraries called for: ${basePath}`);
         try {
-            if (forceRefresh) {
-                await this.app.vault.adapter.list(basePath);
-            }
-
             let folder = this.app.vault.getAbstractFileByPath(basePath);
             
-            // If folder is null but just created, give it a tiny moment
-            if (!folder && forceRefresh) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-                folder = this.app.vault.getAbstractFileByPath(basePath);
+            // If forceRefresh is on, we skip the cache and go straight to the adapter
+            // to avoid Obsidian index lag during library install/sync.
+            if (forceRefresh) {
+                const list = await this.app.vault.adapter.list(basePath);
+                const libraries: LibraryNode[] = [];
+                
+                // Check if the current folder is a library by looking for library.json directly on disk
+                const config = await this.getLibraryConfig(basePath);
+                if (config) {
+                    const libFolder = folder instanceof TFolder ? folder : (await this.app.vault.adapter.list(basePath), this.app.vault.getAbstractFileByPath(basePath)) as TFolder;
+                    if (libFolder) {
+                        libraries.push({
+                            file: libFolder,
+                            path: libFolder.path,
+                            isFolder: true,
+                            isLibrary: true,
+                            libraryId: config.id,
+                            catalogId: "default",
+                            isPublic: true,
+                            status: 'up-to-date',
+                            isLocked: true,
+                            children: await this.buildAbstractLibraryTree(libFolder, true)
+                        });
+                    }
+                } else {
+                    // Direct disk scan for sub-libraries
+                    for (const subDir of list.folders) {
+                        const subLibraries = await this.discoverLibraries(subDir, true);
+                        libraries.push(...subLibraries);
+                    }
+                }
+                
+                this.discoveryCache = libraries;
+                this.lastDiscoveryTime = now;
+                return libraries;
             }
 
+            // Normal cached flow
             if (!(folder instanceof TFolder)) return [];
-
-            // If children are empty but we expect something (forceRefresh), wait a bit
-            if (folder.children.length === 0 && forceRefresh) {
-                await this.app.vault.adapter.list(folder.path);
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-
             const libraries: LibraryNode[] = [];
-            
-            // Check if the current folder is a library
             const config = await this.getLibraryConfig(folder.path);
             if (config) {
                 libraries.push({
@@ -94,10 +113,9 @@ export class AbstractBridge {
                     children: await this.buildAbstractLibraryTree(folder)
                 });
             } else {
-                // Scan subfolders for libraries
                 for (const child of folder.children) {
                     if (child instanceof TFolder) {
-                        const subLibraries = await this.discoverLibraries(child.path);
+                        const subLibraries = await this.discoverLibraries(child.path, false);
                         libraries.push(...subLibraries);
                     }
                 }
@@ -117,15 +135,29 @@ export class AbstractBridge {
      */
     private async getLibraryConfig(dir: string): Promise<LibraryConfig | null> {
         const configPath = `${dir}/library.json`;
+        
+        // 1. Try Obsidian file cache first (fastest)
         const file = this.app.vault.getAbstractFileByPath(configPath);
         if (file instanceof TFile) {
             try {
                 const content = await this.app.vault.read(file);
                 return DataService.parseLibraryConfig(content);
             } catch (e) {
-                console.error(`AbstractBridge: Invalid library manifest at ${configPath}:`, e);
+                // Potential parse error or file being indexed
             }
         }
+
+        // 2. Fallback to adapter.read (direct disk) - essential for discovery during sync/install
+        try {
+            const exists = await this.app.vault.adapter.exists(configPath);
+            if (exists) {
+                const content = await this.app.vault.adapter.read(configPath);
+                return DataService.parseLibraryConfig(content);
+            }
+        } catch (e) {
+            // Not a library or file locked
+        }
+        
         return null;
     }
 

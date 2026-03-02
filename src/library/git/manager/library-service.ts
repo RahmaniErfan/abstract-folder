@@ -70,6 +70,9 @@ export class LibraryService {
 
             // Refresh the vault so Obsidian sees the new files
             await this.app.vault.adapter.list(destinationPath);
+            // Trigger UI updates
+            (this.app.workspace as any).trigger('abstract-folder:spaces-updated');
+            (this.app.workspace as any).trigger('abstract-folder:graph-updated');
             
             new Notice(`Library installed: ${destinationPath}`);
         } catch (error) {
@@ -185,13 +188,34 @@ export class LibraryService {
         
         try {
             const configContent = await NodeFsAdapter.promises.readFile(configPath, "utf8");
-            console.debug(`[LibraryService] Raw library.json content for ${vaultPath}:`, configContent);
-            return DataService.parseLibraryConfig(configContent);
-        } catch (error) {
-            // Only alert if the file exists but we failed to parse it
-            if (error.code !== 'ENOENT') {
-                console.error(`Validation failed for ${vaultPath}:`, error);
+            const manifest = DataService.parseLibraryConfig(configContent);
+            
+            // Merge with local state from settings
+            const state = this.settings.librarySettings.libraryStates[manifest.id];
+            if (state) {
+                return {
+                    ...manifest,
+                    localVersion: state.localVersion,
+                    subscribedTopics: state.subscribedTopics,
+                    availableTopics: state.availableTopics || manifest.topics || [],
+                    lastEngine2GcTime: state.lastEngine2GcTime
+                };
             }
+            return manifest;
+        } catch (error: any) {
+            if (error.code === 'ENOENT') {
+                const folderName = path.basename(absoluteDir);
+                return {
+                    id: `skeleton-${folderName.toLowerCase().replace(/\s+/g, '-')}`,
+                    name: folderName,
+                    author: "Unknown",
+                    version: "1.0.0",
+                    description: "Library metadata missing.",
+                    repositoryUrl: "",
+                    branch: "main",
+                };
+            }
+            console.error(`Validation failed for ${vaultPath}:`, error);
             const message = error instanceof Error ? error.message : String(error);
             throw new Error(`Failed to validate library at ${vaultPath}: ${message}`);
         }
@@ -202,6 +226,22 @@ export class LibraryService {
      */
     async deleteLibrary(vaultPath: string): Promise<void> {
         try {
+            // 1. Stop Sync Engines (Engine 1 and Engine 2) to avoid racing with AutoCommitEngine
+            // providing a surgical stop before deletion.
+            const syncManager = (this.app as any).plugins?.getPlugin?.("abstract-folder")?.libraryManager?.syncManager;
+            if (syncManager) {
+                syncManager.stopSyncEngine(vaultPath);
+            }
+
+            // 2. Clear Git Status Cache immediately
+            this.statusManager.clearCache(vaultPath);
+
+            // 3. Invalidate Bridge Cache so discovery sees the change
+            const bridge = (this.app as any).plugins?.getPlugin?.("abstract-folder")?.abstractBridge;
+            if (bridge) {
+                bridge.invalidateCache();
+            }
+
             const absoluteDir = this.gitService.getAbsolutePath(vaultPath);
             
             // Recursive deletion using Node-FS
@@ -220,10 +260,23 @@ export class LibraryService {
                 }
             };
 
+            // 4. Resolve ID and remove local state BEFORE deleting files
+            const config = await this.validateLibrary(vaultPath).catch(() => null);
+            if (config?.id) {
+                delete this.settings.librarySettings.libraryStates[config.id];
+                const plugin = (this.app as any).plugins?.getPlugin?.("abstract-folder");
+                if (plugin) await plugin.saveSettings();
+                console.debug(`[LibraryService] Cleared local state for library: ${config.id}`);
+            }
+
+            // 5. Delete physical files
             await removeRecursive(absoluteDir);
             
             // Refresh vault to reflect changes
             await this.app.vault.adapter.list(path.dirname(vaultPath));
+            // Trigger UI updates
+            (this.app.workspace as any).trigger('abstract-folder:spaces-updated');
+            (this.app.workspace as any).trigger('abstract-folder:graph-updated');
 
             new Notice("Library deleted successfully");
         } catch (error) {
@@ -290,9 +343,35 @@ export class LibraryService {
         const configPath = path.join(absoluteDir, 'library.json');
 
         try {
+            // Save local state to settings
+            this.settings.librarySettings.libraryStates[config.id] = {
+                id: config.id,
+                vaultPath,
+                localVersion: "", // Set to empty to force first sync to run correctly
+                subscribedTopics: config.subscribedTopics || [],
+                availableTopics: config.availableTopics || config.topics || [],
+                lastEngine2GcTime: config.lastEngine2GcTime
+            };
+            
+            // Save settings
+            const plugin = (this.app as any).plugins?.getPlugin?.("abstract-folder");
+            if (plugin) await plugin.saveSettings();
+
+            // Prepare clean manifest for library.json (No local state)
+            const manifest: LibraryConfig = {
+                id: config.id,
+                name: config.name,
+                author: config.author,
+                version: config.version,
+                description: config.description,
+                repositoryUrl: config.repositoryUrl,
+                branch: config.branch || "main",
+                topics: config.topics || []
+            };
+
             await NodeFsAdapter.promises.mkdir(absoluteDir, { recursive: true });
-            await NodeFsAdapter.promises.writeFile(configPath, JSON.stringify(config, null, 2), "utf8");
-            console.debug(`[LibraryService] Bootstrap complete for ${vaultPath}`);
+            await NodeFsAdapter.promises.writeFile(configPath, JSON.stringify(manifest, null, 2), "utf8");
+            console.debug(`[LibraryService] Bootstrap complete for ${vaultPath}. Local state persisted in settings.`);
             
             // Refresh vault
             await this.app.vault.adapter.list(vaultPath);

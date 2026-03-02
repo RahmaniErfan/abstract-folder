@@ -191,6 +191,19 @@ export class StatusManager {
         }
     }
 
+    /**
+     * Explicitly clear the cache for a specific vault path.
+     * Useful when a library is uninstalled.
+     */
+    public clearCache(vaultPath: string) {
+        if (this.syncTimers.has(vaultPath)) {
+            clearTimeout(this.syncTimers.get(vaultPath)!);
+            this.syncTimers.delete(vaultPath);
+        }
+        this.cache.delete(vaultPath);
+        Logger.debug(`[StatusManager] Cache cleared for: "${vaultPath}"`);
+    }
+
     public cleanup() {
         for (const timer of this.syncTimers.values()) {
             clearTimeout(timer);

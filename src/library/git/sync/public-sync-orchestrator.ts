@@ -41,6 +41,8 @@ export interface PublicSyncConfig {
     lastGcTime?: number;
     /** Callback to persist lastGcTime. */
     onGcRun?: (timestamp: number) => void;
+    /** Callback to persist available topics found in manifest. */
+    onAvailableTopicsUpdated?: (topics: string[]) => void;
     /** V2: Unique library name for group identification. */
     libraryName: string;
 }
@@ -232,10 +234,11 @@ export class PublicSyncOrchestrator implements ISyncEngine {
                 // Persist the new version
                 this.versionCtrl.applyVersion(manifest.version);
 
-                // V2 Architecture Pivot: Re-apply user config and technical availableTopics
-                // This ensures subscribedTopics survive a reset --hard and availableTopics stay fresh.
-                console.log(`[PublicSyncOrchestrator] Patching library.json with availableTopics:`, manifest.availableTopics);
-                await this.executor.patchLibraryConfig(manifest.availableTopics);
+                // V2 Architecture Pivot: Persistence is handled via settings callbacks,
+                // never by patching the repository's library.json.
+                if (this.config.onAvailableTopicsUpdated) {
+                    this.config.onAvailableTopicsUpdated(manifest.availableTopics || []);
+                }
 
                 // Fire-and-forget GC
                 this.executor.gcIfNeeded();
@@ -246,6 +249,13 @@ export class PublicSyncOrchestrator implements ISyncEngine {
         } finally {
             this.isSyncing = false;
         }
+    }
+
+    /**
+     * Expose syncing status for UI.
+     */
+    isPublicSyncing(): boolean {
+        return this.isSyncing;
     }
 
     // ─── Event Bus ──────────────────────────────────────────────

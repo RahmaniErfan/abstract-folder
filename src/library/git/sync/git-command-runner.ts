@@ -323,8 +323,15 @@ export class GitCommandRunner {
      * Returns a list of top-level directory names.
      */
     async lsTreeRemote(branch: string): Promise<string[]> {
-        const { stdout } = await this.exec(['ls-tree', '-d', '--name-only', `origin/${branch}`]);
-        return stdout.split('\n').filter(line => line.trim().length > 0);
+        try {
+            // After a shallow fetch, FETCH_HEAD is the most reliable way to read the exact tree we just pulled
+            const { stdout } = await this.exec(['ls-tree', '-d', '--name-only', 'FETCH_HEAD']);
+            return stdout.split('\n').filter(line => line.trim().length > 0);
+        } catch (e) {
+            // Fallback for older configurations or disconnected states
+            const { stdout } = await this.exec(['ls-tree', '-d', '--name-only', `origin/${branch}`]);
+            return stdout.split('\n').filter(line => line.trim().length > 0);
+        }
     }
 
     // ─── Engine 2: Shallow Sync Operations ────────────────────────
@@ -441,6 +448,26 @@ export class GitCommandRunner {
             return stdout.trim() || undefined;
         } catch {
             return undefined;
+        }
+    }
+
+    /**
+     * Attempts to find the default branch from the remote.
+     * Uses `git ls-remote --symref origin HEAD` to find the default branch.
+     * Fallbacks to 'main' on errors.
+     */
+    async getRemoteDefaultBranch(): Promise<string> {
+        try {
+            // ls-remote is faster than remote show and works via symref
+            const { stdout } = await this.execWithAuth(['ls-remote', '--symref', 'origin', 'HEAD']);
+            // output format: ref: refs/heads/main	HEAD
+            const match = stdout.match(/ref:\s+refs\/heads\/([^\s]+)\s+HEAD/);
+            if (match && match[1]) {
+                return match[1].trim();
+            }
+            return 'main';
+        } catch {
+            return 'main';
         }
     }
 }

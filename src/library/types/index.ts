@@ -32,12 +32,25 @@ export interface LibraryConfig {
     isStandalone?: boolean;
     fundingUrl?: string;
     parentProperty?: string;
-    childrenProperty?: string;
-    forceStandardProperties?: boolean;
-    // Engine 2 (Public Library Sync)
-    localVersion?: string;           // Locally synced version (persisted for SemVer comparison)
-    subscribedTopics?: string[];     // Sparse checkout: only sync these topics
-    availableTopics?: string[];      // Full list of topics available in technical manifest
+    // --- Manifest Fields (Tracked in Git) ---
+    topics?: string[];               // Topics defined in the remote manifest.json or library.json
+    // --- Local Runtime State (Merged from LibraryState) ---
+    localVersion?: string;           
+    subscribedTopics?: string[];     
+    availableTopics?: string[];      
+    lastEngine2GcTime?: number;      
+}
+
+/**
+ * Persisted local state for a library. 
+ * Stored in plugin data.json, NEVER in the repository.
+ */
+export interface LibraryState {
+    id: string;
+    vaultPath: string;
+    localVersion: string;           // Locally synced version (persisted for SemVer comparison)
+    subscribedTopics: string[];     // Sparse checkout: only sync these topics
+    availableTopics: string[];      // Full list of topics available in technical manifest (fetched from CDN)
     lastEngine2GcTime?: number;      // Last git gc --prune=now timestamp
 }
 
@@ -92,4 +105,5 @@ export interface LibrarySettings {
     securityExclusions: string[]; // Patterns for files to exclude from sync
     autoSyncEnabled: boolean; // Whether auto-sync engine is active
     lastGcTime?: number; // Timestamp of last git gc run
+    libraryStates: Record<string, LibraryState>; // Per-library local state (metadata, subscriptions)
 }

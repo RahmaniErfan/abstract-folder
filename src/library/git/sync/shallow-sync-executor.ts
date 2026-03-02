@@ -81,23 +81,32 @@ export class ShallowSyncExecutor {
                 });
             }
 
+            let effectiveBranch = branch || 'main';
+            try {
+                // Determine true default branch if remote has a different one
+                const remoteBranch = await runner.getRemoteDefaultBranch();
+                if (remoteBranch && (!branch || branch === 'main' || branch === 'master')) {
+                    effectiveBranch = remoteBranch;
+                }
+            } catch (e) {
+                // Fallback
+            }
+
             // 4. Shallow fetch — only the tip of the tree
-            await runner.fetchShallow(branch);
+            await runner.fetchShallow(effectiveBranch);
 
             // 5. Sparse checkout (if configured)
             // Now that we've fetched, we can use ls-tree to resolve correctly cased topics
             if (this.config.subscribedTopics?.length) {
-                await this.ensureSparseCheckout();
+                await this.ensureSparseCheckout(effectiveBranch);
             }
 
             // 6. Hard reset — force local to match remote exactly
-            await runner.resetHard(branch);
+            await runner.resetHard(effectiveBranch);
 
-            // 7. V2 Architecture Pivot: Re-apply user config to library.json
-            // Since reset --hard might have overwritten library.json with the technical manifest from the repo,
-            // we must ensure our locally-known subscribedTopics and other metadata are preserved.
-            await this.patchLibraryConfig();
-
+            // 7. V2 Architecture Pivot: Local state is now managed strictly in plugin settings,
+            // never by patching the repository's library.json. This prevents git noise.
+            
             // 8. Refresh Obsidian's file cache and reload open tabs
             await this.refreshUI();
 
@@ -140,6 +149,41 @@ export class ShallowSyncExecutor {
                 throw new Error("Cannot initialize Git repo: missing repositoryUrl");
             }
             await runner.remoteAdd(repoUrl);
+        }
+
+        // Ensure _recovered/ is ignored locally to keep git status clean
+        await this.ensureRecoveredIgnored();
+    }
+
+    /**
+     * Add _recovered/ to .git/info/exclude if not already present.
+     * This keeps the directory out of user's 'git status' without modifying the shared .gitignore.
+     */
+    private async ensureRecoveredIgnored(): Promise<void> {
+        const { absoluteDir } = this.config;
+        const excludePath = `${absoluteDir}/.git/info/exclude`;
+        const { readFile, writeFile, mkdir } = require('fs/promises');
+
+        try {
+            // Ensure dir exists (init might have failed or reached a weird state)
+            await mkdir(`${absoluteDir}/.git/info`, { recursive: true });
+
+            let content = '';
+            try {
+                content = await readFile(excludePath, 'utf8');
+            } catch (e) {
+                // File might not exist yet
+            }
+
+            if (!content.includes('_recovered/')) {
+                const newContent = content.endsWith('\n') || content === '' 
+                    ? `${content}_recovered/\n` 
+                    : `${content}\n_recovered/\n`;
+                await writeFile(excludePath, newContent, 'utf8');
+                console.debug(`[ShallowSyncExecutor] Added _recovered/ to ${excludePath}`);
+            }
+        } catch (error) {
+            console.warn('[ShallowSyncExecutor] Failed to update git excludes:', error);
         }
     }
 
@@ -212,6 +256,13 @@ export class ShallowSyncExecutor {
 
         for (const relativePath of dirtyFiles) {
             try {
+                // Skip library.json in recovery — it's intentionally patched by the plugin
+                // and should not trigger a recovery folder on every sync.
+                if (relativePath === 'library.json') {
+                    console.debug(`[ShallowSyncExecutor] Skipping library.json in recovery (plugin-managed)`);
+                    continue;
+                }
+
                 const sourcePath = vaultPath ? `${vaultPath}/${relativePath}` : relativePath;
 
                 // Check if source file actually exists in vault
@@ -245,8 +296,8 @@ export class ShallowSyncExecutor {
     /**
      * Initialize sparse checkout (once) and set subscribed folders.
      */
-    private async ensureSparseCheckout(): Promise<void> {
-        const { runner, branch, subscribedTopics } = this.config;
+    private async ensureSparseCheckout(effectiveBranch: string): Promise<void> {
+        const { runner, subscribedTopics } = this.config;
         if (!subscribedTopics?.length) return;
 
         try {
@@ -257,7 +308,7 @@ export class ShallowSyncExecutor {
             }
 
             // Case Sensitivity Fix: Resolve correctly cased topic folders from remote
-            const actualRemoteFolders = await runner.lsTreeRemote(branch);
+            const actualRemoteFolders = await runner.lsTreeRemote(effectiveBranch);
             const correctlyCasedSubscribedTopics = this.resolveCorrectlyCasedTopics(subscribedTopics, actualRemoteFolders);
 
             await runner.sparseCheckoutSet(correctlyCasedSubscribedTopics);
@@ -288,48 +339,6 @@ export class ShallowSyncExecutor {
         return normalized;
     }
 
-    /**
-     * Patch the local library.json with user-specific configuration.
-     * This ensures fields like subscribedTopics survive a git reset --hard.
-     */
-    public async patchLibraryConfig(availableTopics?: string[]): Promise<void> {
-        const { absoluteDir, subscribedTopics } = this.config;
-        const configPath = `${absoluteDir}/library.json`;
-        const { readFile, writeFile } = require('fs/promises');
-
-        try {
-            let config: any = {};
-            try {
-                const content = await readFile(configPath, 'utf8');
-                config = JSON.parse(content);
-            } catch (e) {
-                console.warn('[ShallowSyncExecutor] library.json not found or invalid after reset, creating new one.');
-            }
-
-            // Patch with local state
-            console.debug(`[ShallowSyncExecutor] Patching library.json for ${absoluteDir}. Local subscribedTopics:`, subscribedTopics);
-            if (subscribedTopics) {
-                config.subscribedTopics = subscribedTopics;
-            }
-            
-            // Patch with latest available topics from technical manifest
-            if (availableTopics) {
-                console.debug(`[ShallowSyncExecutor] Patching availableTopics:`, availableTopics);
-                config.availableTopics = availableTopics;
-            }
-
-            // Also preserve GC timestamp if we have it
-            if (this.config.lastGcTime) {
-                config.lastEngine2GcTime = this.config.lastGcTime;
-            }
-
-            const patchedContent = JSON.stringify(config, null, 2);
-            await writeFile(configPath, patchedContent, 'utf8');
-            console.log(`[ShallowSyncExecutor] Patched library.json at ${configPath}. Final content:`, patchedContent);
-        } catch (error) {
-            console.error('[ShallowSyncExecutor] Failed to patch library.json:', error);
-        }
-    }
 
     // ─── UI Refresh ─────────────────────────────────────────────
 

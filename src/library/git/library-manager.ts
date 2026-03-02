@@ -221,6 +221,13 @@ export class LibraryManager {
     }
 
     /**
+     * Check if a library is currently syncing.
+     */
+    isPublicSyncing(vaultPath: string): boolean {
+        return this.syncManager.isPublicSyncing(vaultPath);
+    }
+
+    /**
      * Engine 2 Subscription Flow: Bootstraps local metadata and starts the sync engine.
      */
     async subscribeToLibrary(vaultPath: string, config: LibraryConfig): Promise<void> {

@@ -172,6 +172,23 @@
     opacity: 0.8;
 }
 
+.library-card-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background-color: var(--interactive-accent);
+    color: white;
+    font-size: 0.7em;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.library-card-badge.is-syncing {
+    background-color: var(--background-modifier-border);
+    color: var(--text-normal);
+}
+
 .library-topic-screen {
     height: 100%;
     overflow-y: auto;
@@ -409,4 +426,13 @@
 
 .library-shelf-search-row .nav-action-button:hover {
     color: var(--text-normal);
+}
+
+@keyframes af-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.af-spin svg {
+    animation: af-spin 2s linear infinite;
 }
