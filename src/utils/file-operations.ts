@@ -1,7 +1,7 @@
 import { Logger } from "../utils/logger";
 import { App, TFile, Notice, TFolder } from "obsidian";
 import { AbstractFolderPluginSettings } from "../settings";
-import { ChildFileType } from "../ui/modals";
+import { ChildFileType } from "../core/ui/modals";
 import { IGraphEngine } from "../core/graph-engine";
 import { AbstractFolderFrontmatter } from "../types";
 import type AbstractFolderPlugin from '../../main';

@@ -1,5 +1,5 @@
 import { Group, SortConfig, FilterConfig, ScopeConfig } from "./types";
-import { LibrarySettings } from "./library/types";
+import { LibrarySettings } from "./features/library/types";
 
 export interface VisibilitySettings {
 	[key: string]: boolean;
@@ -133,7 +133,7 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
       showSearchHeader: true,
     },
     spaces: {
-      showFocusActiveFileButton: false,
+      showFocusActiveFileButton: true,
       showConversionButton: true,
       showCollapseAllButton: true,
       showExpandAllButton: true,
@@ -144,7 +144,7 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
       showSearchHeader: true,
     },
     libraries: {
-      showFocusActiveFileButton: false,
+      showFocusActiveFileButton: true,
       showConversionButton: false,
       showCollapseAllButton: true,
       showExpandAllButton: true,

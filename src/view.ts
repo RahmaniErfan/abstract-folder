@@ -1,1 +1,1 @@
-export * from './ui/view/abstract-folder-view';
+export * from './features/personal/abstract-folder-view';
