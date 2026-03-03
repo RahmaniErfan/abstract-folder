@@ -2,6 +2,7 @@ import { setIcon } from 'obsidian';
 import { AbstractNode } from '../../tree-builder';
 import { ContextEngine } from '../../context-engine';
 import { ScopeProjector } from '../../scope-projector';
+import { Logger } from '../../../utils/logger';
 export interface ViewportDelegate {
     /** Item height in pixels (default 24-28) */
     getItemHeight(): number;
@@ -394,8 +395,9 @@ export class VirtualViewport {
         const isSelected = this.context.isSelected(node.uri);
         const isExpanded = this.context.isExpanded(node.uri);
         const isInScope = this.scope.isInScope(node.uri);
+        const isContextFocused = this.context.getState().contextMenuURI === node.uri;
 
-        const stateFingerprint = `${isSelected}:${isExpanded}:${isInScope}:${index}`;
+        const stateFingerprint = `${isSelected}:${isExpanded}:${isInScope}:${isContextFocused}:${index}`;
         if (el.dataset.stateFingerprint === stateFingerprint) return;
         el.dataset.stateFingerprint = stateFingerprint;
 
@@ -413,6 +415,7 @@ export class VirtualViewport {
         el.classList.toggle("is-selected", isSelected);
         el.classList.toggle("is-expanded", isExpanded);
         el.classList.toggle("is-in-scope", isInScope);
+        el.classList.toggle("is-context-focused", isContextFocused);
 
         const arrow = el.querySelector(".af-collapse-icon");
         if (arrow && arrow instanceof HTMLElement) {

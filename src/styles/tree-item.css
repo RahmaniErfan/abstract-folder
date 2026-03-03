@@ -68,6 +68,11 @@
 	color: var(--nav-item-text-color-active);
 }
 
+.is-context-focused > .af-item-self {
+	outline: 1px solid var(--interactive-accent);
+	outline-offset: -1px;
+}
+
 /* Inner Text Wrapper */
 .af-item-inner {
 	flex-grow: 1;

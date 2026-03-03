@@ -142,8 +142,9 @@ export class AbstractFolderToolbar {
             }, 'note').open();
         } else {
             // Standard abstract creation (Global Orphans)
+            Logger.debug("[Abstract Folder] Toolbar: Handling create note (Standard Abstract/Global)");
             new CreateAbstractChildModal(this.app, this.settings, (name, type) => {
-                createAbstractChildFile(this.app, this.settings, name, null, type, this.plugin.graphEngine).catch(Logger.error);
+                createAbstractChildFile(this.app, this.settings, name, null, type, this.plugin.graphEngine, this.contextEngine).catch(Logger.error);
             }, 'note').open();
         }
     }

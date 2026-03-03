@@ -23,16 +23,14 @@ export class ContextMenuHandler {
     showV2ContextMenu(event: MouseEvent, node: AbstractNode, selection: Set<string>, items: AbstractNode[], options: { isReadOnly?: boolean } = {}) {
         event.preventDefault();
 
-        let activeSelection = selection;
-
-        // 1. Ensure the right-clicked node is selected. 
-        // If not, it becomes the ONLY selection (standard explorer behavior).
-        if (!selection.has(node.uri)) {
-            this.plugin.contextEngine.select(node.uri, { multi: false });
-            activeSelection = this.plugin.contextEngine.getState().selectedURIs;
-        }
+        // 1. Set context focus for outline
+        this.plugin.contextEngine.setContextMenuFocus(node.uri);
 
         // 2. Map URIs to physical paths for the context menu handler
+        // If the right-clicked node isn't in selection, the menu acts ONLY on that node
+        // WITHOUT changing the global selection. This allows the "outline-only" focus.
+        const activeSelection = selection.has(node.uri) ? selection : new Set([node.uri]);
+
         const selectedPhysicalPaths = new Set<string>();
         activeSelection.forEach(uri => {
             const item = items.find(i => i.uri === uri);
@@ -44,6 +42,13 @@ export class ContextMenuHandler {
 
         const menu = new Menu();
         menu.setUseNativeMenu(false);
+
+        // Clear focus on close
+        menu.onHide(() => {
+            if (this.plugin.contextEngine.getState().contextMenuURI === node.uri) {
+                this.plugin.contextEngine.setContextMenuFocus(null);
+            }
+        });
 
         if (selectedPhysicalPaths.size > 1 && selectedPhysicalPaths.has(node.id)) {
             this.addMultiSelectItems(menu, selectedPhysicalPaths, options.isReadOnly);
@@ -169,6 +174,7 @@ export class ContextMenuHandler {
             .setIcon("file-plus")
             .setSection('abstract-folder')
             .onClick(() => {
+                Logger.debug(`[Abstract Folder] ContextMenu: Creating child note for ${parentFile?.path || 'root'}`);
                 new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
                     createAbstractChildFile(this.app, this.settings, childName, parentFile, childType, this.indexer, this.plugin.contextEngine)
                         .catch(Logger.error);
@@ -182,6 +188,7 @@ export class ContextMenuHandler {
             .setIcon("layout-dashboard")
             .setSection('abstract-folder')
             .onClick(() => {
+                Logger.debug(`[Abstract Folder] ContextMenu: Creating child canvas for ${parentFile?.path || 'root'}`);
                 new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
                     createAbstractChildFile(this.app, this.settings, childName, parentFile, childType, this.indexer, this.plugin.contextEngine)
                         .catch(Logger.error);
@@ -195,6 +202,7 @@ export class ContextMenuHandler {
             .setIcon("database")
             .setSection('abstract-folder')
             .onClick(() => {
+                Logger.debug(`[Abstract Folder] ContextMenu: Creating child base for ${parentFile?.path || 'root'}`);
                 new CreateAbstractChildModal(this.app, this.settings, (childName: string, childType: ChildFileType) => {
                     createAbstractChildFile(this.app, this.settings, childName, parentFile, childType, this.indexer, this.plugin.contextEngine)
                         .catch(Logger.error);

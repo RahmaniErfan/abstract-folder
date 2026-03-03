@@ -18,8 +18,10 @@ export interface ContextState {
     activeGroupId: string | null;
     /** Sorting preference */
     sortConfig: SortConfig;
-    /** Currently active Topic filter */
+    /** Current Topic filter */
     activeTopic: string | null;
+    /** URI currently under context menu focus (right-click outline) */
+    contextMenuURI: string | null;
 }
 
 /**
@@ -53,7 +55,8 @@ export class ContextEngine extends EventEmitter {
             activeFilter: initialState?.activeFilter || null,
             activeGroupId: initialState?.activeGroupId || scopeConfig?.activeGroupId || null,
             sortConfig: initialState?.sortConfig || scopeConfig?.sort || { sortBy: 'name', sortOrder: 'asc' },
-            activeTopic: initialState?.activeTopic || null
+            activeTopic: initialState?.activeTopic || null,
+            contextMenuURI: null
         };
     }
 
@@ -85,7 +88,8 @@ export class ContextEngine extends EventEmitter {
         return {
             ...this.state,
             selectedURIs: new Set(this.state.selectedURIs),
-            expandedURIs: new Set(this.state.expandedURIs)
+            expandedURIs: new Set(this.state.expandedURIs),
+            contextMenuURI: this.state.contextMenuURI
         };
     }
 
@@ -165,6 +169,13 @@ export class ContextEngine extends EventEmitter {
 
     setFocus(uri: string | null): void {
         this.state.focusedURI = uri;
+        this.emit('changed', this.getState());
+    }
+
+    setContextMenuFocus(uri: string | null): void {
+        const changed = this.state.contextMenuURI !== uri;
+        if (!changed) return;
+        this.state.contextMenuURI = uri;
         this.emit('changed', this.getState());
     }
 

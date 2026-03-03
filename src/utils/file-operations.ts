@@ -201,6 +201,7 @@ aliases:
         }
 
         const file = await app.vault.create(fileName, initialContent);
+        Logger.debug(`[Abstract Folder] FileOperations: File created at ${file.path}`);
         new Notice(`Created: ${fileName}`);
 
         if (fileExtension !== '.md' && parentFile && parentFile.extension === 'md') {
@@ -225,6 +226,7 @@ aliases:
         }
 
         if (parentFile && contextEngine) {
+            Logger.debug(`[Abstract Folder] FileOperations: Expanding parent in context: ${parentFile.path}`);
             contextEngine.setExpanded(parentFile.path, true);
         }
 
@@ -246,9 +248,13 @@ aliases:
                 frontmatter: frontmatter
             }
         });
+        Logger.debug(`[Abstract Folder] FileOperations: Seeding relationship for ${file.path}`);
         graphEngine.seedRelationships(rels);
 
+        Logger.debug(`[Abstract Folder] FileOperations: Opening file ${file.path}`);
         await app.workspace.getLeaf(true).openFile(file).catch(Logger.error);
+        
+        Logger.debug("[Abstract Folder] FileOperations: Triggering graph-updated event");
         app.workspace.trigger('abstract-folder:graph-updated');
     } catch (error) {
         new Notice(`Failed to create file: ${error}`);

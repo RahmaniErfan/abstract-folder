@@ -24,9 +24,8 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
     constructor(leaf: WorkspaceLeaf, plugin: AbstractFolderPlugin) {
         super(leaf);
         this.plugin = plugin;
-        // Initialize local context engine for global scope
-        const { ContextEngine } = require("../../../../core/context-engine");
-        this.contextEngine = new ContextEngine(plugin, 'global');
+        // Use the global context engine from the plugin
+        this.contextEngine = this.plugin.contextEngine;
         
         this.debouncedRefreshTree = debounce(this.refreshTree.bind(this), 20);
     }
@@ -196,30 +195,42 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
     }
 
     public async focusFile(path: string) {
+        Logger.debug(`[Abstract Folder] View: focusFile requested for path: ${path}`);
         let snapshot = this.currentSnapshot;
-        if (!snapshot) return;
+        if (!snapshot) {
+            Logger.debug("[Abstract Folder] View: No snapshot found, refreshing tree first...");
+            await this.refreshTree();
+            snapshot = this.currentSnapshot;
+        }
+        if (!snapshot) {
+            Logger.warn("[Abstract Folder] View: Failed to focus file, tree refresh returned no snapshot.");
+            return;
+        }
 
         let matchingNode = snapshot.items.find(item => item.id === path);
         let uri: string | null = matchingNode?.uri || null;
 
         // If not found in current snapshot, attempt to resolve from graph
         if (!uri) {
+            Logger.debug("[Abstract Folder] View: Node not in snapshot, resolving URI from graph...");
             const state = this.contextEngine.getState();
             const provider = new GlobalContentProvider(this.app, this.plugin.settings, state.activeGroupId);
             const roots = provider.getRoots(this.plugin.graphEngine);
             uri = this.plugin.treeBuilder.resolveURIFromGraph(path, roots);
+            Logger.debug(`[Abstract Folder] View: URI resolved from graph: ${uri}`);
         }
 
         if (uri) {
-            let stateChanged = false;
+            let expansionChanged = false;
 
             // 1. Expand Parents
             if (this.plugin.settings.autoExpandParents) {
                 const parentURIs = this.plugin.treeBuilder.getParentURIs(uri);
                 for (const p of parentURIs) {
                     if (!this.contextEngine.isExpanded(p)) {
+                        Logger.debug(`[Abstract Folder] View: Auto-expanding parent: ${p}`);
                         this.contextEngine.setExpanded(p, true);
-                        stateChanged = true;
+                        expansionChanged = true;
                     }
                 }
             }
@@ -227,22 +238,31 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
             // 2. Expand Children (if enabled)
             if (this.plugin.settings.autoExpandChildren) {
                 if (!this.contextEngine.isExpanded(uri)) {
+                    Logger.debug(`[Abstract Folder] View: Auto-expanding children of: ${uri}`);
                     this.contextEngine.setExpanded(uri, true);
-                    stateChanged = true;
+                    expansionChanged = true;
                 }
             }
 
-            // 3. Refresh if we changed expansion state
-            if (stateChanged) {
+            // 3. FORCE REFRESH if we either changed expansion OR if the node still isn't in our snapshot
+            // This handles the race where the file was JUST created and hasn't made it into the viewport yet.
+            const nodeInSnapshot = snapshot.items.some(item => item.uri === uri);
+            if (expansionChanged || !nodeInSnapshot) {
+                Logger.debug(`[Abstract Folder] View: Refreshing tree (expansionChanged=${expansionChanged}, nodeInSnapshot=${nodeInSnapshot})`);
                 await this.refreshTree();
                 snapshot = this.currentSnapshot!;
             }
             
             matchingNode = snapshot.items.find(item => item.uri === uri);
             if (matchingNode) {
+                Logger.debug(`[Abstract Folder] View: Final match found, selecting and scrolling: ${uri}`);
                 this.contextEngine.select(matchingNode.uri, { multi: false });
                 this.viewport.scrollToItem(matchingNode.uri);
+            } else {
+                Logger.warn(`[Abstract Folder] View: URI was resolved but still not found in tree after refresh: ${uri}`);
             }
+        } else {
+            Logger.warn(`[Abstract Folder] View: Could not resolve URI for path: ${path}`);
         }
     }
 
