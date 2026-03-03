@@ -228,16 +228,25 @@ aliases:
             contextEngine.setExpanded(parentFile.path, true);
         }
 
-        // ACTIVE SEEDING: Tell the graph engine about the relationship immediately.
+        // ACTIVE SEEDING: Tell the graph engine about the relationship and metadata immediately.
         // Don't wait for Obsidian's metadata cache to catch up.
+        const rels = new Map();
+        const primaryParentProp = settings.parentPropertyNames[0] || settings.propertyName;
+        const frontmatter: any = {
+            aliases: [childName]
+        };
         if (parentFile) {
-            const rels = new Map();
-            rels.set(file.path, {
-                definedParents: new Set([parentFile.path]),
-                definedChildren: new Set()
-            });
-            graphEngine.seedRelationships(rels);
+            frontmatter[primaryParentProp] = `[[${parentFile.basename}]]`;
         }
+
+        rels.set(file.path, {
+            definedParents: new Set(parentFile ? [parentFile.path] : []),
+            definedChildren: new Set(),
+            metadata: {
+                frontmatter: frontmatter
+            }
+        });
+        graphEngine.seedRelationships(rels);
 
         await app.workspace.getLeaf(true).openFile(file).catch(Logger.error);
         app.workspace.trigger('abstract-folder:graph-updated');

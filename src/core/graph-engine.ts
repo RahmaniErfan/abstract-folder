@@ -86,6 +86,7 @@ Verify "Create Note" while in the library group creates a file at the library ro
 export interface FileDefinedRelationships {
     definedParents: Set<FileID>;
     definedChildren: Set<FileID>;
+    metadata?: Partial<NodeMeta>;
 }
 
 /**
@@ -646,17 +647,19 @@ export class GraphEngine implements IGraphEngine {
                 for (const c of rels.definedChildren) this.index.addEdge(id, c);
 
                 // Update node metadata
-                const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
+                // Prioritize provided metadata (e.g. from creation) over current cache
+                const frontmatter = rels.metadata?.frontmatter || this.app.metadataCache.getFileCache(file)?.frontmatter;
                 this.index.addNode(id, {
                     extension: file.extension,
                     mtime: file.stat.mtime,
                     isOrphan: rels.definedParents.size === 0,
-                    icon: frontmatter?.icon as string | undefined,
-                    topic: frontmatter?.topic as string | undefined,
+                    icon: (rels.metadata?.icon || frontmatter?.icon) as string | undefined,
+                    topic: (rels.metadata?.topic || frontmatter?.topic) as string | undefined,
                     frontmatter: frontmatter,
                     isLibrary: this.isLibraryPath(id),
                     isShared: this.isSharedSpacePath(id),
-                    isBackup: this.isPersonalBackupPath(id)
+                    isBackup: this.isPersonalBackupPath(id),
+                    ...rels.metadata
                 });
             }
         }
@@ -743,19 +746,19 @@ export class GraphEngine implements IGraphEngine {
         
         // Skip topology processing if relationships are identical
         if (oldRelationships && this.areRelationshipsEqual(oldRelationships, newRelationships)) {
-            // Still update metadata (mtime/icon/frontmatter) but check if UI needs refresh
+            // Check if metadata (mtime/icon/frontmatter) has changed
             const metadataChanged = !oldMeta || 
                 oldMeta.mtime !== file.stat.mtime || 
-                oldMeta.icon !== frontmatter?.icon ||
-                oldMeta.topic !== frontmatter?.topic ||
-                JSON.stringify(oldMeta.frontmatter) !== JSON.stringify(frontmatter);
+                oldMeta.icon !== (frontmatter?.icon || oldRelationships.metadata?.icon) ||
+                oldMeta.topic !== (frontmatter?.topic || oldRelationships.metadata?.topic) ||
+                JSON.stringify(oldMeta.frontmatter) !== JSON.stringify(frontmatter || oldRelationships.metadata?.frontmatter);
 
             this.index.addNode(file.path, {
                 mtime: file.stat.mtime,
                 extension: file.extension,
-                icon: frontmatter?.icon as string | undefined,
-                topic: frontmatter?.topic as string | undefined,
-                frontmatter: frontmatter,
+                icon: (frontmatter?.icon || oldRelationships.metadata?.icon) as string | undefined,
+                topic: (frontmatter?.topic || oldRelationships.metadata?.topic) as string | undefined,
+                frontmatter: frontmatter || oldRelationships.metadata?.frontmatter,
                 isLibrary: this.isLibraryPath(file.path),
                 isShared: this.isSharedSpacePath(file.path),
                 isBackup: this.isPersonalBackupPath(file.path)
@@ -795,7 +798,8 @@ export class GraphEngine implements IGraphEngine {
 
         const existingNode = this.index.getNode(file.path);
         
-        if (!existingNode) {
+        // Ensure refresh if brand new or if it was previously an orphan and we aren't sure
+        if (!oldRelationships || !existingNode) {
             changed = true;
         }
 
@@ -810,7 +814,7 @@ export class GraphEngine implements IGraphEngine {
             isShared: this.isSharedSpacePath(file.path),
             isBackup: this.isPersonalBackupPath(file.path)
         });
-        return changed;
+        return changed; // returns true if topology changed or if it's new
     }
 
     private areRelationshipsEqual(a: FileDefinedRelationships, b: FileDefinedRelationships): boolean {
