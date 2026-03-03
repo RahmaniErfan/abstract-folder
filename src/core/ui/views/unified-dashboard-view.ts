@@ -1,6 +1,6 @@
 import { App, Setting, Notice, setIcon, ButtonComponent, TFile, TFolder, moment } from "obsidian";
 import AbstractFolderPlugin from "main";
-import { CollaboratorView } from "./collaborator-view";
+import { CollaboratorView } from "../components/collaborator-view";
 
 export class UnifiedDashboardView {
     private collaboratorView: CollaboratorView;

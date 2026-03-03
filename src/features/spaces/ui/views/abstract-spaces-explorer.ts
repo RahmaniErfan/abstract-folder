@@ -1,18 +1,18 @@
 import { ItemView, WorkspaceLeaf, Menu, Notice, TFile, setIcon, Plugin, TFolder, Platform, debounce } from "obsidian";
-import { Logger } from "../../utils/logger";
+import { Logger } from "../../../../utils/logger";
 import AbstractFolderPlugin from "main";
-import { CreateSharedSpaceModal } from "./create-shared-space-modal";
-import { JoinSharedSpaceModal } from "./join-shared-space-modal";
-import { LinkSharedSpaceModal } from "./link-shared-space-modal";
-import { DeleteSharedSpaceModal } from "./delete-shared-space-modal";
-import { AbstractDashboardModal } from "../../core/ui/modals/abstract-dashboard-modal";
-import { SpacesInfoModal } from "./spaces-info-modal";
-import { VirtualViewport, ViewportDelegate } from "../../core/ui/components/virtual-viewport";
-import { ContextEngine } from "../../core/context-engine";
-import { AbstractNode } from "../../core/tree-builder";
-import { AbstractFolderToolbar } from "../../core/ui/toolbar/abstract-folder-toolbar";
-import { AbstractSearch } from "../../core/ui/search/abstract-search";
-import { ScopedContentProvider } from "../../core/content-provider";
+import { CreateSharedSpaceModal } from "../modals/create-shared-space-modal";
+import { JoinSharedSpaceModal } from "../modals/join-shared-space-modal";
+import { LinkSharedSpaceModal } from "../modals/link-shared-space-modal";
+import { DeleteSharedSpaceModal } from "../modals/delete-shared-space-modal";
+import { AbstractDashboardModal } from "../../../../core/ui/modals/abstract-dashboard-modal";
+import { SpacesInfoModal } from "../modals/spaces-info-modal";
+import { VirtualViewport, ViewportDelegate } from "../../../../core/ui/components/virtual-viewport";
+import { ContextEngine } from "../../../../core/context-engine";
+import { AbstractNode } from "../../../../core/tree-builder";
+import { AbstractFolderToolbar } from "../../../../core/ui/toolbar/abstract-folder-toolbar";
+import { AbstractSearch } from "../../../../core/ui/search/abstract-search";
+import { ScopedContentProvider } from "../../../../core/content-provider";
 
 export const ABSTRACT_SPACES_VIEW_TYPE = "abstract-spaces-explorer";
 
@@ -38,7 +38,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
     constructor(leaf: WorkspaceLeaf, plugin: AbstractFolderPlugin) {
         super(leaf);
         this.plugin = plugin;
-        const { ContextEngine } = require("../../core/context-engine");
+        const { ContextEngine } = require("../../../../core/context-engine");
         this.contextEngine = new ContextEngine(plugin, 'library');
         this.debouncedRefreshSpaceTree = debounce(this.refreshSpaceTree.bind(this), 20);
         // 300ms debounce prevents duplicate renders from rapid file events after a git sync
@@ -124,7 +124,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         const finish = () => { this.isRenderingView = false; };
 
         if (this.selectedSpace) {
-            const { ContextEngine } = require("../../core/context-engine");
+            const { ContextEngine } = require("../../../../core/context-engine");
             this.contextEngine = new ContextEngine(this.plugin, `space:${this.selectedSpace.path}`);
             
             this.contextEngine.on('changed', () => { this.debouncedRefreshSpaceTree(); });
@@ -132,7 +132,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             
             this.renderSpaceTree(container).then(finish).catch((e) => { Logger.error("renderView", e); finish(); });
         } else {
-            const { ContextEngine } = require("../../core/context-engine");
+            const { ContextEngine } = require("../../../../core/context-engine");
             this.contextEngine = new ContextEngine(this.plugin, 'library');
             
             this.renderShelf(container).then(finish).catch((e) => { Logger.error("renderView", e); finish(); });

@@ -1,6 +1,6 @@
 import { App, Modal } from "obsidian";
 import AbstractFolderPlugin from "main";
-import { UnifiedDashboardView } from "../components/unified-dashboard-view";
+import { UnifiedDashboardView } from "../views/unified-dashboard-view";
 
 export class AbstractDashboardModal extends Modal {
     constructor(

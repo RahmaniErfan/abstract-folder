@@ -1,8 +1,8 @@
 import { App, setIcon, Notice } from "obsidian";
 import type AbstractFolderPlugin from "main";
-import { Logger } from "../../utils/logger";
-import { AbstractFolderPluginSettings } from "../../settings";
-import { AbstractDashboardModal } from "../../core/ui/modals/abstract-dashboard-modal";
+import { Logger } from "../../../../utils/logger";
+import { AbstractFolderPluginSettings } from "../../../../settings";
+import { AbstractDashboardModal } from "../../../../core/ui/modals/abstract-dashboard-modal";
 
 export class AbstractFolderStatusBar {
     private containerEl: HTMLElement;

@@ -1,12 +1,12 @@
 import { ItemView, WorkspaceLeaf, TFile, Notice, Platform, setIcon, debounce } from "obsidian";
 import type AbstractFolderPlugin from "main";
-import { VirtualViewport, ViewportDelegate } from "../../core/ui/components/virtual-viewport";
-import { AbstractFolderViewToolbar } from "../../core/ui/toolbar/abstract-folder-view-toolbar";
-import { AbstractFolderStatusBar } from "./abstract-folder-status-bar";
-import { TreeSnapshot, AbstractNode } from "../../core/tree-builder";
-import { Logger } from "../../utils/logger";
-import { AbstractSearch } from "../../core/ui/search/abstract-search";
-import { GlobalContentProvider } from "../../core/content-provider";
+import { VirtualViewport, ViewportDelegate } from "../../../../core/ui/components/virtual-viewport";
+import { AbstractFolderViewToolbar } from "../../../../core/ui/toolbar/abstract-folder-view-toolbar";
+import { AbstractFolderStatusBar } from "../components/abstract-folder-status-bar";
+import { TreeSnapshot, AbstractNode } from "../../../../core/tree-builder";
+import { Logger } from "../../../../utils/logger";
+import { AbstractSearch } from "../../../../core/ui/search/abstract-search";
+import { GlobalContentProvider } from "../../../../core/content-provider";
 
 export const VIEW_TYPE_ABSTRACT_FOLDER = "abstract-folder-view";
 
@@ -18,14 +18,14 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
     private currentSnapshot: TreeSnapshot | null = null;
     private isRefreshing = false;
     private nextRefreshScheduled = false;
-    private contextEngine: import("../../core/context-engine").ContextEngine;
+    private contextEngine: import("../../../../core/context-engine").ContextEngine;
     private debouncedRefreshTree: (options?: { forceExpand?: boolean, repair?: boolean }) => void;
 
     constructor(leaf: WorkspaceLeaf, plugin: AbstractFolderPlugin) {
         super(leaf);
         this.plugin = plugin;
         // Initialize local context engine for global scope
-        const { ContextEngine } = require("../../core/context-engine");
+        const { ContextEngine } = require("../../../../core/context-engine");
         this.contextEngine = new ContextEngine(plugin, 'global');
         
         this.debouncedRefreshTree = debounce(this.refreshTree.bind(this), 20);

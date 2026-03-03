@@ -1,7 +1,7 @@
 import { App, TFolder, Notice, normalizePath, Platform } from "obsidian";
 import { GraphEngine } from "../core/graph-engine";
 import { AbstractFolderPluginSettings } from "../settings";
-import { VIEW_TYPE_ABSTRACT_FOLDER } from "../features/personal/abstract-folder-view";
+import { VIEW_TYPE_ABSTRACT_FOLDER } from "../features/personal/ui/views/abstract-folder-view";
 import { getLogs, Logger } from "./logger";
 import { HIDDEN_FOLDER_ID } from "../types";
 

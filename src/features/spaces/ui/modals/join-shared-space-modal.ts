@@ -1,7 +1,7 @@
 
 import { App, Modal, Setting, Notice } from "obsidian";
 import AbstractFolderPlugin from "main";
-import { LibraryManager } from "../../core/git/library-manager";
+import { LibraryManager } from "../../../../core/git/library-manager";
 export class JoinSharedSpaceModal extends Modal {
     plugin: AbstractFolderPlugin;
     libraryManager: LibraryManager;

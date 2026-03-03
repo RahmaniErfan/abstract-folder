@@ -1,6 +1,6 @@
 import { App, Modal, Setting, Notice, setIcon, ButtonComponent, TFolder, moment } from "obsidian";
 import AbstractFolderPlugin from "main";
-import { CollaboratorView } from "../../core/ui/components/collaborator-view";
+import { CollaboratorView } from "../../../../core/ui/components/collaborator-view";
 
 export class SpaceDashboardModal extends Modal {
     private collaboratorView: CollaboratorView;

@@ -1,6 +1,6 @@
 import { Modal, App, Setting, TFolder, Notice } from "obsidian";
-import type AbstractFolderPlugin from "../../../main";
-import { AuthService } from "../../core/git/manager/auth-service";
+import type AbstractFolderPlugin from "../../../../../main";
+import { AuthService } from "../../../../core/git/manager/auth-service";
 
 export class PersonalBackupModal extends Modal {
     private repoName: string;

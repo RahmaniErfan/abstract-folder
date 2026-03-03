@@ -1,9 +1,9 @@
 import { ItemView, WorkspaceLeaf, Notice, FileSystemAdapter, setIcon, requestUrl, MarkdownRenderer } from "obsidian";
-import { Logger } from "../../../utils/logger";
-import { CatalogItem } from "../types";
-import { CatalogService } from "../services/catalog-service";
-import { LibraryManager } from "../../../core/git/library-manager";
-import type AbstractFolderPlugin from "../../../../main";
+import { Logger } from "../../../../utils/logger";
+import { CatalogItem } from "../../types";
+import { CatalogService } from "../../services/catalog-service";
+import { LibraryManager } from "../../../../core/git/library-manager";
+import type AbstractFolderPlugin from "../../../../../main";
 
 export const VIEW_TYPE_LIBRARY_CENTER = "abstract-library-center";
 

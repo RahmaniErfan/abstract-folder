@@ -1,8 +1,8 @@
 
 import { App, Modal, Setting, Notice, TFolder } from "obsidian";
 import AbstractFolderPlugin from "main";
-import { LibraryManager } from "../../core/git/library-manager";
-import { AuthService } from "../../core/git/manager/auth-service";
+import { LibraryManager } from "../../../../core/git/library-manager";
+import { AuthService } from "../../../../core/git/manager/auth-service";
 
 export class CreateSharedSpaceModal extends Modal {
     plugin: AbstractFolderPlugin;

@@ -1,13 +1,13 @@
 import { ItemView, WorkspaceLeaf, debounce, TFolder, TFile } from "obsidian";
-import type AbstractFolderPlugin from "../../../../main";
-import { Logger } from "../../../utils/logger";
-import { ContextEngine } from "../../../core/context-engine";
-import { CatalogService } from "../services/catalog-service";
-import { CatalogItem, LibraryNode } from "../types";
-import { LibraryShelf } from "./components/library-shelf";
-import { LibraryTopicScreen } from "./components/library-topic-screen";
-import { LibraryDiscoveryDetail } from "./components/library-discovery-detail";
-import { LibraryTreeView } from "./components/library-tree-view";
+import type AbstractFolderPlugin from "../../../../../main";
+import { Logger } from "../../../../utils/logger";
+import { ContextEngine } from "../../../../core/context-engine";
+import { CatalogService } from "../../services/catalog-service";
+import { CatalogItem, LibraryNode } from "../../types";
+import { LibraryShelf } from "../components/library-shelf";
+import { LibraryTopicScreen } from "../components/library-topic-screen";
+import { LibraryDiscoveryDetail } from "../components/library-discovery-detail";
+import { LibraryTreeView } from "../components/library-tree-view";
 
 export const VIEW_TYPE_LIBRARY_EXPLORER = "abstract-library-explorer";
 

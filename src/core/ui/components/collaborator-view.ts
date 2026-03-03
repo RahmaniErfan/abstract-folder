@@ -21,7 +21,7 @@ export class CollaboratorView {
         // Collaborators Section
         const collabSection = this.containerEl.createDiv({ cls: "af-dashboard-section" });
         collabSection.createEl("h3", { text: "Collaborators" });
-        this.collabListContainer = collabSection.createDiv({ cls: "af-collaborator-list" });
+    this.collabListContainer = collabSection.createDiv({ cls: "af-collaborator-list" });
         this.renderSkeleton(this.collabListContainer, 2);
 
         if (this.isOwner) {
