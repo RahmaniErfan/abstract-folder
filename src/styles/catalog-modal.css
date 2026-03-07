@@ -171,7 +171,10 @@
 }
 
 .af-library-detail-header {
-    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px 24px;
     border-bottom: 1px solid var(--background-modifier-border);
     background-color: var(--background-secondary-alt);
     flex-shrink: 0;
@@ -179,14 +182,34 @@
 
 .af-library-detail-title-row {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
+    justify-content: center;
+    width: 100%;
+    position: relative;
+    padding: 4px 0;
+    min-height: 40px;
 }
 
 .af-library-detail-title-row h2 {
     margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+    max-width: 100%;
 }
+
+.af-library-detail-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    width: 100%;
+    margin-top: 4px;
+    flex-wrap: wrap;
+}
+
+
 
 .af-library-detail-heart {
     color: var(--text-accent);
@@ -204,10 +227,11 @@
 
 .af-library-detail-meta {
     display: flex;
-    gap: 16px;
+    align-items: center;
+    gap: 8px;
     color: var(--text-muted);
     font-size: 0.95em;
-    margin-bottom: 16px;
+    margin-bottom: 0;
 }
 
 .af-library-detail-meta .author {
@@ -215,12 +239,56 @@
     color: var(--text-normal);
 }
 
+.af-library-detail-meta .category {
+    padding: 2px 8px;
+    border-radius: 12px;
+    background-color: var(--background-modifier-border);
+    font-size: 0.85em;
+    color: var(--text-muted);
+}
+
 .af-catalog-detail .af-library-detail-actions {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 12px;
-    margin-top: 16px;
+    margin-top: 0;
+    padding-top: 0;
+    width: auto;
     opacity: 1 !important; /* Override shared class from library-explorer.css */
+}
+
+.af-library-detail-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border-radius: 4px;
+    background-color: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.af-library-detail-action:hover {
+    background-color: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.af-library-detail-action.mod-warning {
+    color: var(--text-error);
+}
+
+.af-library-detail-action.mod-warning:hover {
+    background-color: hsla(var(--color-red-hsl), 0.1);
+}
+
+.af-library-detail-action.mod-cta {
+    color: var(--interactive-accent);
+}
+
+.af-library-detail-action.mod-cta:hover {
+    background-color: hsla(var(--interactive-accent-hsl), 0.1);
 }
 
 .af-library-detail-body {

@@ -212,11 +212,17 @@ export class LibraryCenterView extends ItemView {
         const titleRow = header.createDiv({ cls: "af-library-detail-title-row" });
         titleRow.createEl("h2", { text: item.name });
 
-        const meta = header.createDiv({ cls: "af-library-detail-meta" });
-        meta.createSpan({ text: `By ${item.author}`, cls: "author" });
-        meta.createSpan({ text: item.category, cls: "category" });
+        const metaRow = header.createDiv({ cls: "af-library-detail-meta-row" });
+        
+        const authorInfo = metaRow.createDiv({ cls: "af-library-detail-meta" });
+        authorInfo.createSpan({ text: "Author:", cls: "meta-label" });
+        authorInfo.createSpan({ text: item.author, cls: "author" });
 
-        const actions = header.createDiv({ cls: "af-library-detail-actions" });
+        const categoryInfo = metaRow.createDiv({ cls: "af-library-detail-meta" });
+        categoryInfo.createSpan({ text: "Category:", cls: "meta-label" });
+        categoryInfo.createSpan({ text: item.category, cls: "category" });
+
+        const actions = metaRow.createDiv({ cls: "af-library-detail-actions" });
         
         if (item.fundingUrl) {
             const heart = actions.createDiv({ cls: "af-library-detail-action af-library-detail-heart clickable-icon", attr: { "aria-label": "Support" } });
@@ -241,14 +247,18 @@ export class LibraryCenterView extends ItemView {
         }
 
         if (isInstalled) {
-            const uninstallBtn = actions.createEl("button", { text: "Uninstall", cls: "mod-warning" });
+            const actionsRow = actions.createDiv({ cls: "af-library-installed-actions" });
+            const uninstallBtn = actionsRow.createDiv({ cls: "af-library-detail-action clickable-icon mod-warning", attr: { "aria-label": "Uninstall" } });
+            setIcon(uninstallBtn, "trash");
             uninstallBtn.addEventListener("click", () => this.uninstallLibrary(item, uninstallBtn));
         } else {
-            const installBtn = actions.createEl("button", { text: "Install", cls: "mod-cta" });
+            const installBtn = actions.createDiv({ cls: "af-library-detail-action clickable-icon mod-cta", attr: { "aria-label": "Install" } });
+            setIcon(installBtn, "download");
             installBtn.addEventListener("click", () => this.installLibrary(item, installBtn));
         }
 
-        const ghBtn = actions.createEl("button", { text: "View on GitHub" });
+        const ghBtn = actions.createDiv({ cls: "af-library-detail-action clickable-icon", attr: { "aria-label": "View on GitHub" } });
+        setIcon(ghBtn, "github");
         ghBtn.addEventListener("click", () => window.open(item.repositoryUrl, "_blank"));
 
         const body = this.detailEl.createDiv({ cls: "af-library-detail-body markdown-rendered" });
@@ -286,10 +296,11 @@ export class LibraryCenterView extends ItemView {
         })();
     }
 
-    private async installLibrary(item: CatalogItem, btn?: HTMLButtonElement) {
+    private async installLibrary(item: CatalogItem, btn?: HTMLElement) {
         if (btn) {
-            btn.disabled = true;
-            btn.setText("Installing...");
+            btn.style.pointerEvents = "none";
+            btn.style.opacity = "0.5";
+            setIcon(btn, "hourglass");
         }
 
         try {
@@ -307,8 +318,7 @@ export class LibraryCenterView extends ItemView {
             
             new Notice(`Successfully installed ${item.name}`);
             if (btn) {
-                btn.setText("Installed");
-                btn.disabled = true;
+                setIcon(btn, "check");
             }
             
             this.plugin.app.workspace.trigger("abstract-folder:graph-updated");
@@ -321,16 +331,18 @@ export class LibraryCenterView extends ItemView {
             console.error(error);
             new Notice(`Failed to install ${item.name}: ${error instanceof Error ? error.message : String(error)}`);
             if (btn) {
-                btn.disabled = false;
-                btn.setText("Install");
+                btn.style.pointerEvents = "auto";
+                btn.style.opacity = "1";
+                setIcon(btn, "download");
             }
         }
     }
 
-    private async uninstallLibrary(item: CatalogItem, btn?: HTMLButtonElement) {
+    private async uninstallLibrary(item: CatalogItem, btn?: HTMLElement) {
         if (btn) {
-            btn.disabled = true;
-            btn.setText("Uninstalling...");
+            btn.style.pointerEvents = "none";
+            btn.style.opacity = "0.5";
+            setIcon(btn, "hourglass");
         }
 
         try {
@@ -350,8 +362,9 @@ export class LibraryCenterView extends ItemView {
             console.error(error);
             new Notice(`Failed to uninstall ${item.name}`);
             if (btn) {
-                btn.disabled = false;
-                btn.setText("Uninstall");
+                btn.style.pointerEvents = "auto";
+                btn.style.opacity = "1";
+                setIcon(btn, "trash");
             }
         }
     }

@@ -246,13 +246,21 @@ export class CatalogModal extends Modal {
         this.detailEl.empty();
 
         const header = this.detailEl.createDiv({ cls: "af-library-detail-header" });
-        header.createEl("h2", { text: item.name });
 
-        const meta = header.createDiv({ cls: "af-library-detail-meta" });
-        meta.createSpan({ text: `By ${item.author}`, cls: "author" });
-        meta.createSpan({ text: item.category, cls: "category" });
+        const titleRow = header.createDiv({ cls: "af-library-detail-title-row" });
+        titleRow.createEl("h2", { text: item.name });
 
-        const actions = header.createDiv({ cls: "af-library-detail-actions" });
+        const metaRow = header.createDiv({ cls: "af-library-detail-meta-row" });
+        
+        const authorInfo = metaRow.createDiv({ cls: "af-library-detail-meta" });
+        authorInfo.createSpan({ text: "Author:", cls: "meta-label" });
+        authorInfo.createSpan({ text: item.author, cls: "author" });
+
+        const categoryInfo = metaRow.createDiv({ cls: "af-library-detail-meta" });
+        categoryInfo.createSpan({ text: "Category:", cls: "meta-label" });
+        categoryInfo.createSpan({ text: item.category, cls: "category" });
+
+        const actions = metaRow.createDiv({ cls: "af-library-detail-actions" });
         
         if (item.fundingUrl) {
             const heart = actions.createDiv({ cls: "af-library-detail-action af-library-detail-heart clickable-icon", attr: { "aria-label": "Support" } });
@@ -285,7 +293,8 @@ export class CatalogModal extends Modal {
 
         if (isInstalled) {
             const actionsRow = actions.createDiv({ cls: "af-library-installed-actions" });
-            const uninstallBtn = actionsRow.createEl("button", { text: "Uninstall", cls: "mod-warning" });
+            const uninstallBtn = actionsRow.createDiv({ cls: "af-library-detail-action clickable-icon mod-warning", attr: { "aria-label": "Uninstall" } });
+            setIcon(uninstallBtn, "trash");
             uninstallBtn.addEventListener("click", () => this.uninstallLibrary(item, uninstallBtn));
 
             // Handshake to see if we can manage subscriptions
@@ -293,7 +302,8 @@ export class CatalogModal extends Modal {
                 try {
                     const config = await this.libraryManager.validateLibrary(destPath);
                     if (config.availableTopics && config.availableTopics.length > 0) {
-                        const manageBtn = actionsRow.createEl("button", { text: "Manage Subscriptions", cls: "af-manage-sub-btn" });
+                        const manageBtn = actionsRow.createDiv({ cls: "af-library-detail-action clickable-icon af-manage-sub-btn", attr: { "aria-label": "Manage Subscriptions" } });
+                        setIcon(manageBtn, "settings");
                         manageBtn.addEventListener("click", () => {
                             new TopicSubscriptionModal(this.app, config, destPath, this.libraryManager, () => {
                                 this.renderLibraryDetail(item);
@@ -303,10 +313,12 @@ export class CatalogModal extends Modal {
                 } catch (e) {}
             })();
         } else {
-            const installBtn = actions.createEl("button", { text: "Install", cls: "mod-cta" });
+            const installBtn = actions.createDiv({ cls: "af-library-detail-action clickable-icon mod-cta", attr: { "aria-label": "Install" } });
+            setIcon(installBtn, "download");
             installBtn.addEventListener("click", async () => {
-                installBtn.disabled = true;
-                installBtn.setText("Checking topics...");
+                installBtn.style.pointerEvents = "none";
+                installBtn.style.opacity = "0.5";
+                setIcon(installBtn, "hourglass");
 
                 try {
                     // Handshake: Fetch remote library.json
@@ -317,8 +329,9 @@ export class CatalogModal extends Modal {
                         new TopicSubscriptionModal(this.app, remoteConfig, destPath, this.libraryManager, () => {
                             this.renderLibraryDetail(item);
                         }).open();
-                        installBtn.setText("Install");
-                        installBtn.disabled = false;
+                        setIcon(installBtn, "download");
+                        installBtn.style.pointerEvents = "auto";
+                        installBtn.style.opacity = "1";
                     } else {
                         // Standard library: Traditional install
                         this.installLibrary(item, installBtn);
@@ -329,7 +342,8 @@ export class CatalogModal extends Modal {
             });
         }
 
-        const ghBtn = actions.createEl("button", { text: "View on GitHub" });
+        const ghBtn = actions.createDiv({ cls: "af-library-detail-action clickable-icon", attr: { "aria-label": "View on GitHub" } });
+        setIcon(ghBtn, "github");
         ghBtn.addEventListener("click", () => window.open(item.repositoryUrl, "_blank"));
 
         const body = this.detailEl.createDiv({ cls: "af-library-detail-body markdown-rendered" });
@@ -476,10 +490,11 @@ export class CatalogModal extends Modal {
         });
     }
 
-    private async installLibrary(item: CatalogItem, btn?: HTMLButtonElement) {
+    private async installLibrary(item: CatalogItem, btn?: HTMLElement) {
         if (btn) {
-            btn.disabled = true;
-            btn.setText("Installing...");
+            btn.style.pointerEvents = "none";
+            btn.style.opacity = "0.5";
+            setIcon(btn, "hourglass");
         }
 
         try {
@@ -497,8 +512,7 @@ export class CatalogModal extends Modal {
             
             new Notice(`Successfully installed ${item.name}`);
             if (btn) {
-                btn.setText("Installed");
-                btn.disabled = true;
+                setIcon(btn, "check");
             }
             
             this.plugin.app.workspace.trigger("abstract-folder:graph-updated");
@@ -511,16 +525,18 @@ export class CatalogModal extends Modal {
             console.error(error);
             new Notice(`Failed to install ${item.name}: ${error instanceof Error ? error.message : String(error)}`);
             if (btn) {
-                btn.disabled = false;
-                btn.setText("Install");
+                btn.style.pointerEvents = "auto";
+                btn.style.opacity = "1";
+                setIcon(btn, "download");
             }
         }
     }
 
-    private async uninstallLibrary(item: CatalogItem, btn?: HTMLButtonElement) {
+    private async uninstallLibrary(item: CatalogItem, btn?: HTMLElement) {
         if (btn) {
-            btn.disabled = true;
-            btn.setText("Uninstalling...");
+            btn.style.pointerEvents = "none";
+            btn.style.opacity = "0.5";
+            setIcon(btn, "hourglass");
         }
 
         try {
@@ -540,8 +556,9 @@ export class CatalogModal extends Modal {
             console.error(error);
             new Notice(`Failed to uninstall ${item.name}`);
             if (btn) {
-                btn.disabled = false;
-                btn.setText("Uninstall");
+                btn.style.pointerEvents = "auto";
+                btn.style.opacity = "1";
+                setIcon(btn, "trash");
             }
         }
     }
