@@ -24,6 +24,7 @@ export class UnifiedDashboardView {
         private vaultPath: string,
         private isOwner: boolean,
         private name: string,
+        private vaultType: 'personal' | 'space' | 'library' = 'personal',
         private onClose: () => void
     ) {
         this.init();
@@ -143,40 +144,91 @@ export class UnifiedDashboardView {
     }
 
     private async renderConfigTab(container: HTMLElement) {
+        const isLibrary = this.vaultType === 'library';
+        const configFileName = isLibrary ? "library.json" : "config.json";
+        const configFilePath = isLibrary 
+            ? `${this.vaultPath}/library.json` 
+            : (this.vaultPath ? `${this.vaultPath}/.abstract/config.json` : ".abstract/config.json");
+
         const section = container.createDiv({ cls: "af-dashboard-section af-config-editor-section" });
-        section.createEl("h3", { text: "Library Configuration (library.json)" });
+        section.createEl("h3", { text: isLibrary ? "Library Configuration (library.json)" : "Hierarchy Overrides (config.json)" });
         section.createEl("p", { 
-            text: "Directly edit the manifest file for this library. Changes here affect relationship property names and sync rules.",
+            text: `Directly edit the config file for this ${this.vaultType}. Changes here affect relationship property names and sync rules.`,
             cls: "af-config-desc"
         });
 
-        const configFile = this.app.vault.getAbstractFileByPath(`${this.vaultPath}/library.json`);
+        const exists = await this.app.vault.adapter.exists(configFilePath);
         
-        if (!configFile || !(configFile instanceof TFile)) {
+        if (!exists) {
             const emptyState = section.createDiv({ cls: "af-config-empty" });
-            emptyState.createEl("p", { text: "No library.json found in this folder." });
+            emptyState.createEl("p", { text: `No ${configFileName} found.` });
             new ButtonComponent(emptyState)
-                .setButtonText("Initialize library.json")
+                .setButtonText(`Initialize ${configFileName}`)
                 .setCta()
                 .onClick(async () => {
-                    const template = {
-                        id: this.name.toLowerCase().replace(/\s+/g, '-'),
-                        name: this.name,
-                        author: "Unknown",
-                        version: "1.0.0",
-                        parentProperty: "parent",
-                        childrenProperty: "children",
-                        forceStandardProperties: false
-                    };
-                    await this.app.vault.create(`${this.vaultPath}/library.json`, JSON.stringify(template, null, 2));
-                    new Notice("Created library.json");
+                    let template;
+                    if (isLibrary) {
+                        template = {
+                            id: this.name.toLowerCase().replace(/\s+/g, '-'),
+                            name: this.name,
+                            author: "Unknown",
+                            version: "1.0.0",
+                            parentProperty: "parent",
+                            childrenProperty: "children",
+                            forceStandardProperties: false
+                        };
+                    } else {
+                        template = {
+                            propertyNames: {
+                                parent: "parent",
+                                children: "children"
+                            },
+                            forceStandardProperties: false
+                        };
+                    }
+
+                    if (!isLibrary) {
+                        const abstractDir = this.vaultPath ? `${this.vaultPath}/.abstract` : ".abstract";
+                        const folderExists = await this.app.vault.adapter.exists(abstractDir);
+                        if (!folderExists) {
+                            await this.app.vault.adapter.mkdir(abstractDir);
+                        }
+                    }
+
+                    if (isLibrary) {
+                        await this.app.vault.create(configFilePath, JSON.stringify(template, null, 2));
+                    } else {
+                        await this.app.vault.adapter.write(configFilePath, JSON.stringify(template, null, 2));
+                    }
+                    new Notice(`Created ${configFileName}`);
+                    
+                    if (this.hasGit) {
+                        try {
+                            new Notice(`Syncing ${configFileName}...`);
+                            await this.plugin.libraryManager.syncBackup(this.vaultPath, `Initialize ${configFileName}`, undefined, true);
+                        } catch (e) {
+                            console.error(`Failed to sync ${configFileName}`, e);
+                        }
+                    }
+                    
                     this.render();
                 });
             return;
         }
 
         try {
-            const content = await this.app.vault.read(configFile);
+            let content;
+            if (isLibrary) {
+                const configFile = this.app.vault.getAbstractFileByPath(configFilePath);
+                if (configFile instanceof TFile) {
+                    content = await this.app.vault.read(configFile);
+                } else {
+                    throw new Error("Library file not found as TFile");
+                }
+            } else {
+                content = await this.app.vault.adapter.read(configFilePath);
+            }
+            
             const editor = section.createEl("textarea", { 
                 cls: "af-config-textarea",
                 text: content 
@@ -192,9 +244,16 @@ export class UnifiedDashboardView {
                     try {
                         const parsed = JSON.parse(newContent);
                         // Basic validation
-                        if (!parsed.id) throw new Error("Manifest must have an 'id'");
+                        if (isLibrary && !parsed.id) throw new Error("Manifest must have an 'id'");
                         
-                        await this.app.vault.modify(configFile, JSON.stringify(parsed, null, 2));
+                        if (isLibrary) {
+                            const configFile = this.app.vault.getAbstractFileByPath(configFilePath);
+                            if (configFile instanceof TFile) {
+                                await this.app.vault.modify(configFile, JSON.stringify(parsed, null, 2));
+                            }
+                        } else {
+                            await this.app.vault.adapter.write(configFilePath, JSON.stringify(parsed, null, 2));
+                        }
                         new Notice("Configuration saved successfully");
                         
                         // Invalidate local cache
@@ -202,6 +261,15 @@ export class UnifiedDashboardView {
                         if (bridge && bridge.configResolver) {
                             bridge.configResolver.clearCache();
                             bridge.invalidateCache();
+                        }
+
+                        if (this.hasGit) {
+                            try {
+                                new Notice(`Syncing changes to ${configFileName}...`);
+                                await this.plugin.libraryManager.syncBackup(this.vaultPath, `Update ${configFileName}`, undefined, true);
+                            } catch (e) {
+                                console.error(`Failed to sync ${configFileName}`, e);
+                            }
                         }
                     } catch (e) {
                         new Notice(`Invalid JSON: ${e.message}`);

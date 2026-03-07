@@ -47,11 +47,10 @@ export class ConfigResolver {
 
         while (current !== "" && current !== "/") {
             // 1. Check for .abstract/config.json
-            const localConfigPath = `${current}/.abstract/config.json`;
-            const localFile = this.app.vault.getAbstractFileByPath(localConfigPath);
-            if (localFile instanceof TFile) {
-                try {
-                    const content = await this.app.vault.read(localFile);
+            const localConfigPath = current === "" ? ".abstract/config.json" : `${current}/.abstract/config.json`;
+            try {
+                if (await this.app.vault.adapter.exists(localConfigPath)) {
+                    const content = await this.app.vault.adapter.read(localConfigPath);
                     const config = DataService.parseLocalConfig(content);
                     if (config.propertyNames || config.forceStandardProperties !== undefined) {
                         return {
@@ -60,9 +59,9 @@ export class ConfigResolver {
                             forceStandardProperties: config.forceStandardProperties || false
                         };
                     }
-                } catch (e) {
-                    Logger.error(`Failed to read local config at ${localConfigPath}`, e);
                 }
+            } catch (e) {
+                Logger.error(`Failed to read local config at ${localConfigPath}`, e);
             }
 
             // 2. Check for library.json
@@ -110,26 +109,38 @@ export class ConfigResolver {
 
     async listConfigs(): Promise<{ path: string, type: 'library' | 'local', config: any }[]> {
         const configs: { path: string, type: 'library' | 'local', config: any }[] = [];
-        const files = this.app.vault.getMarkdownFiles(); // We can't use markdown files only, need to scan all files for library.json
 
         const allFiles = this.app.vault.getAllLoadedFiles();
+        
+        // Find all library.json files
         for (const file of allFiles) {
-            if (!(file instanceof TFile)) continue;
-
-            if (file.name === 'library.json') {
+            if (file instanceof TFile && file.name === 'library.json') {
                 try {
                     const content = await this.app.vault.read(file);
                     const config = DataService.parseLibraryConfig(content);
                     configs.push({ path: file.path, type: 'library', config });
                 } catch {}
-            } else if (file.path.endsWith('/.abstract/config.json')) {
-                try {
-                    const content = await this.app.vault.read(file);
-                    const config = DataService.parseLocalConfig(content);
-                    configs.push({ path: file.path, type: 'local', config });
-                } catch {}
             }
         }
+
+        // Find all .abstract/config.json files
+        // Since hidden files are not in getAllLoadedFiles(), we check all known folders
+        const foldersToCheck = allFiles.filter(f => f instanceof TFolder).map(f => f.path);
+        foldersToCheck.push(""); // Add root vault
+
+        for (const folderPath of foldersToCheck) {
+            const configPath = folderPath === "" ? ".abstract/config.json" : `${folderPath}/.abstract/config.json`;
+            try {
+                if (await this.app.vault.adapter.exists(configPath)) {
+                    const content = await this.app.vault.adapter.read(configPath);
+                    const config = DataService.parseLocalConfig(content);
+                    configs.push({ path: configPath, type: 'local', config });
+                }
+            } catch (e) {
+                // Ignore errors inside hidden folders or if parsing fails
+            }
+        }
+        
         return configs;
     }
 

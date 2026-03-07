@@ -2,13 +2,16 @@ import { App, Modal } from "obsidian";
 import AbstractFolderPlugin from "main";
 import { UnifiedDashboardView } from "../views/unified-dashboard-view";
 
+export type VaultType = 'personal' | 'space' | 'library';
+
 export class AbstractDashboardModal extends Modal {
     constructor(
         app: App,
         private plugin: AbstractFolderPlugin,
         private vaultPath: string,
         private name: string,
-        private isOwner: boolean
+        private isOwner: boolean,
+        private vaultType: VaultType = 'personal'
     ) {
         super(app);
         this.modalEl.addClass("af-unified-dashboard-modal");
@@ -27,6 +30,7 @@ export class AbstractDashboardModal extends Modal {
             this.vaultPath,
             this.isOwner,
             this.name,
+            this.vaultType,
             () => this.close()
         );
     }

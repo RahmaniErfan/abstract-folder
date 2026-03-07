@@ -519,7 +519,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
 
         dashboardBtn.addEventListener("click", () => {
             if (!this.selectedSpace) return;
-            new AbstractDashboardModal(this.app, this.plugin, this.selectedSpace.path, this.selectedSpace.name, this.isOwner).open();
+            new AbstractDashboardModal(this.app, this.plugin, this.selectedSpace.path, this.selectedSpace.name, this.isOwner, 'space').open();
         });
 
         if (!isLinked) {
