@@ -251,7 +251,7 @@ export class LibraryTreeView implements ViewportDelegate {
     }
 
     getItemHeight(): number {
-        return 32;
+        return 24;
     }
 
     isMobile(): boolean {

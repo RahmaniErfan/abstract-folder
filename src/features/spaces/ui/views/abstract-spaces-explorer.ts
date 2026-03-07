@@ -141,14 +141,12 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
 
     private async renderShelf(container: HTMLElement) {
         this.renderShelfHeader(container);
-
-        const listContainer = container.createDiv({ cls: "nav-files-container" });
-        listContainer.style.position = "relative";
         
         const spacesRoot = this.plugin.settings.spaces.sharedSpacesRoot || "Abstract Spaces";
         const rootFolder = this.app.vault.getAbstractFileByPath(spacesRoot);
 
         if (!rootFolder || !(rootFolder as any).children || (rootFolder as any).children.length === 0) {
+            const listContainer = container.createDiv({ cls: "nav-files-container" });
             const emptyState = listContainer.createDiv({ cls: "pane-empty" });
             emptyState.setText("No shared spaces yet.\nCreate or join one to get started!");
             emptyState.style.whiteSpace = "pre";
@@ -158,8 +156,8 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             return;
         }
 
-        const shelfContainer = listContainer.createDiv({ cls: "library-shelf" });
-        const cardContainer = shelfContainer.createDiv({ cls: "library-card-container" });
+        const shelfContainer = container.createDiv({ cls: "library-shelf" });
+        const cardContainer = shelfContainer.createDiv({ cls: "library-card-grid" });
 
         const children = (rootFolder as any).children;
         for (const child of children) {
@@ -226,9 +224,8 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
     }
 
     private renderShelfHeader(container: HTMLElement) {
-        const header = container.createDiv({ cls: "abstract-folder-header" });
-        const titleRow = header.createDiv({ cls: "abstract-folder-header-title-container" });
-        titleRow.createEl("h3", { cls: "abstract-folder-header-title", text: "Abstract Spaces" });
+        const titleRow = container.createDiv({ cls: "library-shelf-title-row" });
+        titleRow.createEl("h2", { text: "Abstract Spaces", cls: "shelf-title" });
 
         const infoIcon = titleRow.createDiv({ 
             cls: "clickable-icon af-library-info-icon",
@@ -239,21 +236,22 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             new SpacesInfoModal(this.app).open();
         });
 
-        const toolbar = header.createDiv({ cls: "abstract-folder-toolbar" });
+        const actionRow = container.createDiv({ cls: "library-shelf-search-row" });
+        actionRow.style.justifyContent = "center";
         
-        const newSpaceBtn = toolbar.createDiv({ cls: "abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Create New Space" } });
+        const newSpaceBtn = actionRow.createDiv({ cls: "abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Create New Space" } });
         setIcon(newSpaceBtn, "plus-circle");
         newSpaceBtn.addEventListener("click", () => {
              new CreateSharedSpaceModal(this.app, this.plugin).open();
         });
 
-        const joinSpaceBtn = toolbar.createDiv({ cls: "abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Join or contribute libraries to a Shared Space" } });
+        const joinSpaceBtn = actionRow.createDiv({ cls: "abstract-folder-toolbar-action clickable-icon", attr: { "aria-label": "Join Space" } });
         setIcon(joinSpaceBtn, "link");
         joinSpaceBtn.addEventListener("click", () => {
              new JoinSharedSpaceModal(this.app, this.plugin).open();
         });
 
-        header.createDiv({ cls: "library-header-divider" });
+        container.createDiv({ cls: "library-header-divider" });
     }
 
     private async renderSpaceTree(container: HTMLElement) {
@@ -416,17 +414,16 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         setIcon(spaceIcon, "users");
         spaceIcon.style.color = "var(--color-purple)";
 
-        const infoArea = identityArea.createDiv({ cls: "library-bottom-info-row" });
-        infoArea.createSpan({ cls: "af-status-username", text: this.selectedSpace.name });
+        identityArea.createSpan({ cls: "af-status-username", text: this.selectedSpace.name });
 
         if (!isLinked) {
-            infoArea.createDiv({ 
+            identityArea.createDiv({ 
                 cls: "library-access-badge-pill is-readonly", 
                 text: "Local Only",
                 attr: { "aria-label": "This space is not linked to a remote repository" }
             });
         } else {
-            infoArea.createDiv({ 
+            identityArea.createDiv({ 
                 cls: `library-access-badge-pill ${this.isOwner ? 'is-owner' : 'is-readonly'}`,
                 text: this.isOwner ? "Owner" : "Read-only"
             });
