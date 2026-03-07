@@ -647,12 +647,9 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
 
              // Update Push Badge
              if (this.isOwner) {
-                 // We need to find the badge element. 
-                 // Since we don't store ref, we query it.
-                 // This is a bit hacky but keeps code localized.
                  const pushIcon = toolbar.querySelector(".af-status-sync-icon .af-status-sync-badge.push-badge");
-                 if (!pushIcon && (state.localChanges > 0 || state.ahead > 0)) {
-                      const parent = toolbar.querySelectorAll(".af-status-sync-icon")[0]; // Push is first if owner?
+                 if (!pushIcon && state.isRepo && (state.localChanges > 0 || state.ahead > 0)) {
+                      const parent = toolbar.querySelectorAll(".af-status-sync-icon")[0]; 
                       if (parent) {
                           const badge = parent.createDiv({ cls: "af-status-sync-badge push-badge" });
                           badge.style.backgroundColor = "var(--color-blue)";
@@ -660,7 +657,7 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
                           badge.textContent = count > 9 ? "9+" : String(count);
                       }
                  } else if (pushIcon) {
-                      const count = state.localChanges + state.ahead;
+                      const count = state.isRepo ? (state.localChanges + state.ahead) : 0;
                       if (count > 0) {
                           pushIcon.textContent = count > 9 ? "9+" : String(count);
                           pushIcon.removeClass("is-hidden");
@@ -672,12 +669,15 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
 
              // Update Pull Badge
              const pullIcon = toolbar.querySelector(".af-status-sync-icon .af-status-sync-badge.pull-badge");
-             // For pull, we need to correctly identify the pull area icon. 
-             // If owner, pull is 2nd. If not owner, pull is 1st (after link/cloud?).
-             
-             // Let's rely on finding by aria-label maybe? Or just querySelectorAll logic?
-             
-             // Cleaner: Re-render logic inside the subscription is safer? No, expensive.
+             if (pullIcon) {
+                 const count = state.isRepo ? state.remoteChanges : 0;
+                 if (count > 0) {
+                     pullIcon.textContent = count > 9 ? "9+" : String(count);
+                     pullIcon.removeClass("is-hidden");
+                 } else {
+                     pullIcon.addClass("is-hidden");
+                 }
+             }
              // Best: Store refs when creating elements.
              
              // UPDATE: I will modify the creation code above to store refs in local vars or use a class property map if needed.

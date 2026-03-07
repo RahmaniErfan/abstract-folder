@@ -294,6 +294,7 @@ export class SpaceService {
             console.error("Sync failed", error);
             throw error;
         } finally {
+            this.statusManager.flagCacheDirtyByPath(vaultPath);
             void this.scopeManager.refreshScope(vaultPath);
         }
     }

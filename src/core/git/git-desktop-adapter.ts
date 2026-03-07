@@ -255,8 +255,10 @@ export class GitDesktopAdapter implements IGitEngine {
                 throw err;
             }
 
-            // --porcelain outputs a stable, parseable format for changes
-            const { stdout } = await execFileAsync(this.gitPath, ['-c', 'core.quotePath=false', 'status', '--porcelain'], { cwd: absoluteDir, env: this.getBaseEnv() });
+            // --porcelain outputs a stable, parseable format for changes.
+            // -uall ensures that untracked files inside new directories are listed individually,
+            // which is necessary for the file tree to assign indicators to them.
+            const { stdout } = await execFileAsync(this.gitPath, ['-c', 'core.quotePath=false', 'status', '--porcelain', '-uall'], { cwd: absoluteDir, env: this.getBaseEnv() });
             
             const lines = stdout.split('\n');
             for (const line of lines) {

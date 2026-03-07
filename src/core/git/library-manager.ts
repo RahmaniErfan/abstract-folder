@@ -162,7 +162,22 @@ export class LibraryManager {
     }
 
     async initializePersonalBackup(vaultPath: string, repositoryUrl: string, token?: string) {
-        return this.spaceService.initializePersonalBackup(vaultPath, repositoryUrl, token);
+        await this.spaceService.initializePersonalBackup(vaultPath, repositoryUrl, token);
+        
+        if (vaultPath !== "") {
+            if (!this.settings.personal.personalBackups) {
+                this.settings.personal.personalBackups = [];
+            }
+            if (!this.settings.personal.personalBackups.includes(vaultPath)) {
+                this.settings.personal.personalBackups.push(vaultPath);
+                const plugin = (this.app as any).plugins?.getPlugin?.("abstract-folder");
+                if (plugin) await plugin.saveSettings();
+            }
+        }
+        
+        if (this.settings.git.autoSyncEnabled) {
+            await this.startSyncEngine(vaultPath);
+        }
     }
 
     async syncBackup(vaultPath: string, message?: string, token?: string, silent?: boolean) {

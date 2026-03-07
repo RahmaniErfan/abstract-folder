@@ -223,7 +223,7 @@ export class AbstractFolderStatusBar {
         this.pushArea.removeClass("is-hidden");
 
         // Local changes -> Push Badge
-        if (state.localChanges > 0 || state.ahead > 0) {
+        if (state.isRepo && (state.localChanges > 0 || state.ahead > 0)) {
             const count = state.localChanges + state.ahead;
             this.pushBadge.textContent = count > 9 ? "9+" : String(count);
             this.pushBadge.removeClass("is-hidden");
@@ -232,9 +232,7 @@ export class AbstractFolderStatusBar {
         }
 
         // Remote changes -> Pull Badge (Sync)
-        // Note: 'dirty' in old getSyncStatus was local changes. 
-        // Here we want Pull Badge to show downstream changes if we know them.
-        if (state.remoteChanges > 0) {
+        if (state.isRepo && state.remoteChanges > 0) {
             this.syncBadge.textContent = state.remoteChanges > 9 ? "9+" : String(state.remoteChanges);
             this.syncBadge.removeClass("is-hidden");
         } else {

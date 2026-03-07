@@ -5,6 +5,7 @@ import { NodeFsAdapter } from "./node-fs-adapter";
 export interface GitScopeState {
     id: string;
     path: string; // Absolute path
+    isRepo: boolean;
     localChanges: number;
     remoteChanges: number;
     ahead: number;
@@ -81,6 +82,7 @@ export class GitScopeManager {
             this.scopes.set(id, {
                 id,
                 path: absolutePath,
+                isRepo: false,
                 localChanges: 0,
                 remoteChanges: 0,
                 ahead: 0,
@@ -141,84 +143,84 @@ export class GitScopeManager {
         try {
             // Check if directory exists first
             const exists = await NodeFsAdapter.promises.stat(scope.path).catch(() => null);
-            if (!exists) {
-                // If folder gone, maybe separate handling? For now just ignore.
-                return;
-            }
+            if (!exists) return;
 
-            // 1. Local Status (Changes)
-            let dirtyCount = 0;
+            // 1. Check if it's a Repo
+            let isRepo = false;
             try {
-                // Status matrix is efficient
-                const matrix = await git.statusMatrix({ 
-                    fs: NodeFsAdapter, 
-                    dir: scope.path 
-                });
-                // row: [file, head, workdir, stage]
-                // 0: absent, 1: unmodified, 2: modified
-                // Filter where head!=workdir OR workdir!=stage
-                dirtyCount = matrix.filter((row: any[]) => row[1] !== row[2] || row[2] !== row[3]).length;
+                const gitRoot = await git.findRoot({ fs: NodeFsAdapter, filepath: scope.path });
+                isRepo = !!gitRoot;
             } catch (e) {
-                // Not a git repo or other error
-                // console.debug(`[GitScopeManager] Status check failed for ${id}`, e);
+                isRepo = false;
             }
 
-            // 2. Commit Counts (Ahead/Behind)
-            // This assumes we have fetched recently enough. 
-            // We are NOT running 'fetch' here to avoid auth popups in background.
+            // 2. Local Status (Changes)
+            let dirtyCount = 0;
+            if (isRepo) {
+                try {
+                    const matrix = await git.statusMatrix({ 
+                        fs: NodeFsAdapter, 
+                        dir: scope.path 
+                    });
+                    
+                    // Filter logic: 
+                    // head: 0 (absent), 1 (exists)
+                    // workdir: 0 (absent), 1 (unmodified), 2 (modified/new)
+                    // stage: 0 (absent), 1 (unmodified), 2 (modified/staged), 3 (conflict)
+                    
+                    dirtyCount = matrix.filter((row: any[]) => {
+                        const [filepath, head, workdir, stage] = row;
+                        
+                        // Ignore files that isomorphic-git considers "ignored" (0,0,0) 
+                        // or that are not modified relative to HEAD and Index.
+                        if (head === 0 && workdir === 0 && stage === 0) return false;
+                        
+                        // Match what `git status` shows as modified, added, or deleted
+                        return head !== workdir || workdir !== stage;
+                    }).length;
+                } catch (e) {}
+            }
+
+            // 3. Commit Counts (Ahead/Behind)
             let ahead = 0;
             let behind = 0;
             
-            try {
-                // Only try if it's a repo
-                const currentBranch = await git.currentBranch({ fs: NodeFsAdapter, dir: scope.path });
-                if (currentBranch) {
-                    const trackingBranch = `origin/${currentBranch}`;
-                    
-                    // Simple logic: list commits not in remote
-                    // This is 'ahead'
-                    const commitsAhead = await git.log({
-                         fs: NodeFsAdapter,
-                         dir: scope.path,
-                         ref: currentBranch as string,
-                         depth: 100 // limit to avoid massive perf hit
-                    });
-                    
-                    // resolving remote ref
-                    const remoteRef = await git.resolveRef({ fs: NodeFsAdapter, dir: scope.path, ref: trackingBranch }).catch(() => null);
-                    
-                    if (remoteRef) {
-                         // This simplistic approach counts total history depth if we don't have a stopping point
-                         // Better: git.log with since? Or implementing a proper symmetric difference is hard in isomorphic-git without manually traversing.
-                         // Let's rely on checking if the remoteRef OID is in the history of currentBranch
-                         const remoteOid = remoteRef;
-                         
-                         let foundRemote = false;
-                         let extraCommits = 0;
-                         for (const c of commitsAhead) {
-                             if (c.oid === remoteOid) {
-                                 foundRemote = true;
-                                 break;
+            if (isRepo) {
+                try {
+                    const currentBranch = await git.currentBranch({ fs: NodeFsAdapter, dir: scope.path });
+                    if (currentBranch) {
+                        const trackingBranch = `origin/${currentBranch}`;
+                        const remoteRef = await git.resolveRef({ fs: NodeFsAdapter, dir: scope.path, ref: trackingBranch }).catch(() => null);
+                        
+                        if (remoteRef) {
+                            const commits = await git.log({
+                                 fs: NodeFsAdapter,
+                                 dir: scope.path,
+                                 ref: currentBranch as string,
+                                 depth: 100 
+                            });
+                            
+                             const remoteOid = remoteRef;
+                             let foundRemote = false;
+                             let extraCommits = 0;
+                             for (const c of commits) {
+                                 if (c.oid === remoteOid) {
+                                     foundRemote = true;
+                                     break;
+                                 }
+                                 extraCommits++;
                              }
-                             extraCommits++;
-                         }
-                         
-                         if (foundRemote) {
-                             ahead = extraCommits;
-                         } else {
-                             // Managed to not find it in depth 100? or diverged.
-                         }
-                         
-                         // 'Behind' is harder without fetching. 
-                         // We can only know we are behind if we have fetched refs that are ahead of our HEAD.
+                             if (foundRemote) {
+                                 ahead = extraCommits;
+                             }
+                        }
                     }
-                }
-            } catch (e) {
-                // quiet
+                } catch (e) {}
             }
 
             const newState: GitScopeState = {
                 ...scope,
+                isRepo,
                 localChanges: dirtyCount,
                 ahead,
                 remoteChanges: behind,
@@ -230,7 +232,7 @@ export class GitScopeManager {
                 this.scopes.set(id, newState);
                 this.notifyListeners(id, newState);
             } else {
-                 // Update timestamp anyway
+                 // Update internal state to prevent repeated checks but don't notify
                  this.scopes.set(id, newState);
             }
 
@@ -253,7 +255,8 @@ export class GitScopeManager {
     }
 
     private hasChanged(a: GitScopeState, b: GitScopeState): boolean {
-        return a.localChanges !== b.localChanges || 
+        return a.isRepo !== b.isRepo ||
+               a.localChanges !== b.localChanges || 
                a.remoteChanges !== b.remoteChanges || 
                a.ahead !== b.ahead;
     }
