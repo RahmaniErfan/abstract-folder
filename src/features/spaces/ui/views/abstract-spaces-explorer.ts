@@ -34,6 +34,8 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
     private searchQuery = "";
     private isRenderingView = false;
     private debouncedRenderView: () => void;
+    private searchInput: HTMLInputElement;
+    private clearSearchBtn: HTMLElement;
 
     constructor(leaf: WorkspaceLeaf, plugin: AbstractFolderPlugin) {
         super(leaf);
@@ -41,9 +43,12 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         const { ContextEngine } = require("../../../../core/context-engine");
         this.contextEngine = new ContextEngine(plugin, 'library');
         this.debouncedRefreshSpaceTree = debounce(this.refreshSpaceTree.bind(this), 20);
+        this.debouncedRefreshShelfGrid = debounce(this.refreshShelfGrid.bind(this), 50);
         // 300ms debounce prevents duplicate renders from rapid file events after a git sync
         this.debouncedRenderView = debounce(this.renderView.bind(this), 300);
     }
+
+    private debouncedRefreshShelfGrid: () => void;
 
     getViewType() {
         return ABSTRACT_SPACES_VIEW_TYPE;
@@ -138,16 +143,26 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             this.renderShelf(container).then(finish).catch((e) => { Logger.error("renderView", e); finish(); });
         }
     }
-
     private async renderShelf(container: HTMLElement) {
         this.renderShelfHeader(container);
         
+        const shelfContainer = container.createDiv({ cls: "library-shelf" });
+        shelfContainer.id = "abstract-spaces-shelf-container";
+        this.refreshShelfGrid();
+    }
+
+    private async refreshShelfGrid() {
+        const container = this.containerEl.querySelector("#abstract-spaces-shelf-container") as HTMLElement;
+        if (!container) return;
+
+        container.empty();
+        const cardContainer = container.createDiv({ cls: "library-card-grid" });
+
         const spacesRoot = this.plugin.settings.spaces.sharedSpacesRoot || "Abstract Spaces";
         const rootFolder = this.app.vault.getAbstractFileByPath(spacesRoot);
 
         if (!rootFolder || !(rootFolder as any).children || (rootFolder as any).children.length === 0) {
-            const listContainer = container.createDiv({ cls: "nav-files-container" });
-            const emptyState = listContainer.createDiv({ cls: "pane-empty" });
+            const emptyState = container.createDiv({ cls: "pane-empty" });
             emptyState.setText("No shared spaces yet.\nCreate or join one to get started!");
             emptyState.style.whiteSpace = "pre";
             emptyState.style.textAlign = "center";
@@ -156,10 +171,18 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             return;
         }
 
-        const shelfContainer = container.createDiv({ cls: "library-shelf" });
-        const cardContainer = shelfContainer.createDiv({ cls: "library-card-grid" });
+        const children = (rootFolder as any).children.filter((child: any) => {
+            if (child instanceof TFile) return false;
+            if (!this.searchQuery) return true;
+            return child.name.toLowerCase().includes(this.searchQuery.toLowerCase());
+        });
 
-        const children = (rootFolder as any).children;
+        if (children.length === 0 && this.searchQuery) {
+            const emptyState = container.createDiv({ cls: "empty-state-container" });
+            emptyState.createEl("p", { text: "No matching spaces found.", cls: "empty-state" });
+            return;
+        }
+
         for (const child of children) {
             if (child instanceof TFile) continue;
 
@@ -251,7 +274,48 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
              new JoinSharedSpaceModal(this.app, this.plugin).open();
         });
 
+        this.renderShelfSearch(container);
+
         container.createDiv({ cls: "library-header-divider" });
+    }
+
+    private renderShelfSearch(container: HTMLElement) {
+        const searchRow = container.createDiv({ cls: "library-shelf-search-row" });
+        const searchContainer = searchRow.createDiv({ cls: "abstract-folder-search-container" });
+        const wrapper = searchContainer.createDiv({ cls: "abstract-folder-search-input-wrapper" });
+        
+        this.searchInput = wrapper.createEl("input", {
+            type: "text",
+            placeholder: "Search spaces...",
+            cls: "abstract-folder-search-input",
+            value: this.searchQuery
+        });
+
+        this.clearSearchBtn = wrapper.createDiv({
+            cls: "abstract-folder-search-clear",
+            attr: { "aria-label": "Clear search" }
+        });
+        setIcon(this.clearSearchBtn, "x");
+        this.updateShelfClearButtonState();
+
+        this.searchInput.addEventListener("input", () => {
+            this.searchQuery = this.searchInput.value;
+            this.updateShelfClearButtonState();
+            this.debouncedRefreshShelfGrid();
+        });
+
+        this.clearSearchBtn.addEventListener("click", () => {
+            this.searchQuery = "";
+            this.searchInput.value = "";
+            this.updateShelfClearButtonState();
+            this.searchInput.focus();
+            this.refreshShelfGrid();
+        });
+    }
+
+    private updateShelfClearButtonState() {
+        if (!this.clearSearchBtn) return;
+        this.clearSearchBtn.toggleClass("is-active", this.searchQuery.length > 0);
     }
 
     private async renderSpaceTree(container: HTMLElement) {

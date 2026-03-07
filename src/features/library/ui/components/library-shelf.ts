@@ -1,4 +1,4 @@
-import { App, setIcon, TFolder, TFile, Notice } from "obsidian";
+import { App, setIcon, TFolder, TFile, Notice, debounce } from "obsidian";
 import type AbstractFolderPlugin from "../../../../../main";
 import { Logger } from "../../../../utils/logger";
 import { CatalogService } from "../../services/catalog-service";
@@ -80,13 +80,16 @@ export class LibraryShelf {
         setIcon(this.clearSearchBtn, "x");
         this.updateClearButtonState();
 
+        const debouncedSearch = debounce(onSearch, 150);
         this.searchInput.addEventListener("input", () => {
+            this.options.searchQuery = this.searchInput.value;
             this.options.onSearch(this.searchInput.value);
             this.updateClearButtonState();
-            onSearch();
+            debouncedSearch();
         });
 
         this.clearSearchBtn.addEventListener("click", () => {
+            this.options.searchQuery = "";
             this.options.onSearch("");
             this.searchInput.value = "";
             this.updateClearButtonState();

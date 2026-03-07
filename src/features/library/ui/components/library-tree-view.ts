@@ -1,4 +1,4 @@
-import { App, setIcon, TFolder, TFile } from "obsidian";
+import { App, setIcon, TFolder, TFile, debounce } from "obsidian";
 import type AbstractFolderPlugin from "../../../../../main";
 import { Logger } from "../../../../utils/logger";
 import { VirtualViewport, ViewportDelegate } from "../../../../core/ui/components/virtual-viewport";
@@ -113,13 +113,16 @@ export class LibraryTreeView implements ViewportDelegate {
         setIcon(this.clearSearchBtn, "x");
         this.updateClearButtonState();
 
+        const debouncedSearch = debounce(onSearch, 150);
         this.searchInput.addEventListener("input", () => {
+            this.options.searchQuery = this.searchInput.value;
             this.options.onSearch(this.searchInput.value);
             this.updateClearButtonState();
-            onSearch();
+            debouncedSearch();
         });
 
         this.clearSearchBtn.addEventListener("click", () => {
+            this.options.searchQuery = "";
             this.options.onSearch("");
             this.searchInput.value = "";
             this.updateClearButtonState();
