@@ -105,6 +105,35 @@
     box-shadow: 0 0 0 2px var(--background-secondary);
 }
 
+.af-status-bar.is-uninitialized {
+    justify-content: center;
+}
+
+.af-status-bar.is-uninitialized .af-status-controls {
+    width: 100%;
+    justify-content: center;
+}
+
+.af-status-control.is-prominent {
+    width: auto;
+    gap: 6px;
+    padding: 0 4px;
+    height: 24px;
+    background-color: transparent;
+    border: none;
+    color: var(--text-muted);
+}
+
+.af-status-control.is-prominent:hover {
+    background-color: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.af-status-btn-text {
+    font-size: var(--font-ui-smaller);
+    font-weight: 500;
+}
+
 /* Sync Animation */
 .af-status-sync-icon {
     transition: opacity 0.2s ease;

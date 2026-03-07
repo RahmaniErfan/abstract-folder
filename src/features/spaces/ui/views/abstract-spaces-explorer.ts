@@ -476,6 +476,9 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         const isLinked = !!this.repositoryUrl;
 
         const toolbar = container.createDiv({ cls: "af-status-bar" });
+        const token = await this.plugin.libraryManager.getToken();
+        toolbar.toggleClass("is-uninitialized", !token);
+        
         const identityArea = toolbar.createDiv({ cls: "af-status-identity" });
         
         const spaceIcon = identityArea.createDiv({ cls: "af-status-library-icon" });
@@ -501,10 +504,19 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
 
         // Cloud icon for dashboard/settings
         const dashboardBtn = controlsArea.createDiv({ 
-            cls: "af-status-control clickable-icon", 
+            cls: "af-status-control af-dashboard-btn clickable-icon", 
             attr: { "aria-label": "Space Info & Settings" } 
         });
         setIcon(dashboardBtn, "cloud");
+        
+        if (!token) {
+            const textSpan = document.createElement("span");
+            textSpan.className = "af-status-btn-text";
+            textSpan.textContent = "Backup and Sync";
+            dashboardBtn.prepend(textSpan);
+            dashboardBtn.addClass("is-prominent");
+        }
+
         dashboardBtn.addEventListener("click", () => {
             if (!this.selectedSpace) return;
             new AbstractDashboardModal(this.app, this.plugin, this.selectedSpace.path, this.selectedSpace.name, this.isOwner).open();
@@ -611,7 +623,28 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
 
 
         // Sub scription for badges
-        this.scopeUnsubscribe = this.plugin.libraryManager.scopeManager.subscribe(scopeId, (state) => {
+        this.scopeUnsubscribe = this.plugin.libraryManager.scopeManager.subscribe(scopeId, async (state) => {
+             // 0. Update Dashboard button if token state changed
+             const currentToken = await this.plugin.libraryManager.getToken();
+             const dashboardBtn = toolbar.querySelector(".af-status-control.af-dashboard-btn") as HTMLElement;
+             if (dashboardBtn) {
+                 const textSpan = dashboardBtn.querySelector(".af-status-btn-text");
+                 if (!currentToken) {
+                     if (!textSpan) {
+                         const newSpan = document.createElement("span");
+                         newSpan.className = "af-status-btn-text";
+                         newSpan.textContent = "Backup and Sync";
+                         dashboardBtn.prepend(newSpan);
+                     }
+                     dashboardBtn.addClass("is-prominent");
+                     toolbar.addClass("is-uninitialized");
+                 } else {
+                     if (textSpan) textSpan.remove();
+                     dashboardBtn.removeClass("is-prominent");
+                     toolbar.removeClass("is-uninitialized");
+                 }
+             }
+
              // Update Push Badge
              if (this.isOwner) {
                  // We need to find the badge element. 

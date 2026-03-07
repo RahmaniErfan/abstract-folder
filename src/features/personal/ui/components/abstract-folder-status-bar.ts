@@ -51,7 +51,7 @@ export class AbstractFolderStatusBar {
 
         // Cloud Button: Open Dashboard
         const dashboardBtn = controlsArea.createDiv({ 
-            cls: "af-status-control clickable-icon",
+            cls: "af-status-control af-dashboard-btn clickable-icon",
             attr: { "aria-label": "Backup & Sync Center (Dashboard)" }
         });
         setIcon(dashboardBtn, "cloud");
@@ -125,9 +125,37 @@ export class AbstractFolderStatusBar {
     }
 
     private isRefreshingIdentity = false;
+    private isUpdatingIdentity = false;
+    private isUninitialized = false;
     public async updateIdentity() {
-        this.identityArea.empty();
-        const token = await this.plugin.libraryManager.getToken();
+        if (this.isUpdatingIdentity) return;
+        this.isUpdatingIdentity = true;
+
+        try {
+            this.identityArea.empty();
+            const token = await this.plugin.libraryManager.getToken();
+        
+        // Handle uninitialized state (no token)
+        this.isUninitialized = !token;
+        this.containerEl.toggleClass("is-uninitialized", this.isUninitialized);
+        
+        const dashboardBtn = this.containerEl.querySelector(".af-status-control.af-dashboard-btn") as HTMLElement;
+        if (dashboardBtn) {
+            let textSpan = dashboardBtn.querySelector(".af-status-btn-text");
+            if (this.isUninitialized) {
+                if (!textSpan) {
+                    textSpan = document.createElement("span");
+                    textSpan.className = "af-status-btn-text";
+                    textSpan.textContent = "Backup and Sync";
+                    dashboardBtn.prepend(textSpan);
+                }
+                dashboardBtn.addClass("is-prominent");
+            } else {
+                if (textSpan) textSpan.remove();
+                dashboardBtn.removeClass("is-prominent");
+            }
+        }
+
         if (!token) {
             this.identityArea.addClass("is-hidden");
             return;
@@ -169,7 +197,10 @@ export class AbstractFolderStatusBar {
                 this.isRefreshingIdentity = false;
             }
         }
+    } finally {
+        this.isUpdatingIdentity = false;
     }
+}
 
     public async refreshStatus() {
         // Trigger a manual refresh in the manager, which will emit the event
@@ -179,6 +210,9 @@ export class AbstractFolderStatusBar {
     }
 
     private async updateBadges(state: any) {
+        // Refresh identity/init state on badge updates
+        await this.updateIdentity();
+
         const token = await this.plugin.libraryManager.getToken();
         if (!token) {
              this.syncArea.addClass("is-hidden");
