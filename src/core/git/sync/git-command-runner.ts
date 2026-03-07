@@ -37,7 +37,12 @@ function classifyError(error: any): GitCommandError {
     const combined = stdout + '\n' + stderr;
 
     // Empty commit — NOT a real error
-    if (combined.includes('nothing to commit, working tree clean')) {
+    // Git has multiple output variations depending on the state of the working tree
+    if (
+        combined.includes('nothing to commit') ||
+        combined.includes('no changes added to commit') ||
+        combined.includes('nothing added to commit')
+    ) {
         return { kind: 'nothing-to-commit', message: 'Nothing to commit', raw: error };
     }
 

@@ -37,6 +37,8 @@ export interface SyncOrchestratorConfig {
     lastGcTime?: number;
     /** Callback to persist lastGcTime to settings. */
     onGcRun?: (timestamp: number) => void;
+    /** Dynamic interval for auto-commit debounce */
+    getDebounceMs: () => number;
     /** Optional callback to get paths to ignore (for root repo nested guard). */
     getIgnoredPaths?: () => string[];
 }
@@ -71,6 +73,7 @@ export class SyncOrchestrator implements ISyncEngine {
             config.mutex,
             config.getAuthor,
             () => this.isPausedForConflict,
+            config.getDebounceMs,
             config.getIgnoredPaths,
         );
 
@@ -205,7 +208,7 @@ export class SyncOrchestrator implements ISyncEngine {
         await this.autoCommit.syncWorkingTree();
         // Then, flush any pending auto-commits so they get pushed
         await this.autoCommit.flush();
-        await this.networkQueue.pushNow();
+        await this.networkQueue.pushNow(true);
     }
 
     /** Unhalt the network queue after PAT update. */

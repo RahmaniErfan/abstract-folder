@@ -34,17 +34,25 @@ export class LibraryManager {
         private settings: AbstractFolderPluginSettings,
         private securityManager: SecurityManager
     ) {
-        this.scopeManager = new GitScopeManager(app);
+        this.scopeManager = new GitScopeManager(app, () => this.settings.performance?.gitScopePollIntervalMs || 10000);
         this.gitService = new GitService(this.app, this.settings, this.securityManager);
-        this.statusManager = new StatusManager(this.app, this.gitService);
+        this.statusManager = new StatusManager(this.app, this.gitService, () => this.settings.performance?.statusManagerIdleTimeoutMs || 3000);
         this.libraryService = new LibraryService(this.app, this.settings, this.gitService, this.statusManager, this.scopeManager);
         this.spaceService = new SpaceService(this.app, this.settings, this.gitService, this.statusManager, this.securityManager, this.scopeManager, (vp) => this.stopSyncEngine(vp));
-        this.syncManager = new SyncManager(this.app, this.settings, this.gitService, this.statusManager, (vp, m, t, s) => this.spaceService.syncBackup(vp, m, t, s));
+        this.syncManager = new SyncManager(this.app, this.settings, this.gitService, this.statusManager, this.scopeManager, (vp, m, t, s) => this.spaceService.syncBackup(vp, m, t, s));
 
         // Reactive Cache Invalidation Hooks
         this.vaultRefs.push(this.app.vault.on('modify', (file) => this.flagCacheDirty(file.path)));
         this.vaultRefs.push(this.app.vault.on('create', (file) => this.flagCacheDirty(file.path)));
         this.vaultRefs.push(this.app.vault.on('delete', (file) => this.flagCacheDirty(file.path)));
+        
+        // Listen to editor changes for instant typing feedback before disk write
+        this.vaultRefs.push(this.app.workspace.on('editor-change', (editor, info) => {
+            const file = (info as any)?.file;
+            if (file?.path) {
+                this.flagCacheDirty(file.path);
+            }
+        }));
 
         // Window Focus Listener: Force cache invalidation when returning to the app
         this.windowFocusListener = () => {
@@ -80,6 +88,7 @@ export class LibraryManager {
     // --- Status & Cache Management (Delegated to StatusManager) ---
 
     flagCacheDirty(filePath: string) {
+        console.debug(`[LibraryManager] Flagging cache dirty for: ${filePath}`);
         this.statusManager.flagCacheDirty(filePath);
     }
 

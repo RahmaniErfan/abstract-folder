@@ -12,6 +12,12 @@
     border: 1px solid var(--background-modifier-border);
     width: fit-content;
     max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none; /* Firefox */
+}
+.abstract-folder-settings-tabs::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
 }
 
 .abstract-folder-settings-tab-button {
@@ -24,7 +30,7 @@
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     background: transparent;
-    border: none;
+    border: 1px solid transparent;
     min-width: 80px;
     color: var(--text-muted);
 }
@@ -32,14 +38,12 @@
 .abstract-folder-settings-tab-button:hover {
     background-color: var(--background-modifier-hover);
     color: var(--text-normal);
-    transform: translateY(-1px);
 }
 
 .abstract-folder-settings-tab-button.is-active {
     background-color: var(--background-primary);
     color: var(--interactive-accent);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    transform: translateY(0);
 }
 
 .abstract-folder-settings-tab-icon {

@@ -9,13 +9,19 @@ import { Logger } from "../../../utils/logger";
  */
 export class StatusManager {
     // Cache includes isFetching lock
-    private cache: Map<string, { dirty: boolean; isFetching: boolean; data: GitStatusMatrix }> = new Map();
+    private cache: Map<string, { 
+        dirty: boolean; 
+        isFetching: boolean; 
+        pendingRefresh: boolean; // Flag to queue a refresh if one is requested while fetching
+        data: GitStatusMatrix 
+    }> = new Map();
     // Idle-Detection Debouncer Map for Smart Background Sync
     private syncTimers: Map<string, NodeJS.Timeout> = new Map();
 
     constructor(
         private app: App,
-        private gitService: GitService
+        private gitService: GitService,
+        private getIdleTimeoutMs: () => number = () => 3000 // Injected Default
     ) {}
 
     public flagCacheDirty(filePath: string) {
@@ -36,6 +42,11 @@ export class StatusManager {
         const currentCache = this.cache.get(vaultPath);
         if (currentCache) {
             currentCache.dirty = true;
+            // If currently fetching, queue a refresh for when it finishes
+            if (currentCache.isFetching) {
+                currentCache.pendingRefresh = true;
+                Logger.debug(`[StatusManager] Fetch already in progress for ${vaultPath || 'root'}. Queuing pending refresh.`);
+            }
         }
 
         // Smart Background Coordinator: Idle-Detection Debouncer
@@ -47,7 +58,7 @@ export class StatusManager {
             this.syncTimers.delete(vaultPath);
             // Proactive sync
             void this.getFileStatuses(vaultPath);
-        }, 3000); // 3 seconds of idle time required
+        }, this.getIdleTimeoutMs()); 
         
         this.syncTimers.set(vaultPath, timer);
     }
@@ -77,8 +88,8 @@ export class StatusManager {
     async getFileStatuses(vaultPath: string): Promise<GitStatusMatrix> {
         let cached = this.cache.get(vaultPath);
 
-        // 1. Return immediately if we have a clean cache
-        if (cached && !cached.dirty) {
+        // 1. If we have a clean cache and NOT fetching, return data
+        if (cached && !cached.dirty && !cached.isFetching) {
             return cached.data;
         }
 
@@ -106,10 +117,11 @@ export class StatusManager {
             }
 
             if (!cached) {
-                cached = { dirty: true, isFetching: true, data: new Map() };
+                cached = { dirty: true, isFetching: true, pendingRefresh: false, data: new Map() };
                 this.cache.set(vaultPath, cached);
             } else {
                 cached.isFetching = true;
+                cached.pendingRefresh = false; // Reset since we are starting a fresh fetch now
             }
 
             const absoluteDir = this.gitService.getAbsolutePath(vaultPath);
@@ -120,7 +132,8 @@ export class StatusManager {
                 await stat(absoluteDir);
             } catch {
                 cached.isFetching = false;
-                cached.dirty = false; // No point in retrying until directory exists
+                cached.dirty = false;
+                cached.pendingRefresh = false;
                 return cached.data;
             }
             
@@ -128,17 +141,15 @@ export class StatusManager {
             for (const otherPath of this.cache.keys()) {
                 if (otherPath === vaultPath) continue;
                 
-                if (vaultPath === "") {
-                    ignoredPaths.push(otherPath);
-                } else if (otherPath.startsWith(vaultPath + "/")) {
-                    ignoredPaths.push(otherPath.substring(vaultPath.length + 1));
+                if (vaultPath === "" || otherPath.startsWith(vaultPath + "/")) {
+                    const ignored = vaultPath === "" ? otherPath : otherPath.substring(vaultPath.length + 1);
+                    ignoredPaths.push(ignored);
                 }
             }
 
             // Background Promise
             this.gitService.getStatusMatrix(absoluteDir, ignoredPaths)
                 .then((matrix) => {
-                    // Normalize keys: Native git --porcelain sometimes prefixes with ./ depending on version/config
                     const freshMatrix: GitStatusMatrix = new Map();
                     for (const [path, status] of matrix.entries()) {
                         const normalizedPath = path.startsWith('./') ? path.substring(2) : path;
@@ -150,6 +161,13 @@ export class StatusManager {
                         currentCache.dirty = false;
                         currentCache.isFetching = false;
                         currentCache.data = freshMatrix;
+                        
+                        // Check for queued refresh
+                        if (currentCache.pendingRefresh) {
+                            currentCache.pendingRefresh = false;
+                            Logger.debug(`[StatusManager] Pending refresh found for ${vaultPath || 'root'}. Retriggering.`);
+                            void this.getFileStatuses(vaultPath);
+                        }
                     }
                     console.debug(`[StatusManager] Background git refresh complete for ${vaultPath} (${freshMatrix.size} files)`);
                     this.app.workspace.trigger('abstract-folder:git-refreshed', vaultPath);
@@ -159,6 +177,7 @@ export class StatusManager {
                     const currentCache = this.cache.get(vaultPath);
                     if (currentCache) {
                         currentCache.isFetching = false;
+                        currentCache.pendingRefresh = false;
                     }
                 });
         }

@@ -8,6 +8,7 @@ import { ConflictResolutionModal } from "../../ui/modals/conflict-resolution-mod
 import { Logger } from "../../../utils/logger";
 import { LibraryConfig } from "../../../features/library/types/index";
 import { Group } from "../../../types";
+import { GitScopeManager } from "../git-scope-manager";
 
 /**
  * SyncManager handles the lifecycle of SyncOrchestrator instances.
@@ -26,6 +27,7 @@ export class SyncManager {
         private settings: AbstractFolderPluginSettings,
         private gitService: GitService,
         private statusManager: StatusManager,
+        private scopeManager: GitScopeManager,
         private syncBackupFallback: (vaultPath: string, message: string, token: string | undefined, silent: boolean) => Promise<void>
     ) {}
 
@@ -83,7 +85,8 @@ export class SyncManager {
                     ...(this.settings.personal.personalBackups || []),
                     this.settings.library.librariesPath,
                 ];
-            }
+            },
+            getDebounceMs: () => this.settings.performance?.autoCommitDebounceMs || 5000
         };
 
         const orchestrator = new SyncOrchestrator(config);
@@ -100,6 +103,14 @@ export class SyncManager {
             
             // Fire-and-forget gc
             orchestrator.gcIfNeeded();
+
+            // Trigger status refresh immediately after auto-commit completes
+            orchestrator.on('commit', () => {
+                Logger.debug(`[SyncManager] Commit detected for ${vaultPath}, triggering status refresh`);
+                this.statusManager.flagCacheDirtyByPath(vaultPath);
+                void this.statusManager.getFileStatuses(vaultPath);
+                void this.scopeManager.refreshScope(vaultPath);
+            });
 
             Logger.debug(`[SyncManager] Sync engine started for ${vaultPath}`);
         }
@@ -234,6 +245,10 @@ export class SyncManager {
         const orchestrator = this.syncOrchestrators.get(vaultPath);
         if (orchestrator) {
             await orchestrator.pushNow();
+            // Refresh file tree indicators immediately after push completes
+            Logger.debug(`[SyncManager] Manual push complete for ${vaultPath}, refreshing indicators`);
+            this.statusManager.flagCacheDirtyByPath(vaultPath);
+            void this.statusManager.getFileStatuses(vaultPath);
         } else {
             // Fallback to legacy syncBackup for unregistered paths
             await this.syncBackupFallback(vaultPath, "Manual push via Abstract Folder", undefined, true);

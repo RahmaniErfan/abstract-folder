@@ -57,6 +57,7 @@ export class AutoCommitEngine implements ISyncEngine {
         private mutex: Mutex,
         private getAuthor: () => SyncAuthor,
         private isPaused: () => boolean,
+        private getDebounceMs: () => number,
         private getIgnoredPaths?: () => string[],
     ) {}
 
@@ -220,24 +221,31 @@ export class AutoCommitEngine implements ISyncEngine {
      * Uses a 5-second sliding window: every keystroke clears and resets the timer.
      */
     private scheduleCommit(filepath: string): void {
-        // Clear existing timer for this file (sliding window)
         const existingTimer = this.debounceMap.get(filepath);
         if (existingTimer) {
             clearTimeout(existingTimer);
         }
 
         // Track as pending (for flush)
+        const isNew = !this.pendingFiles.has(filepath);
         this.pendingFiles.add(filepath);
+
+        if (existingTimer) {
+            console.log(`[AutoCommitEngine] Sliding 5s window for ${filepath} (Timer Reset)`);
+        } else {
+            console.log(`[AutoCommitEngine] Starting 5s window for ${filepath}`);
+        }
 
         // Set new timer
         const timer = setTimeout(() => {
+            console.log(`[AutoCommitEngine] 5s window Fired for ${filepath}`);
             // ─── CRITICAL: Delete from map FIRST to prevent memory leak ───
             this.debounceMap.delete(filepath);
             this.pendingFiles.delete(filepath);
 
             // Fire the commit (async, not awaited from setTimeout)
             void this.commitFile(filepath);
-        }, AUTO_COMMIT_DEBOUNCE_MS);
+        }, this.getDebounceMs());
 
         this.debounceMap.set(filepath, timer);
     }

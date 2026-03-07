@@ -20,7 +20,10 @@ export class GitScopeManager {
     private pollInterval: NodeJS.Timeout | null = null;
     private isPolling = false;
 
-    constructor(private app: App) {
+    constructor(
+        private app: App,
+        private getPollIntervalMs: () => number = () => 10000
+    ) {
         this.startPolling();
         this.setupEventListeners();
     }
@@ -259,7 +262,7 @@ export class GitScopeManager {
         if (this.pollInterval) clearInterval(this.pollInterval);
         this.pollInterval = setInterval(() => {
             this.pollAll();
-        }, 10000); // 10s polling for responsiveness
+        }, this.getPollIntervalMs()); 
     }
 
     private async pollAll() {

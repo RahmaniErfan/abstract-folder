@@ -174,6 +174,8 @@ export class AbstractFolderStatusBar {
     public async refreshStatus() {
         // Trigger a manual refresh in the manager, which will emit the event
         await this.plugin.libraryManager.scopeManager.refreshScope("");
+        // Also refresh the file tree indicators
+        await this.plugin.libraryManager.getFileStatuses("");
     }
 
     private async updateBadges(state: any) {

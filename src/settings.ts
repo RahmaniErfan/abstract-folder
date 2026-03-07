@@ -3,6 +3,12 @@ import { LibraryFeatureSettings, GitFeatureSettings } from "./features/library/t
 import { SpacesFeatureSettings } from "./features/spaces/types";
 import { PersonalFeatureSettings } from "./features/personal/types";
 
+export interface PerformanceSettings {
+	autoCommitDebounceMs: number;
+	statusManagerIdleTimeoutMs: number;
+	gitScopePollIntervalMs: number;
+}
+
 export interface VisibilitySettings {
 	[key: string]: boolean;
 	showFocusActiveFileButton: boolean;
@@ -81,6 +87,7 @@ export interface AbstractFolderPluginSettings {
   spaces: SpacesFeatureSettings;
   personal: PersonalFeatureSettings;
   git: GitFeatureSettings;
+  performance: PerformanceSettings;
 }
 
 export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
@@ -194,5 +201,10 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
     syncIntervalUnit: 'hours',
     securityExclusions: ['.obsidian/', '.trash/', 'node_modules/', '*.log'],
     autoSyncEnabled: true,
+  },
+  performance: {
+    autoCommitDebounceMs: 5000,
+    statusManagerIdleTimeoutMs: 3000,
+    gitScopePollIntervalMs: 10000,
   },
 };

@@ -85,14 +85,19 @@ export class NetworkSyncQueue implements ISyncEngine {
     /**
      * Manual push from UI (status bar button, modal).
      * Still respects mutex and Smart Push gate.
+     * @param throwOnError If true, throws errors instead of just emitting them, allowing the UI to catch and display them.
      */
-    async pushNow(): Promise<void> {
+    async pushNow(throwOnError: boolean = false): Promise<void> {
         if (this.authHalted) {
             this.emit({ type: 'auth-error', detail: { message: 'Queue halted — update PAT' } });
+            if (throwOnError) throw new Error('Queue halted — update PAT');
             return;
         }
-        if (this.isPaused()) return; // Manual push also respects the lock
-        await this.syncCycle();
+        if (this.isPaused()) {
+            if (throwOnError) throw new Error('Sync is currently paused for conflict resolution');
+            return; // Manual push also respects the lock
+        }
+        await this.syncCycle(throwOnError);
     }
 
     /** Unhalt the queue after a PAT update. */
@@ -136,8 +141,9 @@ export class NetworkSyncQueue implements ISyncEngine {
 
     /**
      * One full sync cycle: fetch → detect conflicts → resolve → push.
+     * @param throwOnError If true, re-throws errors after handling them (used for manual pushes).
      */
-    private async syncCycle(): Promise<void> {
+    private async syncCycle(throwOnError: boolean = false): Promise<void> {
         console.log(`[NetworkSyncQueue] Sync cycle starting for ${this.branch}...`);
         this.isNetworkSyncing = true;
         const release = await this.mutex.acquire();
@@ -145,9 +151,17 @@ export class NetworkSyncQueue implements ISyncEngine {
         try {
             // 1. Fetch remote changes
             try {
+                console.log(`[NetworkSyncQueue] Fetching origin/${this.branch}...`);
                 await this.runner.fetch(this.branch);
+                console.log(`[NetworkSyncQueue] Fetch complete.`);
             } catch (e: any) {
+                console.error(`[NetworkSyncQueue] Fetch failed:`, e);
                 this.handleNetworkError(e);
+                if (throwOnError) {
+                    release();
+                    this.isNetworkSyncing = false;
+                    throw new Error(e.message || 'Network unreachable');
+                }
                 return; // Can't continue without fetch
             }
 
@@ -163,6 +177,11 @@ export class NetworkSyncQueue implements ISyncEngine {
                 } catch (e: any) {
                     console.error('[NetworkSyncQueue] Merge resolution failed:', e);
                     this.emit({ type: 'error', detail: { phase: 'merge', error: e } });
+                    if (throwOnError) {
+                        release();
+                        this.isNetworkSyncing = false;
+                        throw new Error(`Merge resolution failed: ${e.message}`);
+                    }
                     return; // Don't push if merge failed
                 }
             } else if (!result.canFastForward) {
@@ -173,34 +192,62 @@ export class NetworkSyncQueue implements ISyncEngine {
                 } catch (e: any) {
                     console.error('[NetworkSyncQueue] Fast-forward merge failed:', e);
                     this.emit({ type: 'error', detail: { phase: 'merge', error: e } });
+                    if (throwOnError) {
+                        release();
+                        this.isNetworkSyncing = false;
+                        throw new Error(`Fast-forward merge failed: ${e.message}`);
+                    }
                     return;
                 }
             } else {
                 // Nothing to pull
+                console.log(`[NetworkSyncQueue] Up to date (nothing to pull).`);
                 this.emit({ type: 'pull-complete', detail: { noop: true } });
             }
 
             // 4. Smart Push Gate: only push if we're actually ahead
             const aheadCount = await this.runner.logAheadCount(this.branch);
+            console.log(`[NetworkSyncQueue] Local ahead count: ${aheadCount}`);
+
+            // Log if there are any uncommitted (Orange) changes that won't be in this push
+            const uncommitted = await this.runner.statusPorcelain();
+            if (uncommitted.length > 0) {
+                console.log(`[NetworkSyncQueue] Warning: ${uncommitted.length} files have uncommitted changes and will NOT be included in this push cycle.`);
+            }
+
             if (aheadCount === 0) {
+                console.log(`[NetworkSyncQueue] Push skipped: Local is not ahead of remote.`);
                 this.emit({ type: 'push-skipped', detail: { reason: 'not-ahead' } });
                 return;
             }
 
             // 5. Push
+            console.log(`[NetworkSyncQueue] Pushing ${aheadCount} commit(s) to origin/${this.branch}...`);
             this.emit({ type: 'push-start', detail: { aheadCount } });
             try {
                 await this.runner.push(this.branch);
                 this.lastPushTime = Date.now();
                 this.consecutiveFailures = 0;
+                console.log(`[NetworkSyncQueue] Push complete.`);
                 this.emit({ type: 'push-complete', detail: { aheadCount } });
             } catch (e: any) {
+                console.error(`[NetworkSyncQueue] Push failed:`, e);
                 this.handleNetworkError(e);
+                if (throwOnError) {
+                    release();
+                    this.isNetworkSyncing = false;
+                    throw new Error(e.message || 'Push failed');
+                }
             }
 
         } catch (e: any) {
             console.error('[NetworkSyncQueue] Unexpected error in sync cycle:', e);
             this.emit({ type: 'error', detail: { phase: 'unknown', error: e } });
+            if (throwOnError) {
+                release();
+                this.isNetworkSyncing = false;
+                throw new Error(`Sync cycle failed: ${e.message}`);
+            }
         } finally {
             release();
             this.isNetworkSyncing = false;

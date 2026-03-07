@@ -90,21 +90,28 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
 
         this.registerEvent(
             (this.app.workspace as any).on('abstract-folder:git-refreshed', async (vaultPath?: string) => {
+                Logger.debug(`[Abstract Folder] View: git-refreshed event received for vaultPath: '${vaultPath}'`);
                 // Update file statuses if the vault root repository refreshed
                 if (this.currentSnapshot && this.viewport && vaultPath === "") {
                     // 1. Fetch the fresh matrix for the vault root
                     const matrix = await this.plugin.libraryManager.getFileStatuses("");
                     
+                    let updatedCount = 0;
                     // 2. Update the syncStatus on our current flat list of nodes
                     for (const node of this.currentSnapshot.items) {
                         // Normalize: Ensure we match against keys in the matrix
                         const lookupPath = node.id.startsWith('./') ? node.id.substring(2) : node.id;
                         const status = matrix.get(lookupPath);
-                        node.syncStatus = status || undefined;
+                        if (node.syncStatus !== (status || undefined)) {
+                            node.syncStatus = status || undefined;
+                            updatedCount++;
+                        }
                     }
+                    Logger.debug(`[Abstract Folder] View: Updated syncStatus for ${updatedCount} nodes.`);
                     
                     // 3. Command the VirtualViewport to surgically repaint only what's on screen
                     this.viewport.forceUpdateVisibleRows();
+                    Logger.debug(`[Abstract Folder] View: forceUpdateVisibleRows called.`);
                 }
             })
         );
