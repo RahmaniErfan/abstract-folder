@@ -6,7 +6,7 @@
 
 .library-hero {
     background: linear-gradient(145deg, var(--background-secondary) 0%, var(--background-secondary-alt) 100%);
-    border-radius: 20px;
+    border-radius: 12px;
     padding: 32px;
     margin-bottom: 32px;
     border: 1px solid var(--background-modifier-border);

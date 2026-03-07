@@ -1,86 +1,93 @@
 /* Library Explorer Storefront Styles */
 .abstract-library-explorer .library-card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 20px;
-    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 24px;
+    align-items: center; /* Center the pills */
 }
 
 .abstract-library-explorer .library-explorer-card {
-    background-color: var(--background-secondary);
+    background-color: var(--background-primary);
     border: 1px solid var(--background-modifier-border);
-    border-radius: 16px;
-    padding: 24px;
+    border-radius: 12px;
+    padding: 10px 18px;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    text-align: center;
+    justify-content: space-between;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: all 0.2s ease;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    width: 100%;
+    max-width: 600px; /* Prevent being too wide */
+    min-height: 52px;
 }
 
 .abstract-library-explorer .library-explorer-card:hover {
-    background-color: var(--background-secondary-alt);
+    background-color: var(--background-modifier-hover);
     border-color: var(--interactive-accent);
-    transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
 }
 
 .abstract-library-explorer .library-explorer-card.is-installed {
-    border-color: var(--success);
-    background: linear-gradient(180deg, var(--background-secondary) 0%, rgba(var(--success-rgb), 0.03) 100%);
+    border-color: var(--interactive-accent);
+    background: hsla(var(--interactive-accent-hsl), 0.03);
+}
+
+.abstract-library-explorer .library-card-info {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+    overflow: hidden;
 }
 
 .abstract-library-explorer .library-card-icon {
-    width: 56px;
-    height: 56px;
-    background-color: var(--background-primary);
-    border-radius: 14px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 16px;
     color: var(--text-muted);
-    transition: all 0.3s ease;
+    flex-shrink: 0;
 }
 
-.abstract-library-explorer .library-explorer-card:hover .library-card-icon {
-    transform: scale(1.1);
-}
-
-.abstract-library-explorer .library-explorer-card.is-installed .library-card-icon {
-    background: rgba(var(--success-rgb), 0.1);
-    color: var(--success);
+.abstract-library-explorer .library-card-text-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    gap: 2px;
 }
 
 .abstract-library-explorer .library-card-name {
-    font-size: 1.2em;
-    font-weight: 700;
+    font-size: 1.0em;
+    font-weight: 600;
     color: var(--text-normal);
-    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .abstract-library-explorer .library-card-author {
-    font-size: 0.9em;
+    font-size: 0.8em;
     color: var(--text-muted);
-    font-style: italic;
-    opacity: 0.8;
+}
+
+.abstract-library-explorer .library-card-actions-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
 .abstract-library-explorer .library-card-badge {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    background-color: var(--success);
+    background-color: var(--interactive-accent);
     color: white;
-    font-size: 0.75em;
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-weight: 700;
-    box-shadow: 0 2px 6px rgba(var(--success-rgb), 0.3);
+    font-size: 0.7em;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+    white-space: nowrap;
 }
 
 /* Discovery Detail View */
@@ -126,46 +133,39 @@
 }
 
 .abstract-library-explorer .topic-card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 20px;
-    margin-bottom: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px 0;
+    align-items: center;
 }
 
 .abstract-library-explorer .topic-card {
-    background-color: var(--background-secondary);
+    background-color: var(--background-primary);
     border: 1px solid var(--background-modifier-border);
-    border-radius: 16px;
-    padding: 24px;
+    border-radius: 20px;
+    padding: 8px 16px;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    text-align: center;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
+    width: 100%;
+    max-width: 600px;
 }
 
 .abstract-library-explorer .topic-card:hover {
-    background-color: var(--background-secondary-alt);
+    background-color: var(--background-modifier-hover);
     border-color: var(--interactive-accent);
-    transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
 }
 
 .abstract-library-explorer .topic-card-icon {
-    width: 56px;
-    height: 56px;
-    background: linear-gradient(135deg, var(--interactive-accent) 0%, var(--interactive-accent-hover) 100%);
-    border-radius: 14px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 16px;
-    color: white;
-    box-shadow: 0 4px 10px rgba(var(--interactive-accent-rgb), 0.3);
+    color: var(--text-muted);
 }
 
 .abstract-library-explorer .topic-card-name {

@@ -37,79 +37,94 @@
 }
 
 .library-card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 24px;
-    padding: 32px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 24px;
+    align-items: center;
 }
 
 .library-explorer-card {
-    background-color: var(--background-secondary);
+    background-color: var(--background-primary);
     border: 1px solid var(--background-modifier-border);
     border-radius: 12px;
-    padding: 24px;
+    padding: 10px 18px;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    text-align: center;
+    justify-content: space-between;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: all 0.2s ease;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    width: 100%;
+    max-width: 600px;
+    min-height: 52px;
 }
 
 .library-explorer-card:hover {
-    background-color: var(--background-secondary-alt);
+    background-color: var(--background-modifier-hover);
     border-color: var(--interactive-accent);
-    transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+.library-explorer-card.is-installed {
+    border-color: var(--interactive-accent);
+    background: hsla(var(--interactive-accent-hsl), 0.03);
+}
+
+.library-card-info {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+    overflow: hidden;
 }
 
 .library-card-icon {
-    width: 48px;
-    height: 48px;
-    background-color: var(--background-primary);
-    border-radius: 12px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 16px;
     color: var(--text-muted);
-    transition: all 0.3s ease;
+    flex-shrink: 0;
 }
 
-.library-explorer-card:hover .library-card-icon {
-    transform: scale(1.1);
+.library-card-text-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    gap: 2px;
 }
 
 .library-card-name {
-    font-size: 1.1em;
+    font-size: 1.0em;
     font-weight: 600;
     color: var(--text-normal);
-    margin-bottom: 4px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    width: 100%;
 }
 
 .library-card-author {
-    font-size: 0.85em;
+    font-size: 0.8em;
     color: var(--text-muted);
-    opacity: 0.8;
+}
+
+.library-card-actions-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
 .library-card-badge {
-    position: absolute;
-    top: 12px;
-    right: 12px;
     background-color: var(--interactive-accent);
     color: white;
-    font-size: 0.7em;
+    font-size: 0.73em;
     padding: 2px 8px;
-    border-radius: 4px;
+    border-radius: 6px;
     font-weight: 600;
+    white-space: nowrap;
 }
 
 .library-card-badge.is-syncing {
@@ -121,16 +136,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 16px;
-    margin-top: auto;
-    width: 100%;
-    opacity: 0;
-    transition: all 0.3s ease;
-    padding-top: 12px;
-}
-
-.library-explorer-card:hover .af-library-detail-actions {
-    opacity: 1;
+    gap: 12px;
 }
 
 .af-library-detail-action {
@@ -141,13 +147,11 @@
     transition: all 0.2s ease;
     padding: 6px;
     border-radius: 8px;
-    background-color: transparent !important;
 }
 
 .af-library-detail-action:hover {
     color: var(--text-normal);
     background-color: var(--background-modifier-hover);
-    transform: scale(1.1);
 }
 
 .af-library-detail-heart:hover {

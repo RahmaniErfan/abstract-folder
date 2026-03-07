@@ -187,20 +187,19 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             if (child instanceof TFile) continue;
 
             const card = cardContainer.createDiv({ cls: "library-explorer-card" });
-            const iconContainer = card.createDiv({ cls: "library-card-icon" });
+            
+            const info = card.createDiv({ cls: "library-card-info" });
+            const iconContainer = info.createDiv({ cls: "library-card-icon" });
             setIcon(iconContainer, "users");
             iconContainer.style.color = "var(--color-purple)";
             
-            const info = card.createDiv({ cls: "library-card-info" });
-            info.createDiv({ cls: "library-card-name", text: child.name });
-            
-            card.addEventListener("click", () => {
-                this.selectedSpace = child as TFolder;
-                this.renderView();
-            });
+            const textInfo = info.createDiv({ cls: "library-card-text-info" });
+            textInfo.createDiv({ cls: "library-card-name", text: child.name });
 
+            const actions = card.createDiv({ cls: "library-card-actions-wrapper" });
+            
             // Delete Button
-            const deleteBtn = card.createDiv({ 
+            const deleteBtn = actions.createDiv({ 
                 cls: "af-card-delete-btn clickable-icon",
                 attr: { "aria-label": "Delete Space" }
             });
@@ -208,6 +207,11 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             deleteBtn.addEventListener("click", (e) => {
                 e.stopPropagation(); // Don't trigger card selection
                 new DeleteSharedSpaceModal(this.app, this.plugin, child.path, child.name).open();
+            });
+
+            card.addEventListener("click", () => {
+                this.selectedSpace = child as TFolder;
+                this.renderView();
             });
 
             // Context Menu for management

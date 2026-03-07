@@ -43,12 +43,13 @@ export class LibraryTopicScreen {
 
         // 1. "All" Button
         const allCard = grid.createDiv({ cls: "library-explorer-card all-card" });
-        const allIcon = allCard.createDiv({ cls: "library-card-icon" });
+        const allInfo = allCard.createDiv({ cls: "library-card-info" });
+        const allIcon = allInfo.createDiv({ cls: "library-card-icon" });
         setIcon(allIcon, "layers");
         
-        const allInfo = allCard.createDiv({ cls: "library-card-info" });
-        allInfo.createDiv({ cls: "library-card-name", text: "All Topics" });
-        allInfo.createDiv({ cls: "library-card-author", text: "View everything in this library." });
+        const allText = allInfo.createDiv({ cls: "library-card-text-info" });
+        allText.createDiv({ cls: "library-card-name", text: "All Topics" });
+        allText.createDiv({ cls: "library-card-author", text: "View everything in this library." });
         
         allCard.addEventListener("click", () => {
             this.options.onTopicSelect('all');
@@ -68,12 +69,13 @@ export class LibraryTopicScreen {
         
         topics.forEach((topic: string) => {
             const topicCard = grid.createDiv({ cls: "library-explorer-card" });
-            const topicIcon = topicCard.createDiv({ cls: "library-card-icon" });
+            const topicInfo = topicCard.createDiv({ cls: "library-card-info" });
+            const topicIcon = topicInfo.createDiv({ cls: "library-card-icon" });
             setIcon(topicIcon, "folder");
             
-            const topicInfo = topicCard.createDiv({ cls: "library-card-info" });
-            topicInfo.createDiv({ cls: "library-card-name", text: topic });
-            topicInfo.createDiv({ cls: "library-card-author", text: "Topic" });
+            const topicText = topicInfo.createDiv({ cls: "library-card-text-info" });
+            topicText.createDiv({ cls: "library-card-name", text: topic });
+            topicText.createDiv({ cls: "library-card-author", text: "Topic" });
             
             topicCard.addEventListener("click", () => {
                 this.options.onTopicSelect(topic);

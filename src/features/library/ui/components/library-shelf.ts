@@ -208,7 +208,9 @@ export class LibraryShelf {
 
         const isSyncing = installed ? this.plugin.libraryManager.isPublicSyncing(installed.path) : false;
 
-        const iconContainer = card.createDiv({ cls: "library-card-icon" });
+        const info = card.createDiv({ cls: "library-card-info" });
+        
+        const iconContainer = info.createDiv({ cls: "library-card-icon" });
         if (isSyncing) {
             setIcon(iconContainer, "refresh-cw");
             iconContainer.addClass("af-spin");
@@ -216,20 +218,22 @@ export class LibraryShelf {
             setIcon(iconContainer, installed ? "library" : "cloud-download");
         }
         
-        const info = card.createDiv({ cls: "library-card-info" });
-        info.createDiv({ cls: "library-card-name", text: item.name });
-        info.createDiv({ cls: "library-card-author", text: `by ${item.author}` });
+        const textInfo = info.createDiv({ cls: "library-card-text-info" });
+        textInfo.createDiv({ cls: "library-card-name", text: item.name });
+        textInfo.createDiv({ cls: "library-card-author", text: `by ${item.author}` });
         
+        const actions = card.createDiv({ cls: "library-card-actions-wrapper" });
+
         if (installed) {
             if (isSyncing) {
-                card.createDiv({ cls: "library-card-badge is-syncing", text: "Syncing..." });
+                actions.createDiv({ cls: "library-card-badge is-syncing", text: "Syncing..." });
             } else {
-                card.createDiv({ cls: "library-card-badge", text: "Installed" });
+                actions.createDiv({ cls: "library-card-badge", text: "Installed" });
             }
 
-            const actions = card.createDiv({ cls: "af-library-detail-actions" });
+            const actionButtons = actions.createDiv({ cls: "af-library-detail-actions" });
             
-            const supportBtn = actions.createDiv({ 
+            const supportBtn = actionButtons.createDiv({ 
                 cls: "af-library-detail-action af-library-detail-heart",
                 attr: { "aria-label": "Support" }
             });
@@ -244,7 +248,7 @@ export class LibraryShelf {
                 }
             });
 
-            const uninstallBtn = actions.createDiv({ 
+            const uninstallBtn = actionButtons.createDiv({ 
                 cls: "af-library-detail-action af-library-detail-uninstall",
                 attr: { "aria-label": "Uninstall" }
             });
@@ -261,7 +265,7 @@ export class LibraryShelf {
                 }
             });
 
-            const githubBtn = actions.createDiv({ 
+            const githubBtn = actionButtons.createDiv({ 
                 cls: "af-library-detail-action af-library-detail-github",
                 attr: { "aria-label": "View on GitHub" }
             });
