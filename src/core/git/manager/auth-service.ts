@@ -100,6 +100,45 @@ export class AuthService {
         }
     }
     /**
+     * Create a new repository from a template on GitHub
+     */
+    static async createRepositoryFromTemplate(
+        token: string, 
+        templateOwner: string, 
+        templateRepo: string, 
+        name: string, 
+        isPrivate: boolean
+    ): Promise<{ url: string; name: string } | null> {
+        try {
+            const response = await requestUrl({
+                url: `https://api.github.com/repos/${templateOwner}/${templateRepo}/generate`,
+                method: "POST",
+                headers: {
+                    "Authorization": `token ${token}`,
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    "X-GitHub-Api-Version": "2022-11-28"
+                },
+                body: JSON.stringify({
+                    name,
+                    owner: undefined, // Create in user account (undefined defaults to current user)
+                    description: "Created via Abstract Folder Library Template",
+                    include_all_branches: false,
+                    private: isPrivate,
+                }),
+            });
+            if (response.status !== 201) {
+                console.error("Failed to generate from template", response.status, response.json);
+                return null;
+            }
+            const data = response.json as { clone_url: string; name: string };
+            return { url: data.clone_url, name: data.name };
+        } catch (error) {
+            console.error("Failed to create repository from template", error);
+            return null;
+        }
+    }
+    /**
      * Invite a collaborator to a specific repository
      */
     static async inviteCollaborator(

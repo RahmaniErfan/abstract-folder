@@ -75,6 +75,7 @@ export interface LibraryFeatureSettings {
     catalogs: string[];  // List of custom catalog URLs
     standaloneLibraries: string[]; // List of direct repository URLs
     libraryStates: Record<string, LibraryState>; // Per-library local state (metadata, subscriptions)
+    libraryTemplateRepo: string; // The URL of the library template repository
 }
 
 /**

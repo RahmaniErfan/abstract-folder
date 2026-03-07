@@ -6,6 +6,7 @@ export interface SharedSpaceConfig {
     lastSync?: number;
     parentProperty?: string;
     childrenProperty?: string;
+    spaceType?: 'shared' | 'library';
 }
 
 export interface SpacesFeatureSettings {

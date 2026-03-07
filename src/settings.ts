@@ -180,6 +180,7 @@ export const DEFAULT_SETTINGS: AbstractFolderPluginSettings = {
     catalogs: [],
     standaloneLibraries: [],
     libraryStates: {},
+    libraryTemplateRepo: "RahmaniErfan/abstract-library-template",
   },
   spaces: {
     sharedSpacesRoot: "Abstract Spaces",

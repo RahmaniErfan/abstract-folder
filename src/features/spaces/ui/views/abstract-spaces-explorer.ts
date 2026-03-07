@@ -194,7 +194,17 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
             iconContainer.style.color = "var(--color-purple)";
             
             const textInfo = info.createDiv({ cls: "library-card-text-info" });
-            textInfo.createDiv({ cls: "library-card-name", text: child.name });
+            const nameRow = textInfo.createDiv({ cls: "library-card-name-row" });
+            nameRow.createDiv({ cls: "library-card-name", text: child.name });
+
+            const config = this.plugin.settings.spaces.spaceConfigs[child.path];
+            if (config?.spaceType === 'library') {
+                const badge = nameRow.createDiv({ cls: "library-access-badge-pill is-readonly", text: "Library" });
+                badge.style.fontSize = "10px";
+                badge.style.padding = "1px 6px";
+                badge.style.marginLeft = "8px";
+                badge.style.alignSelf = "center";
+            }
 
             const actions = card.createDiv({ cls: "library-card-actions-wrapper" });
             
@@ -245,6 +255,26 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
                             }
                         })
                 );
+
+                const config = this.plugin.settings.spaces.spaceConfigs[child.path];
+                if (config?.spaceType === 'library') {
+                    menu.addItem((item) =>
+                        item
+                            .setTitle("Make a Pull Request")
+                            .setIcon("git-pull-request")
+                            .onClick(async () => {
+                                const remote = await this.plugin.libraryManager.getRemoteUrl(child.path);
+                                if (remote) {
+                                    // Github compare URL: https://github.com/owner/repo/compare
+                                    const compareUrl = remote.replace(".git", "/compare");
+                                    window.open(compareUrl, "_blank");
+                                } else {
+                                    new Notice("No remote URL found for this library.");
+                                }
+                            })
+                    );
+                }
+
                 menu.showAtMouseEvent(event);
             });
         }
@@ -350,6 +380,16 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         setIcon(iconEl, iconToUse);
         titleEl.createSpan({ text: this.selectedSpace.name });
 
+        const config = this.plugin.settings.spaces.spaceConfigs[this.selectedSpace.path];
+        if (config?.spaceType === 'library') {
+            const badge = titleEl.createDiv({ cls: "library-access-badge-pill is-readonly", text: "Library" });
+            badge.style.fontSize = "10px";
+            badge.style.padding = "2px 8px";
+            badge.style.marginLeft = "10px";
+            badge.style.display = "inline-flex";
+            badge.style.verticalAlign = "middle";
+        }
+
         // Pre-fetch ownership and repo info for toolbars
         const status = await this.plugin.libraryManager.isLibraryOwner(this.selectedSpace.path);
         this.isOwner = status.isOwner;
@@ -404,6 +444,16 @@ export class AbstractSpacesExplorerView extends ItemView implements ViewportDele
         }
         setIcon(iconEl, iconToUse);
         titleEl.createSpan({ text: this.selectedSpace!.name });
+
+        const config = this.plugin.settings.spaces.spaceConfigs[this.selectedSpace!.path];
+        if (config?.spaceType === 'library') {
+            const badge = titleEl.createDiv({ cls: "library-access-badge-pill is-readonly", text: "Library" });
+            badge.style.fontSize = "10px";
+            badge.style.padding = "2px 8px";
+            badge.style.marginLeft = "10px";
+            badge.style.display = "inline-flex";
+            badge.style.verticalAlign = "middle";
+        }
 
         this.renderTopToolbar(header);
         this.renderSearch(header);
