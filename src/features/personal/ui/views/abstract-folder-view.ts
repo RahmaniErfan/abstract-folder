@@ -215,12 +215,37 @@ export class AbstractFolderView extends ItemView implements ViewportDelegate {
         }
 
         let matchingNode = snapshot.items.find(item => item.id === path);
-        let uri: string | null = matchingNode?.uri || null;
+        let uri: string | null = null;
+        
+        // 1. Prioritize currently selected or focused URIs that match this path
+        const state = this.contextEngine.getState();
+        const selectedURIs = Array.from(state.selectedURIs);
+        
+        // Check selection first
+        uri = selectedURIs.find(u => {
+            const node = snapshot?.items.find(item => item.uri === u);
+            return node?.id === path;
+        }) || null;
 
-        // If not found in current snapshot, attempt to resolve from graph
+        if (uri) {
+            Logger.debug(`[Abstract Folder] View: Match found in current selection: ${uri}`);
+        } else if (state.focusedURI) {
+            const focusedNode = snapshot?.items.find(item => item.uri === state.focusedURI);
+            if (focusedNode?.id === path) {
+                uri = state.focusedURI;
+                Logger.debug(`[Abstract Folder] View: Match found in current focus: ${uri}`);
+            }
+        }
+
+        // 2. Fallback to existing logic: first match in snapshot
+        if (!uri && matchingNode) {
+            uri = matchingNode.uri;
+            Logger.debug(`[Abstract Folder] View: Defaulting to first match in snapshot: ${uri}`);
+        }
+
+        // 3. Last resort: If not found in current snapshot, attempt to resolve from graph
         if (!uri) {
             Logger.debug("[Abstract Folder] View: Node not in snapshot, resolving URI from graph...");
-            const state = this.contextEngine.getState();
             const provider = new GlobalContentProvider(this.app, this.plugin.settings, state.activeGroupId);
             const roots = provider.getRoots(this.plugin.graphEngine);
             uri = this.plugin.treeBuilder.resolveURIFromGraph(path, roots);
