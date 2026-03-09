@@ -138,6 +138,7 @@ export class GitCommandRunner {
             // Augment with standard Git locations to avoid ENOENT.
             const augmentedPath = (process.env.PATH || '') + ':/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/git/bin';
             
+            console.debug(`[GitCommandRunner] Exec: git ${args.join(' ')}`);
             const result = await execFileAsync(gitPath, args, {
                 cwd: this.absoluteDir,
                 env: { 
@@ -147,8 +148,14 @@ export class GitCommandRunner {
                 },
                 maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large status outputs
             });
+            
+            if (result.stdout.trim() || result.stderr.trim()) {
+                console.debug(`[GitCommandRunner] Result: stdout=${result.stdout.trim().substring(0, 500)}${result.stdout.length > 500 ? '...' : ''}, stderr=${result.stderr.trim()}`);
+            }
+            
             return { stdout: result.stdout, stderr: result.stderr };
         } catch (error: any) {
+            console.error(`[GitCommandRunner] Error: git ${args.join(' ')} failed:`, error);
             const classified = classifyError(error);
             throw classified;
         }
@@ -206,7 +213,18 @@ export class GitCommandRunner {
 
     /** git add <filepath> — targeting a single file (NEVER git add .) */
     async add(filepath: string): Promise<void> {
-        await this.exec(['add', toPosixPath(filepath)]);
+        try {
+            await this.exec(['add', toPosixPath(filepath)]);
+        } catch (error: any) {
+            // If the failure is due to sparse-checkout restrictions, retry with --sparse
+            const message = error.message || (error.raw && error.raw.message) || String(error);
+            if (message.includes('sparse-checkout') || message.includes('--sparse') || message.includes('advice.updateSparsePath')) {
+                console.debug(`[GitCommandRunner] Retrying git add with --sparse for ${filepath}`);
+                await this.exec(['add', '--sparse', toPosixPath(filepath)]);
+            } else {
+                throw error;
+            }
+        }
     }
 
     /**
@@ -357,7 +375,9 @@ export class GitCommandRunner {
      */
     async statusPorcelain(): Promise<string[]> {
         try {
-            const { stdout } = await this.exec(['status', '--porcelain']);
+            // -c core.quotePath=false ensures paths with spaces/dots aren't escaped.
+            // -uall ensures untracked files inside new directories are individualy listed.
+            const { stdout } = await this.exec(['-c', 'core.quotePath=false', 'status', '--porcelain', '-uall']);
             return stdout
                 .split('\n')
                 .filter(line => line.trim().length > 0)

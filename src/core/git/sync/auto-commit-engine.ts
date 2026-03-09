@@ -191,6 +191,7 @@ export class AutoCommitEngine implements ISyncEngine {
                 if (!safe) continue; // Skip large files even in flush
 
                 try {
+                    console.debug(`[AutoCommitEngine] Staging file for flush: ${filepath}`);
                     await this.runner.add(filepath);
                 } catch {
                     // File may have been deleted between timer and now
@@ -306,8 +307,12 @@ export class AutoCommitEngine implements ISyncEngine {
         if (!this.running || this.isMerging) return;
 
         const changes = await this.runner.statusPorcelain();
-        if (changes.length === 0) return;
+        if (changes.length === 0) {
+            console.debug(`[AutoCommitEngine] syncWorkingTree: No changes found for ${this.absoluteDir}`);
+            return;
+        }
 
+        console.log(`[AutoCommitEngine] syncWorkingTree: Found ${changes.length} changes for ${this.absoluteDir}: ${changes.join(', ')}`);
         const filesToSync: string[] = [];
         for (const relPath of changes) {
             // Path normalization for guard
@@ -333,8 +338,9 @@ export class AutoCommitEngine implements ISyncEngine {
 
                 try {
                     await this.runner.add(file);
-                } catch {
-                    // File might have been moved/deleted again
+                    console.debug(`[AutoCommitEngine] syncWorkingTree: Staged ${file}`);
+                } catch (e: any) {
+                    console.warn(`[AutoCommitEngine] syncWorkingTree: Failed to stage ${file}:`, e);
                 }
             }
 
@@ -344,6 +350,8 @@ export class AutoCommitEngine implements ISyncEngine {
                 `auto: catch-up ${filesToSync.length} files [${hash}]`,
                 author
             );
+
+            console.log(`[AutoCommitEngine] syncWorkingTree: Commit result for ${this.absoluteDir}: ${committed}`);
 
             if (committed) {
                 this.emit({ type: 'commit', detail: { files: filesToSync, catchUp: true } });
