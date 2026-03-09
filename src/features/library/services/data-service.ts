@@ -10,11 +10,11 @@ export class DataService {
     static parseLibraryConfig(content: string): LibraryConfig {
         const config = JSON.parse(content) as any;
         
-        const repositoryUrl = config.repositoryUrl || config.repository;
+        const repo = config.repo || config.repositoryUrl || config.repository;
 
         // Basic validation
-        if (!config.id || !repositoryUrl || !config.version) {
-            throw new Error("Invalid library configuration: missing required fields (id, repositoryUrl, version)");
+        if (!config.id || !repo || !config.version) {
+            throw new Error("Invalid library configuration: missing required fields (id, repo, version)");
         }
         
         // Engine 2: Topic Data Mapping & Source Attribution
@@ -37,10 +37,10 @@ export class DataService {
             author: config.author || "Unknown",
             description: config.description,
             version: config.version,
-            repositoryUrl: repositoryUrl,
+            repo: repo,
             branch: config.branch || "main",
             lastSync: config.lastSync,
-            parentProperty: config.parentProperty,
+            category: config.category,
             topics: config.topics || []
         };
 

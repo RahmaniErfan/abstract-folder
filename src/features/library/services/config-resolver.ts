@@ -54,8 +54,8 @@ export class ConfigResolver {
                     const config = DataService.parseLocalConfig(content);
                     if (config.propertyNames || config.forceStandardProperties !== undefined) {
                         return {
-                            parentPropertyNames: config.propertyNames?.parent ? [config.propertyNames.parent] : globalProps.parentPropertyNames,
-                            childrenPropertyNames: config.propertyNames?.children ? [config.propertyNames.children] : globalProps.childrenPropertyNames,
+                            parentPropertyNames: config.propertyNames?.parent ? (Array.isArray(config.propertyNames.parent) ? config.propertyNames.parent : [config.propertyNames.parent]) : globalProps.parentPropertyNames,
+                            childrenPropertyNames: config.propertyNames?.children ? (Array.isArray(config.propertyNames.children) ? config.propertyNames.children : [config.propertyNames.children]) : globalProps.childrenPropertyNames,
                             forceStandardProperties: config.forceStandardProperties || false
                         };
                     }
@@ -64,33 +64,14 @@ export class ConfigResolver {
                 Logger.error(`Failed to read local config at ${localConfigPath}`, e);
             }
 
-            // 2. Check for library.json
-            const libraryJsonPath = `${current}/library.json`;
-            const libraryFile = this.app.vault.getAbstractFileByPath(libraryJsonPath);
-            if (libraryFile instanceof TFile) {
-                try {
-                    const content = await this.app.vault.read(libraryFile);
-                    const config = DataService.parseLibraryConfig(content);
-                    
-                    const parentProps = config.parentProperty ? [config.parentProperty] : globalProps.parentPropertyNames;
-                    const childrenProps = config.childrenProperty ? [config.childrenProperty] : globalProps.childrenPropertyNames;
-                    
-                    return {
-                        parentPropertyNames: parentProps,
-                        childrenPropertyNames: childrenProps,
-                        forceStandardProperties: config.forceStandardProperties || false
-                    };
-                } catch (e) {
-                    Logger.error(`Failed to read library config at ${libraryJsonPath}`, e);
-                }
-            }
+            // Removed checking for library.json config overrides
 
             // 3. Check Shared Space config in settings
             const spaceConfig = this.settings.spaces.spaceConfigs[current];
             if (spaceConfig && (spaceConfig.parentProperty || spaceConfig.childrenProperty)) {
                 return {
-                    parentPropertyNames: spaceConfig.parentProperty ? [spaceConfig.parentProperty] : globalProps.parentPropertyNames,
-                    childrenPropertyNames: spaceConfig.childrenProperty ? [spaceConfig.childrenProperty] : globalProps.childrenPropertyNames,
+                    parentPropertyNames: spaceConfig.parentProperty ? (Array.isArray(spaceConfig.parentProperty) ? spaceConfig.parentProperty : [spaceConfig.parentProperty]) : globalProps.parentPropertyNames,
+                    childrenPropertyNames: spaceConfig.childrenProperty ? (Array.isArray(spaceConfig.childrenProperty) ? spaceConfig.childrenProperty : [spaceConfig.childrenProperty]) : globalProps.childrenPropertyNames,
                     forceStandardProperties: false
                 };
             }
@@ -112,23 +93,20 @@ export class ConfigResolver {
 
         const allFiles = this.app.vault.getAllLoadedFiles();
         
-        // Find all library.json files
-        for (const file of allFiles) {
-            if (file instanceof TFile && file.name === 'library.json') {
-                try {
-                    const content = await this.app.vault.read(file);
-                    const config = DataService.parseLibraryConfig(content);
-                    configs.push({ path: file.path, type: 'library', config });
-                } catch {}
-            }
-        }
-
-        // Find all .abstract/config.json files
-        // Since hidden files are not in getAllLoadedFiles(), we check all known folders
-        const foldersToCheck = allFiles.filter(f => f instanceof TFolder).map(f => f.path);
+        // Find all hidden .abstract files since they are not in getAllLoadedFiles()
+        const foldersToCheck = allFiles.filter((f: any) => f instanceof TFolder).map((f: any) => f.path);
         foldersToCheck.push(""); // Add root vault
 
         for (const folderPath of foldersToCheck) {
+            const libraryPath = folderPath === "" ? ".abstract/library.json" : `${folderPath}/.abstract/library.json`;
+            try {
+                if (await this.app.vault.adapter.exists(libraryPath)) {
+                    const content = await this.app.vault.adapter.read(libraryPath);
+                    const config = DataService.parseLibraryConfig(content);
+                    configs.push({ path: libraryPath, type: 'library', config });
+                }
+            } catch {}
+
             const configPath = folderPath === "" ? ".abstract/config.json" : `${folderPath}/.abstract/config.json`;
             try {
                 if (await this.app.vault.adapter.exists(configPath)) {

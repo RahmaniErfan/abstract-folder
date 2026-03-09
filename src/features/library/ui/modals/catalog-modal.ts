@@ -187,7 +187,7 @@ export class CatalogModal extends Modal {
         }
 
         if (this.activeFilter === "official") {
-            const OFFICIAL_URL = "https://raw.githubusercontent.com/RahmaniErfan/abstract-catalog/main/catalog.json";
+            const OFFICIAL_URL = "https://raw.githubusercontent.com/RahmaniErfan/abstract-catalog/main/.abstract/catalog.json";
             items = items.filter(i => i.sourceCatalog === OFFICIAL_URL);
         } else if (this.activeFilter === "standalone") {
             items = items.filter(i => i.sourceCatalog === "standalone");
@@ -322,7 +322,7 @@ export class CatalogModal extends Modal {
 
                 try {
                     // Handshake: Fetch remote library.json
-                    const remoteConfig = await this.catalogService.fetchRemoteLibraryConfig(item.repositoryUrl);
+                    const remoteConfig = await this.catalogService.fetchRemoteLibraryConfig(item.repo);
                     
                     if (remoteConfig && remoteConfig.availableTopics && remoteConfig.availableTopics.length > 0) {
                         // Topic-aware library: Open subscription modal
@@ -344,7 +344,10 @@ export class CatalogModal extends Modal {
 
         const ghBtn = actions.createDiv({ cls: "af-library-detail-action clickable-icon", attr: { "aria-label": "View on GitHub" } });
         setIcon(ghBtn, "github");
-        ghBtn.addEventListener("click", () => window.open(item.repositoryUrl, "_blank"));
+        ghBtn.addEventListener("click", () => {
+            const githubUrl = item.repo.startsWith("http") ? item.repo : `https://github.com/${item.repo}`;
+            window.open(githubUrl, "_blank");
+        });
 
         const body = this.detailEl.createDiv({ cls: "af-library-detail-body markdown-rendered" });
         body.createEl("p", { text: "Loading README...", cls: "loading-text" });
@@ -352,15 +355,18 @@ export class CatalogModal extends Modal {
         // Fetch and render README
         void (async () => {
             try {
-                if (!item.repositoryUrl) {
+                if (!item.repo) {
                     body.empty();
                     body.createEl("p", { text: "No repository URL available." });
                     return;
                 }
                 
-                let readmeUrl = item.repositoryUrl;
-                if (readmeUrl.includes("github.com")) {
-                    readmeUrl = readmeUrl.replace("github.com", "raw.githubusercontent.com") + "/main/README.md";
+                // Convert slug or URL to raw URL for README
+                let readmeUrl = "";
+                if (item.repo.includes("github.com")) {
+                    readmeUrl = item.repo.replace("github.com", "raw.githubusercontent.com") + "/main/README.md";
+                } else if (!item.repo.startsWith("http")) { // Assume github slug
+                    readmeUrl = `https://raw.githubusercontent.com/${item.repo}/main/README.md`;
                 } else {
                     body.empty();
                     body.createEl("p", { text: "README preview only supported for GitHub." });
@@ -383,7 +389,7 @@ export class CatalogModal extends Modal {
     }
 
     private renderManageTab(container: HTMLElement) {
-        const OFFICIAL_CATALOG_URL = "https://raw.githubusercontent.com/RahmaniErfan/abstract-catalog/main/catalog.json";
+        const OFFICIAL_CATALOG_URL = "https://raw.githubusercontent.com/RahmaniErfan/abstract-catalog/main/.abstract/catalog.json";
         const manageSection = container.createDiv({ cls: "af-catalog-manage-section" });
         
         manageSection.createEl("h3", { text: "Manage Catalogs" });
@@ -504,11 +510,12 @@ export class CatalogModal extends Modal {
             Logger.debug(`[CatalogModal] installLibrary triggered`);
             Logger.debug(`[CatalogModal] Item ID: ${item.id}`);
             Logger.debug(`[CatalogModal] Item Name: ${item.name}`);
-            Logger.debug(`[CatalogModal] Repository URL: ${item.repositoryUrl}`);
+            Logger.debug(`[CatalogModal] Repository Slug: ${item.repo}`);
             Logger.debug(`[CatalogModal] Destination Path: ${destPath}`);
 
             new Notice(`Installing ${item.name}...`);
-            await this.libraryManager.cloneLibrary(item.repositoryUrl, destPath, item);
+            const cloneUrl = item.repo.startsWith("http") ? item.repo : `https://github.com/${item.repo}`;
+            await this.libraryManager.cloneLibrary(cloneUrl, destPath, item);
             
             new Notice(`Successfully installed ${item.name}`);
             if (btn) {

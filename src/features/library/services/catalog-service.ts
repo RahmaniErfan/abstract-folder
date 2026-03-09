@@ -3,7 +3,7 @@ import { CatalogItem, LibraryFeatureSettings as LibrarySettings, LibraryConfig }
 
 export class CatalogService {
     // Hardcoded official catalog URL
-    private static readonly OFFICIAL_CATALOG_URL = "https://raw.githubusercontent.com/RahmaniErfan/abstract-catalog/main/catalog.json";
+    private static readonly OFFICIAL_CATALOG_URL = "https://raw.githubusercontent.com/RahmaniErfan/abstract-catalog/main/.abstract/catalog.json";
 
     private _categories: Set<string> = new Set();
 
@@ -36,7 +36,7 @@ export class CatalogService {
                     } else if (data && typeof data === 'object' && Array.isArray(data.libraries)) {
                         items = data.libraries.map((lib: any) => ({
                             ...lib,
-                            repositoryUrl: lib.repositoryUrl || lib.repository
+                            repo: lib.repo || lib.repositoryUrl || lib.repository
                         }));
                         if (Array.isArray(data.categories)) {
                             data.categories.forEach((cat: string) => this._categories.add(cat));
@@ -88,8 +88,10 @@ export class CatalogService {
             
             // Try to fetch library.json if it's a GitHub repo
             let metadataUrl = url;
+            let repoSlug = url;
             if (url.includes("github.com")) {
-                metadataUrl = url.replace("github.com", "raw.githubusercontent.com") + "/main/library.json";
+                metadataUrl = url.replace("github.com", "raw.githubusercontent.com") + "/main/.abstract/library.json";
+                try { repoSlug = new URL(url).pathname.substring(1); } catch {}
             }
 
             try {
@@ -100,7 +102,7 @@ export class CatalogService {
                         id: meta.id || url,
                         name: meta.name || url.split("/").pop() || "Unknown Library",
                         description: meta.description || "Standalone library",
-                        repositoryUrl: meta.repositoryUrl || meta.repository || url,
+                        repo: meta.repo || meta.repositoryUrl || meta.repository || repoSlug,
                         author: meta.author || "Unknown",
                         category: meta.category || "Standalone",
                         tags: (meta as any).tags || ["standalone"],
@@ -116,7 +118,7 @@ export class CatalogService {
                 id: url,
                 name: url.split("/").pop() || url,
                 description: "Standalone library",
-                repositoryUrl: url,
+                repo: repoSlug,
                 author: "Unknown",
                 category: "Standalone",
                 tags: ["standalone"]
@@ -129,17 +131,16 @@ export class CatalogService {
     /**
      * Handshake: Fetches the library.json from a remote repository.
      */
-    async fetchRemoteLibraryConfig(repositoryUrl: string): Promise<LibraryConfig | null> {
-        if (!repositoryUrl) return null;
+    async fetchRemoteLibraryConfig(repoUrl: string): Promise<LibraryConfig | null> {
+        if (!repoUrl) return null;
 
-        let metadataUrl = repositoryUrl;
-        if (repositoryUrl.includes("github.com")) {
+        let metadataUrl = repoUrl;
+        if (repoUrl.includes("github.com")) {
             // Normalize: remove .git suffix if present
-            const cleanUrl = repositoryUrl.replace(/\.git$/, "");
-            metadataUrl = cleanUrl.replace("github.com", "raw.githubusercontent.com") + "/main/library.json";
-        } else {
-            // For non-github, we might not have a reliable raw URL pattern yet
-            return null;
+            const cleanUrl = repoUrl.replace(/\.git$/, "");
+            metadataUrl = cleanUrl.replace("github.com", "raw.githubusercontent.com") + "/main/.abstract/library.json";
+        } else if (!repoUrl.startsWith("http")) { // If it's just a slug "user/repo"
+            metadataUrl = `https://raw.githubusercontent.com/${repoUrl}/main/.abstract/library.json`;
         }
 
         try {
@@ -152,7 +153,7 @@ export class CatalogService {
                     author: data.author,
                     description: data.description,
                     version: data.version,
-                    repositoryUrl: repositoryUrl,
+                    repo: repoUrl,
                     branch: data.branch || "main",
                     subscribedTopics: [], // Initialize empty
                     availableTopics: data.topics || [] // Read topics from JSON

@@ -43,7 +43,7 @@ export class LibraryService {
 
             console.debug(`[LibraryService] Clone complete for ${absoluteDir}. Verifying contents...`);
             try {
-                const configPath = path.join(absoluteDir, 'library.json');
+                const configPath = path.join(absoluteDir, '.abstract', 'library.json');
                 const configExists = await NodeFsAdapter.promises.stat(configPath).catch(() => null);
 
                 if (!configExists) {
@@ -54,9 +54,10 @@ export class LibraryService {
                             author: item.author,
                             version: "1.0.0",
                             description: item.description,
-                            repositoryUrl: item.repositoryUrl,
+                            repo: item.repo || "",
                             branch: "main"
                         };
+                        await NodeFsAdapter.promises.mkdir(path.dirname(configPath), { recursive: true });
                         await NodeFsAdapter.promises.writeFile(configPath, JSON.stringify(manifest, null, 2), "utf8");
                         console.debug(`[LibraryService] Created bootstrap manifest at ${configPath}`);
                     } else {
@@ -184,7 +185,7 @@ export class LibraryService {
      */
     async validateLibrary(vaultPath: string): Promise<LibraryConfig> {
         const absoluteDir = this.gitService.getAbsolutePath(vaultPath);
-        const configPath = path.join(absoluteDir, 'library.json');
+        const configPath = path.join(absoluteDir, '.abstract', 'library.json');
         
         try {
             const configContent = await NodeFsAdapter.promises.readFile(configPath, "utf8");
@@ -211,7 +212,7 @@ export class LibraryService {
                     author: "Unknown",
                     version: "1.0.0",
                     description: "Library metadata missing.",
-                    repositoryUrl: "",
+                    repo: "",
                     branch: "main",
                 };
             }
@@ -300,7 +301,7 @@ export class LibraryService {
                              (gitName?.toLowerCase() === author.toLowerCase())) : false;
             
             const actualRemote = await this.getRemoteUrl(vaultPath);
-            const manifestRemote = config?.repositoryUrl;
+            const manifestRemote = config?.repo;
             
             let repoMatch = false;
             const checkUrl = actualRemote || manifestRemote;
@@ -340,7 +341,8 @@ export class LibraryService {
      */
     async bootstrapLibrary(vaultPath: string, config: LibraryConfig): Promise<void> {
         const absoluteDir = this.gitService.getAbsolutePath(vaultPath);
-        const configPath = path.join(absoluteDir, 'library.json');
+        const configDir = path.join(absoluteDir, '.abstract');
+        const configPath = path.join(configDir, 'library.json');
 
         try {
             // Save local state to settings
@@ -364,12 +366,12 @@ export class LibraryService {
                 author: config.author,
                 version: config.version,
                 description: config.description,
-                repositoryUrl: config.repositoryUrl,
+                repo: config.repo,
                 branch: config.branch || "main",
                 topics: config.topics || []
             };
 
-            await NodeFsAdapter.promises.mkdir(absoluteDir, { recursive: true });
+            await NodeFsAdapter.promises.mkdir(configDir, { recursive: true });
             await NodeFsAdapter.promises.writeFile(configPath, JSON.stringify(manifest, null, 2), "utf8");
             console.debug(`[LibraryService] Bootstrap complete for ${vaultPath}. Local state persisted in settings.`);
             

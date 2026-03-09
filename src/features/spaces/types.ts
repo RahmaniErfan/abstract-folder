@@ -4,8 +4,8 @@ export interface SharedSpaceConfig {
     syncIntervalValue: number;
     syncIntervalUnit: 'minutes' | 'hours' | 'days' | 'weeks';
     lastSync?: number;
-    parentProperty?: string;
-    childrenProperty?: string;
+    parentProperty?: string | string[];
+    childrenProperty?: string | string[];
     spaceType?: 'shared' | 'library';
 }
 

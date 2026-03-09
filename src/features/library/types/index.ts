@@ -6,8 +6,8 @@ export type LibraryStatus = 'up-to-date' | 'update-available' | 'dirty' | 'synci
 
 export interface LocalConfig {
     propertyNames?: {
-        parent?: string;
-        children?: string;
+        parent?: string | string[];
+        children?: string | string[];
     };
     forceStandardProperties?: boolean;
 }
@@ -18,14 +18,12 @@ export interface LibraryConfig {
     author: string;
     description?: string;
     version: string;
-    repositoryUrl: string;
+    repo: string;
     branch: string;
     lastSync?: number;
     isStandalone?: boolean;
     fundingUrl?: string;
-    parentProperty?: string;
-    childrenProperty?: string;
-    forceStandardProperties?: boolean;
+    category?: string;
     // --- Manifest Fields (Tracked in Git) ---
     topics?: string[];               // Topics defined in the remote manifest.json or library.json
     // --- Local Runtime State (Merged from LibraryState) ---
@@ -62,10 +60,10 @@ export interface CatalogItem {
     id: string;
     name: string;
     description: string;
-    repositoryUrl: string;
+    repo: string;
     author: string;
     category: string;
-    tags: string[];
+    tags?: string[];
     sourceCatalog?: string;
     fundingUrl?: string;
 }
