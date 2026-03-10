@@ -13,6 +13,7 @@
  */
 
 import { ISyncEngine, SyncEvent, SyncEventListener, SyncEventType, CDN_POLL_INTERVAL_MS } from './types';
+import { getRawContentUrl } from '../../../utils/git-url';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -36,14 +37,13 @@ export class CDNManifestPoller implements ISyncEngine {
     private manifestUrl: string;
 
     constructor(
-        private repositoryUrl: string,
+        private repo: string,
         private branch: string,
         private onUpdateAvailable: ManifestCallback,
         pollIntervalMs: number = CDN_POLL_INTERVAL_MS,
     ) {
-        // Convert GitHub repo URL to raw.githubusercontent.com manifest URL
-        // e.g. "https://github.com/owner/repo" → "https://raw.githubusercontent.com/owner/repo/main/manifest.json"
-        this.manifestUrl = this.buildManifestUrl(repositoryUrl, branch);
+        // V2: Fetch from .abstract/library.json
+        this.manifestUrl = getRawContentUrl(repo, branch, ".abstract/library.json");
         this.pollIntervalMs = pollIntervalMs;
     }
 
@@ -216,26 +216,7 @@ export class CDNManifestPoller implements ISyncEngine {
         return etag;
     }
 
-    /**
-     * Build the raw.githubusercontent.com manifest URL from a GitHub repo URL.
-     */
-    private buildManifestUrl(repoUrl: string, branch: string): string {
-        // Handle various GitHub URL formats:
-        // https://github.com/owner/repo
-        // https://github.com/owner/repo.git
-        // git@github.com:owner/repo.git
-        let cleanUrl = repoUrl
-            .replace(/\.git$/, '')
-            .replace('git@github.com:', 'https://github.com/');
 
-        if (cleanUrl.includes('github.com')) {
-            cleanUrl = cleanUrl.replace('github.com', 'raw.githubusercontent.com');
-            return `${cleanUrl}/${branch}/manifest.json`;
-        }
-
-        // Fallback: assume it's already a raw URL
-        return `${repoUrl}/${branch}/manifest.json`;
-    }
 
     /**
      * Exponential backoff on rate limiting / server errors.

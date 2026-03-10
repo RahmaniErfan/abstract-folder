@@ -21,6 +21,7 @@ import { GitCommandRunner } from './git-command-runner';
 import { SyncEvent, SyncEventListener, SyncEventType, ENGINE2_GC_INTERVAL_MS } from './types';
 import { Mutex } from './mutex';
 import { sanitizeTopicName } from '../../../utils/sanitization';
+import { normalizeRepoUrl } from '../../../utils/git-url';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -36,7 +37,7 @@ export interface ShallowSyncExecutorConfig {
     runner: GitCommandRunner;
     mutex: Mutex;
     branch: string;
-    repositoryUrl: string; // Ensure URL is available for initial init
+    repo: string; // Ensure repo (slug or URL) is available for initial init
     libraryName: string;   // For Group registration
     subscribedTopics?: string[];
     lastGcTime?: number;
@@ -144,9 +145,9 @@ export class ShallowSyncExecutor {
             await runner.init();
             
             // We need the repository URL for the initial remote add
-            const repoUrl = this.config.repositoryUrl;
+            const repoUrl = normalizeRepoUrl(this.config.repo);
             if (!repoUrl) {
-                throw new Error("Cannot initialize Git repo: missing repositoryUrl");
+                throw new Error("Cannot initialize Git repo: missing repo reference");
             }
             await runner.remoteAdd(repoUrl);
         }

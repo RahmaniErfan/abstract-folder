@@ -149,7 +149,7 @@ export class SyncManager {
             app: this.app,
             absoluteDir,
             vaultPath,
-            repositoryUrl: libraryConfig.repositoryUrl,
+            repo: libraryConfig.repo,
             branch: libraryConfig.branch || 'main',
             getToken: () => this.gitService.getToken(),
             getLocalVersion: () => {

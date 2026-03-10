@@ -28,7 +28,7 @@ export interface PublicSyncConfig {
     app: App;
     absoluteDir: string;
     vaultPath: string;
-    repositoryUrl: string;
+    repo: string;
     branch: string;
     getToken: () => Promise<string | undefined>;
     /** Read the locally persisted version for this library. */
@@ -85,7 +85,7 @@ export class PublicSyncOrchestrator implements ISyncEngine {
             runner: this.runner,
             mutex: this.mutex,
             branch: this.branch,
-            repositoryUrl: config.repositoryUrl,
+            repo: config.repo,
             subscribedTopics: config.subscribedTopics,
             lastGcTime: config.lastGcTime,
             onGcRun: config.onGcRun,
@@ -93,7 +93,7 @@ export class PublicSyncOrchestrator implements ISyncEngine {
         });
 
         this.poller = new CDNManifestPoller(
-            config.repositoryUrl,
+            config.repo,
             this.branch,
             (manifest) => this.onManifestReceived(manifest),
         );
@@ -123,7 +123,7 @@ export class PublicSyncOrchestrator implements ISyncEngine {
         this.running = true;
         this.poller.start();
 
-        console.log(`[PublicSyncOrchestrator] Started for ${this.absoluteDir} (repo: ${this.config.repositoryUrl})`);
+        console.log(`[PublicSyncOrchestrator] Started for ${this.absoluteDir} (repo: ${this.config.repo})`);
         return true;
     }
 
@@ -183,7 +183,7 @@ export class PublicSyncOrchestrator implements ISyncEngine {
             runner: this.runner,
             mutex: this.mutex,
             branch: this.branch,
-            repositoryUrl: this.config.repositoryUrl,
+            repo: this.config.repo,
             subscribedTopics: this.config.subscribedTopics,
             lastGcTime: this.config.lastGcTime,
             onGcRun: this.config.onGcRun,
