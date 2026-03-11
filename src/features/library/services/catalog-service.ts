@@ -24,8 +24,15 @@ export class CatalogService {
         this._categories.clear();
 
         // 1. Fetch from catalogs
-        for (const url of urls) {
+        for (const inputUrl of urls) {
             try {
+                let url = inputUrl;
+                if (!url.startsWith("http")) {
+                    url = `https://raw.githubusercontent.com/${url}/main/.abstract/catalog.json`;
+                } else if (url.includes("github.com") && !url.includes("raw.githubusercontent.com")) {
+                    url = url.replace("github.com", "raw.githubusercontent.com").replace(/\/blob\/main\//, "/main/") + (url.endsWith(".json") ? "" : "/main/.abstract/catalog.json");
+                }
+
                 const response = await requestUrl({ url });
                 if (response.status === 200) {
                     const data = response.json;
@@ -45,7 +52,7 @@ export class CatalogService {
 
                     for (const item of items) {
                         if (!seenIds.has(item.id)) {
-                            item.sourceCatalog = url;
+                            item.sourceCatalog = inputUrl;
                             allItems.push(item);
                             seenIds.add(item.id);
                             if (item.category) this._categories.add(item.category);
@@ -53,7 +60,7 @@ export class CatalogService {
                     }
                 }
             } catch (error) {
-                console.error(`Failed to fetch catalog from ${url}:`, error);
+                console.error(`Failed to fetch catalog from ${inputUrl}:`, error);
             }
         }
 
@@ -79,19 +86,24 @@ export class CatalogService {
     /**
      * Resolves a library from a standalone URL.
      */
-    async resolveStandalone(url: string): Promise<CatalogItem | null> {
-        // For standalone, we might want to fetch a library.json from the root of the repo
-        // to get the metadata, or just return a skeleton item.
+    async resolveStandalone(inputUrl: string): Promise<CatalogItem | null> {
         try {
-            // Check if it's a valid URL
-            new URL(url);
-            
+            let url = inputUrl;
+            let repoSlug = inputUrl;
+
+            if (!url.startsWith("http")) {
+                repoSlug = url;
+                url = `https://github.com/${url}`;
+            }
+
             // Try to fetch library.json if it's a GitHub repo
             let metadataUrl = url;
-            let repoSlug = url;
             if (url.includes("github.com")) {
                 metadataUrl = url.replace("github.com", "raw.githubusercontent.com") + "/main/.abstract/library.json";
-                try { repoSlug = new URL(url).pathname.substring(1); } catch {}
+                try { 
+                    const pathname = new URL(url).pathname;
+                    repoSlug = pathname.startsWith("/") ? pathname.substring(1) : pathname; 
+                } catch {}
             }
 
             try {
@@ -99,8 +111,8 @@ export class CatalogService {
                 if (response.status === 200) {
                     const meta = response.json as Record<string, string>;
                     return {
-                        id: meta.id || url,
-                        name: meta.name || url.split("/").pop() || "Unknown Library",
+                        id: meta.id || inputUrl,
+                        name: meta.name || inputUrl.split("/").pop() || "Unknown Library",
                         description: meta.description || "Standalone library",
                         repo: meta.repo || meta.repositoryUrl || meta.repository || repoSlug,
                         author: meta.author || "Unknown",
@@ -115,8 +127,8 @@ export class CatalogService {
 
             // Fallback skeleton
             return {
-                id: url,
-                name: url.split("/").pop() || url,
+                id: inputUrl,
+                name: inputUrl.split("/").pop() || inputUrl,
                 description: "Standalone library",
                 repo: repoSlug,
                 author: "Unknown",

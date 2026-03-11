@@ -510,7 +510,6 @@
 
 .af-manage-sub-btn {
     background-color: transparent !important;
-    border: 1px solid var(--interactive-accent) !important;
     color: var(--interactive-accent) !important;
 }
 

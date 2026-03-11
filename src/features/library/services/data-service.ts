@@ -41,7 +41,9 @@ export class DataService {
             branch: config.branch || "main",
             lastSync: config.lastSync,
             category: config.category,
-            topics: config.topics || []
+            topics: config.topics || [],
+            availableTopics: availableTopics,
+            subscribedTopics: config.subscribedTopics || []
         };
 
         console.debug(`[DataService] Parsed LibraryConfig (Manifest):`, configObj);

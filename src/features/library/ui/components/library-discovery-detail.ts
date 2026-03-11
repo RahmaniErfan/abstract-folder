@@ -44,7 +44,8 @@ export class LibraryDiscoveryDetail {
         installBtn.addEventListener("click", async () => {
             installBtn.disabled = true;
             installBtn.setText("Checking topics...");
-            const remoteConfig = await this.catalogService.fetchRemoteLibraryConfig(item.repositoryUrl);
+            const repoUrl = item.repo || (item as any).repositoryUrl;
+            const remoteConfig = await this.catalogService.fetchRemoteLibraryConfig(repoUrl);
             const librariesPath = this.plugin.settings.library.librariesPath;
             const destPath = `${librariesPath}/${item.name}`;
 
@@ -54,7 +55,7 @@ export class LibraryDiscoveryDetail {
                 }).open();
             } else {
                 new Notice(`Installing ${item.name}...`);
-                await this.plugin.libraryManager.cloneLibrary(item.repositoryUrl, destPath, item);
+                await this.plugin.libraryManager.cloneLibrary(repoUrl, destPath, item);
                 new Notice("Installation complete");
                 this.options.onInstallSuccess(destPath);
             }
@@ -65,8 +66,8 @@ export class LibraryDiscoveryDetail {
         
         void (async () => {
             try {
-                let readmeUrl = item.repositoryUrl;
-                if (readmeUrl.includes("github.com")) {
+                let readmeUrl = item.repo || (item as any).repositoryUrl;
+                if (readmeUrl && readmeUrl.includes("github.com")) {
                     readmeUrl = readmeUrl.replace("github.com", "raw.githubusercontent.com") + "/main/README.md";
                     const response = await requestUrl({ url: readmeUrl });
                     if (response.status === 200) {

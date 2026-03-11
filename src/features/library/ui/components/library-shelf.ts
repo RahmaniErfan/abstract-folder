@@ -5,6 +5,7 @@ import { CatalogService } from "../../services/catalog-service";
 import { CatalogItem, LibraryNode } from "../../types";
 import { LibraryInfoModal } from "../modals/library-info-modal";
 import { CatalogModal } from "../modals/catalog-modal";
+import { TopicSubscriptionModal } from "../modals/topic-subscription-modal";
 
 export interface LibraryShelfOptions {
     containerEl: HTMLElement;
@@ -175,7 +176,7 @@ export class LibraryShelf {
                         name: lib.file.name,
                         author: "Local",
                         description: "Personally installed or custom library.",
-                        repositoryUrl: "",
+                        repo: "",
                         category: "Local",
                         tags: []
                     }, lib);
@@ -227,8 +228,6 @@ export class LibraryShelf {
         if (installed) {
             if (isSyncing) {
                 actions.createDiv({ cls: "library-card-badge is-syncing", text: "Syncing..." });
-            } else {
-                actions.createDiv({ cls: "library-card-badge", text: "Installed" });
             }
 
             const actionButtons = actions.createDiv({ cls: "af-library-detail-actions" });
@@ -265,17 +264,25 @@ export class LibraryShelf {
                 }
             });
 
-            const githubBtn = actionButtons.createDiv({ 
-                cls: "af-library-detail-action af-library-detail-github",
-                attr: { "aria-label": "View on GitHub" }
-            });
-            setIcon(githubBtn, "github");
-            githubBtn.addEventListener("click", (e) => {
-                e.stopPropagation();
-                if (item.repositoryUrl) {
-                    window.open(item.repositoryUrl, "_blank");
-                }
-            });
+            // Manage Subscriptions Button (Settings icon)
+            void (async () => {
+                try {
+                    const config = await this.plugin.libraryManager.validateLibrary(installed.path);
+                    if (config.availableTopics && config.availableTopics.length > 0) {
+                        const settingsBtn = actionButtons.createDiv({ 
+                            cls: "af-library-detail-action af-manage-sub-btn",
+                            attr: { "aria-label": "Manage Subscriptions" }
+                        });
+                        setIcon(settingsBtn, "settings");
+                        settingsBtn.addEventListener("click", (e) => {
+                            e.stopPropagation();
+                            new TopicSubscriptionModal(this.app, config, installed.path, this.plugin.libraryManager, () => {
+                                // Metadata updated
+                            }).open();
+                        });
+                    }
+                } catch (e) {}
+            })();
         }
 
         card.addEventListener("click", () => {

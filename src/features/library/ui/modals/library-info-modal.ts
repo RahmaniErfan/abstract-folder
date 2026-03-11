@@ -25,7 +25,7 @@ export class LibraryInfoModal extends Modal {
 
         // 3. Catalog Management
         this.renderSection(container, "Catalog Management", "settings", 
-            "Managing your own catalog must be done through GitHub; it cannot be managed directly through Obsidian. This ensures that the directory remains structured and easily accessible for contributors and users alike.");
+            "Managing your own catalog must be done through GitHub; it cannot be managed directly through Obsidian. This ensures that the catalog remains structured and easily accessible for contributors and users alike.");
 
         // 4. Contributing
         this.renderSection(container, "Contributing", "git-pull-request", 

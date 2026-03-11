@@ -23,14 +23,14 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 
 	new Setting(containerEl).setName("Abstract Catalog & Marketplace").setHeading();
 
-	const OFFICIAL_CATALOG_URL = "https://raw.githubusercontent.com/RahmaniErfan/abstract-catalog/main/catalog.json";
+	const OFFICIAL_CATALOG_URL = "https://raw.githubusercontent.com/RahmaniErfan/abstract-catalog/main/.abstract/catalog.json";
 
 	new Setting(containerEl)
 		.setName("Custom catalogs")
 		.setDesc("Add your own catalog URL, one per line. The official Abstract catalog is always included automatically.")
 		.addTextArea((text) =>
 			text
-				.setPlaceholder("https://example.com/catalog.json")
+				.setPlaceholder("e.g. RahmaniErfan/abstract-catalog")
 				.setValue((plugin.settings.library?.catalogs || []).filter((c) => c !== OFFICIAL_CATALOG_URL).join("\n"))
 				.onChange(async (value) => {
 					plugin.settings.library.catalogs = value
@@ -45,7 +45,7 @@ export function renderLibrarySettings(containerEl: HTMLElement, plugin: Abstract
 		.setDesc("Direct link for standalone libraries")
 		.addTextArea((text) =>
 			text
-				.setPlaceholder("https://github.com/user/repo")
+				.setPlaceholder("e.g. RahmaniErfan/abstract-shelf")
 				.setValue((plugin.settings.library?.standaloneLibraries || []).join("\n"))
 				.onChange(async (value) => {
 					plugin.settings.library.standaloneLibraries = value

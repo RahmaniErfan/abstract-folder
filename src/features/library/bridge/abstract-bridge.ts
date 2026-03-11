@@ -85,6 +85,8 @@ export class AbstractBridge {
                 } else {
                     // Direct disk scan for sub-libraries
                     for (const subDir of list.folders) {
+                        const name = subDir.split('/').pop();
+                        if (name === ".git" || name === "node_modules" || name === ".abstract") continue;
                         const subLibraries = await this.discoverLibraries(subDir, true);
                         libraries.push(...subLibraries);
                     }
@@ -115,6 +117,7 @@ export class AbstractBridge {
             } else {
                 for (const child of folder.children) {
                     if (child instanceof TFolder) {
+                        if (child.name === ".git" || child.name === "node_modules" || child.name === ".abstract") continue;
                         const subLibraries = await this.discoverLibraries(child.path, false);
                         libraries.push(...subLibraries);
                     }
@@ -134,28 +137,32 @@ export class AbstractBridge {
      * Helper to read library.config.json from the vault.
      */
     private async getLibraryConfig(dir: string): Promise<LibraryConfig | null> {
-        const configPath = `${dir}/library.json`;
-        
         // 1. Try Obsidian file cache first (fastest)
-        const file = this.app.vault.getAbstractFileByPath(configPath);
-        if (file instanceof TFile) {
-            try {
-                const content = await this.app.vault.read(file);
-                return DataService.parseLibraryConfig(content);
-            } catch (e) {
-                // Potential parse error or file being indexed
+        const pathsToTry = [`${dir}/.abstract/library.json`, `${dir}/library.json` ];
+        
+        for (const configPath of pathsToTry) {
+            const file = this.app.vault.getAbstractFileByPath(configPath);
+            if (file instanceof TFile) {
+                try {
+                    const content = await this.app.vault.read(file);
+                    return DataService.parseLibraryConfig(content);
+                } catch (e) {
+                    // Potential parse error
+                }
             }
         }
 
-        // 2. Fallback to adapter.read (direct disk) - essential for discovery during sync/install
-        try {
-            const exists = await this.app.vault.adapter.exists(configPath);
-            if (exists) {
-                const content = await this.app.vault.adapter.read(configPath);
-                return DataService.parseLibraryConfig(content);
+        // 2. Fallback to adapter.read (direct disk)
+        for (const configPath of pathsToTry) {
+            try {
+                const exists = await this.app.vault.adapter.exists(configPath);
+                if (exists) {
+                    const content = await this.app.vault.adapter.read(configPath);
+                    return DataService.parseLibraryConfig(content);
+                }
+            } catch (e) {
+                // Not a library or file locked
             }
-        } catch (e) {
-            // Not a library or file locked
         }
         
         return null;
@@ -180,24 +187,32 @@ export class AbstractBridge {
         const files: TFile[] = [];
         const localPathMap = new Map<string, string>(); // basename/name -> path
 
-        const recursiveScan = async (folder: TFolder) => {
-            // Force vault to see children if they might be missing (newly cloned)
-            if (folder.children.length === 0) {
-                 await this.app.vault.adapter.list(folder.path);
-            }
-
-            for (const child of folder.children) {
-                if (child instanceof TFolder) {
-                    if (child.name === ".git" || child.name === "node_modules") continue;
-                    await recursiveScan(child);
-                } else if (child instanceof TFile && child.extension === 'md' && child.name !== 'library.config.json') {
-                    files.push(child);
-                    localPathMap.set(child.basename, child.path);
-                    localPathMap.set(child.name, child.path);
+        const recursiveScan = async (dirPath: string) => {
+            const list = await this.app.vault.adapter.list(dirPath);
+            
+            // Files
+            for (const filePath of list.files) {
+                if (filePath.endsWith(".md")) {
+                    const file = this.app.vault.getAbstractFileByPath(filePath);
+                    if (file instanceof TFile && file.name !== 'library.json' && file.name !== 'manifest.json') {
+                        files.push(file);
+                        localPathMap.set(file.basename, file.path);
+                        localPathMap.set(file.name, file.path);
+                    } else if (!file && filePath.endsWith(".md")) {
+                        // Even if not in vault (un-indexed), we can still track the path if we have to
+                        // but buildAbstractLibraryTree currently depends on TFile.
+                    }
                 }
             }
+
+            // Folders
+            for (const subDir of list.folders) {
+                const name = subDir.split('/').pop();
+                if (name === ".git" || name === "node_modules" || name === ".abstract") continue;
+                await recursiveScan(subDir);
+            }
         };
-        await recursiveScan(libraryRoot);
+        await recursiveScan(libraryRoot.path);
 
         const parentToChildren: Record<string, Set<string>> = {};
         const childToParents: Record<string, Set<string>> = {};

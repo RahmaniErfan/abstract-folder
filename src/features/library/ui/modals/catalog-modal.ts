@@ -342,8 +342,8 @@ export class CatalogModal extends Modal {
             });
         }
 
-        const ghBtn = actions.createDiv({ cls: "af-library-detail-action clickable-icon", attr: { "aria-label": "View on GitHub" } });
-        setIcon(ghBtn, "github");
+        const ghBtn = actions.createDiv({ cls: "af-library-detail-action clickable-icon icon-repo", attr: { "aria-label": "View on GitHub" } });
+        setIcon(ghBtn, "settings");
         ghBtn.addEventListener("click", () => {
             const githubUrl = item.repo.startsWith("http") ? item.repo : `https://github.com/${item.repo}`;
             window.open(githubUrl, "_blank");
@@ -393,7 +393,7 @@ export class CatalogModal extends Modal {
         const manageSection = container.createDiv({ cls: "af-catalog-manage-section" });
         
         manageSection.createEl("h3", { text: "Manage Catalogs" });
-        manageSection.createEl("p", { text: "Add the URL of a directory.json file from a custom Abstract Folder catalog.", cls: "af-manage-help-text" });
+        manageSection.createEl("p", { text: "Add the GitHub slug or URL of a custom Abstract Folder catalog. We'll find the .abstract/catalog.json automatically.", cls: "af-manage-help-text" });
 
         // Official catalog — locked, cannot be removed
         const officialList = manageSection.createDiv({ cls: "af-manage-list" });
@@ -408,7 +408,7 @@ export class CatalogModal extends Modal {
         const catalogInputWrapper = manageSection.createDiv({ cls: "af-manage-input-row" });
         const catalogInput = catalogInputWrapper.createEl("input", {
             type: "text",
-            placeholder: "e.g. raw.githubusercontent.com/.../directory.json"
+            placeholder: "e.g. RahmaniErfan/abstract-catalog"
         });
         const addCatalogBtn = catalogInputWrapper.createEl("button", { text: "Add Catalog" });
 
@@ -422,12 +422,12 @@ export class CatalogModal extends Modal {
         manageSection.createEl("hr");
 
         manageSection.createEl("h3", { text: "Manage Standalone Libraries" });
-        manageSection.createEl("p", { text: "Add the Git repository URL of a standalone Abstract Folder library.", cls: "af-manage-help-text" });
+        manageSection.createEl("p", { text: "Add the GitHub slug or repository URL of a standalone Abstract Folder library.", cls: "af-manage-help-text" });
 
         const standaloneInputWrapper = manageSection.createDiv({ cls: "af-manage-input-row" });
         const standaloneInput = standaloneInputWrapper.createEl("input", {
             type: "text",
-            placeholder: "e.g. https://github.com/RahmaniErfan/my-library"
+            placeholder: "e.g. RahmaniErfan/abstract-shelf"
         });
         const addStandaloneBtn = standaloneInputWrapper.createEl("button", { text: "Add Standalone" });
 

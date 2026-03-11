@@ -4,6 +4,7 @@ import { CatalogItem } from "../../types";
 import { CatalogService } from "../../services/catalog-service";
 import { LibraryManager } from "../../../../core/git/library-manager";
 import type AbstractFolderPlugin from "../../../../../main";
+import { TopicSubscriptionModal } from "../modals/topic-subscription-modal";
 
 export const VIEW_TYPE_LIBRARY_CENTER = "abstract-library-center";
 
@@ -143,7 +144,7 @@ export class LibraryCenterView extends ItemView {
             items = items.filter(i =>
                 i.name.toLowerCase().includes(this.searchQuery) ||
                 i.description.toLowerCase().includes(this.searchQuery) ||
-                i.tags.some(t => t.toLowerCase().includes(this.searchQuery))
+                (i.tags || []).some(t => t.toLowerCase().includes(this.searchQuery))
             );
         }
 
@@ -251,6 +252,22 @@ export class LibraryCenterView extends ItemView {
             const uninstallBtn = actionsRow.createDiv({ cls: "af-library-detail-action clickable-icon mod-warning", attr: { "aria-label": "Uninstall" } });
             setIcon(uninstallBtn, "trash");
             uninstallBtn.addEventListener("click", () => this.uninstallLibrary(item, uninstallBtn));
+
+            // Handshake to see if we can manage subscriptions
+            void (async () => {
+                try {
+                    const config = await this.libraryManager.validateLibrary(destPath);
+                    if (config.availableTopics && config.availableTopics.length > 0) {
+                        const manageBtn = actionsRow.createDiv({ cls: "af-library-detail-action clickable-icon af-manage-sub-btn", attr: { "aria-label": "Manage Subscriptions" } });
+                        setIcon(manageBtn, "settings");
+                        manageBtn.addEventListener("click", () => {
+                            new TopicSubscriptionModal(this.app, config, destPath, this.libraryManager, () => {
+                                this.renderLibraryDetail(item);
+                            }).open();
+                        });
+                    }
+                } catch (e) {}
+            })();
         } else {
             const installBtn = actions.createDiv({ cls: "af-library-detail-action clickable-icon mod-cta", attr: { "aria-label": "Install" } });
             setIcon(installBtn, "download");
@@ -258,23 +275,31 @@ export class LibraryCenterView extends ItemView {
         }
 
         const ghBtn = actions.createDiv({ cls: "af-library-detail-action clickable-icon", attr: { "aria-label": "View on GitHub" } });
-        setIcon(ghBtn, "github");
-        ghBtn.addEventListener("click", () => window.open(item.repositoryUrl, "_blank"));
+        setIcon(ghBtn, "settings");
+        ghBtn.addEventListener("click", () => {
+            const repoUrl = item.repo || (item as any).repositoryUrl;
+            if (repoUrl) {
+                const url = repoUrl.startsWith("http") ? repoUrl : `https://github.com/${repoUrl}`;
+                window.open(url, "_blank");
+            }
+        });
 
         const body = this.detailEl.createDiv({ cls: "af-library-detail-body markdown-rendered" });
         body.createEl("p", { text: "Loading README...", cls: "loading-text" });
 
         void (async () => {
             try {
-                if (!item.repositoryUrl) {
+                if (!item.repo) {
                     body.empty();
                     body.createEl("p", { text: "No repository URL available." });
                     return;
                 }
                 
-                let readmeUrl = item.repositoryUrl;
+                let readmeUrl = item.repo;
                 if (readmeUrl.includes("github.com")) {
                     readmeUrl = readmeUrl.replace("github.com", "raw.githubusercontent.com") + "/main/README.md";
+                } else if (!readmeUrl.startsWith("http")) { // Slug
+                    readmeUrl = `https://raw.githubusercontent.com/${readmeUrl}/main/README.md`;
                 } else {
                     body.empty();
                     body.createEl("p", { text: "README preview only supported for GitHub." });
@@ -310,11 +335,12 @@ export class LibraryCenterView extends ItemView {
             Logger.debug(`[LibraryCenterView] installLibrary triggered`);
             Logger.debug(`[LibraryCenterView] Item ID: ${item.id}`);
             Logger.debug(`[LibraryCenterView] Item Name: ${item.name}`);
-            Logger.debug(`[LibraryCenterView] Repository URL: ${item.repositoryUrl}`);
+            Logger.debug(`[LibraryCenterView] Repository: ${item.repo}`);
             Logger.debug(`[LibraryCenterView] Destination Path: ${destPath}`);
 
             new Notice(`Installing ${item.name}...`);
-            await this.libraryManager.cloneLibrary(item.repositoryUrl, destPath, item);
+            const cloneUrl = item.repo.startsWith("http") ? item.repo : `https://github.com/${item.repo}`;
+            await this.libraryManager.cloneLibrary(cloneUrl, destPath, item);
             
             new Notice(`Successfully installed ${item.name}`);
             if (btn) {
