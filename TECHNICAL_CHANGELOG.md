@@ -1,5 +1,12 @@
 # Technical Changelog
 
+## [2026-03-11] Version 2.0.0: High-Performance Architecture Release
+
+### 1. Major Architectural Milestone
+*   **Full SOVM Transition**: Migrated all core components to the Service-Oriented View Model.
+*   **V2 Engine Stability**: Finalized Engine 1 (Git Sync) and Engine 2 (Public Library Sync) for production use.
+*   **UI Virtualization**: Hardened the virtualized tree system for high-scale vault performance.
+
 ## [2026-02-23] Engine 2: CDN-Gated Public Library Sync Pipeline
 
 ### 1. High-Scale CDN Polling (`CDNManifestPoller`)

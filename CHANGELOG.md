@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased] - (V2 High-Performance Architecture)
+## [2.0.0] - 2026-03-11
 ### Added
 - **Unified Dashboard UI**: Consolidated "Space Dashboard," "Personal Backup," and "Collaborator" modals into a single, high-performance `AbstractDashboardModal`. Features a context-aware `UnifiedDashboardView` with sync settings, recent activity, and collaboration tools.
 - **Global Sync Status Indicators**: Enabled real-time Git synchronization feedback (colored dots) in the main Abstract Folder view, providing vault-wide backup visibility.
